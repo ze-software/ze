@@ -45,7 +45,10 @@ var actions = func() leaction.Area {
 		Does:    "selftest",
 		Summary: "run every hook golden row and behavioral fixture",
 		Why:     "run every hook dispatcher golden row and every behavioral fixture category in-process",
-		Answer:  runHere,
+		// Heavy by the action's registered name (leroot.RegisterExpensive in
+		// register.go), which the pipe guard reads too.
+		NoSlot: "an in-process selftest of the hooks, single process, seconds",
+		Answer: runHere,
 	})
 	for _, verb := range verbs {
 		kind := verb

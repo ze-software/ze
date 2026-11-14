@@ -325,7 +325,9 @@ func Actions() leaction.List { return table(&session{}).Actions() }
 // list of 32 names is not a useful hint. The next keyword reveals those names.
 func Subs() string {
 	var tb textbuf.Buffer
-	for _, action := range areaActions(&session{}) {
+	actions := areaActions(&session{})
+	for index := range actions {
+		action := &actions[index]
 		tb.Str(action.Verb).Str(" (").Str(action.Why).Str(") | ")
 	}
 	return tb.Str("<suite> | exabgp").String()

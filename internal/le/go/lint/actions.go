@@ -30,10 +30,13 @@ import (
 const jobLabel = job.LintLabel
 
 var actions = leaction.New(area, leaction.Action{
-	Verb:    actionRun,
-	Heavy:   true,
-	Summary: "lint the tree, a package scope or the change set",
-	Why:     "lint the full tree, a declared package scope, or the packages the change set reaches (changed) through the host, Linux integration, platform, capability, personality, and compile-out builds",
+	Verb:  actionRun,
+	Heavy: true,
+	// runHere admits in process under its own label, with its shared
+	// verdicts and its log.
+	AdmitsItself: true,
+	Summary:      "lint the tree, a package scope or the change set",
+	Why:          "lint the full tree, a declared package scope, or the packages the change set reaches (changed) through the host, Linux integration, platform, capability, personality, and compile-out builds",
 	Parameters: []leaction.Parameter{
 		{Keyword: "scope", Kind: leaction.KindString, Help: "package patterns to lint instead of the whole tree", Value: "packages", Requirement: leaction.Optional},
 		{Keyword: keywordChanged, Kind: leaction.KindSwitch, Help: "lint only the packages the change set reaches"},

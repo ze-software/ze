@@ -144,8 +144,11 @@ func pkgAction(tc gotoolchain.Toolchain) leaction.Action {
 			" `vet` type-checks them and their test files instead, under vet-pkg. `changed` takes the packages" +
 			" the change reaches. The scoped test of a package you are developing; the groups and `all` are" +
 			" the wider runs",
-		Parameters: pkgParameters(),
-		AnswerArgs: func(args leaction.Arguments) (any, int) { return answerPkg(tc, args) },
+		// admittedQuietRun takes the slot, with the run's own log and report.
+		// The row is heavy by its area (leroot.RegisterHeavy).
+		AdmitsItself: true,
+		Parameters:   pkgParameters(),
+		AnswerArgs:   func(args leaction.Arguments) (any, int) { return answerPkg(tc, args) },
 	}
 }
 

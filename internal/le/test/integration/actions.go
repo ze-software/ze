@@ -39,7 +39,7 @@ func table(tc gotoolchain.Toolchain) leaction.Area {
 	declared := Table()
 	rows := make([]leaction.Action, 0, len(declared))
 	for _, action := range declared {
-		row := leaction.Action{Verb: action.Verb, Does: action.Does, Summary: action.Summary, Why: action.Why}
+		row := leaction.Action{Verb: action.Verb, Does: action.Does, Summary: action.Summary, Why: action.Why, NoSlot: action.NoSlot}
 		switch {
 		case action.NativeArgs != nil:
 			row.Parameters = action.Parameters

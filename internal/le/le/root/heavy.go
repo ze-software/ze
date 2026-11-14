@@ -3,14 +3,17 @@
 // Related: dispatch.go -- resolve, nestedNamespace and asksForUsage, which this reading reuses
 // Related: citation.go -- JudgeCitation, the other reader of a typed line
 //
-// Whether a typed le line starts heavy work, and whether it only carries a
-// program the line names, are read from what each area declared, by the
-// resolver dispatch runs, so the pretool hook and the binary cannot disagree
-// about which action a line names.
+// Related: admitter.go -- the dispatcher's admission point, which asks the slot reading
+//
+// Whether a typed le line starts heavy work, whether it only carries a
+// program the line names, and how it takes its job slot, are read from what
+// each area declared, by the resolver dispatch runs, so the pretool hook and
+// the binary cannot disagree about which action a line names.
 
 package leroot
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -103,6 +106,13 @@ func HeavyCommand(words []string) (string, bool) {
 	if !runs {
 		return "", false
 	}
+	return heavyOf(line)
+}
+
+// heavyOf is HeavyCommand's answer for a line already resolved, so the slot
+// reading (slotOf) judges the same resolution and cannot name another
+// command.
+func heavyOf(line typedLine) (string, bool) {
 	if line.declared {
 		return heavyInTable(line.area, line.list, line.rest)
 	}
@@ -355,6 +365,288 @@ func ownsItsWords(row leaction.Row) bool {
 		return true
 	}
 	return len(row.Parameters) != 0
+}
+
+// RegisterNoSlot records heavy work that takes no job slot, and why, where no
+// action row can carry the declaration (leaction.Action.NoSlot): an area with
+// no rows, whose words are another program's, or one selection of an action.
+// name is the area's name, or the whole command name HeavyCommand answers for
+// the line: an area and a verb, or an area, a verb and a selection, as
+// RegisterHeavy reads it. reason says why queueing the work protects nothing,
+// in words a reader of `le job report` understands.
+//
+// The work stays heavy for a subagent: the hook still hands the line back.
+// The dispatcher's central admission leaves it alone, and SlotOfLine answers
+// SlotNone with the reason. It panics on an empty name or reason, because an
+// opt-out of admission that does not say why is a Ze defect at init; a name
+// that is not heavy stops le when it starts
+// (requireSlotDeclarationsAreHeavy). MUST be called from init.
+func RegisterNoSlot(name, reason string) {
+	if name == "" {
+		panic("BUG: leroot.RegisterNoSlot: name the area or the command that takes no job slot")
+	}
+	if reason == "" {
+		panic("BUG: leroot.RegisterNoSlot: " + name + " takes no job slot and gives no reason; say why queueing it protects nothing")
+	}
+	noSlotNames.Lock()
+	defer noSlotNames.Unlock()
+	if noSlotNames.byName == nil {
+		noSlotNames.byName = make(map[string]string, 4)
+	}
+	noSlotNames.byName[name] = reason
+}
+
+// NoSlotReason answers the reason name registered for taking no job slot
+// (RegisterNoSlot), and false for a name that registered none.
+func NoSlotReason(name string) (string, bool) {
+	noSlotNames.RLock()
+	defer noSlotNames.RUnlock()
+	reason, registered := noSlotNames.byName[name]
+	return reason, registered
+}
+
+// noSlotNames holds every name that registered as taking no slot, with its
+// reason. Registration runs in init() and the dispatcher reads it on any
+// goroutine, so the map is guarded. Safe for concurrent use.
+var noSlotNames struct {
+	sync.RWMutex
+	byName map[string]string
+}
+
+// SlotKind is how a typed line takes its job slot (internal/le/job). The zero
+// value is no answer, so a Slot nobody filled is never read as a light line.
+type SlotKind uint8
+
+const (
+	// SlotUnspecified is the zero value: no reading was made.
+	SlotUnspecified SlotKind = iota
+	// SlotLight is a line that starts no heavy work, or starts nothing: it
+	// takes no slot and is never queued.
+	SlotLight
+	// SlotCentral is a heavy line the dispatcher admits: one slot before the
+	// body runs, released with the body's exit code. It is the answer for
+	// every heavy line whose own declaration says nothing else.
+	SlotCentral
+	// SlotSelf is a heavy line whose body takes its own slot
+	// (leaction.Action.AdmitsItself, RegisterAdmitted).
+	SlotSelf
+	// SlotNone is a heavy line that takes no slot, with the reason its
+	// declaration gives (leaction.Action.NoSlot, RegisterNoSlot).
+	SlotNone
+)
+
+// Slot is the slot reading of one typed line: how it takes its job slot, the
+// command it resolved to, and for a line that takes none, why.
+type Slot struct {
+	// Kind is never SlotUnspecified in a Slot that SlotOfLine answered.
+	Kind SlotKind
+	// Command is the name HeavyCommand answers for the line, in le's words
+	// and without the program. For SlotCentral it names the action the slot
+	// is taken for, and the job label is derived from it. It is empty exactly
+	// for SlotLight.
+	Command string
+	// Reason is why the line takes no slot. It is set exactly for SlotNone.
+	Reason string
+}
+
+// SlotOfLine answers how words, the words typed after `le`, take their job
+// slot. It reads the resolution HeavyLine, HeavyCommand and CarrierLine read
+// (resolveLine), so the hook that hands a heavy line back and the dispatcher
+// that admits it cannot disagree about which action a line names, and a line
+// is SlotLight exactly when HeavyLine answers false for it.
+//
+// A heavy line is SlotCentral unless a declaration made where its action
+// registers says otherwise. The default is the safe side: an action whose
+// author declared nothing is admitted. In order: a name registered as taking
+// no slot (RegisterNoSlot), for the area or for the command the line resolved
+// to, is SlotNone; an area registered as admitted (RegisterAdmitted) is
+// SlotSelf; then the rows the line names decide. A sweep names several verbs,
+// and it is SlotCentral when any heavy verb it names is, so a self-admitting
+// verb named first cannot carry a central one past admission: that verb then
+// runs inside the line's slot. With no central verb it is SlotSelf when any
+// heavy verb admits itself, and SlotNone otherwise.
+//
+// words and the registry are bound as HeavyLine binds them.
+func SlotOfLine(words []string) Slot {
+	line, runs := resolveLine(words)
+	if !runs {
+		return Slot{Kind: SlotLight}
+	}
+	return slotOf(line)
+}
+
+// slotOf is SlotOfLine's answer for a line already resolved. The dispatcher
+// asks it of the line it is about to run (centralSlot), which it resolved
+// itself.
+func slotOf(line typedLine) Slot {
+	command, heavy := heavyOf(line)
+	if !heavy {
+		return Slot{Kind: SlotLight}
+	}
+	if reason, registered := NoSlotReason(command); registered {
+		return Slot{Kind: SlotNone, Command: command, Reason: reason}
+	}
+	if reason, registered := NoSlotReason(line.area); registered {
+		return Slot{Kind: SlotNone, Command: command, Reason: reason}
+	}
+	if Admits(line.area) {
+		return Slot{Kind: SlotSelf, Command: command}
+	}
+	if !line.declared {
+		return Slot{Kind: SlotCentral, Command: command}
+	}
+	if line.list.PassesWords {
+		return Slot{Kind: SlotCentral, Command: command}
+	}
+	return slotInTable(line, command)
+}
+
+// slotInTable reads the rows a heavy line names, where neither the area nor
+// the command registered a handling by name. command is the name heavyOf
+// answered. The verbs are read as heavyRows reads them: the first word is the
+// action dispatch runs, and where that action takes no words of its own the
+// words after it are further verbs of a sweep, up to the first word the table
+// does not hold. The loop is bounded by the typed line.
+func slotInTable(line typedLine, command string) Slot {
+	words := line.list.AtVerb(line.rest)
+	at := rowIndex(line.list, words[0])
+	if at < 0 {
+		// The area is heavy by its name and holds no row for the word, so no
+		// row declares a handling: the default stands.
+		return Slot{Kind: SlotCentral, Command: command}
+	}
+	first := line.list.Actions[at]
+	named := []leaction.Row{first}
+	if !ownsItsWords(first) {
+		for _, word := range words[1:] {
+			next := rowIndex(line.list, word)
+			if next < 0 {
+				break
+			}
+			named = append(named, line.list.Actions[next])
+		}
+	}
+	// A named action is heavy by its own row, by its whole area, or, for the
+	// first one, by a name it registered, which heavyInTable reads before any
+	// row.
+	wholeArea := heavyByName(line.area)
+	firstByName := heavyByActionName(line.area, words)
+
+	centralAt, self, reason := -1, false, ""
+	for index, row := range named {
+		heavy := row.Heavy || wholeArea
+		if index == 0 && firstByName {
+			heavy = true
+		}
+		if !heavy {
+			continue
+		}
+		if row.NoSlot != "" {
+			if reason == "" {
+				reason = row.NoSlot
+			}
+			continue
+		}
+		if row.AdmitsItself {
+			self = true
+			continue
+		}
+		if centralAt < 0 {
+			centralAt = index
+		}
+	}
+	if centralAt == 0 {
+		// The first action is the one heavyOf named, with its selection
+		// where a selection made it heavy.
+		return Slot{Kind: SlotCentral, Command: command}
+	}
+	if centralAt > 0 {
+		return Slot{Kind: SlotCentral, Command: actionName(line.area, named[centralAt].Verb)}
+	}
+	if self {
+		return Slot{Kind: SlotSelf, Command: command}
+	}
+	if reason != "" {
+		return Slot{Kind: SlotNone, Command: command, Reason: reason}
+	}
+	// No named row accounted for the verdict, so no declaration was read and
+	// the default stands: a heavy line is admitted.
+	return Slot{Kind: SlotCentral, Command: command}
+}
+
+// heavyByActionName reports whether words, a line that begins at a verb of
+// the area name, is heavy by a name its first action registered: the action
+// as expensive (RegisterExpensive), or the action and the word after it as a
+// heavy selection (RegisterHeavy). They are the two names heavyInTable reads
+// for an area that is not heavy as a whole.
+func heavyByActionName(name string, words []string) bool {
+	if words[0] == "" {
+		return false
+	}
+	action := actionName(name, words[0])
+	if Expensive(action) {
+		return true
+	}
+	if len(words) < 2 {
+		return false
+	}
+	return Heavy(actionName(action, words[1]))
+}
+
+// requireSlotDeclarationsAreHeavy panics naming the first slot declaration
+// made on something light: a row of names that declares AdmitsItself or
+// NoSlot and is not heavy, or a name registered with RegisterNoSlot that
+// nothing declares heavy. Such a declaration opts out of an admission that
+// never applied, so it records a decision nobody made: a Ze defect only its
+// author can fix. MUST run after every init.
+func requireSlotDeclarationsAreHeavy(names []string) {
+	for _, name := range names {
+		list, declared := ActionsOf(name)
+		if !declared {
+			continue
+		}
+		for _, row := range list.Actions {
+			if !row.AdmitsItself && row.NoSlot == "" {
+				continue
+			}
+			if rowIsHeavy(name, row) {
+				continue
+			}
+			panic("BUG: le action \"" + actionName(name, row.Verb) + "\" declares AdmitsItself or NoSlot and is not heavy: " +
+				"declare Heavy on the row, or drop the slot declaration, in the area's action table")
+		}
+	}
+	noSlotNames.RLock()
+	defer noSlotNames.RUnlock()
+	for name := range noSlotNames.byName {
+		if nameIsHeavy(name) {
+			continue
+		}
+		panic("BUG: leroot.RegisterNoSlot(\"" + name + "\") names nothing heavy: register the name with " +
+			"leroot.RegisterHeavy, or drop the registration, in the area's register.go")
+	}
+}
+
+// rowIsHeavy reports whether one row of the area name is heavy by its own
+// declaration, by its area's, or by the action's registered name.
+func rowIsHeavy(name string, row leaction.Row) bool {
+	if row.Heavy {
+		return true
+	}
+	if heavyByName(name) {
+		return true
+	}
+	return Expensive(actionName(name, row.Verb))
+}
+
+// nameIsHeavy reports whether name, as RegisterNoSlot takes it, is declared
+// heavy: an area registered by its whole name, a selection registered with
+// RegisterHeavy, or a command line that HeavyLine reads as heavy.
+func nameIsHeavy(name string) bool {
+	if heavyByName(name) {
+		return true
+	}
+	return HeavyLine(strings.Fields(name))
 }
 
 // rowIndex answers the index of the table's row for verb, and -1 when the

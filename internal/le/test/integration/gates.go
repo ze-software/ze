@@ -64,6 +64,10 @@ type Action struct {
 	// Parameters. It counts as Native for "exactly one runner".
 	NativeArgs func(context.Context, string, leaction.Arguments) (any, int)
 	Parameters []leaction.Parameter
+	// NoSlot is the reason the action takes no job slot, carried to its row
+	// (leaction.Action.NoSlot). Every other action of the area is admitted by
+	// the dispatcher: a lab holds one slot for its whole run.
+	NoSlot string
 }
 
 // needsCgo reports whether this action's external command needs CGO_ENABLED=1.
@@ -201,6 +205,7 @@ func Table() []Action {
 			Why: "remove the Docker containers, networks and run-owned image tags a killed lab run left" +
 				" behind: only resources whose ze.lab owner labels prove the owner gone, never an unlabeled" +
 				" one, a volume or a cache tag. `dry` lists what would go and what stays, and why",
+			NoSlot: "removes containers and adds no load; queueing it protects nothing",
 		},
 		{
 			Verb:    dockerPeersVerb,

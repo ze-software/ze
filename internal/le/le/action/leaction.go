@@ -86,7 +86,9 @@ type Action struct {
 	// before the action's body runs and so before any admission, slot, worktree
 	// or container, unless stdin and stdout are both terminals
 	// (human.RequireTerminal). Declaring it here, where the verb registers, is
-	// what gates a new whole-tree verb; no list of gated verbs exists.
+	// what gates a new whole-tree verb; no list of gated verbs exists. Where
+	// the dispatcher admits the line centrally it asks the same gate first
+	// (List.AdmitWholeTree), so the refusal never follows a wait for a slot.
 	WholeTree bool
 	// Heavy says this action starts work that loads the machine every session
 	// shares: a build, a test run, a lint, a formatter over more than one
@@ -101,6 +103,29 @@ type Action struct {
 	// with no action rows declares the same for its whole line with
 	// leroot.RegisterHeavy.
 	Heavy bool
+	// AdmitsItself says this heavy action's body takes its own job slot
+	// through internal/le/job, under its own label, attach policy and log, so
+	// the dispatcher's central admission leaves the line alone
+	// (leroot.SlotOfLine answers leroot.SlotSelf). A heavy action that
+	// declares neither this nor NoSlot is admitted centrally: the dispatcher
+	// takes one slot before its body runs and releases it with the body's
+	// code. Declare it only where the body really admits: a row that declares
+	// it and takes no slot runs heavy work nothing queues. An area whose
+	// every line admits itself declares the same with leroot.RegisterAdmitted.
+	// It is refused beside NoSlot (New), and on a light action when le starts
+	// (leroot, requireSlotDeclarationsAreHeavy).
+	AdmitsItself bool
+	// NoSlot is the reason this heavy action takes no job slot at all, in
+	// words a reader of the manifest understands: "removes containers and
+	// adds no load; queueing it protects nothing". The action stays heavy for
+	// a subagent (the hook still hands the line back), and the dispatcher's
+	// central admission leaves it alone (leroot.SlotOfLine answers
+	// leroot.SlotNone with this reason). The reason is the declaration: an
+	// empty text declares nothing, so no action opts out of admission without
+	// saying why. A name no row can carry declares the same with
+	// leroot.RegisterNoSlot. It is refused beside AdmitsItself (New), and on a
+	// light action when le starts.
+	NoSlot string
 	// Parameters declares the closed keyword grammar for an argument-aware
 	// action. Existing actions leave it empty and use Answer.
 	Parameters []Parameter
@@ -160,7 +185,9 @@ func New(name string, actions ...Action) Area {
 
 	seen := make(map[string]bool, len(actions))
 	defaults := 0
-	for _, act := range actions {
+	for index := range actions {
+		// By pointer: an Action is too large to copy for each row.
+		act := &actions[index]
 		if act.Default {
 			defaults++
 		}
@@ -183,6 +210,8 @@ func New(name string, actions ...Action) Area {
 			panic("BUG: leaction.New: an argument-aware action declares no parameters")
 		case act.Why == "":
 			panic("BUG: leaction.New: an action has no Why, so the listing renders it blank")
+		case act.AdmitsItself && act.NoSlot != "":
+			panic("BUG: leaction.New: an action declares both AdmitsItself and NoSlot, so it takes its own job slot and none")
 		}
 		verb := area.verbOf(act)
 		if seen[verb] {
@@ -196,7 +225,7 @@ func New(name string, actions ...Action) Area {
 }
 
 // answerCount answers how many answer forms one action sets.
-func answerCount(act Action) int {
+func answerCount(act *Action) int {
 	count := 0
 	if act.Answer != nil {
 		count++
@@ -218,7 +247,7 @@ func answerCount(act Action) int {
 func (a Area) Name() string { return a.name }
 
 // verbOf answers the word a developer types for one action.
-func (a Area) verbOf(act Action) string {
+func (a Area) verbOf(act *Action) string {
 	return act.Verb
 }
 
@@ -228,8 +257,8 @@ func (a Area) verbOf(act Action) string {
 // that names no verb is resolved by the table itself (List.AtVerb), so no area
 // compares a typed word against its verbs to supply one.
 func (a Area) Holds(verb string) bool {
-	for _, act := range a.actions {
-		if a.verbOf(act) == verb {
+	for index := range a.actions {
+		if a.verbOf(&a.actions[index]) == verb {
 			return true
 		}
 	}
@@ -242,7 +271,8 @@ func (a Area) Holds(verb string) bool {
 // NAME: `render name term` is one action and two words of grammar, never three
 // actions.
 func (a Area) TakesArguments(name string) bool {
-	for _, act := range a.actions {
+	for index := range a.actions {
+		act := &a.actions[index]
 		if a.verbOf(act) == name {
 			return len(act.Parameters) != 0 || act.AnswerWords != nil
 		}
@@ -276,6 +306,12 @@ type Row struct {
 	// schedules, so a subagent hands the line back rather than run it
 	// (Action.Heavy).
 	Heavy bool `json:"heavy,omitempty"`
+	// AdmitsItself publishes that this verb's body takes its own job slot, so
+	// the dispatcher admits nothing for it (Action.AdmitsItself).
+	AdmitsItself bool `json:"admits-itself,omitempty"`
+	// NoSlot publishes why this heavy verb takes no job slot
+	// (Action.NoSlot), and is absent for every verb that takes one.
+	NoSlot string `json:"no-slot,omitempty"`
 	// Parameters is the action's whole keyword grammar, so a reader learns what
 	// an action takes without invoking it. A zero-argument action declares
 	// none, and the key is then absent rather than empty.
@@ -390,10 +426,14 @@ func (l List) holds(verb string) bool {
 // help renders, and the test that checks them all read one table.
 func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
-	for _, act := range a.actions {
+	for index := range a.actions {
+		// By pointer into the area's own table, which nothing writes after
+		// New, so the preparation below reads the row it was built for.
+		act := &a.actions[index]
 		list.Actions = append(list.Actions, Row{
 			Verb: act.Verb, Default: act.Default, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Does: act.Does, Frozen: act.Frozen,
 			Alone: act.Alone, WholeTree: act.WholeTree, Heavy: act.Heavy,
+			AdmitsItself: act.AdmitsItself, NoSlot: act.NoSlot,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			// Retired keywords are left out: nothing renders or offers one.
@@ -452,6 +492,98 @@ func (l List) Accepts(verb string, args []string) error {
 	return errors.New("le " + l.Area + " holds no action " + verb)
 }
 
+// AcceptsLine reports whether the table takes line, the words from the
+// action's verb on (AtVerb), without running anything. The dispatcher asks it
+// before it takes a job slot for the line, so a line the table refuses is
+// refused by its area at once and never queued (leroot, centralSlot).
+//
+// A forwarding action takes every word, because the words are its program's.
+// A line made of the table's verbs alone is a sweep (Area.Sweep) when its
+// first action declares no keywords. Any other line is the first action's own
+// grammar, read as Accepts reads it. An empty line and a verb this listing
+// does not hold are refused. A refusal an action's body makes after parsing
+// (a Required keyword left out, a verb a sweep cannot run) is not found here:
+// the body makes it.
+func (l List) AcceptsLine(line []string) error {
+	if len(line) == 0 {
+		return errors.New("le " + l.Area + " names no action")
+	}
+	row, held := l.row(line[0])
+	if !held {
+		return errors.New("le " + l.Area + " holds no action " + line[0])
+	}
+	if row.Forwards {
+		return nil
+	}
+	if !sweeps(row, line) {
+		return l.Accepts(line[0], line[1:])
+	}
+	for _, word := range line[1:] {
+		if !l.holds(word) {
+			return errors.New("le " + l.Area + " holds no action " + word)
+		}
+	}
+	return nil
+}
+
+// sweeps reports whether line, which opens with row's verb, can only be a
+// sweep: the row takes no words of its own and further words follow it.
+func sweeps(row Row, line []string) bool {
+	if len(line) < 2 {
+		return false
+	}
+	if row.Forwards {
+		return false
+	}
+	return len(row.Parameters) == 0
+}
+
+// AdmitWholeTree asks the whole-tree gate (Action.WholeTree) for line, the
+// words from the action's verb on (AtVerb), and runs nothing. It answers nil
+// when no action the line names is WholeTree, or when a person at a terminal
+// started it, and otherwise the refusal, which names the exact command line
+// to hand to Thomas. The dispatcher asks it before it takes a job slot, so a
+// release check is refused at once and never after a wait; the area asks the
+// same gate again before the body (Area.admit), and in one process the two
+// answers are the same.
+//
+// The actions a line names are its first verb and, for a sweep, every verb
+// after it. A line that opens with no action of the table names none: its
+// area refuses it.
+func (l List) AdmitWholeTree(line []string) error {
+	if len(line) == 0 {
+		return nil
+	}
+	first, held := l.row(line[0])
+	// refuse-by-default: guards refuseVerb -- a line that opens with no action of the table names no whole-tree action; the area refuses that line itself, so there is nothing for this gate to hold
+	if !held {
+		return nil
+	}
+	gated := first.WholeTree
+	if sweeps(first, line) {
+		for _, word := range line[1:] {
+			if row, named := l.row(word); named && row.WholeTree {
+				gated = true
+			}
+		}
+	}
+	if !gated {
+		return nil
+	}
+	return admitWholeTree(wholeTreeLine(l.Area, line))
+}
+
+// wholeTreeLine spells the command line the whole-tree gate names in its
+// refusal: the launcher, the area, and the words from the verb on.
+func wholeTreeLine(area string, args []string) string {
+	var line textbuf.Buffer
+	line.Str("./le ").Str(area)
+	for _, word := range args {
+		line.Byte(' ').Str(word)
+	}
+	return line.String()
+}
+
 // Missing answers the parameters verb declares Required that args, the words
 // after the verb, do not give, in declaration order, so the positional value
 // comes first. It runs nothing. A line the verb's parser refuses is that
@@ -488,7 +620,8 @@ func (l List) Missing(verb string, args []string) ([]Parameter, error) {
 // here, so the table stays the only parser of its line. A verb this area does
 // not hold is refused.
 func (a Area) Parse(verb string, args []string) (Arguments, error) {
-	for _, act := range a.actions {
+	for index := range a.actions {
+		act := &a.actions[index]
 		if a.verbOf(act) != verb {
 			continue
 		}
@@ -586,7 +719,8 @@ func (l List) NestedLeKeyword(verb string) (string, bool) {
 // action writes.
 func (a Area) Subs() string {
 	var tb textbuf.Buffer
-	for i, act := range a.actions {
+	for i := range a.actions {
+		act := &a.actions[i]
 		if i > 0 {
 			tb.Str(" | ")
 		}
@@ -681,7 +815,8 @@ func (a Area) Answer(args []string) (any, int) {
 		return a.Actions(), 0
 	}
 
-	for _, act := range a.actions {
+	for index := range a.actions {
+		act := &a.actions[index]
 		verb := a.verbOf(act)
 		if verb != args[0] {
 			continue
@@ -725,7 +860,7 @@ func (a Area) Answer(args []string) (any, int) {
 // prepareAction is the single parser and admission path for direct area calls
 // and root startup. Callers MUST resolve help before selecting preparation;
 // args includes the verb already resolved by the table.
-func (a Area) prepareAction(act Action, args []string) (Prepared, int) {
+func (a Area) prepareAction(act *Action, args []string) (Prepared, int) {
 	parsed, code := a.parseAction(act, args)
 	if code != 0 {
 		return Prepared{}, code
@@ -735,7 +870,7 @@ func (a Area) prepareAction(act Action, args []string) (Prepared, int) {
 
 // parseAction keeps keyword parsing and table admission shared without
 // allocating executable closures for ordinary handlers.
-func (a Area) parseAction(act Action, args []string) (Arguments, int) {
+func (a Area) parseAction(act *Action, args []string) (Arguments, int) {
 	verb := a.verbOf(act)
 	parsed, err := parseLine(spelled(Program(), a.name, verb), act.Parameters, args[1:])
 	if err != nil {
@@ -804,7 +939,7 @@ func (a Area) writeUsage(verb string) {
 // actionUsage prints one action's page to stdout. A reader who typed the help
 // word asked a question rather than making a mistake, so the page goes where
 // an answer goes and this answers 0.
-func (a Area) actionUsage(act Action) int {
+func (a Area) actionUsage(act *Action) int {
 	page, declared := a.Actions().ActionPage(Program(), a.verbOf(act))
 	if !declared {
 		panic("BUG: leaction: an action is absent from the listing its own area builds")
@@ -892,10 +1027,11 @@ func (s Sweep) Text() string {
 // Sweep runs the actions named in args, in order, and answers the first failing
 // action's own exit code. Every name is resolved before anything runs.
 func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
-	chosen := make([]Action, 0, len(args))
+	chosen := make([]*Action, 0, len(args))
 	for _, name := range args {
 		found := false
-		for _, act := range a.actions {
+		for index := range a.actions {
+			act := &a.actions[index]
 			if a.verbOf(act) != name {
 				continue
 			}
@@ -962,7 +1098,7 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 // admit answers 0 for an action that is not WholeTree, or one a person at a
 // terminal started. Otherwise it reports the refusal, which names the exact
 // command line for the agent to hand to Thomas, and answers 2.
-func (a Area) admit(act Action, args []string) int {
+func (a Area) admit(act *Action, args []string) int {
 	if !act.WholeTree {
 		return 0
 	}

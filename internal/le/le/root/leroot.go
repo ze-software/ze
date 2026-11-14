@@ -144,8 +144,9 @@ var registrationsChecked sync.Once
 
 // checkRegistrations stops le before its first answer when an area registered
 // no action table and no pass-through declaration, a namespace registered
-// no summary (requireEveryNamespaceHasASummary), or an area, action, keyword
-// or declared value carries no text (requireEveryItemHasText). MUST run after
+// no summary (requireEveryNamespaceHasASummary), an area, action, keyword
+// or declared value carries no text (requireEveryItemHasText), or a slot
+// declaration sits on something light (requireSlotDeclarationsAreHeavy). MUST run after
 // every init, which the first Dispatch or Tree guarantees.
 func checkRegistrations() {
 	registrationsChecked.Do(func() {
@@ -154,6 +155,7 @@ func checkRegistrations() {
 		requireEveryNamespaceHasASummary(owned)
 		requireEveryItemHasText(Commands())
 		requireNoAICommandShadowsASection(owned)
+		requireSlotDeclarationsAreHeavy(owned)
 	})
 }
 
@@ -391,6 +393,9 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 		path = input[:pathLength]
 	}
 
+	// The words as typed, before a default verb or a folded pipe filter joins
+	// them: what the slot reading judges, as the hook judges the typed line.
+	typed := toolArgs
 	var prepare func([]string) (leaction.Prepared, int)
 	if declared {
 		prepare, toolArgs = actions.Preparer(toolArgs)
@@ -427,17 +432,30 @@ func runWithStartup(name string, handler command.LocalDataHandler, args []string
 		fmt.Fprintln(errOut, tb.Str("error: ").Str(err.Error()).String()) //nolint:errcheck // CLI output
 		return 2
 	}
+	// The body runs inside the job slot its line takes: immediately before the
+	// handler on the ordinary path, and between the preparation and the
+	// startup on the prepared one, so a refused preparation holds nothing.
 	var answer command.LocalAnswer
 	if prepare != nil {
 		prepared, code := prepare(toolArgs)
 		if code != 0 {
 			return code
 		}
-		start(startup)
-		payload, code := prepared.Answer()
-		answer = command.LocalAnswer{Payload: payload, Code: code}
+		admit, commandName, code := centralSlot(name, typed, toolArgs, true, actions, declared, errOut)
+		if code != 0 {
+			return code
+		}
+		answer = runInSlot(admit, commandName, name, typed, func() command.LocalAnswer {
+			start(startup)
+			payload, code := prepared.Answer()
+			return command.LocalAnswer{Payload: payload, Code: code}
+		})
 	} else {
-		answer = handler(validated)
+		admit, commandName, code := centralSlot(name, typed, toolArgs, false, actions, declared, errOut)
+		if code != 0 {
+			return code
+		}
+		answer = runInSlot(admit, commandName, name, typed, func() command.LocalAnswer { return handler(validated) })
 	}
 	io.WriteString(errOut, answer.Diagnostic) //nolint:errcheck // CLI output
 	payload, code := answer.Payload, answer.Code

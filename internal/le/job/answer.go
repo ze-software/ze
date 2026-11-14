@@ -39,9 +39,11 @@ const (
 func area() leaction.Area {
 	return leaction.New(name,
 		leaction.Action{
-			Verb:    runVerb,
-			Heavy:   true,
-			Summary: "admit one heavy job, run it and answer its code",
+			Verb:  runVerb,
+			Heavy: true,
+			// It is the admission: answerRun takes the slot under the typed label.
+			AdmitsItself: true,
+			Summary:      "admit one heavy job, run it and answer its code",
 			Why: "admit one heavy job, run it, and answer its exit code. Several sessions share this machine." +
 				" `quiet` before the command keyword writes the child's output to this session's scratch log" +
 				" instead of the terminal, and answers the verdict, that log's path and its failure lines",

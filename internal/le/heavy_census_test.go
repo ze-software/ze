@@ -1,14 +1,18 @@
 // Design: docs/contributing/running-commands.md -- heavy work is declared where its verb registers
-// Related: le/root/heavy.go -- HeavyLine, the predicate this census judges
+// Related: le/root/heavy.go -- HeavyLine and SlotOfLine, the readings this census judges
+// Related: le/root/admitter.go -- the admission point the second census drives
 // Related: register.go -- the composition root that links every area judged here
 
 package le
 
 import (
+	"io"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -222,6 +226,155 @@ func TestCensusActionsDeclareHeavy(t *testing.T) {
 	} {
 		if got := leroot.HeavyLine(strings.Fields(row.line)); got != row.heavy {
 			t.Errorf("HeavyLine(%q) = %v, want %v", row.line, got, row.heavy)
+		}
+	}
+}
+
+// censusSelfAdmitting names every heavy command whose body takes its own job
+// slot, as the slot reading names it. A suite runner is not listed: its area
+// passes its words on and registers as admitted through the one call that
+// also builds its admitting answer (harnesstool.RunnerAnswer), and the test
+// reads that registration.
+var censusSelfAdmitting = []string{
+	"job run",
+	"test unit pkg",
+	"go lint run",
+	"verify worktree",
+	"verify current",
+	"verify changed",
+	"test qemu run",
+	"test attribution report",
+	"test stress-repro run",
+}
+
+// censusNoSlot names every heavy command that takes no job slot, with the
+// reason its declaration gives.
+var censusNoSlot = map[string]string{
+	"ai hooks unit":          "an in-process selftest of the hooks, single process, seconds",
+	"test integration clean": "removes containers and adds no load; queueing it protects nothing",
+	"setup docker host stop": "stops the Docker host and adds no load",
+}
+
+// TestCensusHeavyActionsAreAdmitted asks whether every heavy line le holds
+// takes a job slot: through the dispatcher, or by a declaration this file
+// pins. Its method: a fake admitter installed through the seam, then every
+// registered area's table walked, and for each action, each bare area name
+// and each help question one line dispatched through leroot.Run with a
+// recording handler in place of the area's, so no action's work runs. The
+// slot reading says what to expect, and the pins say which readings other
+// than central are decisions.
+//
+// VALIDATES: spec-native-action-job-admission AC-15: the dispatcher asks the
+// admitter once, before the body, for every centrally admitted line, and
+// never for a self-admitting, slot-free or light line, a listing or a help
+// question; a heavy action is central unless it is pinned here as admitting
+// itself or as taking no slot with its reason.
+// PREVENTS: a heavy action that runs with no slot because its row gained an
+// opt-out nobody wrote down, or because the dispatcher lost its admission
+// call; and a heavy action with an early preparation (PrepareArgs), which
+// this walk cannot dispatch without running it.
+func TestCensusHeavyActionsAreAdmitted(t *testing.T) {
+	defer leaction.SetWholeTreeAdmission(func(string) error { return nil })()
+
+	var events []string
+	var admitted string
+	defer leroot.SetAdmitter(func(commandName string, _ []string, body func() int) int {
+		events = append(events, "admit")
+		admitted = commandName
+		return body()
+	})()
+	handler := func(command.ValidatedArgs) command.LocalAnswer {
+		events = append(events, "body")
+		return command.LocalAnswer{}
+	}
+
+	metSelf := make(map[string]bool, len(censusSelfAdmitting))
+	metNoSlot := make(map[string]bool, len(censusNoSlot))
+	judge := func(area string, words []string) {
+		line := strings.Join(slices.Concat(strings.Fields(area), words), " ")
+		slot := leroot.SlotOfLine(strings.Fields(line))
+		switch slot.Kind {
+		case leroot.SlotLight, leroot.SlotCentral:
+		case leroot.SlotSelf:
+			metSelf[slot.Command] = true
+			runner := leroot.Admits(area) && leroot.Forwards(area)
+			if !runner && !slices.Contains(censusSelfAdmitting, slot.Command) {
+				t.Errorf("le %s admits itself as %q and the census does not list it: a heavy action that takes its own slot is a decision, add it to censusSelfAdmitting", line, slot.Command)
+			}
+		case leroot.SlotNone:
+			metNoSlot[slot.Command] = true
+			if want, pinned := censusNoSlot[slot.Command]; !pinned || want != slot.Reason {
+				t.Errorf("le %s takes no slot as %q for %q and the census pins %q: a heavy action that takes no slot is a decision, add it to censusNoSlot", line, slot.Command, slot.Reason, want)
+			}
+		case leroot.SlotUnspecified:
+			t.Errorf("le %s has no slot reading", line)
+		}
+		if heavy := leroot.HeavyLine(strings.Fields(line)); heavy != (slot.Kind != leroot.SlotLight) {
+			t.Errorf("le %s is heavy = %v and its slot reading is %+v: a heavy line is central, self-admitting or slot-free", line, heavy, slot)
+		}
+
+		events, admitted = nil, ""
+		leroot.Run(area, handler, words, io.Discard, io.Discard)
+		want := []string{"body"}
+		if slot.Kind == leroot.SlotCentral {
+			want = []string{"admit", "body"}
+		}
+		if !slices.Equal(events, want) {
+			t.Errorf("le %s ran %v, want %v for the slot reading %+v", line, events, want, slot)
+		}
+		if slot.Kind == leroot.SlotCentral && admitted != slot.Command {
+			t.Errorf("le %s was admitted as %q, want %q", line, admitted, slot.Command)
+		}
+	}
+
+	central := 0
+	for _, area := range leroot.Owned() {
+		list, declared := leroot.ActionsOf(area)
+		if !declared {
+			t.Errorf("area %q registers no action table", area)
+			continue
+		}
+		// A help word: light wherever HeavyLine reads it as a question, which
+		// TestCensusActionsDeclareHeavy pins, and then never admitted.
+		judge(area, []string{"--help"})
+		if list.PassesWords {
+			judge(area, []string{"probe", "word"})
+			continue
+		}
+		// The bare name: a listing, or the default action's line, which is
+		// judged with its row below when it prepares before startup.
+		if prepare, _ := list.Preparer(nil); prepare == nil {
+			judge(area, nil)
+		}
+		for _, row := range list.Actions {
+			var words []string
+			if row.Verb != "" {
+				words = []string{row.Verb}
+			}
+			if prepare, _ := list.Preparer(words); prepare != nil {
+				// Dispatching the line would run the area's own preparation.
+				if leroot.HeavyLine(slices.Concat(strings.Fields(area), words)) {
+					t.Errorf("le %s %s is heavy and prepares before startup (PrepareArgs): this census cannot dispatch it without running it", area, row.Verb)
+				}
+				continue
+			}
+			if leroot.SlotOfLine(slices.Concat(strings.Fields(area), words)).Kind == leroot.SlotCentral {
+				central++
+			}
+			judge(area, words)
+		}
+	}
+	if central == 0 {
+		t.Error("the walk met no centrally admitted action: the composition root links none, or the slot reading answers central for nothing")
+	}
+	for _, name := range censusSelfAdmitting {
+		if !metSelf[name] {
+			t.Errorf("censusSelfAdmitting names %q, which no registered line reads as admitting itself: the action is gone, renamed, or lost its declaration", name)
+		}
+	}
+	for name := range censusNoSlot {
+		if !metNoSlot[name] {
+			t.Errorf("censusNoSlot names %q, which no registered line reads as taking no slot: the action is gone, renamed, or lost its declaration", name)
 		}
 	}
 }

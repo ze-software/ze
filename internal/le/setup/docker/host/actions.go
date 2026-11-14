@@ -78,6 +78,7 @@ var dockerHostActions = leaction.New(dockerHostArea,
 		Writes:  true,
 		Summary: "stop the ze Colima profile on macOS",
 		Why:     "macOS: stop the `ze` Colima profile when it runs",
+		NoSlot:  "stops the Docker host and adds no load",
 		Answer:  runStop,
 	},
 	leaction.Action{

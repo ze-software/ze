@@ -225,10 +225,12 @@ func heavyTool(tokens []string) string {
 		return "`" + name + "`"
 	}
 	words, typed := leWords(program)
+	// refuse-by-default: guards handsBackHeavy -- a program that is neither a heavy tool nor an le line starts no heavy work, and the empty name is what the caller reads as "not handed back"
 	if !typed {
 		return ""
 	}
 	command, heavy := leroot.HeavyCommand(beforeRedirection(words))
+	// refuse-by-default: guards handsBackHeavy -- an le line that resolves to no heavy command (a listing, help, a light action) is the caller's "not handed back"
 	if !heavy {
 		return ""
 	}

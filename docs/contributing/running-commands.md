@@ -2350,8 +2350,8 @@ sessions hold and wait.
 ```
 job slots: 4 total, 1 occupied, 3 free
 holders:
-  unit-pkg pid 48213, running, 95s, session 5f0c2a7e-91d3-4b6a-8e42-0c1d9a7b3e55, entry tmp/.ze-jobs/unit-pkg.48213.531207368.job
-    go test -race ./internal/le/job/
+  lint-fixture pid 48213, running, 95s, session 5f0c2a7e-91d3-4b6a-8e42-0c1d9a7b3e55, entry tmp/.ze-jobs/lint-fixture.48213.531207368.job
+    ./le go lint run scope ./internal/test/fixture/...
 waiters:
   none
 machine:

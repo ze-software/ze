@@ -47,10 +47,13 @@ const jobLabel = "attribution"
 const gitDeadline = 30 * time.Second
 
 var actions = leaction.New(area, leaction.Action{
-	Verb:    "report",
-	Heavy:   true,
-	Default: true,
-	Summary: "tell which failing tests your own files cause",
+	Verb:  "report",
+	Heavy: true,
+	// admittedRunner takes one slot per re-run, so the report as a whole
+	// holds none.
+	AdmitsItself: true,
+	Default:      true,
+	Summary:      "tell which failing tests your own files cause",
 	Why: "re-run each test a package log reports failed, once as on disk and once with the named files at " +
 		"HEAD through a Go overlay, and classify it: caused, added, not-caused, undetermined, " +
 		"red-at-head-only, not-reproduced or not-run. Exit 1 when a row is caused or added, 2 when a " +

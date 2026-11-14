@@ -356,6 +356,7 @@ func commandIdentityPrefix(ctx context) string {
 	if session == "" {
 		return ""
 	}
+	// refuse-by-default: guards bashAgentIdentity -- an agent id that cannot name a file has no line to type, and bashAgentIdentity refuses that caller's every command with stop-and-report before any advice applies
 	if _, err := lepath.AgentFingerprint(session, agent); err != nil {
 		return ""
 	}

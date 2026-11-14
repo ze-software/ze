@@ -73,8 +73,8 @@ func allRunner(tc gotoolchain.Toolchain, run actionRunner) func() (any, int) {
 	return func() (any, int) {
 		actions := actionsFor(tc, allGroups(), run)
 		verbs := make([]string, 0, len(actions))
-		for _, action := range actions {
-			verbs = append(verbs, action.Verb)
+		for index := range actions {
+			verbs = append(verbs, actions[index].Verb)
 		}
 		return leaction.New(Area, actions...).Sweep(verbs, leaction.RunEveryAction)
 	}

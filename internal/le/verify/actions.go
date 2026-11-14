@@ -48,6 +48,9 @@ var actions = leaction.New(area,
 		Writes:    false,
 		WholeTree: true,
 		Heavy:     true,
+		// admitWorktree takes the slot, and the run names itself parent of
+		// its stages.
+		AdmitsItself: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: commitKeyword, Kind: leaction.KindRevision, Help: "the commit to verify; HEAD when absent", Value: "revision", Requirement: leaction.Optional},
 			{Keyword: "keep", Kind: leaction.KindSwitch, Help: "keep the worktree after the run"},
@@ -59,15 +62,17 @@ var actions = leaction.New(area,
 		AnswerArgs: runHere,
 	},
 	leaction.Action{
-		Verb:       "current",
-		Does:       doesRun,
-		Summary:    "run the full verification of the tree",
-		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout; both are release checks only Thomas starts, refused unless stdin and stdout are terminals",
-		Writes:     true,
-		WholeTree:  true,
-		Heavy:      true,
-		Parameters: []leaction.Parameter{{Keyword: keywordFull, Kind: leaction.KindSwitch, Help: "full population in a fresh worktree at HEAD (default)"}, {Keyword: keywordFast, Kind: leaction.KindSwitch, Help: "run the changed-files population in this checkout"}, {Keyword: keywordFirstRed, Kind: leaction.KindSwitch, Help: "stop at the first red stage"}},
-		AnswerArgs: currentHere,
+		Verb:      "current",
+		Does:      doesRun,
+		Summary:   "run the full verification of the tree",
+		Why:       "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout; both are release checks only Thomas starts, refused unless stdin and stdout are terminals",
+		Writes:    true,
+		WholeTree: true,
+		Heavy:     true,
+		// runFast and admitWorktree take the slot.
+		AdmitsItself: true,
+		Parameters:   []leaction.Parameter{{Keyword: keywordFull, Kind: leaction.KindSwitch, Help: "full population in a fresh worktree at HEAD (default)"}, {Keyword: keywordFast, Kind: leaction.KindSwitch, Help: "run the changed-files population in this checkout"}, {Keyword: keywordFirstRed, Kind: leaction.KindSwitch, Help: "stop at the first red stage"}},
+		AnswerArgs:   currentHere,
 	},
 	leaction.Action{
 		Verb:    verbChanged,
@@ -76,10 +81,12 @@ var actions = leaction.New(area,
 		Why: "run the scoped population (the tests, vet, lint, Staticcheck rows, race groups and functional suites " +
 			"of what the change set reaches) against a fixed commit in a fresh detached worktree; commit defaults to HEAD; " +
 			"a green run writes the scoped record; no agent runs it, and a push does not read it: GitHub CI verifies a pushed commit",
-		Writes:     false,
-		Heavy:      true,
-		Parameters: []leaction.Parameter{{Keyword: commitKeyword, Kind: leaction.KindRevision, Help: "the commit whose change set is verified; HEAD when absent", Value: "revision", Requirement: leaction.Optional}},
-		AnswerArgs: changedHere,
+		Writes: false,
+		Heavy:  true,
+		// admitWorktree takes the slot.
+		AdmitsItself: true,
+		Parameters:   []leaction.Parameter{{Keyword: commitKeyword, Kind: leaction.KindRevision, Help: "the commit whose change set is verified; HEAD when absent", Value: "revision", Requirement: leaction.Optional}},
+		AnswerArgs:   changedHere,
 	},
 	leaction.Action{
 		Verb:       "reds",
