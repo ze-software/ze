@@ -78,6 +78,18 @@ var actions = leaction.New(area,
 		" Docker lab. Needs PPPoE support in the Docker host kernel",
 		Answer: signalRooted(runDockerPPPoEAt)},
 	leaction.Action{
+		Verb:    composeActionName,
+		Does:    doesRun,
+		Summary: "test Compose container persistence across recreation",
+		Why: "walk the Docker guide's Compose journey: ze init and config import on the named volume, up," +
+			" an SSH editor commit, down, up again, then require the same login, host key and committed change." +
+			" image <tag> runs a loaded image (a tagged preview image) instead of building docker/Dockerfile" +
+			" from the checkout; break-volume mounts no volume at the store path, and the run must answer FAIL." +
+			" Needs Docker with the Compose plugin",
+		Parameters: composeParameters(),
+		AnswerArgs: runComposeHere,
+	},
+	leaction.Action{
 		Verb:    "vpn-kernel",
 		Does:    doesRun,
 		Summary: "prove five ESP transforms and WireGuard on the Docker host",

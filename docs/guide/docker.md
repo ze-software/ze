@@ -142,6 +142,7 @@ container keeps them. Bare `start` reads the active config from that store, so
 there is no bind-mounted file competing with the committed configuration.
 <!-- source: docker/compose.yaml -- bare start and named volume -->
 <!-- source: cmd/ze/ze_core_start.go -- stored active configuration -->
+<!-- source: internal/le/test/deployment/compose.go -- the recreation proof, ./le test deployment docker-compose -->
 
 ```bash
 # Recreate without discarding the store, then verify your configuration.

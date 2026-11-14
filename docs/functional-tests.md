@@ -218,6 +218,27 @@ clean teardown. The Docker form needs host-kernel `/dev/ppp` and `pppoe`
 support. `ZE_PPPOE_INTEROP_SCENARIO=<name>` selects one role. See
 `docs/labs/pppoe-interop.md`.
 
+`./le test deployment docker-compose` walks the [Docker guide](guide/docker.md)'s
+Compose journey with `docker/compose.yaml` itself. It builds `docker/Dockerfile`
+from the checkout under a run-unique tag (or runs a loaded image given as
+`image <reference>`, such as the local tag a loaded preview image was given),
+runs `ze init` and
+`ze config import` on the project's named volume, starts the daemon, logs in
+over SSH with the initialized password, commits `set environment log level
+warn` in the SSH editor, removes the container with `down`, starts a new one,
+and requires the same login, the same SSH host key, a refused wrong password
+and the committed value in `show config running`. A pass prints
+`DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on
+the same persistent volume`. A second Compose file merged over the user's file
+changes only what a shared Docker daemon forces: the image reference, the
+published ports (SSH on a loopback port the daemon picks, no port 179) and owner
+labels. The project name is run-unique, and teardown removes its containers,
+network, volume and built image by name, then lists anything the project label
+still names. `break-volume` is the counterfactual: the service mounts no volume
+at the store path, and the run MUST answer `DEPLOYMENT-COMPOSE: FAIL`.
+<!-- source: internal/le/test/deployment/compose.go -- composeProof.walk, teardown -->
+<!-- source: internal/le/interoplab/compose.go -- ComposeOverrideFile, ComposeResidue -->
+
 `./le test qemu vrrp-keepalived` runs the VRRP interop lab against keepalived
 2.3.1 on one L2 segment. Three network namespaces are bridged so a passive
 observer can prove the virtual IP moves at layer 2. The action boots Ze's
