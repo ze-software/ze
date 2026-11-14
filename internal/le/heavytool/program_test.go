@@ -95,6 +95,15 @@ func TestStartedUnreadTakesAShellLineAsHeavy(t *testing.T) {
 		{[]string{"bash", "script.sh"}, "", false},
 		{[]string{"go", "version"}, "", false},
 		{[]string{"bash", "-c"}, "", false},
+		// A line whose words hold an `=` is still the line, never an
+		// assignment in front of a program.
+		{[]string{"bash", "-c", "go test -count=1 ./x"}, "bash", true},
+		{[]string{"bash", "-c", "FOO=1 go test ./x"}, "bash", true},
+		{[]string{"sh", "-c", "600"}, "sh", true},
+		// env's `-S` string is a handed line like a shell's `-c` operand.
+		{[]string{"env", "-S", "go test ./x"}, "env", true},
+		{[]string{"env", "--split-string=go version"}, "env", true},
+		{[]string{"env", "-S"}, "", false},
 	} {
 		name, heavy := StartedUnread(row.words)
 		if name != row.name || heavy != row.heavy {
@@ -148,6 +157,19 @@ func TestShellCommandFindsTheLineHandedToAShell(t *testing.T) {
 		{[]string{"env", "-c", "x"}, "x", false},
 		{[]string{"grep", "-c", "x"}, "grep", false},
 		{[]string{"bash", "-c"}, "", false},
+		// The first operand after the `-c` cluster is the line, whatever it
+		// holds: an `=`, a launcher's name, a number.
+		{[]string{"bash", "-c", "go test -count=1 ./x"}, "go test -count=1 ./x", true},
+		{[]string{"bash", "-c", "FOO=1 go test"}, "FOO=1 go test", true},
+		{[]string{"bash", "-c", "env"}, "env", true},
+		{[]string{"sh", "-c", "600"}, "600", true},
+		// env's `-S` string, separate or joined, with the words env appends.
+		{[]string{"env", "-S", "go test", "./x"}, "go test ./x", true},
+		{[]string{"env", "-Sgo test"}, "go test", true},
+		{[]string{"env", "--split-string", "go vet"}, "go vet", true},
+		{[]string{"env", "--split-string=go vet", "./x"}, "go vet ./x", true},
+		{[]string{"env", "-u", "HOME", "-S", "go vet"}, "go vet", true},
+		{[]string{"env", "-S"}, "", false},
 	} {
 		line, handed := ShellCommand(row.words)
 		if handed != row.handed {
@@ -156,6 +178,67 @@ func TestShellCommandFindsTheLineHandedToAShell(t *testing.T) {
 		}
 		if handed && line != row.line {
 			t.Errorf("ShellCommand(%q) = %q, want %q", row.words, line, row.line)
+		}
+	}
+}
+
+// TestShellCommandWordsSpansTheWordsTheLineIsReadFrom asks whether
+// ShellCommandWords names the launcher handing a line and the span of words
+// the line comes from: a shell's operand alone, env's string and every word
+// after it. Its method: one row per shape, asserting the launcher and the
+// span.
+//
+// VALIDATES: the Bash hook can ask whether the words a handed line is read
+// from are words the shell expands first (`bash -c "$X"`).
+// PREVENTS: a line read from an expanded word judged as if it were the line
+// the launcher runs.
+func TestShellCommandWordsSpansTheWordsTheLineIsReadFrom(t *testing.T) {
+	for _, row := range []struct {
+		words    []string
+		launcher string
+		first    int
+		end      int
+		handed   bool
+	}{
+		{[]string{"bash", "-c", "x", "arg0"}, "bash", 2, 3, true},
+		{[]string{"timeout", "60", "sh", "-ec", "x"}, "sh", 4, 5, true},
+		{[]string{"env", "-S", "go test", "./x"}, "env", 2, 4, true},
+		{[]string{"env", "-Sgo", "./x"}, "env", 1, 3, true},
+		{[]string{"bash", "script.sh"}, "", 0, 0, false},
+	} {
+		launcher, first, end, handed := ShellCommandWords(row.words)
+		if launcher != row.launcher || first != row.first || end != row.end || handed != row.handed {
+			t.Errorf("ShellCommandWords(%q) = %q, %d, %d, %v, want %q, %d, %d, %v",
+				row.words, launcher, first, end, handed, row.launcher, row.first, row.end, row.handed)
+		}
+	}
+}
+
+// TestAssignmentReadsOnlyAShellName asks whether Assignment takes a word as
+// an assignment only when a shell name stands before its `=`. Its method: one
+// row per shape.
+//
+// VALIDATES: `FOO=1`, `_x=`, `A1+=b` and `GOFLAGS=-count=1` are assignments;
+// a line held as one word and a path holding an `=` are not.
+// PREVENTS: `bash -c 'go test -count=1 ./...'` read as a shell handed an
+// assignment, with no program, and so as light.
+func TestAssignmentReadsOnlyAShellName(t *testing.T) {
+	for _, row := range []struct {
+		word       string
+		assignment bool
+	}{
+		{"FOO=1", true},
+		{"_x=", true},
+		{"A1+=b", true},
+		{"GOFLAGS=-count=1", true},
+		{"go test -count=1 ./x", false},
+		{"./bin/x=y", false},
+		{"1A=b", false},
+		{"=x", false},
+		{"go", false},
+	} {
+		if got := Assignment(row.word); got != row.assignment {
+			t.Errorf("Assignment(%q) = %v, want %v", row.word, got, row.assignment)
 		}
 	}
 }

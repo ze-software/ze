@@ -22,7 +22,10 @@
 #            while the slot is held, starts once it frees, and afterwards the
 #            report lists no holder and no waiter; step 3, `le job run` whose
 #            command is `le chaos run` holds one slot and its nested line runs
-#            inside it with no waiter row, with ZE_RUN_SLOTS=1.
+#            inside it with no waiter row, with ZE_RUN_SLOTS=1; step 5,
+#            `le exec sh -c '<line>'`, heavy whatever the line runs, holds
+#            the only slot as exec-sh while its child runs, and a light
+#            `le exec true` answers meanwhile.
 # PREVENTS: a heavy action that runs unadmitted, a central line that
 #           oversubscribes the slots, a nested heavy line that waits for the
 #           slot its own parent holds, and a light line queued behind work.

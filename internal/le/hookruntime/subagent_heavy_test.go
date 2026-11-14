@@ -43,6 +43,14 @@ var heavyToolLines = []string{
 	`gofmt -w x.go`,
 	`goimports -w x.go`,
 	`gofumpt -w x.go`,
+	// A shell's `-c` line is judged as its own line, whatever it holds: an
+	// `=` in it is never read as an assignment in front of a program.
+	`bash -c 'go test -count=1 ./...'`,
+	`sh -ec 'FOO=1 go vet ./x'`,
+	// A handed line the shell expands first, or whose program is an
+	// expansion, cannot be read before it runs, so it is handed back.
+	`bash -c "$X"`,
+	`sh -c '"$@"' _ go test ./x`,
 }
 
 // heavyActionLines is one line per way an le line is heavy (AC-4): an area
@@ -326,6 +334,10 @@ func TestSubagentLightCommandsPass(t *testing.T) {
 		identityLineOfAgent + `./le commit create subject "s" body "ran go test ./x" file a.go`,
 		identityLineOfAgent + `./le ai hooks unit --help`,
 		identityLineOfAgent + `./le heavy-probe audit --help`,
+		// A single-quoted shell line is read exactly and judged as its own
+		// line, so a light one passes, its inner expansion included.
+		identityLineOfAgent + `bash -c 'go version'`,
+		identityLineOfAgent + `bash -c 'echo $HOME'`,
 	} {
 		code, output, message := runSubagentBash(t, command)
 		if strings.Contains(message, handBackHeader) {

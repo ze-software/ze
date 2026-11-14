@@ -73,8 +73,9 @@ func postLintCommand(timeout stdcontext.Context, linter job.Tool, module, relati
 // bounded by postLintBudget and serialized by golangci-lint's machine-wide lock
 // (--allow-serial-runners), and a wait for a slot on every Go edit would spend
 // that budget behind a test run. So it resolves the tool the way `le exec`
-// does (leexec.Program: PATH with the shims skipped, the per-user caches, the
-// checkout's GOROOT) and runs it directly. The cost: this lint is never a row
+// does (leexec.Program: the tool the first shim on PATH records, so this lint
+// runs the binary the shim runs, or else PATH with the shims skipped; the
+// per-user caches; the checkout's GOROOT) and runs it directly. The cost: this lint is never a row
 // of `./le job report`, and it can run beside a slot's work.
 func postLinter(module string) (job.Tool, error) {
 	return leexec.Program(module, []string{heavytool.Linter}, os.Environ())

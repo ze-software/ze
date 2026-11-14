@@ -668,9 +668,12 @@ func (a *Admission) queue(ctx context.Context, job *pending) (*Ticket, error) {
 // insideParent answers the label of the job this process already runs inside,
 // and reports whether there is one.
 //
-// The function checks the parent's ENTRY, not the variable alone. A job whose
-// parent has finished is not nested. If that job ran without admission, no
-// claim would protect the heavy work.
+// The function checks the parent's ENTRY, not the variable alone, and the
+// entry's holder: a job whose parent has finished is not nested. If that job
+// ran without admission, no claim would protect the heavy work. A parent le
+// killed by SIGKILL leaves its entry behind, so an entry that exists is not
+// proof: the PID it records is asked (parentRunning), and a dead holder means
+// a fresh admission.
 func (a *Admission) insideParent() (string, bool, error) {
 	named := env.Get(parentEntry.Key)
 	if named == "" {
@@ -688,7 +691,38 @@ func (a *Admission) insideParent() (string, bool, error) {
 	if !validLabel(label) {
 		return "", false, fmt.Errorf("parent job identity %q has no valid LABEL; run nested work from its live job holder", named)
 	}
+	if !parentRunning(body) {
+		// A parent whose holder has ended no longer grants a slot; admit anew.
+		return "", false, nil
+	}
 	return label, true, nil
+}
+
+// parentRunning reports whether the holder a parent entry's body records may
+// still run, read the way the registry reads a holder (scanAndClaim): a PID
+// the process table says is gone, or a zombie, has ended. Every other reading
+// answers true. A body with no PID is a stand-in for a slot another machine
+// holds (the entry a QEMU guest names, guestJobParentEntry), whose holder no
+// process table here can see. A PID that does not parse, or a liveness that
+// cannot be read, fails closed as the registry does: the entry counts as an
+// occupied slot there, so the child runs inside it here, and nothing runs
+// uncounted.
+func parentRunning(body []byte) bool {
+	recorded := field(body, "PID")
+	if recorded == "" {
+		return true
+	}
+	pid, err := strconv.Atoi(recorded)
+	// refuse-by-default: guards insideParent -- an unreadable PID is an occupied slot in the registry, so the child runs inside it
+	if err != nil {
+		return true
+	}
+	running, err := alive(context.Background(), pid)
+	// refuse-by-default: guards insideParent -- an unknown liveness is an occupied slot in the registry, so the child runs inside it
+	if err != nil {
+		return true
+	}
+	return running
 }
 
 // Run is the whole of the wrapper: admission, the child, its log, and the
@@ -945,33 +979,61 @@ func (a *Admission) stream(ctx context.Context, argv []string, dir string, envir
 	return 0
 }
 
-// forwardSignals sends an interrupt to this invocation's own child. The job
-// then finishes its wait and releases its own slot.
-//
-// The returned function MUST be called after the child has been waited for. The
-// call stops delivery and ends the goroutine. That is the complete life of this
-// goroutine.
-func forwardSignals(cmd *exec.Cmd) func() {
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	done := make(chan struct{})
+// forwardedSignals are the signals this invocation relays to the child it
+// waits for. Left to its default action, each one would end le and leave the
+// child running: the registry then reads the entry's dead PID as a free slot,
+// and the child runs uncounted. A SIGKILL of le cannot be caught, so it still
+// orphans the child (docs/contributing/running-commands.md).
+var forwardedSignals = []os.Signal{syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT}
 
-	go func() {
-		select {
-		case got := <-signals:
-			if cmd.Process != nil {
-				// A signal the child cannot be sent is one it has already
-				// answered: the wait below is what reports the outcome either
-				// way.
-				_ = cmd.Process.Signal(got) //nolint:errcheck // the wait reports what happened to the child
-			}
-		case <-done:
+// forwardSignals relays every forwarded signal this invocation receives to
+// its own child, each time it arrives, until the child has been waited for.
+// The job then finishes its wait and releases its own slot, and its code is
+// the child's (gaterun.ExitCode: 128 plus the signal for a death by signal),
+// so le never re-raises the child's signal on itself. A signal this process
+// was started with ignored (SIGHUP under nohup) stays ignored: catching it
+// would make le relay what its caller asked it to ignore.
+//
+// The returned function MUST be called after the child has been waited for.
+// The call stops delivery and waits for the relay to end. That is the
+// complete life of the relay's goroutine.
+func forwardSignals(cmd *exec.Cmd) func() {
+	caught := make([]os.Signal, 0, len(forwardedSignals))
+	for _, forwarded := range forwardedSignals {
+		if !signal.Ignored(forwarded) {
+			caught = append(caught, forwarded)
 		}
-	}()
+	}
+	signals := make(chan os.Signal, len(forwardedSignals))
+	signal.Notify(signals, caught...)
+	done := make(chan struct{})
+	ended := make(chan struct{})
+
+	go relaySignals(cmd, signals, done, ended)
 
 	return func() {
 		signal.Stop(signals)
 		close(done)
+		<-ended
+	}
+}
+
+// relaySignals sends cmd's process every signal that arrives on signals,
+// until done is closed, then closes ended. It is forwardSignals' relay and
+// MUST be started by it alone.
+func relaySignals(cmd *exec.Cmd, signals <-chan os.Signal, done <-chan struct{}, ended chan<- struct{}) {
+	defer close(ended)
+	for {
+		select {
+		case got := <-signals:
+			if cmd.Process != nil {
+				// A signal the child cannot be sent is one it has already
+				// answered: the wait is what reports the outcome either way.
+				_ = cmd.Process.Signal(got) //nolint:errcheck // the wait reports what happened to the child
+			}
+		case <-done:
+			return
+		}
 	}
 }
 

@@ -2394,8 +2394,10 @@ and the few actions declared slot-free, the main thread's post-edit lint,
 work started outside `./le`, and a job in another checkout. The post-edit
 lint is the hook's own check of the Go file just written, bounded by its 60
 second budget and serialized by golangci-lint's machine-wide lock. It resolves
-the real `golangci-lint` the way `./le exec` does, shims skipped, with the
-same caches and GOROOT, and runs it directly, so it never waits for a slot on
+the real `golangci-lint` the way `./le exec` does, with the same caches and
+GOROOT: when the first `golangci-lint` on PATH is a shim, it runs the binary
+that shim records, so the lint and every shimmed run use one linter, and else
+the first real one on PATH. It runs it directly, so it never waits for a slot on
 an edit and is never a row of the report. Free slots therefore do not
 mean a free machine. Such work shows only in the machine readings: the load,
 the memory and the process counts.
@@ -2411,27 +2413,48 @@ the linters, the formatters), read the way the hook reads one: through the
 assignments and launchers in front of the program (`env`, `nice -n 5`,
 `timeout 600`) and the toolchain's `-C dir` in front of its verb, so
 `./le exec env go test ./x/` and `./le exec go -C d test ./...` are heavy on
-both sides. A line handed to a shell with `-c` is read by the hook, which
-parses it, when the shell stands on the line itself. `./le exec` holds no
-shell parser, so a shell it carries with `-c` (`./le exec bash -c '<line>'`)
-is heavy whatever the line runs: it takes a slot as `exec-bash`, a carried
-`./le` inside runs in that slot, and the hook hands it back to a subagent,
-`./le exec sh -c 'echo hi'` included. A light program (`gopls`, `go version`,
+both sides. A word in front of the program is an assignment only when a shell
+name stands before its `=`, and the first word after a shell's `-c` options is
+the line, whatever it holds, so `bash -c 'go test -count=1 ./...'` is a shell
+handed `go test -count=1 ./...`, never a shell handed an assignment. env's
+`-S` string (`env -S '<line>'`, `--split-string`) is a handed line the same
+way, with the words after it appended. A handed line is read by the hook,
+which parses it, when the launcher stands on the line itself. When the outer
+shell expands a word the line is read from (`bash -c "$X"`, `bash -c "echo
+$HOME"`), or a command in the line runs an expansion as its program (`sh -c
+'"$@"' _ go test`), the hook cannot read what runs, and a subagent's line is
+handed back; a single-quoted line (`bash -c 'echo $HOME'`) is read exactly
+and judged as its own line. `./le exec` holds no shell parser, so a shell it
+carries with `-c` (`./le exec bash -c '<line>'`), or an env with `-S`, is
+heavy whatever the line runs: it takes a slot as `exec-bash` (or `exec-env`),
+a carried `./le` inside runs in that slot, and the hook hands it back to a
+subagent, `./le exec sh -c 'echo hi'` included. A light program (`gopls`, `go version`,
 `golangci-lint config verify`) replaces the `le` process as it always did, and
 reads no registry. A heavy tool (`go test`, `golangci-lint run`, `staticcheck`,
 and so a `golangci-lint` or `staticcheck` shim) waits for a slot as a heavy
 action does, holds it as `exec-` and the tool's name (`exec-go-test`), and
 runs as `le`'s child, because a process that replaced itself could not release
-the slot. The child keeps `le`'s terminal, SIGINT and SIGTERM sent to `le`
-reach it, and `le` exits with its code. Inside a parent's slot (`./le go lint
-run` starting the linter, a verify stage) and outside a checkout, a heavy tool
-replaces the process too, and holds nothing. A carried `./le` line is admitted
+the slot. The child keeps `le`'s terminal, and every SIGINT, SIGTERM, SIGHUP
+and SIGQUIT sent to `le` reaches it, each one, until it exits, as for `./le
+job run`; a signal `le` was started with ignored (SIGHUP under `nohup`) stays
+ignored. `le` exits with the child's code, 128 plus the signal for a child a
+signal killed, the code `./le job run` answers, and never re-raises the signal
+on itself. What no forwarding covers: a SIGKILL of `le` cannot be caught, so
+its tool is orphaned and runs on uncounted once the registry reads `le`'s dead
+PID as a free slot. Inside a live parent's slot (`./le go lint run` starting
+the linter, a verify stage) and outside a checkout, a heavy tool replaces the
+process too, and holds nothing. A parent whose entry remains after its holder
+ended (a parent `le` killed by SIGKILL) is no parent: its PID is asked, and the
+tool takes a slot of its own; an entry whose liveness cannot be read counts as
+a live parent, as the registry counts it as an occupied slot. A carried `./le` line is admitted
 by that `le`. A subagent's `./le exec <program>` is judged by the same
 program: `./le exec go version` runs, `./le exec go test ./x/` is handed back.
 <!-- source: internal/le/job/tool.go -- HoldTool -->
 <!-- source: internal/le/exec/exec.go -- holdHeavy -->
 <!-- source: internal/le/exec/register.go -- carriesHeavy -->
-<!-- source: internal/le/heavytool/program.go -- Started, StartedUnread, Split, ShellCommand -->
+<!-- source: internal/le/heavytool/program.go -- Started, StartedUnread, Split, ShellCommand, Assignment -->
+<!-- source: internal/le/hookruntime/subagent_heavy.go -- heavyWork, unreadHandedLine, unreadProgram -->
+<!-- source: internal/le/job/job.go -- forwardSignals, insideParent, parentRunning -->
 <!-- source: internal/le/le/root/heavy.go -- RegisterCarrierJudge -->
 
 The main thread reads the report before it starts a heavy job. The report

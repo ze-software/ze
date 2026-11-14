@@ -183,17 +183,20 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 			}
 		}
 	}()
-	if what := heavyWork(command, parse); what != "" {
+	if what := heavyWork(command, parse, ""); what != "" {
 		return handBack{what: what, command: typed}
 	}
 	return handBack{}
 }
 
 // heavyWork names the first heavy work a command line starts, and answers ""
-// when it starts none. On a line that parses it is the first command of the
-// tree, in source order and at any depth (everyCommand), that starts heavy
-// work (heavyTool), or whose shell is handed a line with `-c` that does
-// (heavytool.ShellCommand, judged here as a line of its own); and else the
+// when it starts none. within names the launcher that was handed the line,
+// and is empty for the line the agent typed. On a line that parses it is the
+// first command of the tree, in source order and at any depth (everyCommand),
+// that starts heavy work (heavyTool), or whose launcher is handed a line (a
+// shell's `-c` operand, env's `-S` string) that does (heavytool.ShellCommand,
+// judged here as a line of its own), or that the hook cannot read before it
+// runs (unreadHandedLine); and else the
 // first such segment of the split that cuts only outside the tree's quoted
 // parts (unquotedSegments), which reads a here-document's lines. On a line
 // that does not parse it is the first such segment of the quote-blind split
@@ -208,7 +211,7 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 //
 // The recursion into a shell's line is bounded by the line's length: the
 // line handed to the shell is one word of the command, shorter than it.
-func heavyWork(command string, parse commandParse) string {
+func heavyWork(command string, parse commandParse, within string) string {
 	if !parse.parsed() {
 		for _, segment := range commandSegments(command) {
 			if what := heavyTool(shellWords(segment)); what != "" {
@@ -221,11 +224,18 @@ func heavyWork(command string, parse commandParse) string {
 		if what := heavyTool(parsed.tokens); what != "" {
 			return what
 		}
-		line, handed := heavytool.ShellCommand(parsed.tokens)
+		if what := unreadProgram(parsed, within); what != "" {
+			return what
+		}
+		launcher, first, end, handed := heavytool.ShellCommandWords(parsed.tokens)
 		if !handed {
 			continue
 		}
-		if what := heavyWork(line, parseCommandLine(line)); what != "" {
+		if what := unreadHandedLine(parsed, launcher, first, end); what != "" {
+			return what
+		}
+		line, _ := heavytool.ShellCommand(parsed.tokens)
+		if what := heavyWork(line, parseCommandLine(line), launcher); what != "" {
 			return what
 		}
 	}
@@ -235,6 +245,56 @@ func heavyWork(command string, parse commandParse) string {
 		}
 	}
 	return ""
+}
+
+// unreadHandedLine names the line parsed hands its launcher when a word the
+// line is read from, first to before end, is one the shell expands or the
+// hook cannot read (`bash -c "$X"`, `bash -c "echo $HOME"`), and answers ""
+// for a line read only from words the hook read exactly. The launcher runs
+// the expanded value, which the hook never sees, so the line it judged is not
+// the line that runs: a subagent's such line is handed back, as a line the
+// hook fails to read is (handBackOf). A single-quoted line is read exactly
+// and judged as its own line.
+func unreadHandedLine(parsed parsedCommand, launcher string, first, end int) string {
+	for at := first; at < end; at++ {
+		if exactToken(parsed, at) {
+			continue
+		}
+		return "a line handed to `" + launcher + "` that the shell expands before it runs, so the hook cannot read it, and it may start heavy work"
+	}
+	return ""
+}
+
+// unreadProgram names a command of a line handed to the launcher within whose
+// program word the hook cannot read before it runs (`sh -c '"$@"' _ go test`,
+// `bash -c '$X'`), and answers "" for one whose program it read exactly, or
+// for the line the agent typed (an empty within), where the identity guard
+// already refuses a program word the shell expands.
+func unreadProgram(parsed parsedCommand, within string) string {
+	if within == "" {
+		return ""
+	}
+	// refuse-by-default: guards heavyWork -- a statement of assignments alone runs no program, so it has no program word to read
+	if len(parsed.assigns) >= len(parsed.tokens) {
+		return ""
+	}
+	if exactToken(parsed, len(parsed.assigns)) {
+		return ""
+	}
+	return "a command in a line handed to `" + within + "` whose program the hook cannot read before it runs, which may start heavy work"
+}
+
+// exactToken reports whether the hook read parsed's token at, its value
+// exactly, with nothing in it the shell expands (writtenByValue). A token
+// past the words the command holds is not read.
+func exactToken(parsed parsedCommand, at int) bool {
+	if at >= len(parsed.tokens) {
+		return false
+	}
+	if at >= len(parsed.written) {
+		return false
+	}
+	return writtenByValue(parsed.tokens[at], parsed.written[at])
 }
 
 // unquotedSegments is commandSegments for a line that parsed into file: it

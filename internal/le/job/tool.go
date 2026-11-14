@@ -47,9 +47,9 @@ type Tool struct {
 // (admitCentral): the waiter record, the banner that names the holder, the
 // unshared claim, and the parent named for every process the tool starts. The
 // child inherits le's stdin, stdout and stderr, so a terminal stays a
-// terminal, and SIGINT and SIGTERM sent to le are forwarded to it
-// (forwardSignals). NOT safe for concurrent use: it names the parent in the
-// process environment.
+// terminal, and every SIGINT, SIGTERM, SIGHUP and SIGQUIT sent to le is
+// forwarded to it until it exits (forwardSignals). NOT safe for concurrent
+// use: it names the parent in the process environment.
 func HoldTool(commandName string, line []string, tool Tool) (code int, held bool) {
 	point := centralPoint{root: lepath.Root, policy: NewIn, waitRoot: signalRoot, errOut: os.Stderr}
 	return point.holdTool(commandName, line, tool, point.runTool)
@@ -92,8 +92,8 @@ func toolInside(tool Tool) Tool {
 	return tool
 }
 
-// runTool starts tool as this process's child with its streams, forwards
-// SIGINT and SIGTERM to it, and answers its exit code. A tool that cannot
+// runTool starts tool as this process's child with its streams, forwards the
+// signals forwardSignals names to it, and answers its exit code. A tool that cannot
 // start answers gaterun.CannotStart, with the reason written to the point's
 // errOut.
 func (c centralPoint) runTool(tool Tool) int {

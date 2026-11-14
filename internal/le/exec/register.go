@@ -47,7 +47,7 @@ func init() {
 // front of it (heavytool.Program, heavytool.LeWords, leroot.HeavyLine). A
 // carried le line is judged by its own declaration because that le admits
 // itself; exec replaces its process with it and holds nothing (holdHeavy).
-// A line handed to a shell with `-c` is heavy whatever it runs
+// A line handed to a shell with `-c`, or to env with `-S`, is heavy whatever it runs
 // (heavytool.StartedUnread): reading it needs a shell parser, which the
 // shared reading does not hold, and holdHeavy takes a slot by the same
 // answer, so the hook and the slot agree.

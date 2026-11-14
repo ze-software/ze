@@ -17,6 +17,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const (
@@ -37,6 +40,12 @@ const (
 	// prove the body wrote the config and not an empty file.
 	leHeavyConfigMark = "bgp"
 	leHeavyHelp       = "help"
+	// leHeavyExec is the carrier area step 5 drives, leHeavyExecLabel the
+	// label `le exec sh` holds its slot under (job.HoldTool, `exec sh` with
+	// the space as a hyphen), and leHeavyExecMark what its line writes.
+	leHeavyExec      = "exec"
+	leHeavyExecLabel = "exec-sh"
+	leHeavyExecMark  = "exec-held"
 	// leHeavyBound is how long one step waits for a state the scenario caused.
 	// It ends a broken run and paces no working one.
 	leHeavyBound = 60 * time.Second
@@ -67,6 +76,9 @@ func leJobAdmitsHeavyAction(ctx context.Context) error {
 		return err
 	}
 	if err := leHeavyTreeCountsOnce(ctx, run, dir); err != nil {
+		return err
+	}
+	if err := leHeavyExecHoldsASlot(ctx, run, dir); err != nil {
 		return err
 	}
 	fmt.Println("OK")
@@ -244,6 +256,113 @@ func leHeavyLightLines(ctx context.Context, run leJobReportRunner) error {
 	}
 	if want := "job slots: 1 total, 1 occupied, 0 free"; !strings.Contains(report.stdout, want) {
 		return fmt.Errorf("`le job report` printed no line %q while the only slot was held:\n%s", want, report.stdout)
+	}
+	return nil
+}
+
+// leHeavyExecHoldsASlot runs step 5: `le exec` carrying a shell line, which
+// is heavy whatever the line runs (heavytool.StartedUnread), holds the only
+// slot as its child runs, under the label `exec sh` takes (job.HoldTool), and
+// a light program `le exec` carries answers meanwhile. The line writes to a
+// FIFO, so it blocks inside its slot until this driver opens the read end.
+//
+// Both le lines run from dir, outside the scratch checkout, so `le exec`
+// gives the program no patched GOROOT and needs no toolchain; the registry
+// is still the scratch checkout's, which ZE_REPO_ROOT names, and that
+// checkout carries the patch set exec reads there (leHeavyExecPatchSet).
+func leHeavyExecHoldsASlot(ctx context.Context, run leJobReportRunner, dir string) error {
+	if err := leHeavyExecPatchSet(run.scratch); err != nil {
+		return err
+	}
+	fifo := filepath.Join(dir, "exec.fifo")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		return fmt.Errorf("make the FIFO %s: %w", fifo, err)
+	}
+	//nolint:gosec // the fixture chooses the program and its arguments
+	command := exec.CommandContext(ctx, run.binary, leHeavyExec, "sh", "-c", `printf '%s' "$1" > "$2"`, "sh", leHeavyExecMark, fifo)
+	command.Dir = dir
+	command.Env = run.environment
+	holder, err := leHeavyRun(command, fifo)
+	if err != nil {
+		return err
+	}
+	defer holder.stop()
+
+	held, err := leHeavyAwaitReport(ctx, run, holder, func(report *leJobReportDocument) bool {
+		return len(report.Holders) != 0
+	})
+	if err != nil {
+		return fmt.Errorf("`le job report` never listed the shell line `le exec` carries as a holder: %w", err)
+	}
+	if err := leHeavyJudgeHeld(&held, leHeavyExecLabel); err != nil {
+		return err
+	}
+	if len(held.Waiters) != 0 {
+		return fmt.Errorf("with one `le exec` line holding the slot the report lists waiters %+v, want none", held.Waiters)
+	}
+
+	bounded, cancel := context.WithTimeout(ctx, leHeavyBound)
+	defer cancel()
+	light := exec.CommandContext(bounded, run.binary, leHeavyExec, "true") //nolint:gosec // the fixture chooses the program and its arguments
+	light.Dir = dir
+	light.Env = run.environment
+	if output, err := light.CombinedOutput(); err != nil {
+		return fmt.Errorf("`le exec true` did not answer while the only slot was held: %w: %s", err, output)
+	}
+
+	reader := leHeavyStartReader(fifo)
+	defer reader.close()
+	written, err := reader.await(ctx)
+	if err != nil {
+		return fmt.Errorf("the shell line `le exec` carries never opened its FIFO: %w", err)
+	}
+	if written != leHeavyExecMark {
+		return fmt.Errorf("the shell line `le exec` carries wrote %q, want %q", written, leHeavyExecMark)
+	}
+	if err := holder.wait(ctx); err != nil {
+		return err
+	}
+	return leHeavyJudgeIdle(ctx, run)
+}
+
+// leHeavyExecPatchSet copies this checkout's standard-library patch set into
+// the scratch checkout, the one thing `le exec` reads from the checkout
+// ZE_REPO_ROOT names when it runs a program outside it: the set tells Ze's
+// patched GOROOT trees from the caller's, so exec can remove an inherited one
+// (gen.CallerEnvironment), and it refuses an empty or absent set (gen.Patches).
+// The real set is copied, never a stand-in, so a patched tree the driving le
+// handed down is recognized as it would be in this checkout. Both exec lines
+// of step 5, the held one and the light one, read it.
+func leHeavyExecPatchSet(scratch string) error {
+	repository, err := lepath.Root()
+	if err != nil {
+		return fmt.Errorf("locate the checkout whose patch set the scratch checkout needs: %w", err)
+	}
+	source := filepath.Join(repository, filepath.FromSlash(gen.PatchDir))
+	target := filepath.Join(scratch, filepath.FromSlash(gen.PatchDir))
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return fmt.Errorf("read the patch set %s: %w", source, err)
+	}
+	if err := os.MkdirAll(target, 0o750); err != nil {
+		return fmt.Errorf("create %s: %w", target, err)
+	}
+	copied := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".patch") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(source, entry.Name())) //nolint:gosec // the checkout's own patch set
+		if err != nil {
+			return fmt.Errorf("read %s: %w", entry.Name(), err)
+		}
+		if err := os.WriteFile(filepath.Join(target, entry.Name()), body, 0o600); err != nil {
+			return fmt.Errorf("copy %s into the scratch checkout: %w", entry.Name(), err)
+		}
+		copied++
+	}
+	if copied == 0 {
+		return fmt.Errorf("the patch set %s holds no *.patch file to copy", source)
 	}
 	return nil
 }

@@ -141,6 +141,11 @@ func TestCarriedShellLineHoldsASlot(t *testing.T) {
 		{[]string{"sh", "-ec", "go " + "build ./..."}, "exec sh"},
 		{[]string{"bash", "-o", "pipefail", "-c", "./le test unit all"}, "exec bash"},
 		{[]string{"sh", "-c", "echo hi"}, "exec sh"},
+		// A line whose words hold an `=` is the line, never an assignment.
+		{[]string{"bash", "-c", "go test -count=1 ./..."}, "exec bash"},
+		// env's `-S` string is a handed line, as a shell's `-c` operand is.
+		{[]string{"env", "-S", "go test ./x"}, "exec env"},
+		{[]string{"env", "--split-string=go version"}, "exec env"},
 	} {
 		program := launch{program: "/resolved/" + row.args[0], argv: row.args, environ: []string{"HOME=/h"}}
 		command := ""

@@ -157,19 +157,27 @@ func prepare(cwd string, args, environ []string, stderr io.Writer) (launch, erro
 // a caller working in cwd whose environment is environ. It is for work that
 // stays outside job admission and still needs the repository's caches and
 // GOROOT: the post-edit lint (internal/le/hookruntime, postLinter) starts the
-// answer itself rather than the shim, which would wait for a slot. The error
+// answer itself rather than the shim, which would wait for a slot. A bare
+// name whose first PATH entry is a shim is answered as the tool that shim
+// records (shimRecorded), so the caller runs the binary the shim runs, never
+// a later one of that name on PATH; argv keeps the name as typed. The error
 // carries the refusal `le exec` would have printed, in its three lines.
 // args MUST NOT be empty.
 func Program(cwd string, args, environ []string) (job.Tool, error) {
 	if len(args) == 0 {
 		panic("BUG: leexec.Program called with no program")
 	}
+	named := args
+	if recorded, found := shimRecorded(args[0], lookup(environ, "PATH")); found {
+		named = slices.Concat([]string{recorded}, args[1:])
+	}
 	var refusal bytes.Buffer
-	program, err := prepare(cwd, args, environ, &refusal)
+	program, err := prepare(cwd, named, environ, &refusal)
 	if err != nil {
 		return job.Tool{}, errors.New(strings.TrimSpace(refusal.String()))
 	}
-	return job.Tool{Path: program.program, Argv: program.argv, Environ: program.environ}, nil
+	argv := slices.Concat([]string{args[0]}, program.argv[1:])
+	return job.Tool{Path: program.program, Argv: argv, Environ: program.environ}, nil
 }
 
 // programEnvironment is environ with the four cache variables pointed under
@@ -187,7 +195,10 @@ func programEnvironment(cwd string, environ []string) ([]string, error) {
 		if err == nil {
 			environ, err = gen.CallerEnvironment(root, environ)
 			if err != nil {
-				return nil, fmt.Errorf("restore the caller's GOROOT: %w", err)
+				// The patch set names the patched trees to remove, so a checkout
+				// without it (ZE_REPO_ROOT on another tree) leaves this unsafe.
+				return nil, fmt.Errorf("restore the caller's GOROOT from the patch set of the Ze checkout %s (ZE_REPO_ROOT, or the checkout le runs from): %w; "+
+					"run `unset ZE_REPO_ROOT`, or `export ZE_REPO_ROOT=<a Ze checkout holding %s>`, then run the command again", root, err, gen.PatchDir)
 			}
 		}
 		// lepath.Root failing means activatePatchedGOROOT found no checkout and
