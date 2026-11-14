@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -167,12 +168,23 @@ func cmdRestoreConfig(storePath string, parsed restoreArgs) int {
 
 // restoreConfig selects the artifact's config and commits it; the selection
 // is refused before anything is written.
+//
+// target is the store's owner, so no daemon runs; a confirmed-commit window
+// record found here was left by a daemon that stopped during that window, and
+// its next start reverts the window, which would undo the restore. The
+// restore is refused with the window's own refusal
+// (confirm.WriteOutsideRecorded), as `ze data import` and `ze config import`
+// are.
 func restoreConfig(target storage.Storage, parsed restoreArgs, deviceName string) (stamp, source string, err error) {
 	selected, err := storage.ReadRestoreSource(parsed.file, parsed.sourceName, deviceName)
 	if err != nil {
 		return "", "", err
 	}
-	stamp, err = storage.RestoreConfig(target, deviceName, selected.Data)
+	err = confirm.WriteOutsideRecorded(target, deviceName, func() error {
+		var restoreErr error
+		stamp, restoreErr = storage.RestoreConfig(target, deviceName, selected.Data)
+		return restoreErr
+	})
 	if err != nil {
 		return "", "", err
 	}

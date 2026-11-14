@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -90,6 +92,41 @@ func TestDeclaredAuditActionRecordsMaskedEntry(t *testing.T) {
 	}
 	if entry.Outcome != audit.OutcomeSuccess {
 		t.Errorf("outcome %q, want %q", entry.Outcome, audit.OutcomeSuccess)
+	}
+}
+
+// TestUnmatchedLineLogsNoContent proves a line no command matches is logged
+// with the content after the `content` keyword replaced by the placeholder.
+//
+// VALIDATES: AC-8, its log half: a mistyped `update data key` (here `update
+// data kee`) reaches the dispatcher's debug line for an unmatched command,
+// which records the line, and the content is absent from it. Method: capture
+// the package logger at debug level, dispatch the line through a dispatcher
+// that serves no such command, and read the captured text. The line is
+// lowercased before matching, so the content is checked in that form.
+// PREVENTS: the base64 of a credential written in clear to the daemon log
+// because the operator mistyped the command around it.
+func TestUnmatchedLineLogsNoContent(t *testing.T) {
+	orig := logger
+	t.Cleanup(func() { logger = orig })
+	var buf bytes.Buffer
+	captured := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger = func() *slog.Logger { return captured }
+
+	line := "update data kee meta/ddos-flowspec/announcement content " + auditedContent
+	_, err := NewDispatcher().Dispatch(&CommandContext{Username: "alice"}, line)
+	if err == nil {
+		t.Fatalf("dispatch of %q succeeded, want the unknown-command refusal", line)
+	}
+	text := buf.String()
+	if !strings.Contains(text, "dispatchPlugin: no match") {
+		t.Fatalf("the unmatched line wrote no debug line, so this test proves nothing:\n%s", text)
+	}
+	if strings.Contains(text, strings.ToLower(auditedContent)) {
+		t.Errorf("the debug line holds the content:\n%s", text)
+	}
+	if !strings.Contains(text, "content "+redact.Placeholder) {
+		t.Errorf("the debug line lacks the placeholder after content:\n%s", text)
 	}
 }
 

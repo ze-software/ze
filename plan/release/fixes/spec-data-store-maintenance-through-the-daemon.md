@@ -8,7 +8,7 @@
 | Release reason | A shipped `ze doctor` report tells the operator to remove a store key with `ze data rm`, and that command is refused while the daemon that answered the report runs, so the warning cannot be cleared on a running box. The owner rule that every operator command runs through the daemon makes the daemon route owed work. |
 | RFC gaps | - |
 | Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (its fix (a) rewrites the same FlowSpec report for the configured case; this spec edits the removed-section text after that lands). The FlowSpec record and its two checks landed in bec9096156. |
-| Phase | 7/7 implemented and committed, closure (`/ze-close`) is next (claimed above the WIP cap on Thomas's order of 2026-11-14, a one-off exception for this spec: 16 in flight against a cap of 12) |
+| Phase | 7/7 implemented and committed; closed by `/ze-close` on 2026-11-14 (the claim was taken above the WIP cap on Thomas's order of 2026-11-14, a one-off exception for this spec, when 16 specs were in flight against a cap of 12) |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -312,7 +312,7 @@ Research corrections to the Task text above (2026-11-14, read at the producers):
 | `ze data write <key> <file>` on the daemon's host, daemon running | → | `cmdWrite` forwarding in `main.go` | `test/plugin/data-write-live.ci` |
 | `update data config name <name> content <base64>` over `ze cli -c` | → | the import handler in `data_rpc.go` | `test/plugin/data-import-live.ci` |
 | `ze data import <file>` on the daemon's host, daemon running | → | `cmdImport` forwarding in `main.go` | `test/plugin/data-import-live.ci` |
-| `ze config import <file>` on the daemon's host, daemon running | → | `cmdImportWithStorage` in `internal/component/config/cli/cmd_import.go`, on the route `daemon_route.go` provides | `test/plugin/config-import-live.ci` |
+| `ze config import <file>` on the daemon's host, daemon running | → | `cmdImportWithStorage` and `cmdImportThroughDaemon` in `internal/component/config/cli/cmd_import.go`, on the route `internal/component/config/storage/daemonroute/daemonroute.go` provides | `test/plugin/config-import-live.ci` |
 | `request data repair path <absolute-output>` over `ze cli -c` | → | the repair handler in `data_rpc.go` | `test/plugin/data-repair-live.ci` |
 | `show data check` over `ze cli -c` and over SSH exec | → | the check local-data handler in `internal/component/config/storage/cli/storage_data.go` | `test/plugin/data-check-live.ci` |
 | `ze doctor` with the section removed and a record stored | → | `checkOrphanRecord` and `recordRemoval` in `internal/plugins/ddos/flowspec/doctor.go` | `test/plugin/ddos-flowspec-removed-section-orphan-cleared.ci` |
@@ -336,6 +336,9 @@ Research corrections to the Task text above (2026-11-14, read at the producers):
 | AC-13 | The daemon runs. Anyone allowed `show` runs `show data check`, from any daemon surface, or `ze data check` on the daemon's host | The answer is the store's integrity verdict: the entry count when clean, one row per corrupt entry and per history finding otherwise, with a non-zero status when any is an error. `\| json` and `\| table` render the same rows | `ze data check` keeps its lines and exit codes |
 | AC-14 | The read-only profile runs `delete data key`, `update data key`, `update data config` or `request data repair` | Each is denied by authorization before its handler runs. `show data check` is allowed | An admin is allowed all five |
 | AC-16 | The daemon runs. An operator runs `ze config import <file>` on the daemon's host, with `--name` or without | The import sends `update data config` for each input and prints the lines the offline route prints (`imported` or `replaced`, the name, the byte count, the file count). Replacing an existing config still asks for confirmation or `--yes` before anything is sent | With ze stopped the command acts on the store as today. `--dir` naming a store no daemon owns stays offline |
+| AC-17 | The daemon runs. `update data config name client-<c>.conf content <base64>` (added at closure, 2026-11-14: a small fix found in review) | On a hub that serves client `<c>`, a new active version is committed, no reload runs, and the write observer pushes `config-changed` to `<c>`. On a hub with no client entry `<c>`, or a daemon serving no managed client, the import is refused naming the client, as `request data restore ... client` refuses it, and no key is written | Another name keeps AC-10's behaviour. The offline imports cannot know the hub's clients and write as before |
+| AC-18 | ze is stopped and a confirmed-commit window record of this device's config stands (added at closure, 2026-11-14: the sibling of the two offline imports' window check) | `ze data restore <file> config` is refused with the window's own refusal and the active config is unchanged | With no record the restore commits as before |
+| AC-19 | A line no command matches carries a `content` value (a mistyped `update data kee <key> content <base64>`) (added at closure, 2026-11-14: a small fix found in review round 3) | The dispatcher's debug line for an unmatched command (`Dispatcher.dispatchPlugin`) records the line through `config.DisplayCommand`, so it holds the placeholder after `content` and never the value | Every matched command is recorded as AC-8 says |
 | AC-15 | The doctor store integrity finding (`doctor-store-integrity`) | Its description names `ze data check` and `ze data repair --output <path>` as commands that run while ze runs, names `show data check` and `request data repair path <file>` for a remote operator, and says that installing the repaired store needs ze stopped | The finding's code and severity are unchanged |
 
 ## End-to-End User Stories
@@ -372,7 +375,7 @@ Research corrections to the Task text above (2026-11-14, read at the producers):
 | `TestDataCheckAnswersRows` | `internal/component/config/storage/cli/storage_data_test.go` | AC-13: clean and corrupt stores, rows and status | |
 | `TestPluginKeyOwners` | `internal/core/statestore/permissions_test.go` | AC-5: the owners of a granted key, a templated key, and an ungranted key | |
 | `TestCommandRedactsContentValue` | `internal/core/redact/redact_test.go` | AC-8: the safe copy of both update commands holds the placeholder and not the content; a command with no credential keyword is unchanged | |
-| `TestAccountingAndAuditRecordMaskedContent` | `internal/component/plugin/server/command_test.go` | AC-8: the accounting tokens and the audit detail of a dispatched update command hold the placeholder | |
+| `TestAccountingRecordsMaskedContent` (`command_test.go`), `TestDeclaredAuditActionRecordsMaskedEntry` (`command_audit_test.go`) | `internal/component/plugin/server/` | AC-8: the accounting tokens and the audit detail of a dispatched update command hold the placeholder (built as two tests, one per record) | |
 | `TestRemovedSectionReportNamesTheRemovalThatWorksLive` | `internal/plugins/ddos/flowspec/doctor_test.go` | AC-2: replaces `TestRemovedSectionReportSaysWhatRemovesTheRecord`, whose pinned sentence becomes false; the change goes to a `ze-test-judge` agent | |
 | `TestCorruptRecordReportNamesTheRemoval` | same | AC-6 | |
 | `TestOrphanCodeDescriptionNamesTheLiveRemoval` | `internal/core/diagnostic/codes_test.go` | AC-2, AC-15: the two code descriptions | |
@@ -469,7 +472,7 @@ Each phase lands as its own commit, with its tests, its pages and the verb catal
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- `delete data key`: the YANG node, the registration, a handler that removes a runtime-state key through the published store, and `test/plugin/data-rm-live.ci` red first, then green. Input: the store target. Output: the key gone, the answer naming it. Constraint: no store open in the handler. AC-3 (daemon half), AC-4 for delete, AC-14 for delete.
 2. **Phase: the running-owner guard** -- the reader of a key's owners in `statestore`, and the refusal in the handler from the plugin snapshot. Constraint: the handler names no plugin, key or feature. AC-5 for delete.
-3. **Phase: the local route and the reports** -- `daemon_route.go`, `cmdRm` sending a busy removal to the daemon and printing the local lines; `recordRemovalToday` and its three reports, the orphan code description, `docs/guide/ddos-mitigation.md`; the doctor test change through a `ze-test-judge` agent; `test/plugin/data-rm-refused-live.ci` and `ddos-flowspec-removed-section-orphan-cleared.ci`. AC-1, AC-2, AC-3 (local half), AC-6.
+3. **Phase: the local route and the reports** -- the route to the daemon (written as `storage/cli/daemon_route.go`, moved in phase 6 to `internal/component/config/storage/daemonroute/daemonroute.go`), `cmdRm` sending a busy removal to the daemon and printing the local lines; `recordRemovalToday` and its three reports, the orphan code description, `docs/guide/ddos-mitigation.md`; the doctor test change through a `ze-test-judge` agent; `test/plugin/data-rm-refused-live.ci` and `ddos-flowspec-removed-section-orphan-cleared.ci`. AC-1, AC-2, AC-3 (local half), AC-6.
 4. **Phase: the masked argument** -- `content` joins the command-line credential keywords of `redact.Command`, which the accounting record, the audit log, the SSH exec log and the session transcript already pass every command through. Built and proven before any command carries a content. AC-8.
 5. **Phase: `update data key`** -- the node, the handler (runtime state, running owner, base64 decode, write), `cmdWrite` on a busy store, the bound refusals, `test/plugin/data-write-live.ci`. AC-4 and AC-5 for update, AC-7, AC-12.
 6. **Phase: the config import** -- read the pointer reader first (A-6). `cmdImport` replacing through a version offline; `update data config`, its handler on the candidate-and-reload path, `cmdImport` on a busy store; `ze config import` on a busy store taking the same route, which places the route where both `internal/component/config/cli` and `internal/component/config/storage/cli` reach it; `test/plugin/data-import-existing.ci`, `data-import-live.ci` and `config-import-live.ci`. AC-9, AC-10, AC-16.
@@ -550,6 +553,8 @@ Each phase lands as its own commit, with its tests, its pages and the verb catal
 - A content above 195,840 bytes cannot travel in one command. A larger config is restored from a backup file on the daemon's host with `request data restore path <file> config`.
 - `request data repair` writes a salvage copy. Installing a repaired tree still needs the daemon stopped: no command replaces a live tree with another tree.
 - `update data config` imports one config per command. The local `ze data import` with several files sends one command per file, so a refusal of the third leaves the first two imported, as the offline command does.
+- An empty file is the one input the two routes of `ze data write` answer differently, by design: the daemon form refuses an empty content (the Boundary Tests row: a key is removed with `delete data key`, never emptied), so a busy `ze data write <key> <empty-file>` is refused before it connects, while the offline route writes an empty key as it did before this spec (AC-7's survivor keeps it).
+- A client config (`client-<name>.conf`) imported through the daemon reaches its managed client only on a hub that serves that client; `update data config` refuses it otherwise, as `request data restore ... client` does. The offline `ze data import` and `ze config import` cannot tell which clients a hub serves and write it as before.
 
 ## Checklist
 
@@ -592,3 +597,185 @@ Each phase lands as its own commit, with its tests, its pages and the verb catal
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-data-store-maintenance-through-the-daemon.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Five daemon commands on the daemon's own store handle, registered in `register_data_rpc.go` and `register.go` and declared in `ze-data-cmd.yang`: `delete data key` (`handleDataKeyDelete`), `update data key` (`handleDataKeyUpdate`), `update data config` (`handleDataConfigUpdate`), `request data repair` (`handleDataRepair`), `show data check` (`dataCheck`, local-data).
+- The runtime-state confinement (`storage.RuntimeKey`) and the running-owner guard (`runningOwnerError` over `statestore.PluginKeyOwners` and `pluginserver.PluginDoctorSnapshot`).
+- The local route: `ze data rm`, `ze data write`, `ze data import` and `ze config import` on a busy store send their work through `internal/component/config/storage/daemonroute` (`Send`, `OverSSH`) and print the offline lines.
+- `content` joins the command-line credential keywords (`redact.isCredentialKey`), and a refusal no longer echoes a credential value (`command` argfaults); the audit action is declared at registration (`RPCRegistration.AuditAction`).
+- The FlowSpec report text (`recordRemoval`), the orphan and store integrity code descriptions (`codes.go`).
+- Offline `ze data import` replaces an existing config through a version (`importConfig`), and both offline imports refuse a stopped daemon's open confirmed-commit window.
+- Closure fixes: `update data config` refuses a managed client's config no served client would fetch (`unservedClientRefusal`, AC-17); the offline `ze data restore <file> config` refuses a stopped window (`restoreConfig`, AC-18).
+
+### Bugs Found/Fixed
+- A client config imported through the daemon on a hub that does not serve the client was committed and answered as imported, and no client would ever fetch it, where `request data restore ... client` refuses the same case. Fixed at closure: `unservedClientRefusal` (`data_rpc_config.go`), test `TestUpdateConfigClientConfigReachesAServedClientOnly`.
+- The offline config restore did not check a window record a stopped daemon left, the gap the two offline imports had: the daemon's next start reverted the restore. Fixed at closure: `restoreConfig` (`cmd_restore.go`) under `confirm.WriteOutsideRecorded`, test `TestRestoreConfigRefusedWhileStoppedWindowRecorded`.
+- During implementation (each in its own work commit): a key removed during a check or salvage walk is reported (78cda57765, 904b4e4672); a refused credential value is not echoed (fb0c61e66c).
+
+### Documentation Updates
+- `docs/architecture/hub-architecture.md`: the client config import paragraph now states the refusal (anchor `data_rpc_config.go -- unservedClientRefusal`).
+- `docs/guide/command-reference.md`: the `update data config` paragraph (anchor adds `unservedClientRefusal`), and the offline `ze data restore <file> config` paragraph gains the stopped-window refusal (anchor `cmd_restore.go -- restoreConfig`).
+- `features/backup-and-restore.md`: the ten functional tests of this spec join Real-path tests (phase 6a owed this, and it was not done).
+- Implementation commits carried the rest: `docs/guide/command-reference.md`, `operations.md`, `ddos-mitigation.md`, `authentication.md`, `authorization.md`, `audit.md`, `config-editor.md`, `docs/architecture/zefs-format.md`, `api/commands.md`, `cli/command-verbs.md`, `ssh/fixit-bcrypt-hash-credential.md`, `storage-backends.md`.
+- `./le doc check all` (2026-11-14, closure): every stage passes except "Digest anchors", which fails on `ai/PACKAGE-MAP.md` in three digests, a file 7629e90135 (another session's) made derived; source anchors: "checked 4802 code paths, 830 packages, all references valid".
+
+### Deviations from Plan
+- The route to the daemon moved from `storage/cli/daemon_route.go` to the package `internal/component/config/storage/daemonroute` in phase 6, so `ze config import` reaches it (owner approved).
+- The content bound is 261,120 base64 characters, 195,840 bytes, on every surface (A-5 broke; owner decision).
+- AC-8's unit test was built as two tests, `TestAccountingRecordsMaskedContent` and `TestDeclaredAuditActionRecordsMaskedEntry`.
+- AC-17 and AC-18 were added at closure for the two small fixes above.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: an SSH exec line carries about 1 MiB | One SSH packet carries 256 KiB (`ssh/cipher.go` `maxPacket`) | Read at the producer in phase 5 | Owner chose one bound on every surface; AC-12 and the leaves carry it |
+| approach | Phase 6a left the new functional tests out of `features/backup-and-restore.md` Real-path tests, which its own owed list named | The feature row is the declaration `./le feature report` reads | Closure documentation review | Added at closure |
+| approach | AC-10 was silent on a hub's client config, and the import committed one no client fetched | The restore beside it refuses that case | The implementation session's "Do not assume" list, judged at closure | AC-17 and `unservedClientRefusal` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `delete data key` | Done | `storage/cli/data_rpc.go` `handleDataKeyDelete` | |
+| `update data key` | Done | `storage/cli/data_rpc.go` `handleDataKeyUpdate` | |
+| `update data config` | Done | `storage/cli/data_rpc_config.go` `handleDataConfigUpdate` | |
+| `request data repair` | Done | `storage/cli/data_rpc_repair.go` `handleDataRepair` | |
+| `show data check` | Done | `storage/cli/storage_data.go` `dataCheck` | |
+| Rule 1, runtime state only | Done | `data_rpc.go` `configurationKeyError`, `storage.RuntimeKey` | |
+| Rule 2, running owner refused | Done | `data_rpc.go` `runningOwnerError` | |
+| Rule 3, base64 content never recorded | Done | `redact.go` `isCredentialKey`; `command` argfaults | |
+| Rule 4, local commands route to a running daemon | Done | `storage/cli/main.go` `removeKeys`, `writeKey`, `importConfigs`; `config/cli/cmd_import.go` `cmdImportThroughDaemon`; `daemonroute` | |
+| The FlowSpec report names one removal that works in both states | Done | `flowspec/doctor.go` `recordRemoval` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/ddos-flowspec-removed-section-orphan-cleared.ci` | |
+| AC-2 | Done | `TestRemovedSectionReportNamesTheRemovalThatWorksLive`, `TestOrphanCodeDescriptionNamesTheLiveRemoval` | |
+| AC-3 | Done | `TestDeleteKeyRemovesRuntimeKey`, `TestDeleteKeyAbsentIsAnError`, `TestDataRmForwardsToDaemonWhenBusy`, `data-rm-live.ci`, `data-rm-refused-live.ci` | |
+| AC-4 | Done | `TestKeyCommandsRefuseConfigurationKey`, `data-rm-refused-live.ci` | |
+| AC-5 | Done | `TestKeyCommandsRefuseKeyOfRunningPlugin`, `TestPluginKeyOwners`, `data-rm-refused-live.ci` | |
+| AC-6 | Done | `TestCorruptRecordReportNamesTheRemoval` | |
+| AC-7 | Done | `TestUpdateKeyWritesDecodedContent`, `TestUpdateKeyRefusesBadBase64`, `data-write-live.ci` | |
+| AC-8 | Done | `TestCommandRedactsContentValue`, `TestAccountingRecordsMaskedContent`, `TestDeclaredAuditActionRecordsMaskedEntry`, `data-write-live.ci` | |
+| AC-9 | Done | `TestDataImportReplacesThroughAVersion`, `data-import-existing.ci` | |
+| AC-10 | Done | `TestUpdateConfigStagesAndReloads`, `TestUpdateConfigRejectedLeavesPointers`, `TestUpdateConfigRefusedDuringConfirmWindow`, `TestUpdateConfigOtherNameCommitsVersion`, `data-import-live.ci` | |
+| AC-11 | Done | `TestRepairRPCPathRules`, `data-repair-live.ci` | |
+| AC-12 | Done | `TestUpdateConfigContentBound`, `TestDataWriteRefusesOversizeBeforeConnecting`, `TestDataImportRefusesOversizeBeforeConnecting` | |
+| AC-13 | Done | `TestDataCheckAnswersRows`, `data-check-live.ci` | |
+| AC-14 | Done | `data-authz-read-only.ci` | |
+| AC-15 | Done | `TestOrphanCodeDescriptionNamesTheLiveRemoval` (both descriptions) | |
+| AC-16 | Done | `TestImportThroughDaemonWhenBusy` and the six other `config/cli` import tests, `config-import-live.ci` | |
+| AC-17 | Done, run owed | `TestUpdateConfigClientConfigReachesAServedClientOnly` | Closure fix |
+| AC-18 | Done, run owed | `TestRestoreConfigRefusedWhileStoppedWindowRecorded` | Closure fix |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 23 unit tests of the plan | Done | each found by `grep "func <name>("` at closure, under the files the plan names | AC-8's accounting test is built as two tests (Deviations) |
+| The ten functional tests | Done | `test/plugin/` | Each run green, red under a break, and 80 times under load (implementation session) |
+| `TestUpdateConfigClientConfigReachesAServedClientOnly`, `TestRestoreConfigRefusedWhileStoppedWindowRecorded` | Done, run owed | `storage/cli/data_rpc_config_test.go`, `storage/cli/cmd_restore_test.go` | Closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify | Done | the work commits listed in the handoff |
+| `internal/component/config/storage/daemonroute/daemonroute.go` | Done | in f18e497c87 |
+| The nine `.ci` files and their fixtures | Done | plus `config-import-live.ci` |
+| `internal/component/config/storage/cli/cmd_restore.go` | Changed | not in the plan: AC-18 |
+
+### Audit Summary
+- **Total items:** 18 ACs, 10 Task requirements, 25 planned tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The FlowSpec orphan warning clears on a running box | functional | `test/plugin/ddos-flowspec-removed-section-orphan-cleared.ci`: the report, the printed withdrawal, `ze data rm` through the running daemon, then a `ze doctor` answer without the code |
+| Every `ze data` write verb has a daemon route on every surface | functional | `data-rm-live`, `data-write-live`, `data-import-live`, `config-import-live`, `data-repair-live`, `data-check-live`; the commands register once (`register_data_rpc.go`, `register.go`) and no surface package was edited |
+| The local commands work in both states with the same lines | functional | `data-rm-refused-live`, `data-write-live`, `data-import-live`, `config-import-live` beside a daemon; `data-import-existing` and the existing offline `.ci` files with ze stopped |
+| No content reaches a record | security | `data-write-live.ci` reads `show audit` and the SSH exec log; `TestAccountingRecordsMaskedContent` |
+| A read-only operator cannot change the store | security | `data-authz-read-only.ci`: the four writes denied, the check allowed |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is implemented; the empty-file divergence of `ze data write` is the agreed design (Known Limitations) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/data-store-maintenance-through-the-daemon-d35216dc-7dc6-414f-b670-8764d84e350a.md` (the spec's whole change set: 79 files plus the removal of `storage/cli/daemon_route.go`, verdict clean) |
+| `./le spec review check` | see Run 3, run after the record over the same list |
+| Rounds | 4 |
+| Reviewer lenses used | logic and wiring of the five handlers and the local route; security (key confinement through `validKey`, the owner guard, redaction, path rules); the owner rule on the same output; docs against source; the closure fixes; round 3: the whole change set, every commit tagged `Spec-work: data-store-maintenance-through-the-daemon`, with the style pass on every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A client config imported on a hub that does not serve the client is answered as imported and never fetched | `data_rpc_config.go` `handleDataConfigUpdate` | `unservedClientRefusal`, AC-17, its test and two pages |
+| 2 | ISSUE | The offline config restore ignores a stopped daemon's window record, so the next start reverts it | `cmd_restore.go` `restoreConfig` | `confirm.WriteOutsideRecorded`, AC-18, its test and its page |
+| 3 | ISSUE | `features/backup-and-restore.md` Real-path tests lacked the ten new functional tests | `features/backup-and-restore.md` | the row |
+| 4 | ISSUE | A line no command matches is logged at debug level in clear, so a mistyped `update data kee <k> content <base64>` writes the content to the daemon log | `plugin/server/command.go` `Dispatcher.dispatchPlugin` | the line goes through `config.DisplayCommand`, as the audit detail does; AC-19, `TestUnmatchedLineLogsNoContent` |
+| 5 | ISSUE | Stale comment: the package comment of `storage/cli/register.go` called the `show data *` commands offline shortcuts and the store management offline, while the daemon serves them and the package registers the daemon's store RPCs | `storage/cli/register.go` package comment | the comment names the local-data commands, the daemon route, and register_data_rpc.go |
+
+### Run 2
+Over the closure diff: 0 BLOCKER, 0 ISSUE. NOTE: `fixAddHubClient` and `fixEditStagedChange` hold the same command for two reasons and stay two names. Style pass run on both changed Go files: no `panic`, no allocating formatter, every refusal an `opererr.Error` through `OperatorErrorResponse`, no compound guard.
+
+### Run 3
+Over the spec's whole change set as it stands (the 15 tagged commits and the closure's uncommitted edits): 2 ISSUE, findings 4 and 5 above, both fixed in this round. Diagnosis of 4: symptom, the unmatched-command debug line carries the typed line whole; root cause, `Dispatcher.dispatchPlugin` logs `lowerInput` raw; owning layer, the dispatcher's log; `[workaround]` none short of not logging; `[source]` the one redaction entry point a recorded line takes (`config.DisplayCommand`, then `redact.Command`), chosen because every other record of a command line already goes through it. Checked and clean: no handler opens the store as a writer (each acts on `DataRPCTarget.Store`; `show data check` and the salvage history open readers or the new output only); `content` reaches no record, refusal, error wrap or log line (`redact.isCredentialKey`, `command.newValueFault`, `ArgumentFaults.wholeCommand`, `daemonroute.Send`/`OverSSH`/`CommandFix`, `recordCommandAudit`, `dispatchCommandResponse`); the four writes are judged in the edit section by their verb (`IsReadOnlyPath`) and nothing marks them; `key` is confined by `storage.RuntimeKey` and `validKey` (`fs.ValidPath`), `name` by `storage.PlainConfigName`, `path` by `CheckArtifactPath` and `refuseStoreName`; decoded content is bounded by the leaf (261,120 characters, the byte cap judged before the length) and is never a path; the running-owner guard reads grants and the snapshot by process name and names no plugin; `rm`, `write`, `import` and `config import` print the offline lines and exit codes on both routes; `flowspec/doctor.go` comments match the reports. Style pass on every changed Go file: the one `panic` (`printIntegrityFinding`) guards a check name only Ze produces, on the CLI; every loop is bounded by operator arguments or a registry; no error is swallowed to debug. NOTEs: `ze data import -` writes `file/active/-` offline while the daemon form refuses the name; the usage text in `storage/cli/main.go` repeats the 195,840-byte bound the YANG leaf declares; `ze doctor` does not list the frame keys a walk found vanished (`CheckReport.Vanished`), which are not damage.
+
+### Run 4
+Over the round 3 fixes alone (`command.go` `dispatchPlugin`, `command_audit_test.go` `TestUnmatchedLineLogsNoContent`, the `register.go` package comment): 0 BLOCKER, 0 ISSUE. `config.DisplayCommand` returns `redact.Command(input)` for a line that is not a `set` form, so the unmatched line keeps every word but the value after a credential keyword; it runs on the unmatched-command path only, which is cold. The test fails if the debug line is not written at all, so it cannot pass vacuously. NOTE: the argument is evaluated whatever the log level, a cost paid only by a refused command.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/storage/daemonroute/daemonroute.go` | Yes | read at closure |
+| The ten `.ci` files | Yes | `git ls-files test` lists `config-import-live.ci`, `data-authz-read-only.ci`, `data-check-live.ci`, `data-import-existing.ci`, `data-import-live.ci`, `data-repair-live.ci`, `data-rm-live.ci`, `data-rm-refused-live.ci`, `data-write-live.ci`, `ddos-flowspec-removed-section-orphan-cleared.ci` under `test/plugin/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3, AC-4, AC-5 | The key handlers refuse configuration keys and a running owner before the store | read `data_rpc.go` `handleDataKeyDelete`, `handleDataKeyUpdate`, `runningOwnerError`; `storage.validKey` refuses a `..` element under `meta/` |
+| AC-17 | A client config is refused unless served | read `data_rpc_config.go` `unservedClientRefusal`; owed test run |
+| AC-18 | The offline restore refuses a window record | read `cmd_restore.go` `restoreConfig`; owed test run |
+| All | Every planned test exists | `grep "func <name>("` found each at closure |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Each Wiring Test row | the file named in its row | each exists; their runs (green, red under a break, 80 under load) are recorded in the implementation session state |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken in the saved-file case, closed by AC-5 | `runningOwnerError` |
+| A-2 | confirmed | `ddos-flowspec-removed-section-orphan-cleared.ci` |
+| A-3 | broken for a daemon with no peer; the test configures one | same test |
+| A-4 | confirmed | `zefs.CheckPath`, `cmdRepair` |
+| A-5 | broken | `vendor/golang.org/x/crypto/ssh/cipher.go` `maxPacket`; owner bound |
+| A-6 | confirmed | `storage.ReadActiveConfig` (`pointer.go`) |
+| A-7 | confirmed with a correction | `storage.HoldWrites`, `TestHoldWritesKeepsEveryWriterOffTheWalk` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Client config import refusal (`hub-architecture.md`, `command-reference.md`) | `data_rpc_config.go` `unservedClientRefusal` | Yes |
+| Offline restore window refusal (`command-reference.md`) | `cmd_restore.go` `restoreConfig`, `confirm.WriteOutsideRecorded` | Yes |
+| Feature Real-path tests | `git ls-files test/plugin` | Yes |
+| Source anchors | `./le doc check all`: "all references valid" | Yes |

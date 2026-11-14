@@ -1,8 +1,12 @@
 // Design: docs/architecture/api/commands.md — data (ZeFS) command ownership
 //
-// Register the `data` root command and its `show data *` offline shortcuts with
-// the importable command registry. Offline store-key management lives with
-// internal/component/config/storage, not under cmd/ze.
+// Register the `data` root command and the `show data *` local-data commands
+// with the importable command registry. The caller's own process answers a
+// local-data command, and the daemon serves the same handler under its YANG
+// path. The daemon's own store maintenance (`delete data key`, `update data
+// key`, `update data config`, `request data backup`, `restore` and `repair`) is
+// a set of builtin RPCs, registered in register_data_rpc.go. Store-key
+// management lives with internal/component/config/storage, not under cmd/ze.
 package cli
 
 import (

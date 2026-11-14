@@ -364,8 +364,11 @@ content <base64>` imports one config: the hub's own config takes the path of
 commit reload, refused while a confirmed-commit window is open), and any other
 name is committed as a new version with no reload. A `client-<name>.conf` name
 is the config the hub serves to that managed client: the write observer pushes
-`config-changed` to it, as for a client restore, but the import does not check
-that the hub serves such a client. `request data repair path <file>` writes a
+`config-changed` to it, as for a client restore, and like that restore the
+import is refused when the hub has no client entry of that name, or the daemon
+serves no managed client, because no client would ever fetch it.
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- unservedClientRefusal -->
+`request data repair path <file>` writes a
 salvage copy of that store to a new path on the hub's host: the walk over the
 live tree runs under one guard that holds the configuration and runtime-state
 locks (`storage.HoldWrites`), so a write or a removal the hub makes meanwhile

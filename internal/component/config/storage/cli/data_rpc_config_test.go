@@ -202,6 +202,54 @@ func TestUpdateConfigOtherNameCommitsVersion(t *testing.T) {
 	require.NoError(t, err, "the first import is kept as rollback")
 }
 
+// TestUpdateConfigClientConfigReachesAServedClientOnly proves the import of a
+// managed client's config (client-<name>.conf) on the three daemons that can
+// receive one: a daemon that serves no managed client and a hub without that
+// client entry both refuse, naming the client, write no key and push nothing;
+// a hub that serves the client commits the version with no reload, and the
+// write observer reports the client, which is what pushes config-changed.
+// VALIDATES: AC-10 (another name, a managed client's config).
+// PREVENTS: a client config imported as success that no client ever fetches,
+// where request data restore ... client refuses the same case.
+func TestUpdateConfigClientConfigReachesAServedClientOnly(t *testing.T) {
+	reloads := 0
+	reload := func(context.Context) error {
+		reloads++
+		return nil
+	}
+	store, configPath := dataRPCStore(t, reload)
+	var pushed []string
+	store.SetWriteObserver(func(key string) {
+		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
+			pushed = append(pushed, name)
+		}
+	})
+	const clientConfig = "client-edge.conf"
+
+	response := configCall(t, configArgs(t, clientConfig, importedText))
+	assert.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "update data config: client-edge.conf was not imported")
+	assert.Contains(t, response.Error, "this daemon serves no managed client")
+	assert.Contains(t, response.Error, "fix: "+fixAddHubClient)
+
+	InstallDataRPC(&DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reload,
+		ServesClient: func(name string) bool { return name == "core" }})
+	response = configCall(t, configArgs(t, clientConfig, importedText))
+	assert.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "no client entry named edge")
+	assert.False(t, store.Exists(clientConfig), "a refused client import writes no config")
+	assert.Empty(t, pushed, "a refused client import pushes nothing")
+
+	InstallDataRPC(&DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reload,
+		ServesClient: func(name string) bool { return name == "edge" }})
+	response = configCall(t, configArgs(t, clientConfig, importedText))
+	require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
+	requireActive(t, store, clientConfig, importedText)
+	assert.Contains(t, pushed, "edge", "the write observer hears the served client's config")
+	assert.Zero(t, reloads, "a client config import MUST NOT reload the hub")
+	requireActive(t, store, configPath, importActiveText)
+}
+
 // TestUpdateConfigRefusesBadName proves a name that is not a plain config name
 // is refused before the store is touched, naming the rule, whatever the
 // validator let through.

@@ -1541,7 +1541,11 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 		for i, c := range all {
 			names[i] = c.Name
 		}
-		logger().Debug("dispatchPlugin: no match", "input", lowerInput, "registry_count", len(all), "registered", textbuf.Join(names, ", "))
+		// The line is unmatched, so nothing says which of its words is a
+		// secret: it is logged through config.DisplayCommand, as the audit
+		// detail is, so a mistyped `update data key <k> content <base64>` or a
+		// password never reaches the log in clear.
+		logger().Debug("dispatchPlugin: no match", "input", config.DisplayCommand(lowerInput), "registry_count", len(all), "registered", textbuf.Join(names, ", "))
 		return nil, ErrUnknownCommand
 	}
 

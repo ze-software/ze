@@ -2849,7 +2849,11 @@ it the artifact's only config is taken, else the one named like this device;
 any other case is refused, listing the artifact's configs. A differing source
 name is printed. A staged candidate refuses the restore. It is offline only:
 while a daemon owns the store it names the live route, `request data restore
-path <file> config`.
+path <file> config`. A confirmed commit a stopped daemon left open on this
+device's config refuses it with that window's refusal, naming
+`ze start <config>`, because that daemon's next start reverts the commit and
+would undo the restore.
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- restoreConfig -->
 
 `ze data restore <file> full` replaces the whole live tree with every key of the
 artifact, history, credentials and identity included. The previous tree moves to
@@ -3005,13 +3009,16 @@ the window's own refusal, and while another change is staged, naming commit or
 discard. Any other name is committed as a new active version, the previous one
 kept as rollback, and nothing reloads; on a hub, a name of the form
 `client-<name>.conf` is the config the hub serves to that managed client, and
-the hub pushes `config-changed` to it. `content` has the bound and the
+the hub pushes `config-changed` to it. Such a name is refused, as
+`request data restore ... client` refuses it, when the hub has no client entry
+of that name or the daemon serves no managed client, because no client would
+fetch it. `content` has the bound and the
 encoding of `update data key`; a larger config is restored from a backup file
 on the daemon's host with `request data restore path <file> config`. The
 records hold `<redacted>` in place of the content, and the audit log records
 the import under `data-config-import`. The built-in read-only profile is
 denied the command.
-<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate, importDaemonConfig, daemonConfigImportRefusal, importOtherConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate, importDaemonConfig, daemonConfigImportRefusal, importOtherConfig, unservedClientRefusal -->
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, the content leaf -->
 
 Both refuse a relative path, a `..` element and a symlink, each naming the

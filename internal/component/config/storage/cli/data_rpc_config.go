@@ -42,7 +42,9 @@ const fixEditStagedChange = "ze config edit"
 // config` takes, inside the confirmed-commit window's worker: a config the
 // reload refuses never becomes active, and an open window refuses the import
 // with its own refusal. For any other name the content is committed as a new
-// active version, the previous one kept as rollback, and nothing reloads. The
+// active version, the previous one kept as rollback, and nothing reloads; a
+// managed client's config (client-<name>.conf) is refused unless this hub
+// serves that client, so the version always reaches someone. The
 // validator has already judged content against its leaf, and the handler
 // decodes it again rather than trust that. Every refusal runs before the store
 // is touched, and none quotes the content. The answer names the config, the
@@ -92,7 +94,37 @@ func handleDataConfigUpdate(ctx *pluginserver.CommandContext, validated command.
 	if name == filepath.Base(target.ConfigPath) {
 		return importDaemonConfig(ctx.Context(), target, name, content), nil
 	}
+	if client, isClient := pluginserver.ClientNameFromConfigKey(name); isClient {
+		if refusal := unservedClientRefusal(target, name, client); refusal != nil {
+			return zePlugin.OperatorErrorResponse(refusal), nil
+		}
+	}
 	return importOtherConfig(target, name, content), nil
+}
+
+// fixAddHubClient is the fix of a client config import this daemon would never
+// serve: the editor, where the client entry under plugin hub server is added.
+const fixAddHubClient = "ze config edit"
+
+// unservedClientRefusal refuses the import of client-<client>.conf, the config
+// a hub serves to one managed client, when this daemon serves no such client:
+// the version would be committed and no client would ever fetch it, which is
+// why `request data restore ... client` refuses the same case
+// (restoreClientConfig). It answers nil when the hub serves the client: the
+// write observer then pushes config-changed to it.
+func unservedClientRefusal(target *DataRPCTarget, name, client string) *opererr.Error {
+	problem := pathUpdateDataConfig + ": " + name + " was not imported"
+	if target.ServesClient == nil {
+		return opererr.New(problem,
+			name+" is the config a hub serves to the managed client "+client+", and this daemon serves no managed client, so no client would ever fetch it",
+			fixAddHubClient)
+	}
+	if !target.ServesClient(client) {
+		return opererr.New(problem,
+			name+" is the config this hub serves to the managed client "+client+", and the hub has no client entry named "+client+" under plugin hub server, so no client would ever fetch it",
+			fixAddHubClient)
+	}
+	return nil
 }
 
 // importDaemonConfig imports content as the daemon's own config, through the
