@@ -111,9 +111,27 @@ Forced reads: the Go style guide (49KB) 858 times, the system door (11KB)
 | 1 | spec-agent-economy-1-call-shape (closed) | The Bash hook's command rewrite, quote-blind guards, the budget's counting, refusal messages that teach a forbidden form, what a subagent is told at start | - |
 | 2 | spec-agent-economy-2-scoped-test (closed) | A short action that tests, vets or compiles named packages; persisted queue wait; nearest-name answer for an unknown command; commit-create ergonomics | 1 (the hook messages name this action) |
 | 3 | `plan/post-release/engineering/spec-agent-economy-3-preamble.md` | D-1, D-2, D-3; the skill listing served to phase agents; main-only `.claude/rules/` files | - |
-| 4 | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching | 1 (same hook file) |
+| 4 | `plan/post-release/engineering/spec-agent-economy-4-supervision.md` | Context-size nudge at agent spawn; a warning on a second spec claim; the agent's call count reported to the main thread; skill bodies shed branch-only reference text; test-judge batching; the kept measure; the spec-set safeguards: a set's state derived from its children and reported as live or stalled, and the handover a session owes when it stops inside one | 1 (same hook file) |
 | 5 | `plan/post-release/engineering/spec-agent-economy-5-scoped-gates.md` | A cheaper post-commit compile gate and a changed-only RFC check, CI keeping the whole-corpus runs | 2 |
 | 6 | spec-agent-economy-6-shell-parser (closed) | The pre-tool Bash hook reads a command line with one bash parser (`mvdan.cc/sh/v3/syntax`) in place of the hand splitter and the byte allow-list; a reader line through loops, conditionals, groups and substitutions; a heavy job refused wherever the line runs it; the after-line walk's wrapper options, base-name match and `set`; the raw-job refusal's quiet form | 1 (the hook it replaces) |
+
+### Where the set stands (2026-11-14)
+
+Children 1, 2 and 6 closed on 2026-11-11. The session that ran them ended and
+no session picked the set up: nothing reports a set that has started and not
+finished, which is the defect child 4 now owns. Until child 4 lands, this
+table is the only record, and it is kept by hand.
+
+| Order | Child | Status | To pick it up |
+|-------|-------|--------|---------------|
+| 1 | 3 preamble | ready | Claim it and run `/ze-implement`. It depends on nothing |
+| 2 | 4 supervision | skeleton | Run `/ze-spec` on it: the three harness probes first, then the design, with two questions for the owner in its Open Questions. Its kept measure (AC-7) is what this umbrella's own criteria are measured with |
+| 3 | 5 scoped gates | skeleton | Last, by owner decision D-5: it waits for the queue-wait record child 2 landed to show whether it is worth its risk |
+| 4 | this umbrella | skeleton | Its criteria are measured over the two weeks after the last child closes |
+
+The umbrella's Status is still `skeleton` although three children ran under
+it. No Status says "children are running" today, so none would be true; child
+4's AC-8 makes the set's state derived, and this row is not corrected by hand.
 
 ### Model tier per child (owner, 2026-11-11)
 
@@ -160,12 +178,12 @@ Existing specs this work meets:
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** the producers each child changes are listed in that child. The umbrella's own claims rest on these:
-- [ ] `internal/le/hookruntime/session.go` - `writeParentSessionPrefix` prepends the session-identity exports to every subagent Bash command and returns it as changed input
-- [ ] `internal/le/hookruntime/budget.go` - `agentCallBudgetCheck` counts every hooked call of an editing agent, a refused one included
-- [ ] `internal/le/hookruntime/runtime.go` - `Run` runs every check of an action, then the prefix rewrite when none blocked
-- [ ] `internal/le/hookruntime/bash.go` - the Bash guards split a command on separators without regard for quotes
-- [ ] `internal/le/hookruntime/lifecycle.go` - `hookSubagentContext` tells a subagent about 1.5KB of constraints and nothing of batching, the budget or what counts as a read
+**Source files read:** the producers each child changes are listed in that child. The umbrella's own claims rest on these, re-read on 2026-11-14 after children 1, 2 and 6 closed. The baseline above was measured before they landed:
+- [ ] `internal/le/hookruntime/session.go` - `bashAgentIdentity` compares a subagent's command with the identity line the agent types and never changes the command. Child 1 removed the rewrite that prepended it
+- [ ] `internal/le/hookruntime/budget.go` - `agentCallBudgetCheck` counts the hooked calls of an editing agent and no longer counts one an earlier check refused. `bumpAgentCalls` writes a counter nothing reads back for the main thread
+- [ ] `internal/le/hookruntime/runtime.go` - `Payload` carries the transcript path, the agent id and the agent type, and no usage field
+- [ ] `internal/le/hookruntime/bash.go` - the governed-path and build guards still match a command by pattern. The identity check and the reader line read one bash parse of the command, which child 6 landed
+- [ ] `internal/le/hookruntime/lifecycle.go` - `hookSubagentContext` tells a subagent its constraints, the claimed spec, the parent session and the identity line to type. `hookStop` refuses a stop only for a claimed spec that is implemented and not closed
 
 **Behavior to preserve:**
 - Every guard keeps judging what a command, path or file is, and stays fail-closed.
