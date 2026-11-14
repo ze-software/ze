@@ -6,10 +6,10 @@
 | Priority | P1 |
 | Release reason | Complete next-hop origination and proof obligations of the already advertised link-local capability. |
 | Scope | protocol |
-| Depends | plan/release/fixes/spec-bgp-unowned-rfc-rows.md (row 3: the link-scope snapshot gains the name of the session's interface, its A-2 decision, which AC-9 to AC-19 read; its I4 runtime check of `session link-local`, which AC-14 reuses; and its scenario `bgp-linklocal-capability-interface-frr`, which proves AC-8's receive direction); plan/release/fixes/spec-rfc2545-readvertise-on-condition-flip.md (a skeleton with no design: this spec writes the per-peer re-advertise AC-17 needs, Key Design Decisions "Re-advertise", and that spec and unowned-rows I3 reuse it; that spec's AC-2, its equal-table guard and its "no refeed primitive" note were amended on 2026-10-12 to agree, round-8 I3, and again for the round-9 B1 re-send path) |
+| Depends | plan/release/fixes/spec-rfc2545-readvertise-on-condition-flip.md (the dependency on row 3 of spec-bgp-unowned-rfc-rows ended on 2026-11-14, when that row moved into this spec as AC-20: the link-scope snapshot gains the name of the session's interface, the A-2 decision, which AC-9 to AC-19 read; the I4 runtime check of `session link-local`, which AC-14 reuses; and the scenario `bgp-linklocal-capability-interface-frr`, which proves AC-8's receive direction. The other spec is a skeleton with no design: this spec writes the per-peer re-advertise AC-17 needs, Key Design Decisions "Re-advertise", and that spec and unowned-rows I3 reuse it; that spec's AC-2, its equal-table guard and its "no refeed primitive" note were amended on 2026-10-12 to agree, round-8 I3, and again for the round-9 B1 re-send path) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-12 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -23,6 +23,7 @@ taken from the session's interface the way FRR and BIRD take it:
 |------|------|
 | AC-7 | Re-read three rows that used to rest on an unreachable form |
 | AC-8 | Interop: Ze relays a received link-local-only next hop unchanged to FRR |
+| AC-20, AC-21 | Row `-1-2`: a received Link-Local next hop is tied to the session's interface, and the sent one to an address that interface holds. Moved here on 2026-11-14 from spec-bgp-unowned-rfc-rows, in the section of that name below; AC-9 to AC-19 build on it |
 | AC-9 to AC-19 | Build, only for a session whose interface is configured under the `interface` root (owner, 2026-10-12, "Require an `interface` section"; without it Ze sends exactly what it sends today and logs one Warn naming the fix, AC-18), for every IPv6 family whose next hop has an IPv6 global form except 6PE (AFI 2 SAFI 4), which keeps the IPv4-mapped field RFC 4798 Section 2 requires: under next-hop self, an IPv6 route over an IPv4 session is sent with the session interface's global IPv6 address (plus its link-local for a directly attached peer, whether or not capability 77 is negotiated), or with the interface link-local alone when the peer is directly attached, the interface holds no global and capability 77 is negotiated, instead of being withheld; a multihop session whose source interface holds no global is withheld for 2/1 and 2/2, while 6VPE (2/128) with no global keeps today's IPv4-mapped field (RFC 4659 Section 3.2.1.2, FRR's fallback, round-8 I1); addresses come from the interface with no config; `session link-local` stays as an explicit override, and capability 77 no longer requires it (owner, 2026-10-11, "match bird and frr behaviour"; owner, 2026-10-12, the two cases where FRR and BIRD differ, Owner decisions) |
 
 Owner decision, 2026-10-11, on the round-2 design review's I5 ("the narrowed
@@ -34,7 +35,7 @@ That is no longer true, and the earlier text claimed rows the ledger shows met:
 |---------------|----------------------------------------|
 | `parseCapability` holds no case for 77 and no negotiated state is recorded | `internal/core/bgp/capability/capability.go` declares `CodeLinkLocalNextHop` (77) and parses it as a typed `LinkLocalNextHop`; `Negotiate` in `internal/core/bgp/capability/negotiated.go` records the negotiated `LinkLocalNextHop` |
 | Seven MUST-level rows (`-3-1`, `-4-1`, `-4-3`, `-4-4`, `-4-7`, `-4-9`, `-4-5`, `-4-6`) have no producer | `rfc/short/draft-ietf-idr-linklocal-capability.md` "Enrolment reason" records each as met and names its producer: `Peer.linkLocalOnlyNextHopPermitted` and `buildMPReach` for `-3-1` and `-5-1`; `egressNextHopIsLinkLocalOnly` and `sameLinkLayerSegment` for `-4-5`/`-4-6`; a route whose next hop has no wire form refused for `-4-1`/`-4-4`/`-4-7`/`-4-9` |
-| The draft's open rows are this spec's | The summary carries `{gap}` on two rows only, `-1-2` and `-6-1`, and both are owned by `plan/release/fixes/spec-bgp-unowned-rfc-rows.md` (its rows 3 and 4) |
+| The draft's open rows are this spec's | The summary carries `{gap}` on two rows only, `-1-2` and `-6-1`, and both were owned by spec-bgp-unowned-rfc-rows (its rows 3 and 4). Since its split on 2026-11-14, `-6-1` is met, tagged and recorded there, and `-1-2` is this spec's (the section "Row `-1-2`, moved here on 2026-11-14", below) |
 
 So the ACs that built the feature (the former AC-1 to AC-6 and AC-9) are
 dropped as already met by other work. The round-5 design review (I1) found that
@@ -66,6 +67,79 @@ refuses, at commit and at startup, every peer that enables capability 77 with no
 `session link-local` on the peer or its group. Its comment records the design
 this spec reverses: "Deriving the address from the interface instead would make
 the next hop depend on runtime state the configuration does not show."
+
+## Row `-1-2`, moved here on 2026-11-14
+
+spec-bgp-unowned-rfc-rows was split on 2026-11-14 (owner: "split
+bgp-unowned-rfc-rows") so it could close on its proven rows. Its row 3,
+`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2`, had no code and this spec already
+depended on it, so the row is owned here now, with its acceptance criterion,
+tests and design text unchanged. Nothing of it is dropped.
+
+Wherever this spec says "the unowned-rows spec" for A-2, I4, row 3 or the
+scenario `bgp-linklocal-capability-interface-frr`, read this section. Where it
+says so for row 5, AC-5 or I3, that work landed there (the third-party
+link-local, its neighbor watch and its doctor check), except the re-advertise
+on a changed link-local, which
+`plan/release/fixes/spec-rfc2545-readvertise-on-condition-flip.md` owns.
+
+| Row id | Document, section | State on 2026-11-14 | What Ze does today |
+|--------|-------------------|---------------------|--------------------|
+| `DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2` | draft-ietf-idr-linklocal-capability §1 | `{gap}`, no code: `linkScope` (`internal/component/bgp/reactor/link_scope.go`) holds connected prefixes and no interface name, and `mpNextHopAddr` (`internal/component/bgp/plugins/rib/rib_bestchange.go`) returns a bare address | Accepts a Link-Local next hop on a capability-77 session and publishes it to the RIB, sysrib and FIB as a bare `fe80::/10` address with no interface; the sent `session link-local` address is not tied to the session's interface |
+
+The draft's sentence, as the row in
+`rfc/short/draft-ietf-idr-linklocal-capability.md` carries it from
+`rfc/drafts/draft-ietf-idr-linklocal-capability.txt` §1: "Since IPv6 Link-Local
+addresses are not required to be globally unique, implementations must ensure
+that they are strictly associated with a specific interface."
+
+How FRR and BIRD handle it: FRR `bgpd/bgp_attr.c` (MP_REACH next hop parse,
+around line 2644): a Link-Local global next hop takes
+`peer->nexthop.ifp->ifindex` as `nh_ifindex`; with no peer interface the route
+is withdrawn (`BGP_ATTR_PARSE_WITHDRAW`). BIRD `proto/bgp/packets.c` around
+line 1113: the Link-Local is resolved with `neigh_find(..., p->neigh->iface,
+...)`, the session's interface; not directly reachable is a withdraw.
+
+### AC-20 (row `-1-2`; AC-3 in spec-bgp-unowned-rfc-rows)
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-20 | A Link-Local next hop (16 octets, or the Link-Local half of 32) arrives on a session over a known interface | The installed kernel route names that interface as its device; on a session with no known interface the route is treated as withdrawn with a Warn log naming the reason (FRR behavior). On send, the advertised own Link-Local is an address of the session's interface. Commit refuses a `session link-local` that is not a `fe80::/10` address (the validator sees config, not the kernel). When the session's derived interface does not hold the configured address, at establishment or after an interface change, Ze withholds its own Link-Local, sends the 16-octet global form, and logs one Warn through the producer AC-13 shares, with consequence "carry the global next hop without a link-local", naming the peer, the leaf, the interface and the fix, the peer's `session link-local <addr>` path built from `configjson.PeerOrigin` (a grouped peer is told its `set bgp group <g> peer <p> ...` path), with the interface's usable link-locals; a second UPDATE logs nothing; when the interface gains the address the 32-octet form resumes (I4, below) |
+| AC-21 (ledger) | AC-20 met | The row in `rfc/short/draft-ietf-idr-linklocal-capability.md` loses `{gap}`, carries tags in both polarities where Ze can observe the behavior, and carries a discrimination record (`./le rfc record`); `./le rfc check` exits clean for the stem |
+
+### Design carried with the row
+
+| Item | Design |
+|------|--------|
+| A-2, decision | `linkScope` holds prefixes only and `network.InterfacePrefixes` reads `net.InterfaceAddrs`, which returns no interface names; sessions run over global addresses (`reactor_peers.go` refuses a Link-Local `local-address`). The link-scope snapshot gains the NAME of the interface whose connected prefix contains the peer, read at the same cadence as today (session establishment and reload, never per UPDATE, from `net.Interfaces` with each interface's addresses). A multihop peer, or one no single interface reaches, has no interface, and its Link-Local next hops are treated as withdrawn with a Warn (the FRR behavior `bgp_attr.c` shows). This field is the ONE-HOP interface and the receive side reads only it: this spec adds a separate source-interface field (the interface holding the session's local address, for a one-hop and a multihop peer alike, FRR's choice; Transformation Path step 1, round-8 N7), read only to choose Ze's own next hop, never by the receive side (round-7 I2, owner, 2026-10-12) |
+| A-2, constraint | The RIB plugin, not the reactor, publishes the best change to sysrib, so the interface crosses the engine-to-plugin boundary with the received route (an event field), and sysrib already accepts it (`protocolRoute.nextHopInterface` in `internal/component/sysrib/sysrib.go`, from the candidate's `Interface`). No new sysrib field is needed |
+| I4, send side (revised 2026-10-12, owner: "match bird and frr behaviour") | Commit checks only that `session link-local` is a `fe80::/10` address, because a config validator sees config and not the kernel. The check is its own function in `llnh.go`, wired into `OnConfigVerify` and `OnConfigure` beside `refuseLinkLocalCapabilityWithoutAddress`, never inside it: AC-15 deletes that function and its `...Sections` wrapper (capability 77 no longer requires `session link-local`) and keeps this `fe80::/10` check, which then also returns `llnhEnabledFor`'s error for a `link-local-nexthop` value outside the enumeration, the last other job of the deleted function; `TestLinkLocalSessionAddressMustBeLinkLocal` owns that case (round-8 N5). At runtime, when the session's derived interface does not hold that address (at establishment or after an interface change), Ze withholds its own Link-Local, sends the 16-octet global form, and logs one Warn. The Warn producer is the one AC-13 uses: once per peer and cause, re-armed when the link-scope snapshot changes, the consequence a parameter. Here its consequence is "carry the global next hop without a link-local" and its text is AC-13 (d): "peer <name>: IPv6 routes to this peer carry the global next hop without a link-local", then interface <name> and that it does not hold the leaf address, then the command on its own line: the peer's `session link-local <addr>` path listing the interface's usable link-locals, built from `configjson.PeerOrigin` (`internal/component/bgp/configjson/traverse.go`), so a standalone peer is told `set bgp peer <p> session link-local <addr>`, a grouped peer `set bgp group <g> peer <p> session link-local <addr>`, and a leaf set on the group the group's `session` path, never a hard-coded `set bgp peer <name> ...` (round-8 N6). Because the leaf is sent only when the interface holds it, the reactor `-4-3` tests that feed `fe80::1` (`draft_ietf_idr_linklocal_capability_announce_test.go`, `draft_ietf_idr_linklocal_capability_test.go`) get a snapshot whose interface holds it, with a fresh discrimination record for each changed tagged unit (round-7 N12) |
+| Risk R-4 of the source spec | Row `-1-2` withdraws Link-Local routes Ze used to install (badly), so operators see fewer routes after upgrade. Log the withdraw at Warn with the reason and the fix; the route was not forwardable before |
+| Key decision | Withdraw when no interface is known, rather than keep the bare address: FRR and BIRD both withdraw, and a zone-less `fe80::` route is not forwardable. The MPLS path already knows the need: `resolveMPLSNextHop` refuses a Link-Local next hop with no zone |
+| Key decision | The link-scope snapshot carries the interface name, read at establishment and reload, rather than a per-UPDATE route lookup: the snapshot cadence already exists and no interface name is held today |
+
+### Tests carried with the row
+
+| Test | Where | Validates |
+|------|-------|-----------|
+| `TestLinkLocalNextHopCarriesSessionInterface` | `internal/component/bgp/plugins/rib/` | AC-20 receive |
+| `TestLinkLocalNextHopNoInterfaceWithdrawn` | `internal/component/bgp/plugins/rib/` | AC-20 receive: a Link-Local next hop on a session with no known interface is treated as withdrawn with the Warn |
+| `TestLinkLocalSessionAddressMustBeLinkLocal` | `internal/component/bgp/plugins/llnh/` | AC-20 send side, commit: a `session link-local` outside `fe80::/10` is refused naming the leaf and the fix; an `fe80::/10` address is accepted; a `link-local-nexthop` value outside the enumeration returns `llnhEnabledFor`'s error (round-8 N5) |
+| `TestLinkLocalOwnAddressWithheldOffInterface` | `internal/component/bgp/reactor/link_scope_test.go` | AC-20 send side, runtime: the session interface holds the address (32 octets), does not (16 octets and one Warn naming leaf, interface and fix), gains it after an interface change (32 octets again) |
+| `linklocal-capability-nexthop-interface` | `test/plugin/`, with `option=needs-linux:caps=net-admin` and a dummy link, the shape `test/plugin/fib-mpls-kernel.ci` uses | AC-20: an UPDATE with a 16-octet Link-Local next hop on a capability-77 session; the RIB best change carries the session interface to sysrib and the FIB |
+| `linklocal-session-address-off-interface-warn` | `test/plugin/`, same options | AC-20 send side: a capability-77 session whose interface does not hold the configured `session link-local` withholds the own Link-Local and logs the Warn |
+| `bgp-linklocal-capability-interface-frr` | `test/interop/scenarios/`, FRR (capability 77, `PEER_HAS_LINK_LOCAL_CAPABILITY`), with its checker under `internal/le/interoplab/bgp/` bound in `check_special.go` | FRR sends Link-Local-only next hops; Ze's kernel route names the session interface. Owes the revert, rebuild, red, restore, green walk with the red recorded |
+
+Files this row changes, beyond those listed under Files to Modify:
+`internal/component/bgp/plugins/rib/rib_bestchange.go` (the next hop carries
+an interface), `internal/component/sysrib/sysrib.go` (the candidate
+`Interface` field exists and the BGP producer fills it; the implementer records
+at file:line whether this file needed an edit),
+`internal/core/network/connected.go` (interface name in the snapshot), and
+`docs/architecture/plugin/rib-storage-design.md` (the RIB-to-sysrib next-hop
+interface). The targeted runs are `./le test unit pkg path` for each changed
+package, `./le test functional plugin` for the two `.ci` tests on Linux, and
+`./le test integration interop` for the scenario.
 
 ## Required Reading
 
@@ -193,7 +267,7 @@ the next hop depend on runtime state the configuration does not show."
   → Constraint: its comment (lines 93-96) says "no re-advertisement is
     triggered here"; AC-17 makes that false, so step 5 rewrites it with the
     RFC 4271 Section 9.2 reason (`ai/rules/stale-comments.md`).
-- [ ] `plan/release/fixes/spec-bgp-unowned-rfc-rows.md` A-2 decision and I4
+- [ ] The A-2 decision and I4, carried from spec-bgp-unowned-rfc-rows into the section "Row `-1-2`, moved here on 2026-11-14"
   → Constraint: the link-scope snapshot gains "the NAME of the interface whose
     connected prefix contains the peer, read at the same cadence as today
     (session establishment and reload, never per UPDATE, from `net.Interfaces`
@@ -1180,7 +1254,7 @@ producers (round-3 N3).
 | 2026-10-12 (b): a multihop session whose source interface has no global IPv6 address: withhold (BIRD), or send the link-local (FRR)? | "Withhold, like BIRD (Recommended)" | AC-12 and AC-13 (c): the route is not sent to that peer and the session stays up, with the AC-13 Warn. §4 item 3: "Link-Local IPv6 next hops MUST NOT be included." and "If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw)." Differs from FRR, which writes the link-local as the global. Round 7 found that the forward rails send the mapped field today where the spec had said they withhold; with the interface configured the withhold applies on every rail and replaces that field, and without it nothing changes (R-4, AC-18) |
 | Round-7 B1: the address source has no answer in a BGP-only config, because the iface backend loads only with the `interface` root | "Require an `interface` section" | The new behaviour applies only to a session interface configured under `interface`. Without the backend, or with the interface not configured, Ze keeps today's behaviour exactly, so no route Ze sends today is withheld, and logs one Warn naming the fix (AC-13 g, h; AC-18). The device lookup is exact, never a selector fallback; `addrList` returns its read error (AC-19), and its `ListInterfaces` path is a journal row |
 | Round-7 I1: limit the arm to IPv6 unicast and multicast, leaving 6PE and 6VPE on the mapped field? | "Apply to all IPv6 families" | Every AFI 2 family with an IPv6 global form takes the arm, 6VPE included (FRR and BIRD send the interface global for it), except 6PE: RFC 4798 Section 2, "The IPv4 address of the egress 6PE router MUST be encoded as an IPv4-mapped IPv6 address in the BGP Next Hop field." An RFC MUST outranks the preference (`ai/rules/rule-precedence.md`, rung 2), so 2/4 keeps the mapped field (AC-16). Today's 2/1 forward answer is pinned in step 1, and Current Behavior, R-4 and AC-9's red claim are corrected |
-| Round-7 I2: a multihop peer's "session interface" collides with unowned-rows A-2 | Owner, 2026-10-12: keep A-2, add a separate source-interface field | Two fields; the receive side reads only the one-hop interface. Stated in both specs (consistency edit to `plan/release/fixes/spec-bgp-unowned-rfc-rows.md` A-2, its status unchanged) |
+| Round-7 I2: a multihop peer's "session interface" collides with unowned-rows A-2 | Owner, 2026-10-12: keep A-2, add a separate source-interface field | Two fields; the receive side reads only the one-hop interface. Stated in both specs (consistency edit to spec-bgp-unowned-rfc-rows A-2, its status unchanged; A-2 is in this spec since 2026-11-14) |
 | Round-7 I3: nothing re-advertises when Ze's own next hop changes | Owner, 2026-10-12: not an owner question; decide from the RFC and FRR and BIRD | RFC 4271 Section 9.2 and FRR's per-peer re-announce decide it: AC-17 re-advertises the affected routes on the readvertise spec's path, which Depends names (Key Design Decisions, "Re-advertise") |
 | Round-8 I1 and N1: without capability 77 the draft does not apply, so what decides the no-global case per family? | Main thread, 2026-10-12, from the owner's standing rule "match bird and frr behaviour; where they differ follow FRR" and the RFCs | 2/1 and 2/2: withheld, on RFC 2545 Section 3 ("the global IPv6 address of the next hop"), which outranks FRR's mapped fallback. 2/128: FRR keeps the mapped field (`bgp_updgrp_packet.c`), BIRD withholds, so Ze keeps today's mapped field with a zero RD (RFC 4659 Section 3.2.1.2), and 6VPE between IPv4 loopbacks keeps working |
 | Round-8 I3: the readvertise skeleton holds no design and contradicts AC-17 | Main thread, 2026-10-12 | This spec writes the re-advertise design (Key Design Decisions, "Re-advertise"); the readvertise spec's AC-2, equal-table guard and cost note are amended to agree, its status kept |

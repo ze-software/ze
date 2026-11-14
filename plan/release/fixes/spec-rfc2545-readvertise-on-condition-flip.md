@@ -9,7 +9,7 @@
 | Depends | plan/release/fixes/spec-bgp-link-local-only-next-hop.md (its AC-17 designs the per-peer re-advertise this spec reuses) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-31 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -24,6 +24,23 @@ needs: the receive cut taken from the sources (`Peer.receiveCut`,
 (`drainResendSources`, which no file holds yet), then
 `Process.DrainEventsApplied` (`internal/component/plugin/process/delivery.go`)
 before the relay starts. No other spec carries this work.
+
+**Ledger row owned here since 2026-11-14:** the gap half of `RFC2545-3-6`.
+spec-bgp-unowned-rfc-rows (its row 5, AC-5) built and proved the tested half,
+the third-party Link-Local read from the neighbor table at advertisement, and
+was split on 2026-11-14 (owner: "split bgp-unowned-rfc-rows") so it could close
+on that. The row in `rfc/short/rfc2545.md` stays `{partial}`: its gap is "a
+route already sent is not re-advertised when the table later names it", which
+is AC-4 below. The clause of that spec's AC-5 that moved here, unchanged: "A
+neighbour change for a cached next hop refreshes the cache, and a changed
+Link-Local re-advertises the affected prefixes." The refresh landed there
+(`TestRFC2545NeighbourChangeRefreshes`); the re-advertise is this spec's. Its
+planned unit test was `TestRFC2545NeighbourChangeRefreshesAndReadvertises`
+(`internal/component/bgp/reactor/`): a neighbour-changed event for a cached
+next hop refreshes the cache, and a changed Link-Local re-advertises the
+affected prefixes; an event for an uncached address does nothing. Its design
+text (that spec's Design resolutions, I3) is the re-send path this spec and
+`plan/release/fixes/spec-bgp-link-local-only-next-hop.md` already describe.
 
 **An earlier attempt was removed from the tree** because of two review
 blockers. Its patch and its two new files are kept as a starting point, not
@@ -240,6 +257,7 @@ in place on that path.
 | AC-1 | the shared-subnet condition goes from true to false | the prefixes it governs are re-advertised in place, with no session reset, with a next hop the peer can resolve, through `spec-bgp-link-local-only-next-hop`'s re-advertise path (its Key Design Decisions, "Re-advertise", option B of its round-12 owner decision) |
 | AC-2 | the condition goes from false to true | the prefixes it governs are re-advertised in place in one pass, with no session reset, with the link-local appended after the global, through the same path as AC-1 (RFC 4271 Section 9.2; amended 2026-10-12 to agree with `spec-bgp-link-local-only-next-hop` AC-17, which re-advertises on every change of Ze's own next hop). The link-local is the egress's answer on the re-send, never a recorded one: the forward rail's pair trimming decides it for a forwarded route, `linkLocalNextHopFor` for an API route replayed as `self` or as its explicit global, and the same call for a config route; a replay of a recorded address with `nhop set` is not the path (re-checked after round-9 B1, N4) |
 | AC-3 | an interface burst delivers several address events with one resulting table | one re-advertisement, not one per event |
+| AC-4 (`RFC2545-3-6`, gap half; from spec-bgp-unowned-rfc-rows AC-5) | a route went out with a third-party global next hop alone, because the neighbor table named no Link-Local for that router, and the table later names one (or names a different one) | the affected prefixes are re-advertised in place through the same path as AC-1, with the router's Link-Local after its global in a 32-octet field; a table change for an address no advertised next hop uses re-advertises nothing. Then the row in `rfc/short/rfc2545.md` loses `{partial}`, its new tagged units carry a discrimination record (`./le rfc record`), and the `bgp-rfc2545-third-party-linklocal-frr` scenario is extended to show FRR resolving the next hop after the change |
 
 ## End-to-End User Stories
 
