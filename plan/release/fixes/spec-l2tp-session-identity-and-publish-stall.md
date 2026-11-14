@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Shipped-daemon defects an operator meets on an LNS with more than one tunnel: a subscriber's route is withdrawn or its session is cleared because a session on another tunnel holds the same session id, and every tunnel stops answering while one RADIUS server is slow. |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` (it edits the same L2TP files and adds the per-tunnel order ticket this spec's design must fit; the order of the two is settled in design) |
+| Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (it edits the same L2TP files and adds the per-tunnel order ticket this spec's design must fit; the order of the two is settled in design) |
 | Phase | - |
 | Handoff | - |
 | Design tier | strongest tier |
@@ -44,7 +44,7 @@ records what the code does and the questions the design must answer.
   → Constraint: RADIUS accounting subscribes to the L2TP session events only. PPPoE sessions produce no accounting record today, which is not this spec's subject.
 - [ ] `docs/guide/l2tp.md` - `clear l2tp session id <id>` and `show l2tp session id <id>`
   → Constraint: both commands name a session by its id alone today. A change to what the operator types is a CLI contract change (`ai/rules/cli.md`).
-- [ ] `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` - "The order ticket", R-1, AC-18
+- [ ] `docs/architecture/l2tp/subscriber-session-model.md` - the per-tunnel order ticket and the reader contract, built by the closed `spec-single-owner-lifecycle-5-session-end-locals` (its "The order ticket", R-1 and AC-18 are in git history)
   → Constraint: that spec orders the notifications of one tunnel with a ticket taken under `tunnelsMu` and waited for after it is released. It leaves the reactor goroutine's synchronous publication as it is.
 
 ### RFC Summaries (Scope: protocol)
@@ -115,7 +115,7 @@ whether a tunnel id is unique across the reactors of one subsystem.
 | The PPP driver's duplicate refusal | `internal/component/l2tp/ppp/manager.go` `spawnSession` | Refuses a start whose key is still held by a session that has not ended | Extends or stays as it is: it already tells the reactor that the old PPP session is still alive, by a rejected event that today tears the new session down |
 | The per-session accounting task | `internal/component/l2tp/plugins/authradius/acct.go` `runAccounting`, `interimLoop` | One goroutine per accounting session sends the Start and the Interim-Updates, and ends when `onSessionDown` cancels it | Extends, or does not apply: third open question. It is the goroutine that already waits on the RADIUS server for this session |
 | RADIUS retransmission and failover | `internal/component/radius/client.go` `Exchange`, `SendToServers` | Retransmits and fails over inside one call, bounded by the caller's context. No queue outlives the call | Does not apply as a queue: there is none to join. RFC 2866 Section 2 recommends retrying with backoff and specifies no algorithm |
-| The per-tunnel order ticket | `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md`, "The order ticket" (not in the code yet) | Will order the notifications of one tunnel without holding a lock while a reader runs | Extends: whatever moves the Stop wait keeps that order, and a quarantine or an identity check is taken under the same `tunnelsMu` |
+| The per-tunnel order ticket | `internal/component/l2tp/session.go` `issueNoticeTicket`, `drainPendingTeardowns`; `docs/architecture/l2tp/subscriber-session-model.md` (built in `bae3903dbb` by the closed `spec-single-owner-lifecycle-5-session-end-locals`) | Will order the notifications of one tunnel without holding a lock while a reader runs | Extends: whatever moves the Stop wait keeps that order, and a quarantine or an identity check is taken under the same `tunnelsMu` |
 
 ## Open design questions
 
@@ -187,7 +187,7 @@ accel-ppp source where it applies, and chooses.
 |----------|--------|
 | What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
 | How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
-| Who else touches this path? | `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` edits `reactor_kernel.go`, `teardown.go`, `reactor.go` and `session.go`. `spec-rfc5176-remaining-defect-classes` edits the CoA path |
+| Who else touches this path? | `spec-single-owner-lifecycle-5-session-end-locals` (closed) edits `reactor_kernel.go`, `teardown.go`, `reactor.go` and `session.go`. `spec-rfc5176-remaining-defect-classes` edits the CoA path |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -355,7 +355,7 @@ The first three names came from
 
 | Spec | Relation |
 |------|----------|
-| `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` | Found these defects and held AC-19 and AC-20 until 2026-11-11. It keeps the L2TP event order (the per-tunnel order ticket) and lists the four rows above as considered and not owned |
+| `spec-single-owner-lifecycle-5-session-end-locals` (closed) | Found these defects and held AC-19 and AC-20 until 2026-11-11. It keeps the L2TP event order (the per-tunnel order ticket) and lists the four rows above as considered and not owned |
 | `plan/release/fixes/spec-typed-identity-keys.md` | A sibling still awaiting its own design pass. Its subject is keys that omit a fact. The three identity rows above are candidates for it (question 6). This spec does not edit it |
 
 ## Key Design Decisions

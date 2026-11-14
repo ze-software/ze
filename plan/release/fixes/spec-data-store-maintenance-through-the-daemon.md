@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | A shipped `ze doctor` report tells the operator to remove a store key with `ze data rm`, and that command is refused while the daemon that answered the report runs, so the warning cannot be cleared on a running box. The owner rule that every operator command runs through the daemon makes the daemon route owed work. |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md` (its fix (a) rewrites the same FlowSpec report for the configured case; this spec edits the removed-section text after that lands). The FlowSpec record and its two checks landed in bec9096156. |
+| Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (its fix (a) rewrites the same FlowSpec report for the configured case; this spec edits the removed-section text after that lands). The FlowSpec record and its two checks landed in bec9096156. |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
@@ -37,7 +37,7 @@ Thomas decided (2026-11-12, "ok a + c"), on decision 1 of
 `plan/handover/38-single-owner-lifecycle-children-2-and-5.md`:
 
 - (a) while the section is configured, the fix is the plugin restart, built in
-  `plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md`.
+  `spec-single-owner-lifecycle-5-session-end-locals` (closed).
   Not this spec.
 - (c) when the section has been removed, the operator withdraws with the
   command the report prints, then removes the record with `ze data rm`
