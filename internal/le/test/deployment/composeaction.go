@@ -23,9 +23,15 @@ const composeRunCommand = "./le test deployment " + composeActionName
 
 // The action's keywords.
 const (
-	composeImageKeyword = "image"
-	composeBreakKeyword = "break-volume"
+	composeImageKeyword       = "image"
+	composeBreakKeyword       = "break-volume"
+	composeBreakCommitKeyword = "break-commit"
 )
+
+// composeUsageExit is the code a refused line answers: 2, as leaction's own
+// parse refusal and Area.Refuse answer, so a caller tells a mistyped line
+// apart from a proof that ran and failed.
+const composeUsageExit = 2
 
 func composeParameters() []leaction.Parameter {
 	return []leaction.Parameter{
@@ -33,7 +39,27 @@ func composeParameters() []leaction.Parameter {
 			Help: "run this loaded image instead of a tree build"},
 		{Keyword: composeBreakKeyword, Kind: leaction.KindSwitch,
 			Help: "counterfactual: mount no volume, so the run must fail"},
+		{Keyword: composeBreakCommitKeyword, Kind: leaction.KindSwitch,
+			Help: "counterfactual: overwrite the commit, so the run must fail"},
 	}
+}
+
+// refuseCombinedCounterfactuals answers composeUsageExit, after reporting
+// why, when both counterfactual switches are set, and 0 otherwise. Each
+// counterfactual must fail at its own step, and break-volume fails at import,
+// before break-commit's overwrite would run.
+func refuseCombinedCounterfactuals(breakVolume, breakCommit bool) int {
+	if !breakVolume {
+		return 0
+	}
+	if !breakCommit {
+		return 0
+	}
+	leaction.ReportError(opererr.New("break-volume and break-commit cannot be combined",
+		"each counterfactual must fail at its own step, and together the first hides the second",
+		"run each on its own: `"+composeRunCommand+" "+composeBreakKeyword+"`, then `"+
+			composeRunCommand+" "+composeBreakCommitKeyword+"`"))
+	return composeUsageExit
 }
 
 // runComposeHere runs the proof over the checkout under one signal root.
@@ -45,10 +71,14 @@ func runComposeHere(args leaction.Arguments) (any, int) {
 			"change to the Ze checkout, then run `"+composeRunCommand+"`"))
 		return nil, 1
 	}
+	breakVolume, breakCommit := args.Has(composeBreakKeyword), args.Has(composeBreakCommitKeyword)
+	if code := refuseCombinedCounterfactuals(breakVolume, breakCommit); code != 0 {
+		return nil, code
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	proof, err := newComposeProof(root, interoplab.NewDocker(), args.One(composeImageKeyword),
-		args.Has(composeBreakKeyword), os.Stderr)
+		breakVolume, breakCommit, os.Stderr)
 	if err != nil {
 		leaction.ReportError(opererr.Wrap(err, "the Compose persistence proof could not name its run",
 			"its project name and operator password come from the system random source, which did not answer",

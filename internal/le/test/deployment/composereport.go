@@ -28,6 +28,7 @@ type ComposeReport struct {
 	Project         string        `json:"project"`
 	Image           string        `json:"image"`
 	BreakVolume     bool          `json:"break-volume"`
+	BreakCommit     bool          `json:"break-commit"`
 	Steps           []ComposeStep `json:"steps"`
 	FirstContainer  string        `json:"first-container,omitempty"`
 	SecondContainer string        `json:"second-container,omitempty"`
@@ -35,8 +36,11 @@ type ComposeReport struct {
 	Proven          bool          `json:"proven"`
 	Reason          string        `json:"reason,omitempty"`
 	LeftBehind      []string      `json:"left-behind,omitempty"`
-	EditorTail      []string      `json:"editor-tail,omitempty"`
-	LogTail         []string      `json:"log-tail,omitempty"`
+	// EarlierVolumes names each store volume an interrupted earlier run left,
+	// with its removal command. It never fails the run.
+	EarlierVolumes []string `json:"earlier-volumes,omitempty"`
+	EditorTail     []string `json:"editor-tail,omitempty"`
+	LogTail        []string `json:"log-tail,omitempty"`
 }
 
 // Verdict is the one line a reader quotes.
@@ -48,6 +52,9 @@ func (r ComposeReport) Verdict() string {
 	tb.Str(composeFailPrefix)
 	if r.BreakVolume {
 		tb.Str("(counterfactual: no volume mounted) ")
+	}
+	if r.BreakCommit {
+		tb.Str("(counterfactual: committed change overwritten) ")
 	}
 	return tb.Str(r.Reason).String()
 }
@@ -66,6 +73,7 @@ func (r ComposeReport) Text() string {
 		tb.Str("  ").Str(mark).Str(" ").Str(step.Name).Str(": ").Str(step.Detail).Byte('\n')
 	}
 	writeComposeLines(&tb, "left behind:", r.LeftBehind)
+	writeComposeLines(&tb, "earlier runs left:", r.EarlierVolumes)
 	if r.Proven {
 		return tb.String()
 	}

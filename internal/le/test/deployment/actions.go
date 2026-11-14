@@ -84,7 +84,11 @@ var actions = leaction.New(area,
 		Why: "walk the Docker guide's Compose journey: ze init and config import on the named volume, up," +
 			" an SSH editor commit, down, up again, then require the same login, host key and committed change." +
 			" image <tag> runs a loaded image (a tagged preview image) instead of building docker/Dockerfile" +
-			" from the checkout; break-volume mounts no volume at the store path, and the run must answer FAIL." +
+			" from the checkout. Two counterfactuals must each answer FAIL, and only one at a time:" +
+			" break-volume mounts no volume at the store path and fails at import; break-commit imports" +
+			" docker/ze.conf again between the containers and fails at second-login." +
+			" The live run drops the published 179:179, so it proves persistence only; the ports," +
+			" capabilities and network settings are a file-against-guide check (TestComposeFileMatchesTheDockerGuide)." +
 			" Needs Docker with the Compose plugin",
 		Parameters: composeParameters(),
 		AnswerArgs: runComposeHere,

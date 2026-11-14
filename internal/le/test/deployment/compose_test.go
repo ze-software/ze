@@ -18,7 +18,7 @@ import (
 // project files set as Run sets them.
 func fixtureComposeProof(t *testing.T, recorder *argvRecorder, image string, breakVolume bool) *composeProof {
 	t.Helper()
-	proof, err := newComposeProof("/checkout", interoplab.NewFixtureDocker(recorder), image, breakVolume, nil)
+	proof, err := newComposeProof("/checkout", interoplab.NewFixtureDocker(recorder), image, breakVolume, false, nil)
 	if err != nil {
 		t.Fatalf("newComposeProof: %v", err)
 	}
@@ -43,6 +43,8 @@ func TestComposeOverrideReplacesOnlyImagePortsAndLabels(t *testing.T) {
 		"ports: !override\n      - \"127.0.0.1::2222/tcp\"\n",
 		`"ze.lab.kind": "container"`,
 		`"ze.lab.kind": "network"`,
+		"\nvolumes:\n  ze-data:\n    labels:\n",
+		`"ze.lab.kind": "volume"`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("override lacks %q:\n%s", want, text)
@@ -62,6 +64,104 @@ func TestComposeOverrideReplacesOnlyImagePortsAndLabels(t *testing.T) {
 	}
 	if !strings.Contains(text, "    volumes: !reset []\n") {
 		t.Errorf("counterfactual override keeps the volume mount:\n%s", text)
+	}
+	if strings.Contains(text, "\nvolumes:") || strings.Contains(text, `"ze.lab.kind": "volume"`) {
+		t.Errorf("counterfactual override labels a volume it mounts nowhere:\n%s", text)
+	}
+}
+
+// composeStepNames answers the names of a proof's journey, in order.
+func composeStepNames(proof *composeProof) []string {
+	steps := proof.steps()
+	names := make([]string, 0, len(steps))
+	for _, step := range steps {
+		names = append(names, step.name)
+	}
+	return names
+}
+
+// VALIDATES: the journey's steps run in the guide's order, and break-commit
+// inserts its overwrite between remove-container and second-start alone, so
+// every step before second-login is the ordinary journey.
+// PREVENTS: a commit counterfactual that fails before the persistence
+// assertion, which is what left second-login never seen red.
+func TestComposeStepOrder(t *testing.T) {
+	journey := []string{"build", "init", "import", "first-start", "first-login", "edit-commit",
+		"remove-container", "second-start", "second-login"}
+	if got := composeStepNames(fixtureComposeProof(t, &argvRecorder{}, "", false)); !slices.Equal(got, journey) {
+		t.Errorf("steps = %v, want %v", got, journey)
+	}
+	broken := fixtureComposeProof(t, &argvRecorder{}, "", false)
+	broken.breakCommit = true
+	want := []string{"build", "init", "import", "first-start", "first-login", "edit-commit",
+		"remove-container", "break-commit", "second-start", "second-login"}
+	if got := composeStepNames(broken); !slices.Equal(got, want) {
+		t.Errorf("break-commit steps = %v, want %v", got, want)
+	}
+}
+
+// VALIDATES: break-commit's overwrite is the guide's `run --rm -T ze config
+// import --yes --name ze.conf -`, which replaces the stored ze.conf whole.
+// PREVENTS: an overwrite that targets another config, so the committed change
+// survives and the counterfactual passes.
+func TestComposeBreakCommitReimportsTheSeed(t *testing.T) {
+	recorder := &argvRecorder{}
+	proof, err := newComposeProof(filepath.Join("..", "..", "..", ".."), interoplab.NewFixtureDocker(recorder), "img", false, true, nil)
+	if err != nil {
+		t.Fatalf("newComposeProof: %v", err)
+	}
+	proof.project.Files = []string{"/checkout/docker/compose.yaml"}
+	if _, err := proof.overwriteCommit(t.Context(), &ComposeReport{}); err != nil {
+		t.Fatalf("overwriteCommit: %v", err)
+	}
+	if len(recorder.commands) != 1 {
+		t.Fatalf("overwrite ran %d commands, want 1: %v", len(recorder.commands), recorder.commands)
+	}
+	got := strings.Join(recorder.commands[0], " ")
+	if !strings.HasSuffix(got, " run --rm --no-TTY ze config import --yes --name ze.conf -") {
+		t.Errorf("overwrite argv = %q", got)
+	}
+}
+
+// VALIDATES: a store volume an earlier run left is named in the report with
+// what it holds and its removal command, and nothing is removed.
+// PREVENTS: a killed run's credential hash and host key outliving it unseen,
+// or a proof that deletes an operator's store on its own.
+func TestComposeNamesEarlierRunsVolumes(t *testing.T) {
+	const earlier = "ze-compose-ab12cd34_ze-data"
+	recorder := &argvRecorder{answer: func(argv []string) (interoplab.ProcessResult, error) {
+		return interoplab.ProcessResult{Stdout: earlier + "\n"}, nil
+	}}
+	proof := fixtureComposeProof(t, recorder, "img", false)
+	report := ComposeReport{}
+	proof.noticeEarlierVolumes(t.Context(), &report)
+	if len(report.EarlierVolumes) != 1 {
+		t.Fatalf("earlier volumes = %v, want one notice", report.EarlierVolumes)
+	}
+	for _, want := range []string{earlier, "interrupted earlier run", "hashed operator credential", "SSH host key", "Fix: `docker volume rm " + earlier + "`"} {
+		if !strings.Contains(report.EarlierVolumes[0], want) {
+			t.Errorf("notice %q lacks %q", report.EarlierVolumes[0], want)
+		}
+	}
+	for _, argv := range recorder.commands {
+		if slices.Contains(argv, "rm") {
+			t.Errorf("the notice removed something: %v", argv)
+		}
+	}
+}
+
+// VALIDATES: break-volume with break-commit is refused with the usage code,
+// and each alone, or neither, is admitted.
+// PREVENTS: a combined run whose import failure hides the commit
+// counterfactual, read as proof that second-login can go red.
+func TestComposeRefusesCombinedCounterfactuals(t *testing.T) {
+	if code := refuseCombinedCounterfactuals(true, true); code != composeUsageExit {
+		t.Errorf("combined switches answered %d, want %d", code, composeUsageExit)
+	}
+	for _, alone := range [][2]bool{{false, false}, {true, false}, {false, true}} {
+		if code := refuseCombinedCounterfactuals(alone[0], alone[1]); code != 0 {
+			t.Errorf("switches %v answered %d, want 0", alone, code)
+		}
 	}
 }
 
@@ -192,6 +292,10 @@ func TestComposeProjectsAreRunUnique(t *testing.T) {
 	if first.project.Name == second.project.Name {
 		t.Errorf("two runs share project %s", first.project.Name)
 	}
+	if !strings.HasPrefix(first.project.Name, interoplab.ComposeProjectPrefix) {
+		t.Errorf("project %s lacks %s, so the orphan cleanup would never sweep its volume",
+			first.project.Name, interoplab.ComposeProjectPrefix)
+	}
 	if first.password == second.password {
 		t.Error("two runs share a password")
 	}
@@ -237,6 +341,10 @@ func TestComposeVerdict(t *testing.T) {
 	got := ComposeReport{BreakVolume: true, Reason: "import: no store"}.Verdict()
 	if got != "DEPLOYMENT-COMPOSE: FAIL (counterfactual: no volume mounted) import: no store" {
 		t.Errorf("fail verdict = %q", got)
+	}
+	got = ComposeReport{BreakCommit: true, Reason: "second-login: not the committed warn"}.Verdict()
+	if got != "DEPLOYMENT-COMPOSE: FAIL (counterfactual: committed change overwritten) second-login: not the committed warn" {
+		t.Errorf("break-commit verdict = %q", got)
 	}
 }
 

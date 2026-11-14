@@ -232,12 +232,38 @@ and the committed value in `show config running`. A pass prints
 the same persistent volume`. A second Compose file merged over the user's file
 changes only what a shared Docker daemon forces: the image reference, the
 published ports (SSH on a loopback port the daemon picks, no port 179) and owner
-labels. The project name is run-unique, and teardown removes its containers,
+labels on the container, the network and the `ze-data` volume. The project name
+is run-unique and starts `ze-compose-`, and teardown removes its containers,
 network, volume and built image by name, then lists anything the project label
-still names. `break-volume` is the counterfactual: the service mounts no volume
-at the store path, and the run MUST answer `DEPLOYMENT-COMPOSE: FAIL`.
-<!-- source: internal/le/test/deployment/compose.go -- composeProof.walk, teardown -->
-<!-- source: internal/le/interoplab/compose.go -- ComposeOverrideFile, ComposeResidue -->
+still names. A run killed before teardown leaves the volume, which holds the
+operator's credential hash and the SSH host key, and `./le test integration
+clean` never removes a volume. So each run first lists the marked volumes named
+`ze-compose-*` that are not its own, and for each one prints a notice saying it
+is an interrupted run's store, what it holds, and the command that removes it
+(`docker volume rm <name>`). The notice is also in the report's
+`earlier-volumes`. It never fails the run, and the proof removes nothing it
+did not create.
+
+Two counterfactuals each MUST answer `DEPLOYMENT-COMPOSE: FAIL` at their own
+step, so the action refuses them together. `break-volume` mounts no volume at
+the store path, so the store `ze init` wrote goes with its one-off container
+and the run fails at `import`. `break-commit` runs the whole journey, but
+imports `docker/ze.conf` again between `down` and the second `up`. An import
+over an existing config replaces it as a new active version and leaves the
+rest of the store alone, so the credential and host key survive and the run
+fails at `second-login`, the persistence assertion: `DEPLOYMENT-COMPOSE: FAIL
+(counterfactual: committed change overwritten) second-login: the new container's
+running configuration holds environment log level = , not the committed warn`.
+
+The live run proves persistence only. Its override drops the published
+`179:179`, so the documented port, capability and network settings are proven by
+a check of `docker/compose.yaml` against the Docker guide
+(`TestComposeFileMatchesTheDockerGuide`), not by the run.
+<!-- source: internal/le/test/deployment/compose.go -- composeProof.steps, overwriteCommit, noticeEarlierVolumes, teardown -->
+<!-- source: internal/le/test/deployment/composeaction.go -- refuseCombinedCounterfactuals -->
+<!-- source: internal/le/test/deployment/compose_test.go -- TestComposeFileMatchesTheDockerGuide -->
+<!-- source: internal/le/interoplab/compose.go -- ComposeOverrideFile, ComposeResidue, ComposeProofVolumes -->
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 
 `./le test qemu vrrp-keepalived` runs the VRRP interop lab against keepalived
 2.3.1 on one L2 segment. Three network namespaces are bridged so a passive

@@ -690,6 +690,10 @@ const (
 	resourceContainer
 	resourceNetwork
 	resourceImageTag
+	// resourceVolume is a Compose proof's named volume, labeled through the
+	// override so its owner is recorded. The lab cleanup never lists, inspects
+	// or removes a volume; the proof names a leftover one (ComposeProofVolumes).
+	resourceVolume
 )
 
 func (k resourceKind) String() string {
@@ -702,6 +706,8 @@ func (k resourceKind) String() string {
 		return dockerNetworkObject
 	case resourceImageTag:
 		return "image tag"
+	case resourceVolume:
+		return dockerVolumeObject
 	}
 	return "invalid"
 }
@@ -715,6 +721,8 @@ func (k resourceKind) labelValue() string {
 		return dockerNetworkObject
 	case resourceImageTag:
 		return dockerImageObject
+	case resourceVolume:
+		return dockerVolumeObject
 	case resourceUnspecified:
 	}
 	return ""
@@ -1003,6 +1011,8 @@ func (d *Docker) removeResource(ctx context.Context, kind resourceKind, listed l
 		return d.RemoveNetwork(ctx, listed.id)
 	case resourceImageTag:
 		return d.ReleaseImage(ctx, ImageResult{retainedTag: listed.name})
+	case resourceVolume:
+		return errors.New("BUG: the lab cleanup never removes a volume")
 	case resourceUnspecified:
 	}
 	return errors.New("BUG: removeResource called without a resource kind")
@@ -1018,7 +1028,7 @@ func removalCommand(kind resourceKind, listed listedResource) string {
 		command.Str("run `docker network rm ").Str(listed.id).Byte('`')
 	case resourceImageTag:
 		command.Str("run `docker image rm --no-prune ").Str(listed.name).Byte('`')
-	case resourceUnspecified:
+	case resourceVolume, resourceUnspecified:
 		command.Str("remove it")
 	}
 	return command.String()
@@ -1053,6 +1063,8 @@ func (d *Docker) listResources(ctx context.Context, kind resourceKind, filter st
 		argv = []string{DockerExecutable, dockerNetworkObject, "ls", dockerNoTruncFlag, dockerFilterFlag, filter, dockerFormatFlag, "{{.ID}}\t{{.Name}}"}
 	case resourceImageTag:
 		argv = []string{DockerExecutable, dockerImageObject, "ls", dockerNoTruncFlag, dockerFilterFlag, filter, dockerFormatFlag, "{{.ID}}\t{{.Repository}}:{{.Tag}}"}
+	case resourceVolume:
+		return nil, errors.New("BUG: the lab cleanup never lists volumes")
 	case resourceUnspecified:
 		return nil, errors.New("BUG: listResources called without a resource kind")
 	}
@@ -1131,6 +1143,8 @@ func inspectCommand(kind resourceKind, format, ref string) ([]string, error) {
 		return []string{DockerExecutable, dockerNetworkObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
 	case resourceImageTag:
 		return []string{DockerExecutable, dockerImageObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
+	case resourceVolume:
+		return nil, errors.New("BUG: the lab cleanup never inspects a volume")
 	case resourceUnspecified:
 	}
 	return nil, errors.New("BUG: a Docker inspect was asked for without a resource kind")

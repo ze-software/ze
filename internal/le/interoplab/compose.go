@@ -26,6 +26,57 @@ import (
 // composeVerb is the docker CLI plugin every Compose command runs through.
 const composeVerb = "compose"
 
+// dockerVolumeObject is the docker CLI word for a named volume.
+const dockerVolumeObject = "volume"
+
+// ComposeProjectPrefix starts every Compose proof project's name, so a volume
+// an earlier run left is named by it (ComposeProofVolumes).
+const ComposeProjectPrefix = "ze-compose-"
+
+// ownedVolumeName reports whether name is a Compose proof project's volume:
+// the prefix, then only the characters a project and volume name hold, so a
+// removal command a notice prints never carries anything else.
+func ownedVolumeName(name string) bool {
+	rest, found := strings.CutPrefix(name, ComposeProjectPrefix)
+	if !found {
+		return false
+	}
+	if rest == "" {
+		return false
+	}
+	for _, r := range rest {
+		valid := r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.'
+		if !valid {
+			return false
+		}
+	}
+	return true
+}
+
+// ComposeProofVolumes lists the named volumes Compose proof runs left: a
+// volume carrying the lab marker label whose name is a proof project's
+// (ownedVolumeName), except those of the project named current. It removes
+// nothing: the lab cleanup never touches a volume, so the proof only names
+// what it found.
+func (d *Docker) ComposeProofVolumes(ctx context.Context, current string) ([]string, error) {
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerVolumeObject, "ls", "--quiet",
+		dockerFilterFlag, "label="+labelMarker+"="+labelMarkerValue)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, name := range strings.Fields(result.Stdout) {
+		if !ownedVolumeName(name) {
+			continue
+		}
+		if strings.HasPrefix(name, current+"_") {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
 // ComposeProjectLabel is the label Docker Compose puts on every container,
 // network and volume it creates for a project. ComposeResidue filters on it.
 const ComposeProjectLabel = "com.docker.compose.project"
@@ -321,14 +372,18 @@ type ComposeOverride struct {
 	// DropVolumes removes every volume mount from the service: the counterfactual
 	// in which the store lives in each container's own writable layer.
 	DropVolumes bool
+	// Volume names the project's named volume to label, empty for none. It
+	// must be a volume the user's file declares: the override adds labels to
+	// that declaration and never declares a volume of its own.
+	Volume string
 }
 
 // ComposeOverrideFile renders override as a Compose file. The service's
 // containers and the project's default network carry this client's owner
 // labels, so `./le test integration clean` judges a container or network a
-// killed run left as it judges any other lab object. The orphan cleanup
-// removes no volume, so a named volume a killed run left is found by its
-// Compose project label (ComposeResidue) and removed by name.
+// killed run left as it judges any other lab object. The named volume carries
+// them too, but the cleanup removes no volume: a later proof run names a
+// leftover one with its removal command (ComposeProofVolumes).
 func (d *Docker) ComposeOverrideFile(override ComposeOverride) (string, error) {
 	if override.Service == "" {
 		return "", errors.New("compose override names no service")
@@ -355,6 +410,10 @@ func (d *Docker) ComposeOverrideFile(override ComposeOverride) (string, error) {
 	writeComposeLabels(&tb, "    ", d.owner.labelPairs(resourceContainer))
 	tb.Str("networks:\n  default:\n")
 	writeComposeLabels(&tb, "    ", d.owner.labelPairs(resourceNetwork))
+	if override.Volume != "" {
+		tb.Str("volumes:\n  ").Str(override.Volume).Str(":\n")
+		writeComposeLabels(&tb, "    ", d.owner.labelPairs(resourceVolume))
+	}
 	return tb.String(), nil
 }
 

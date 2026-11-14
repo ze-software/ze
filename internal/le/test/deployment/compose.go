@@ -15,7 +15,15 @@
 // or the prepared preview image) and the published ports (one loopback port
 // the daemon picks for SSH, rather than the fixed 2222 and 179 another run may
 // hold). The project name is run-unique, so every container, network and
-// volume is this run's own, and teardown removes exactly those by name.
+// volume is this run's own, and teardown removes exactly those by name. The
+// container, the network and the named volume carry the owner labels. The lab
+// cleanup removes no volume, so a SIGKILLed run's store is named, with its
+// removal command, by the next run's notice (noticeEarlierVolumes).
+//
+// Two counterfactuals each fail at their own step: break-volume mounts no
+// volume, so init's store goes with its one-off container and the run fails
+// at import; break-commit imports docker/ze.conf again between the
+// containers, so only second-login, the persistence assertion, goes red.
 
 package testdeployment
 
@@ -68,14 +76,22 @@ type composeProof struct {
 	// breakVolume is the counterfactual: the service mounts no volume, so the
 	// store lives in each container's own layer and nothing persists.
 	breakVolume bool
+	// breakCommit is the counterfactual for the persistence assertion itself:
+	// between the two containers docker/ze.conf is imported again over the
+	// committed change, keeping the credential and the host key, so the run
+	// must fail at second-login and nowhere earlier.
+	breakCommit bool
 	project     interoplab.ComposeProject
 	progress    io.Writer
 	password    string
 }
 
+// composeVolume is the named volume docker/compose.yaml mounts at the store.
+const composeVolume = "ze-data"
+
 // newComposeProof answers a run over the checkout at root with a fresh
 // project name and operator password.
-func newComposeProof(root string, docker *interoplab.Docker, image string, breakVolume bool, progress io.Writer) (*composeProof, error) {
+func newComposeProof(root string, docker *interoplab.Docker, image string, breakVolume, breakCommit bool, progress io.Writer) (*composeProof, error) {
 	suffix, err := randomHex(4)
 	if err != nil {
 		return nil, err
@@ -85,8 +101,8 @@ func newComposeProof(root string, docker *interoplab.Docker, image string, break
 		return nil, err
 	}
 	return &composeProof{
-		root: root, docker: docker, image: image, breakVolume: breakVolume, progress: progress,
-		project:  interoplab.ComposeProject{Name: "ze-compose-" + suffix},
+		root: root, docker: docker, image: image, breakVolume: breakVolume, breakCommit: breakCommit, progress: progress,
+		project:  interoplab.ComposeProject{Name: interoplab.ComposeProjectPrefix + suffix},
 		password: password,
 	}, nil
 }
@@ -116,20 +132,28 @@ func (p *composeProof) runImage() string {
 	return p.builtImage()
 }
 
-// override answers the Compose file merged over docker/compose.yaml.
+// override answers the Compose file merged over docker/compose.yaml. The
+// named volume carries the owner labels, so `./le test integration clean`
+// finds the store a killed run left. The volume counterfactual mounts no
+// volume, so it labels none.
 func (p *composeProof) override() (string, error) {
+	volume := composeVolume
+	if p.breakVolume {
+		volume = ""
+	}
 	return p.docker.ComposeOverrideFile(interoplab.ComposeOverride{
 		Service:     composeService,
 		Image:       p.runImage(),
 		Ports:       []interoplab.ContainerPort{interoplab.TCPPort(composeSSHPort)},
 		DropVolumes: p.breakVolume,
+		Volume:      volume,
 	})
 }
 
 // Run walks the journey and answers what it saw. An error is a step the proof
 // could not perform; a step that ran and disproved persistence is the verdict.
 func (p *composeProof) Run(ctx context.Context) (report ComposeReport, err error) {
-	report = ComposeReport{Project: p.project.Name, Image: p.runImage(), BreakVolume: p.breakVolume}
+	report = ComposeReport{Project: p.project.Name, Image: p.runImage(), BreakVolume: p.breakVolume, BreakCommit: p.breakCommit}
 	if err := look(interoplab.DockerExecutable); err != nil {
 		return report, err
 	}
@@ -142,6 +166,7 @@ func (p *composeProof) Run(ctx context.Context) (report ComposeReport, err error
 			return report, err
 		}
 	}
+	p.noticeEarlierVolumes(ctx, &report)
 
 	scratch, err := scratchDir(p.root, "compose-")
 	if err != nil {
@@ -174,6 +199,32 @@ func (p *composeProof) Run(ctx context.Context) (report ComposeReport, err error
 	return report, nil
 }
 
+// noticeEarlierVolumes names each store volume an interrupted earlier run left
+// and the command that removes it, then lets the run carry on. It removes
+// nothing: the lab cleanup never touches a volume, and the decision to drop an
+// operator's store stays with the person who reads the notice.
+func (p *composeProof) noticeEarlierVolumes(ctx context.Context, report *ComposeReport) {
+	names, err := p.docker.ComposeProofVolumes(ctx, p.project.Name)
+	if err != nil {
+		report.EarlierVolumes = append(report.EarlierVolumes, "could not list earlier runs' volumes: "+err.Error())
+		p.say("notice: could not list the volumes earlier runs left: " + err.Error() +
+			". Check with `docker volume ls --filter label=ze.lab=1`")
+		return
+	}
+	for _, name := range names {
+		notice := composeEarlierVolumeNotice(name)
+		report.EarlierVolumes = append(report.EarlierVolumes, notice)
+		p.say("notice: " + notice)
+	}
+}
+
+// composeEarlierVolumeNotice says what a leftover volume holds and how to
+// remove it.
+func composeEarlierVolumeNotice(name string) string {
+	return "volume " + name + " is the store of an interrupted earlier run, holding a hashed operator" +
+		" credential and an SSH host key; this run does not use it. Fix: `docker volume rm " + name + "`"
+}
+
 // requireSuppliedImage refuses a run whose prepared image the daemon does not
 // hold. Loading a preview export is the preview guide's step, not this proof's:
 // the proof never creates or removes an image it was handed.
@@ -198,13 +249,17 @@ func composeImageAbsent(image string) error {
 		Str(" and pass the tag: `./le test deployment docker-compose image ze-local:preview`").String())
 }
 
-// walk runs every step in order and stops at the first that fails, recording
-// it as the verdict.
-func (p *composeProof) walk(ctx context.Context, report *ComposeReport) {
-	steps := []struct {
-		name string
-		run  func(context.Context, *ComposeReport) (string, error)
-	}{
+// composeWalkStep is one named step of the journey.
+type composeWalkStep struct {
+	name string
+	run  func(context.Context, *ComposeReport) (string, error)
+}
+
+// steps answers the journey in order. The commit counterfactual inserts its
+// overwrite between the two containers, so every step before second-login
+// still passes and the persistence assertion is the one that goes red.
+func (p *composeProof) steps() []composeWalkStep {
+	steps := []composeWalkStep{
 		{"build", p.build},
 		{"init", p.initStore},
 		{"import", p.importConfig},
@@ -212,10 +267,20 @@ func (p *composeProof) walk(ctx context.Context, report *ComposeReport) {
 		{"first-login", p.firstLogin},
 		{"edit-commit", p.editAndCommit},
 		{"remove-container", p.removeContainer},
-		{"second-start", p.start},
-		{"second-login", p.secondLogin},
 	}
-	for _, step := range steps {
+	if p.breakCommit {
+		steps = append(steps, composeWalkStep{"break-commit", p.overwriteCommit})
+	}
+	return append(steps,
+		composeWalkStep{"second-start", p.start},
+		composeWalkStep{"second-login", p.secondLogin},
+	)
+}
+
+// walk runs every step in order and stops at the first that fails, recording
+// it as the verdict.
+func (p *composeProof) walk(ctx context.Context, report *ComposeReport) {
+	for _, step := range p.steps() {
 		detail, err := step.run(ctx, report)
 		if err != nil {
 			report.Steps = append(report.Steps, ComposeStep{Name: step.name, Detail: err.Error()})
@@ -272,6 +337,19 @@ func (p *composeProof) importConfig(ctx context.Context, _ *ComposeReport) (stri
 		return "", err
 	}
 	return "imported docker/ze.conf over the seed", nil
+}
+
+// overwriteCommit is the commit counterfactual. With no container running it
+// imports docker/ze.conf again into the stored ze.conf. An import over an
+// existing config replaces it whole as a new active version and changes
+// nothing else in the store (cmdImportWithStorage, storage.RestoreConfig), so
+// the operator's credential and the SSH host key stay and only the committed
+// leaf is gone.
+func (p *composeProof) overwriteCommit(ctx context.Context, report *ComposeReport) (string, error) {
+	if _, err := p.importConfig(ctx, report); err != nil {
+		return "", err
+	}
+	return "imported docker/ze.conf again over the committed change; the credential and host key stay", nil
 }
 
 func (p *composeProof) start(ctx context.Context, report *ComposeReport) (string, error) {
