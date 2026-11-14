@@ -267,7 +267,7 @@ N-A as a new scenario: no protocol behavior changes. The existing `mobike-initia
 - the WireGuard, L2TP and PPPoE owning packages - their enrolments
 - `internal/le/interoplab/lab.go`, `internal/le/interoplab/docker.go` - the check after `Preflight`
 - `internal/le/test/deployment/`, `internal/le/site/terminaldemo/render.go` - call the same check
-- `internal/le/setup/docker/kernel/dockerkernel.go` - `docker-kernel install` action (Linux hosts only, D-6) and a setup check that runs the same probe
+- `internal/le/setup/docker/kernel/dockerkernel.go` - `./le setup docker kernel install` action (Linux hosts only, D-6) and a setup check that runs the same probe
 - `internal/le/test/qemu/` - the one "Docker lab inside the Ze-kernel guest" path the Mac and the nightly share (D-6)
 - `internal/core/diagnostic/codes.go` - codes for each new enrolment
 - `.github/workflows/evidence-nightly.yml` - the four Docker jobs inside the QEMU guest
@@ -527,7 +527,7 @@ The review loop is closed: round 5 has 0 BLOCKER and 0 ISSUE. The spec stays in-
 
 Status of that table at closure (2026-11-14): the whole-tree gates are not an agent's to run (`ai/META-DECISIONS.md`), so the scoped runs under Pre-Commit Verification replace them, and the five `./le cli grammar` R1 rows are owned by `spec-web-cli-config-one-off-defects`. The Linux host row moved (Work Not Done). The nightly row is answered by run 43586166002. The Mac row is answered by the full IPsec suite in the guest on Ze's image on 2026-10-23 (46 passed, 4 failed, the four reds owned by `spec-ipsec-strongswan-interop-reds`); the full BGP suite ran in the same guest route on the nightly (204 passed, 36 failed, none a kernel refusal), and a test runs on one machine.
 
-### Closure review: owed, by a context that did not write this (2026-11-14)
+### Round 6: the closure review, by a context that did not write this (2026-11-14)
 
 Rounds 1 to 5 ended on 2026-10-10 and covered the diff to `49697ff613` and the round 5 fix. Scope of the closure pass, written before it runs: the work this spec landed after round 5, at its present state in the tree.
 
@@ -537,18 +537,29 @@ Rounds 1 to 5 ended on 2026-10-10 and covered the diff to `49697ff613` and the r
 | `af8cc93d2f` (2026-10-14) | AC-22, AC-23: the install refuses a kernel lacking what the host relies on; `readGrubConfig` falls back to `sudo cat` | `internal/le/setup/docker/kernel/hostdeps.go`, `hostdeps_test.go`, `dockerkernel.go` |
 | `b209677569` (2026-10-25) | the rename to `setup docker host` and `setup docker kernel`, as far as it touched this spec's refusals and routes | `internal/le/interoplab/kernelcheck.go`, `internal/le/setup/docker/kernel/dockerkernel.go` |
 
-The closing agent of 2026-11-14 edited no code and is not that reviewer: it was asked to prepare the closure and hand the review to an independent one. Whether this pass counts as a sixth round, which is the owner's decision, or as round 1 of a new diff, is put to the main thread with this hand-back.
+The closing agent of 2026-11-14 edited no code and is not that reviewer. This pass is round 6, which is the owner's to grant. Owner, 2026-11-14: "ok for the sixth review round on docker-hosts".
+
+Round 6 verdict (independent reviewer, 2026-11-14, over the scope above): AC-21, AC-22 and AC-23 implemented as stated; 0 BLOCKER, 2 ISSUE, 3 NOTE. A second pass over the fixes was clean with two notes; a last pass over those was clean.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded yet: the reviewer runs `./le spec review record` |
-| `./le spec review check` | not run |
-| Rounds | 5 recorded on 2026-10-10 (0 BLOCKER, 0 ISSUE at round 5); the closure pass above is owed |
-| Reviewer lenses used | rounds 1 to 5: independent reviewer over each round's stated scope; closure pass: owed |
+| Artifact | recorded by the owner himself: verdict clean, rounds 6, 12 files. The closing agent did not see the printed path |
+| `./le spec review check` | run by `./le commit create` on the closure commit; not run by the closing agent |
+| Rounds | 6. Rounds 1 to 5 on 2026-10-10; the sixth on the owner's words above. The product defect it found: the install's host guard could be removed with every test green (finding 2) |
+| Reviewer lenses used | rounds 1 to 5: independent reviewer over each round's stated scope; round 6: independent reviewer over the three commits, then over each fix; an independent `ze-test-judge` over the test change in `641274c465` |
 
 ### Findings fixed
 
-Rounds 2 to 5 list each BLOCKER and ISSUE with its fixing commit in the tables above. The closure pass adds its own rows here.
+Rounds 2 to 5 list each BLOCKER and ISSUE with its fixing commit in the tables above. Round 6, as reported to the closing agent by the main thread; the symbols were read in the tree on 2026-11-14, the runs were not seen by it:
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | three negative assertions still banned the retired `docker-kernel install` spelling, so they could not fail | `internal/le/interoplab/kernelcheck_test.go` | `63978f5932`: the `dockerKernelInstallCommand` constant (`kernelcheck.go`), which the assertions read |
+| 2 | ISSUE | no test went through `dockerKernelInstall`, so removing the `cachedKernelServesHost` guard left every test green | `internal/le/setup/docker/kernel/dockerkernel.go` | `63978f5932`: the seam `dockerKernelInstallOn` and `TestDockerKernelInstallRefusesBeforeAnyStepForAHostTheKernelBreaks` (`install_host_refusal_test.go`). Red observed by the main thread with the guard block removed: "the install issued root commands for a host its kernel would break"; green restored. The guard's refusals became operator errors, because the commit gate's error-inventory check refused plain strings |
+| 3 | NOTE (second pass) | an unreachable copy of the unreadable-cache-config error | `internal/le/setup/docker/kernel/` | `641274c465`: `cachedKernelConfig` is the single site |
+| 4 | NOTE (second pass) | a rerun was offered for a host with no module list | same | `641274c465`: `hostUnreadable` picks its fix by cause. The test judge refused the first version of the test change (the rerun line was no longer proven through `cachedKernelServesHost`); the author added the EISDIR case and the judge approved |
+| 5 | NOTE | `netfilterModulePrefixes` examines no `nft_*` module, and `CONFIG_NFT_COMPAT` is requested but not pinned | `internal/le/setup/docker/kernel/hostdeps.go` | not fixed: `plan/journal/guard-enumerates-instead-of-subtracting.md`, 2026-11-14, owned by `spec-lab-kernel-features-in-setup` |
+| 6 | NOTE | the retired `docker-kernel install` spelling in a comment of `gokrazy/kernel/runtime.config` | the Docker host block of that file | not fixed, by decision: the file feeds the guest kernel's cache key, and a comment-only edit made every guest run miss the kernel cache, so it rides with the next real kernel config change |
 
 ## Checklist
 
@@ -726,7 +737,8 @@ Rounds 2 to 5 list each BLOCKER and ISSUE with its fixing commit in the tables a
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 to AC-7, AC-11, AC-16, AC-20, AC-22, AC-23 | each named test exists at the path in the audit | `git grep -l "func <Test>"`, 2026-11-14, one file per test; the pass output is the owed scoped runs, filled by the main thread |
+| AC-1 to AC-7, AC-11, AC-16, AC-20, AC-22, AC-23 | each named test exists at the path in the audit | `git grep -l "func <Test>"`, 2026-11-14, one file per test. Run by the main thread on 2026-11-14: `./le test unit pkg` over `./internal/le/setup/docker/kernel/` ok and `./internal/le/interoplab/` ok, on the Mac; in Ze's QEMU guest, `./le test qemu ci test test/ui/doctor-kernel-capabilities.ci` pass 1/1 (AC-1), and `test/ui/doctor-kernelcap-denied.ci` green (AC-15, AC-16) after `a642725c0c` made its config enable NTP, expectations unchanged: it had been red with `exit_code_mismatch`, because on Ze's own system a disabled NTP client is `doctor-clock-no-sync` at error severity. NOT run at closure: the unit packages `kernelcap`, `doctor`, `test/deployment`, `site/terminaldemo`, `appliance` and `ike/dataplane`, so AC-2, AC-7, AC-20 and the deployment and render halves of AC-3 rest on their last recorded runs (2026-10-10 and the nightly), not on a fresh one |
+| lint and RFC gates | not evidence here | the changed-code lint of the three packages round 6 touched was refused three times, as the main thread reports it, because another session was editing a dependency while the lint planned, so it did not run. `./le rfc check` is red tree-wide with 177 violations from other sessions' work in progress; none names this spec |
 | AC-10, AC-13 | the four jobs ran in the guest; responder green, initiator red | `gh run view 43586166002`, read 2026-11-14: `verdict  pass`, `accelerator   kvm`, `check-exit    0` in each of `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`; `mobike-responder: pass (20s)`; `mobike-initiator: FAIL (40s) in checker` |
 | AC-14, AC-21 | the options are declared | `grep` of `runtime.require`: the D-5 block at line 152, `CONFIG_HOTPLUG_PCI` to `CONFIG_NETFILTER_XT_MATCH_LIMIT` at 198 to 201; `runtime.config` 166 to 176 `=y` |
 | AC-15, AC-17 to AC-19 (moved halves) | Ze's kernel carries no AppArmor | `grep SECURITY_APPARMOR\|SECURITYFS gokrazy/kernel/runtime.config runtime.require`: no line |
@@ -753,4 +765,4 @@ Rounds 2 to 5 list each BLOCKER and ISSUE with its fixing commit in the tables a
 | `ze doctor [--json] kernel-capabilities` exits 0 only with every row present | `docs/architecture/doctor-and-health-checks.md` lines 323 to 332 against `kernelcap.ProbeAll` | yes |
 | the lab check runs after `Preflight`, before builds | `docs/architecture/testing/interop.md` "The Docker host kernel check" against `Suite.Run` | yes |
 | the nightly lab jobs run inside `docker-lab` | `docs/architecture/testing/ci-workflows.md` lines 20 to 22 against run 43586166002 | yes |
-| `./le doc check all` | run by the closing agent after the citer edits | see the hand-back report |
+| `./le doc check all` | run by the closing agent on 2026-11-14 after the citer edits | FAILED; no failing line names a file this closure edited, and the first one names `delete data key`, another session's uncommitted command. Not verified clean for this spec's pages beyond that |
