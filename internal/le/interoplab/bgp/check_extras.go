@@ -426,16 +426,9 @@ var scenarioExtras = map[string][]operation{
 	"ospfv3-debug-decode-frr": {
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 database detail"), contains: []string{"\"router\"", "\"scope\"", "\"decoded\""}},
 	},
-	// The opaque-area reads wait rather than read once at Full: FRR originates a
-	// Type-10 opaque LSA on a timer that starts when an opaque-capable neighbor
-	// appears (ospf_opaque_lsa_originate_schedule, delay min_ls_interval), so at
-	// the instant FRR shows Full its TE LSA may not exist yet (measured
-	// 2026-10-21: Ze's opaque-area empty 11s into the run).
-	"ospf-ext-prefix-link-frr": {
-		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf database opaque-area"), contains: []string{"extended-prefix", "extended-link"}, timeout: 60 * time.Second},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFDatabaseOpaqueArea}, contains: []string{zeLabAddress}, timeout: 60 * time.Second},
-		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
-	},
+	// ospf-ext-prefix-link-frr is a bespoke checker (check_ospf_ext_prefix_link.go):
+	// it binds each Extended LSA type to its advertising router, which a substring
+	// match over the whole answer cannot.
 	"ospf-opaque-frr": {
 		{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf database opaque-area"), contains: []string{frrLabAddress}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
