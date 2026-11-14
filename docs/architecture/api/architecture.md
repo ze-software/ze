@@ -1789,8 +1789,10 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
 6. **SignalPeerAPIReady:** under the peer's session lock, the engine validates
    that token against the current, non-retired Session before crediting the
    sending process. Missing, stale and retired receipts return an error without
-   releasing queued work. The last expected report closes `apiSyncReady`; the
-   last `FencesLiveForwards` reporter lowers the separate replay fence.
+   releasing queued work. A credited report is recorded in the expectation
+   set, and nothing waits on the set itself: the End-of-RIB waits for no
+   report (owner ruling, 2026-09-18). The last `FencesLiveForwards` reporter
+   lowers the replay fence (`Peer.creditAPIReady`, `Peer.lowerReplayFence`).
    Explicit operator readiness remains a no-op and cannot credit a process.
 7. **sendInitialRoutes writes what it owns:** config static routes,
    default-originate, the peer-up barrier, then the family routes. It runs on

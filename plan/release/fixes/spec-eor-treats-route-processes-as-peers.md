@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Required correctness of shipped configuration, routing or forwarding behavior; existing partial implementations and remaining proof are retained. |
 | Scope | bgp |
@@ -13,7 +13,19 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Blocker
+## Hand-back record (both items cleared 2026-11-14)
+
+Cleared, verified by the second closure agent against the commits:
+
+| # | How it was cleared | Evidence |
+|---|--------------------|----------|
+| 1 | Commit 9609d00703 adds the scenario `test/interop/scenarios/bgp-manual-eor-requested-frr/` and its checker (`checkManualEORRequested`, `internal/le/interoplab/bgp/check_manual_eor.go`; predicates in `check_manual_eor_predicate.go`). The process acts from inside its peer-UP handler, which `deliverPeerState` awaits before the sync starts. Session 1 asks for nothing: FRR must log the route and no End-of-RIB through a 10 s hold. After `clear bgp`, session 2 announces a route then asks for the marker: FRR must log the route, then exactly one End-of-RIB. FRR's behaviour was read at `frr-10.7.1` (the lab's `FRRImage`): `bgp_update_receive_eor` (`bgpd/bgp_packet.c`) logs every marker before it tests `PEER_STATUS_EOR_RECEIVED`, and `bgp_update` logs each decoded prefix under `debug bgp updates in`. The design reads FRR's log instead of negotiating Graceful Restart, because `gracefulRestartInfo.endOfRibRecv` is one flag and can show neither a count nor an order (`frr.conf` header) | Main thread, Docker lab, Ze image rebuilt for each run: GREEN on HEAD (1 passed, `sha256:4da4a47314f2...`); RED with `if once {` made unconditional in `announceEOR` (assertion 7, `sha256:883e8bd4bf3b...`); RED with `sendEOR := true` in `sendInitialRoutes` (assertion 3, `sha256:fe2dd16c5cfc...`); both breaks restored. Not covered by the scenario: a replay's marker on a `manual-eor` peer, which `TestManualEORPeerWithholdsAReplayEndOfRIBAfterTheSync` covers |
+| 2 | Commit a64cf431a1 rewrites the four strings (`rib_replay_test.go`, `api_sync_test.go`), text only, judged by an independent test judge | The second closure re-ran the search for `waitForAPISync`, `apiSyncTimeout`, `apiSyncReady`, "holds its End-of-RIB" and "End-of-RIB waits for" over `docs/`, `internal/`, `pkg/` and `test/`. It found one more stale sentence, `docs/architecture/api/architecture.md` step 6 ("The last expected report closes `apiSyncReady`"), corrected in this closure. The other hits are true: `docs/plugin-development/protocol.md` says Ze never holds its marker for a report, and `peer_initial_sync_test.go` names the deleted channel as history |
+
+The stress pass over the sixteen plugin tests ran 80/80 clean, and `./le rfc
+check` was clean for `rfc4724` (main thread, 2026-11-14, state file).
+
+The original hand-back follows, unchanged.
 
 Set by the closure agent on 2026-11-14. The closure's review read the eight
 commits of this work (a2302b8968, 2cd7ac9f09, 0461489d41, 4aa1f84ff6,
@@ -625,7 +637,7 @@ Added 2026-11-14, for the quiesce race in the implementation notes (R-10):
 | YANG schema (new RPCs/config) | N-A | no leaf |
 | CLI commands/flags | N-A | none |
 | Functional test for new RPC/API | Yes | corrected 2026-11-14 (AC-2 is withdrawn): `test/plugin/api-eor-during-initial-sync.ci` and `test/plugin/initial-sync-marker-beside-process-route.ci` |
-| Interop scenario (wire-visible change) | Yes | owed, see Blocker row 1: a requested End-of-RIB on a `manual-eor` peer, against FRR |
+| Interop scenario (wire-visible change) | Yes | `test/interop/scenarios/bgp-manual-eor-requested-frr/` (9609d00703): a requested End-of-RIB on a `manual-eor` peer, against FRR 10.7.1; green, and red under both breaks (Hand-back record, row 1) |
 | Prometheus counters/metrics | No | `eorSent` keeps its contract, markers that reached the socket |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no family change |
 
@@ -723,3 +735,198 @@ Added 2026-11-14, for the quiesce race in the implementation notes (R-10):
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- D-1 and D-2 (a2302b8968): `reactorAPIAdapter.announceEOR` stands down only the replay form (`once`) while the peer queues or its sync owes its marker, and stands it down on every `manual-eor` peer (`logEORWithheldByManualEOR`). An explicit request claims the family when unclaimed and joins the forward queue (`queueEndOfRIB`), which `Peer.forwardOrderHold` holds while the queueing gate is closed. R-6: the queued item records whether it took the claim (`fwdEndOfRIB.ownsClaim`) and `settleEndOfRIB` hands back only an owned claim.
+- D-3 (2cd7ac9f09): the recovery of `Peer.sendInitialRoutes` calls `Peer.endSessionAfterSyncPanic`, which moves the peer to Connecting, ends the session with a Cease / Unspecific through `sessionTeardown`, keeps the opQueue, then clears the gate and the owed marker and wakes the forward overflow. `Session.releaseWrites` first calls `Session.discardInterruptedWrite`, which drops what a socket write a panic unwound through left staged (`observedBGPWriter.writeOpen`).
+- D-4 (4aa1f84ff6): `Peer.apiSyncReady` and `apiSyncReadyOnce` deleted; every comment and page says the session-ready report is credited and lowers the replay fence, and that the End-of-RIB waits for no report. a64cf431a1 corrected the last four test strings.
+- D-5 (0461489d41, 8d8a506457): the race files share one `seq` group for the marker and the first racing route; reload stages scripts wait for the marker counter; the RPKI fixture waits for the marker, then for quiet; two new functional tests; the drivers of three tests stop the daemon themselves so a lingering peer cannot race the stop.
+- R-10 (49b01f67ac): `Peer.pendingSync` reads `Peer.syncOwed`, which also waits for the replay fence, a policy re-send and the forward queue; `DrainPeerSync` answers `peerSyncOwedError` on timeout and `quiesceAll` answers an operator error carrying each subsystem's error.
+- Interop (9609d00703): scenario `bgp-manual-eor-requested-frr` against FRR 10.7.1.
+
+### Bugs Found/Fixed
+- A requested End-of-RIB dropped during the sync and answered as sent: `test/plugin/api-eor-during-initial-sync.ci` (red against the old drop, green on the fix) and the interop scenario's assertion 7.
+- A failed requested marker released a claim the sync held: `TestFailedEndOfRIBWriteHandsBackOnlyAnOwnedClaim`.
+- A recovered sync panic left an Established peer with an undrainable queue: `TestInitialSyncPanicEndsTheSession`.
+- The interrupted frame of a panicking socket write rode out ahead of the Cease: the wire assertions of the three unwind tests (`peer_initial_sync_unwind_test.go`).
+- `request quiesce` settled while a replay was still passing: `TestPendingSyncWaitsForTheReplayFence` and the three sibling tests; the stress failure of `rfc7999-blackhole-readvertise-agreement-forked.ci` did not recur in 80 runs.
+
+### Documentation Updates
+- a2302b8968: `docs/architecture/api/update-syntax.md`, `docs/architecture/forward-congestion-pool.md`, `docs/exabgp/exabgp-differences.md` ("An `announce eor` sent while the session starts", anchor `reactor_api_forward.go -- AnnounceEOR, announceEOR`), `docs/guide/configuration.md` (`behavior { manual-eor; }` row).
+- 2cd7ac9f09 and 4aa1f84ff6: `docs/architecture/behavior/peer-lifecycle.md` (panic recovery, step 4), `docs/architecture/plugin/plugin-system.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/api/architecture.md`, `docs/plugin-development/protocol.md` ("The session-ready report").
+- 49b01f67ac: `docs/architecture/api/commands.md`, "What `bgp-peer-sync` waits for". 8d8a506457: `docs/architecture/testing/ci-format.md`. 9609d00703: `docs/architecture/testing/interop.md`.
+- This closure: `docs/architecture/api/architecture.md` step 6 no longer names the deleted `apiSyncReady` (it names `Peer.creditAPIReady` and `Peer.lowerReplayFence` inline); `docs/architecture/testing/interop.md` inventory row 69 records the green run and the two red walks in place of "Not yet run".
+- `./le doc check all`, run by the second closure agent after its edits: one failure, not this work's. The live command catalog and the wiki catalog disagree on `show data check` (`internal/le/cli/catalog/catalog.go`, column `vanished-entries`), which the data-store session is changing. Every source anchor resolves, the digest anchors included.
+
+### Deviations from Plan
+- AC-2 withdrawn by the owner at the research gate; AC-4 to AC-10 replace it (A-2 broken).
+- D-3's steps 1 and 2 run in the other order (state and teardown first, facts cleared last), for the reason `runQueuedTeardown` gives; recorded under D-3.
+- `api-manual-eor` through the bridge cannot place its request inside the sync; the during-sync case is proven by `api-eor-during-initial-sync` and the interop scenario (Wiring Test row 3).
+- R-10 was fixed here rather than recorded: same surface (what `request quiesce` reports about the initial update), found by this work's stress run.
+- The interop scenario reads FRR's log rather than negotiating Graceful Restart, as the hand-back proposed: the GR flag can show neither a count nor an order.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2: AC-2 (a forwarded route never precedes the marker) was taken as the owner's order | The owner ruled the marker has no bearing on what Ze forwards; FRR and BIRD let a forwarded route precede their marker | research gate | AC-2 withdrawn, AC-4 to AC-10 written |
+| approach | The first `api-eor-during-initial-sync` asked for the marker after the sync, so it stayed green against the old drop | A request lands inside the sync only from inside the peer-UP handler the engine awaits | red walk against the old drop | rewritten (0461489d41); lesson in `plan/learned/052-eor-treats-route-processes-as-peers.md` |
+| approach | Phase 3's first test change counted writes only | The interrupted frame was flushed ahead of the Cease | an independent test judge refused it | `discardInterruptedWrite`, wire assertions (2cd7ac9f09) |
+| approach | Phase 4 corrected every page that said the marker waits for the report, but left `docs/architecture/api/architecture.md` step 6 naming the deleted `apiSyncReady` | The channel was gone in the same commit | second closure's AC-8 search | corrected in this closure |
+| approach | The first closure found no interop scenario for a wire-visible change | `ai/doors/bgp-engine.md`, "Gates", owes `./le test integration interop` for any wire-visible change | first closure review | scenario added (9609d00703) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The marker waits for no route-creating process | Done | `Peer.sendInitialRoutes` (`peer_initial_sync.go`) | removed by 9c93f82bb4, pinned by `TestInitialSyncMarkerWaitsForNoProcess` |
+| The four named tests assert only what the product promises | Done | `test/plugin/` | none asserted an unpromised order (Research corrections) |
+| `initialSyncEOROwed` suppression assessed | Changed | `reactorAPIAdapter.announceEOR` | it now stands down only the replay form (D-1) |
+| `apiSyncExpected` and `waitForAPISync` consumers assessed | Done | `Peer.resetAPISync`, `Peer.creditAPIReady` | the set stays and arms the fence; `apiSyncReady` deleted (D-4) |
+| The 2026-08-30 ruling re-read | Done | Required Reading | only its "The marker waits for it" is superseded |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestInitialSyncMarkerWaitsForNoProcess`; `test/plugin/initial-sync-marker-beside-process-route.ci` | stress 80/80 |
+| AC-2 | Changed | withdrawn by the owner | A-2 |
+| AC-3 | Done | the four files read; none asserts an unpromised order | Research corrections |
+| AC-4 | Done | the eight race files, the reload stages waits, the RPKI fixture, the two healthcheck files (0461489d41) | judged; stress 80/80 plugin and reload |
+| AC-5 | Done | `TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes`, `TestReplayEndOfRIBStandsDownWhileSyncOwesItsMarker`, `api-eor-during-initial-sync.ci`, interop assertion 7 | |
+| AC-6 | Done | `TestManualEORPeerReceivesOnlyTheRequestedMarker`, `TestManualEORPeerWithholdsAReplayEndOfRIBAfterTheSync`, interop assertions 3 and 8 | |
+| AC-7 | Done | `TestInitialSyncPanicEndsTheSession` and the unwind wire assertions | the next session's drain is the existing `sendInitialRoutes` opQueue drain, with no two-session test (NOTE N-3) |
+| AC-8 | Done | the search in the Hand-back record, row 2; `docs/plugin-development/protocol.md`, `pkg/plugin/rpc/types.go` | one page sentence corrected at closure |
+| AC-9 | Done | `apiSyncReady` absent from `internal/` and `pkg/` product code; the five tests observe `initialUpdateOwed` | |
+| AC-10 | Done | `plan/journal/guard-addition-drops-what-it-refuses.md` 2026-11-14 and `plan/journal/grace-bound-hides-a-missing-signal.md` 2026-08-30, both `fixed:` with their commits | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestInitialSyncMarkerWaitsForNoProcess` | Done | `peer_initial_sync_test.go` | RFC4724-4-1 re-judged with a record (923628582e) |
+| `TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes`, `TestReplayEndOfRIBStandsDownWhileSyncOwesItsMarker`, `TestManualEORPeerReceivesOnlyTheRequestedMarker`, `TestManualEORPeerWithholdsAReplayEndOfRIBAfterTheSync`, `TestFailedEndOfRIBWriteHandsBackOnlyAnOwnedClaim` | Done | `reactor_api_forward_test.go` | red under breaks (a2302b8968 body) |
+| `TestInitialSyncPanicEndsTheSession` and the unwind wire assertions | Done | `peer_initial_sync_unwind_test.go` | judged |
+| the five readers of `apiSyncReady` | Done | four test files | judged |
+| the three suppression tests | Done | `reactor_api_forward_test.go`, `peer_initial_sync_test.go` | judged |
+| the five `peer_sync_owed_test.go` tests, `TestQuiesceErrorCarriesWhatTheSubsystemOwes` | Done | `peer_sync_owed_test.go`, `quiesce_test.go` | |
+| functional tests of the plan | Done | `test/plugin/`, `test/reload/`, `test/exabgp-compat/` | stress 80/80 each set |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and its corrections | Done | the eleven commits named in the Hand-back record and the Implementation Summary |
+| `test/plugin/initial-sync-marker-beside-process-route.ci`, `test/plugin/api-eor-during-initial-sync.ci` | Done | 0461489d41 |
+| the `holdWrites` comment in `session_write.go` | Changed | already corrected by 178cffd97d; this spec added only the discard call |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (AC-2, the `announceEOR` suppression, the `holdWrites` comment), each in Deviations or Files to Modify
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A route-creating process is a peer for the marker: Ze's End-of-RIB waits for none | functional | `test/plugin/initial-sync-marker-beside-process-route.ci`: the peer requires the process's route and Ze's marker in one `seq` group; 80/80 under the plugin stress pass (state file, 17:05) |
+| No test asserts an order the product does not promise (the four named tests and their kin) | functional | the eight race files and three reload stages scripts (0461489d41), judged by independent test judges; plugin stress 80/80 and reload stress 80/80 |
+| A marker a process asks for is never dropped, and follows the routes queued for the peer | interop + functional | `bgp-manual-eor-requested-frr`: FRR 10.7.1 logs the route, then exactly one End-of-RIB; red at assertion 7 with the drop restored (image `sha256:883e8bd4bf3b...`). `api-eor-during-initial-sync.ci` red against the old drop ("ze never sent its End-of-RIB to peer1"), green on a2302b8968 |
+| `manual-eor` withholds every automatic marker | interop + unit | the same scenario's session 1: no End-of-RIB through 10 s; red at assertion 3 with the sync's marker forced (image `sha256:fe2dd16c5cfc...`). The replay form: `TestManualEORPeerWithholdsAReplayEndOfRIBAfterTheSync`, red with the stand-down removed |
+| No Established peer is left with a queue nothing drains after a sync panic | unit (fault injection) | `TestInitialSyncPanicEndsTheSession`: the peer leaves Established, the Cease is on the wire, the queue is kept; red before 2cd7ac9f09 |
+| Nobody reads that the marker waits for a session-ready report | search | the AC-8 search in the Hand-back record, row 2; the last page sentence corrected in this closure |
+| `request quiesce` does not report a peer settled while its replay is still passing | unit + functional | `TestPendingSyncWaitsForTheReplayFence` and siblings; `rfc7999-blackhole-readvertise-agreement-forked.ci`, which failed on that race, passed 80/80 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A forward-worker batch panic keeps the session and leaves a hole in what the peer was sent (`fwdPool.safeBatchHandle`) | walked into, a defect of another recovery; journal row 2026-11-14 in `plan/journal/silent-fall-through.md` | `plan/release/fixes/spec-bgp-one-off-defects.md` |
+| A replay-fence owner that never reports keeps the fence up and now times a quiesce out (`Peer.lowerReplayFence`) | walked into; journal row 2026-11-14 in `plan/journal/wait-outlives-the-process-it-waits-on.md` | `plan/release/fixes/spec-bgp-one-off-defects.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/eor-treats-route-processes-as-peers-ec7d79dc-7da3-4803-8c26-086b8ea54170.md` (5 files: the spec, `docs/architecture/testing/interop.md`, `docs/architecture/api/architecture.md`, the news fragment, the learned summary; the code landed in the eleven commits this review read) |
+| `./le spec review check` | clean, run after the final spec edit |
+| Rounds | 2: round 1 over the eleven commits' diff and this closure's edits; round 2 over round 1's one fix (a page sentence) |
+| Reviewer lenses used | wiring + functional coverage, logic + concurrency (lock order of `syncOwed`, `endSessionAfterSyncPanic`, `discardInterruptedWrite` under `writeMu`), docs drift + RFC comments, interop validity, style pass |
+
+Round 1, independent reader (the second closure agent, which wrote none of
+the code). Pre-checks: `./le repo check` reports seven findings, none in a
+file of this work (`session_write_mutex.go` is the write-wedge session's,
+the rest are under `internal/le/`); `./le test weakened check base
+origin/main`: clean. Style pass run over every changed Go file: no `panic()`
+added; the forward queue's existing bound covers repeated requests; the new
+`peerSyncOwed` zero value is unspecified and never an answer; the new
+lifecycle function `endSessionAfterSyncPanic` states its MUST (p.mu not
+held).
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | Step 6 of the session-ready walk says "The last expected report closes `apiSyncReady`", a channel D-4 deleted (AC-8) | `docs/architecture/api/architecture.md`, step 6 | rewritten to say the report is credited, nothing waits on the set, and the last fence owner lowers the fence (`Peer.creditAPIReady`, `Peer.lowerReplayFence`) |
+
+NOTEs, not blocking:
+
+| # | Note | Location |
+|---|------|----------|
+| N-1 | The comment above the replay marker says the engine sends it "only when this session has not already carried the family's marker"; since D-2 it is also withheld on a `manual-eor` peer and while the sync owes its marker. The sentence stays true as a necessary condition, and the declaration it relies on states the full list | `routeServer.sendEOR` (`internal/component/bgp/plugins/rs/server_handlers.go`); `ReplayEORMeta` (`internal/component/bgp/types/types.go`) |
+| N-2 | The route-server fast path releases the write path with a plain unlock, so `discardInterruptedWrite` does not run there | owned by the open row in `plan/journal/silent-fall-through.md` |
+| N-3 | AC-7's next-session drain has no two-session test; it rests on the existing `sendInitialRoutes` opQueue drain | `peer_initial_sync.go` |
+| N-4 | `request quiesce` under sustained forwarding can time out; its error names the peer and the reason | `peerSyncOwedError` |
+| N-5 | A-4's upstream lines were read by a source-check agent, not by the main thread | A-4 |
+
+Round 2, over the fix of finding 1 only: the two symbols it names exist in
+`peer.go`, and the sentence matches `Peer.creditAPIReady`, which records the
+credit and lowers the fence through `lowerReplayFence`. 0 BLOCKER, 0 ISSUE.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/initial-sync-marker-beside-process-route.ci` | Yes | `ls`: 3.9K |
+| `test/plugin/api-eor-during-initial-sync.ci` | Yes | `ls`: 3.7K |
+| `test/exabgp-compat/api/api-manual-eor.ci` | Yes | `ls`: 118 bytes |
+| `test/interop/scenarios/bgp-manual-eor-requested-frr/ze.conf` | Yes | `ls`: 1.8K |
+| `internal/component/bgp/reactor/session_write_interrupted.go`, `peer_sync_owed.go` | Yes | `ls`: 2.4K, 6.5K |
+| `internal/le/interoplab/bgp/check_manual_eor.go` | Yes | `ls`: 15K |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | the marker waits for no process | `TestInitialSyncMarkerWaitsForNoProcess` exists in `peer_initial_sync_test.go`; the `.ci` expects the marker and the route both at `seq=1` |
+| AC-5 | a requested marker follows the queued route | in `announceEOR` the queue-or-owed branch stands down only `once` (and a reactor with no pool); `api-eor-during-initial-sync.ci` expects the route at `seq=1` and the marker at `seq=2` |
+| AC-6 | no automatic marker on `manual-eor` | `announceEOR` tests `once && peer.settings.ManualEOR`; `sendInitialRoutes` sets `sendEOR := !p.settings.ManualEOR` |
+| AC-7 | the session ends after a sync panic | `endSessionAfterSyncPanic` calls `sessionTeardown` with `ceaseNotice(message.NotifyCeaseUnspecific, "")`; `TestInitialSyncPanicEndsTheSession` exists in `peer_initial_sync_unwind_test.go` |
+| AC-8, AC-9 | no text says the marker waits for the report; the channel is gone | search over `docs/ internal/ pkg/ test/`: only true hits remain (Hand-back record, row 2) |
+| AC-10 | both owned rows closed | each row's Fix cell starts `fixed:`, naming a2302b8968, and 391fcee8d1 with 9c93f82bb4 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a session with a route-pushing process | `test/plugin/initial-sync-marker-beside-process-route.ci` | read: fixture `markerBesideProcessRoute` pushes through `UpdateRoute` with no wait; the peer expects both frames in one group |
+| `update text nlri eor` during the sync | `test/plugin/api-eor-during-initial-sync.ci` | read: fixture `fixture10EORDuringInitialSync` asks from inside the peer-UP handler; the `manual-eor` peer expects the route, then the marker |
+| the bridge's `announce eor` on a `manual-eor` peer | `test/exabgp-compat/api/api-manual-eor.ci` | proves the marker arrives whenever the request lands (Wiring Test row 3) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | owner at the research gate |
+| A-2 | broken | owner at the research gate; Mistake Log row 1, Deviations |
+| A-3 | confirmed | 71 files read one by one; the 43 held re-read in phase 5 |
+| A-4 | confirmed | FRR 10.7.1 `bgp_update_receive_eor`, BIRD 3.4.0 `bgp_rx_end_mark`, quoted by a source-check agent |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `manual-eor` withholds every automatic marker (`docs/guide/configuration.md`) | the `ManualEOR` tests in `announceEOR` and `sendInitialRoutes` | Yes |
+| A requested marker is never dropped (`docs/exabgp/exabgp-differences.md`) | `announceEOR`, the explicit form joins `queueEndOfRIB` | Yes |
+| The session-ready report lowers the fence, nothing waits on it (`architecture.md` step 6, `protocol.md`, `types.go`) | `Peer.creditAPIReady`, `lowerReplayFence` | Yes |
+| What `bgp-peer-sync` waits for (`commands.md`) | `Peer.syncOwed` | Yes |
+| The interop inventory row records the runs (`interop.md` row 69) | state file, "CLOSURE BLOCKER CLEARED" | Yes |
+| Wire format (No) | the marker's bytes are unchanged: `message.BuildEOR` is not in the diff | Yes |
