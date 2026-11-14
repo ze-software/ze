@@ -311,3 +311,91 @@ func TestFIBKernelFlushRetriesARefusedTableAfterAWithdraw(t *testing.T) {
 		t.Fatalf("the flush did not try table 100 again after the withdraw; rich deletes = %+v", backend.deletes)
 	}
 }
+
+// slotBackend is a rich backend that models the kernel's exclusive add: an
+// add into a table that already holds a route for the prefix is refused, a
+// replace takes the slot. It refuses every delete in table 100, as the kernel
+// did for the sweep. Its constructor supplies the plain backend; its zero
+// value is invalid.
+type slotBackend struct {
+	*mockBackend
+	occupied map[installedRoute]bool
+	replaced []installedRoute
+}
+
+func (backend *slotBackend) slot(route RichRoute) installedRoute {
+	return installedRoute{prefix: route.Prefix.String(), table: route.TableID}
+}
+
+func (backend *slotBackend) addRichRoute(route RichRoute) error {
+	slot := backend.slot(route)
+	if backend.occupied[slot] {
+		return errors.New("file exists")
+	}
+	backend.occupied[slot] = true
+	return nil
+}
+
+func (backend *slotBackend) replaceRichRoute(route RichRoute) error { //nolint:unparam // richRouteBackend method: the interface returns an error, this double never refuses a replace
+	slot := backend.slot(route)
+	backend.occupied[slot] = true
+	backend.replaced = append(backend.replaced, slot)
+	return nil
+}
+
+func (backend *slotBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+	if tableID == 100 {
+		return errors.New("operation not permitted")
+	}
+	delete(backend.occupied, installedRoute{prefix: prefix.String(), table: tableID})
+	return nil
+}
+
+// Goal: a protocol can install a prefix into the table where Ze's own stale
+// route still sits after the sweep was refused there. Method: startup lists
+// the prefix in main and in table 100, an Add in main, sweepStale (the table
+// 100 delete is refused), a Withdraw, then an Add into table 100: it takes the
+// slot by replace, the prefix is installed, no sync failure is raised, and the
+// stale table is forgotten once Ze's current route holds it.
+func TestFIBKernelInstallsOverItsOwnRefusedStaleRoute(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	prefix := netip.MustParsePrefix("198.18.133.0/24")
+	stale100 := installedRoute{prefix: prefix.String(), table: 100}
+	backend := &slotBackend{mockBackend: newMockBackend(), occupied: map[installedRoute]bool{stale100: true}}
+	backend.zeRoutes = []installedRoute{{prefix: prefix.String(), table: 0}, stale100}
+	fib := newFIBKernel(backend)
+	stale := fib.startupSweep()
+
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Add, Prefix: prefix, NextHop: netip.MustParseAddr("192.168.33.1"), Protocol: "bgp"},
+	}))
+	fib.sweepStale(stale)
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Withdraw, Prefix: prefix, Protocol: "bgp"},
+	}))
+	if _, installed := fib.installed[prefix.String()]; installed {
+		t.Fatalf("control: the withdraw left %s installed", prefix)
+	}
+	report.ResetForTest()
+
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Add, Prefix: prefix, NextHop: netip.MustParseAddr("192.168.33.2"), Protocol: "bgp", TableID: 100},
+	}))
+
+	if _, installed := fib.installed[prefix.String()]; !installed {
+		t.Fatalf("the add into Ze's own stale slot in table 100 was not installed; replaces = %+v", backend.replaced)
+	}
+	if len(backend.replaced) != 1 || backend.replaced[0] != stale100 {
+		t.Errorf("replaces = %+v, want one replace of the stale route in table 100", backend.replaced)
+	}
+	for _, issue := range report.Errors(0) {
+		if issue.Code == reportCodeFIBSyncFailure {
+			t.Errorf("the add raised a sync failure: %+v", issue)
+		}
+	}
+	if tables := fib.staleTables[prefix.String()]; len(tables) != 0 {
+		t.Errorf("stale tables for %s = %v after Ze's current route took table 100, want none", prefix, tables)
+	}
+}

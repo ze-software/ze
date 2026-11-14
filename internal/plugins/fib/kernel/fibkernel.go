@@ -186,8 +186,10 @@ type fibKernel struct {
 	// Replay can replace these entries; untouched ones still reach sweepStale.
 	retained map[string]bool
 	// staleTables records, for each prefix startup listed, every table the
-	// listing found a Ze route for it in (0 for main). sweepStale and
-	// flushRoutes delete each listed route from its own table, then forget it.
+	// listing found a Ze route for it in (0 for main). sweepStale deletes each
+	// from its own table and keeps only the tables the kernel refused; an
+	// install into a listed table takes the slot and drops that table;
+	// flushRoutes deletes what is left and clears the map.
 	staleTables map[string][]uint32
 	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
 	mplsInstalled map[string]bool
@@ -273,8 +275,38 @@ func cloneForwardingPaths(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath
 	return result
 }
 
-func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+// ownsSlotLocked reports whether the kernel route an install of pfx into table
+// would meet is Ze's own, so the install may replace it: Ze installed the
+// prefix this run, startup retained it, or a stale route of a previous run is
+// still listed in that very table because the sweep has not run yet or the
+// kernel refused its delete. Anything else in the slot is foreign, and the
+// install stays an exclusive add. Caller MUST hold f.mu.
+func (f *fibKernel) ownsSlotLocked(pfx string, table uint32) bool {
 	if _, installed := f.installed[pfx]; installed || f.retained[pfx] {
+		return true
+	}
+	return slices.Contains(f.staleTables[pfx], table)
+}
+
+// forgetStaleTableLocked drops table from the stale tables recorded for pfx
+// once Ze's current route holds that table: the stale route there was
+// replaced, and the slot is tracked by the installed route from now on.
+// Caller MUST hold f.mu.
+func (f *fibKernel) forgetStaleTableLocked(pfx string, table uint32) {
+	tables, listed := f.staleTables[pfx]
+	if !listed {
+		return
+	}
+	tables = slices.DeleteFunc(slices.Clone(tables), func(t uint32) bool { return t == table })
+	if len(tables) == 0 {
+		delete(f.staleTables, pfx)
+		return
+	}
+	f.staleTables[pfx] = tables
+}
+
+func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if f.ownsSlotLocked(pfx, c.TableID) {
 		return f.replaceChange(c, pfx, rb)
 	}
 	if len(c.Labels) > 0 {
@@ -292,7 +324,7 @@ func (f *fibKernel) replaceChange(c *incomingChange, pfx string, rb richRouteBac
 	// A producer's Update can follow a refused Add. Without our own installed
 	// entry it is still an exclusive add, not permission to replace a foreign
 	// route that caused the earlier refusal.
-	if _, installed := f.installed[pfx]; !installed && !f.retained[pfx] {
+	if !f.ownsSlotLocked(pfx, c.TableID) {
 		return f.addChange(c, pfx, rb)
 	}
 	if len(c.Labels) > 0 {
@@ -362,6 +394,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 			f.installed[pfx] = c.NextHop.String()
 			f.forwarding[pfx] = cloneForwardingChange(c)
+			f.forgetStaleTableLocked(pfx, c.TableID)
 			delete(f.retained, pfx)
 			delete(f.pending, pfx)
 			f.trackBackupLocked(pfx, c)
@@ -389,6 +422,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 			f.installed[pfx] = c.NextHop.String()
 			f.forwarding[pfx] = cloneForwardingChange(c)
+			f.forgetStaleTableLocked(pfx, c.TableID)
 			delete(f.retained, pfx)
 			delete(f.pending, pfx)
 			f.trackBackupLocked(pfx, c)
@@ -531,8 +565,9 @@ func (f *fibKernel) flushRoutes() {
 
 // flushOneLocked removes one owned prefix. An installed route carries the
 // description it was programmed from, so the delete names its table. A route
-// a previous run left is removed from every table startup listed it in, apart
-// from the one the installed route now holds. Caller MUST hold f.mu.
+// a previous run left is removed from every table still recorded for it (all
+// the listed ones before the sweep, the refused ones after), apart from the
+// one the installed route now holds. Caller MUST hold f.mu.
 func (f *fibKernel) flushOneLocked(prefix string, rb richRouteBackend) error {
 	change, described := f.forwarding[prefix]
 	var errs error
