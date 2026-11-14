@@ -52,8 +52,7 @@ Constraints already known:
 - `plan/release/validation/spec-perf-rs-fast-path-regression-and-pass-labels.md`
   measures this path and states that the path stays where it is: its Existing
   Mechanisms row for the fast path sets moving the work elsewhere aside. This
-  spec's design is presented to Thomas against that statement, and a figure
-  that spec records is taken again after any change here.
+  spec's design is presented to Thomas against that statement.
 - `docs/architecture/bgp/structural-forwarding.md`: the fast path MUST NOT
   wait for a destination's write path, which is why it uses `TryLock`; a
   contended destination is handed to its forward worker
@@ -62,8 +61,27 @@ Constraints already known:
 - Any change keeps the fast path's allocation count
   (`TestFastPathBudgetAddsNoAllocation`) and the per-source FIFO order of
   forwarded UPDATEs.
-- A time figure for this path comes only from Thomas's Mac
-  (`ai/META-DECISIONS.md`).
+- The fast path's time is measured before this spec's change starts and after
+  it lands (owner decision, 2026-11-14). Asked about the time cost of the
+  write budget, which was never measured, Thomas answered: "4 can wait the
+  fanout code". He added, by dictation that the interface cut off: "However we
+  should [measure] it before and after the sp...", the word in brackets
+  supplied, read as: measure it before and after the spec. Asked which work
+  "the fanout code" names, this fix or the postponed event-bus spec
+  `spec-review-bus-async-fanout`, he answered: "I think it was both." The
+  design carries both runs as inputs to its acceptance:
+
+  | Run | What is measured | Against |
+  |-----|------------------|---------|
+  | Before, when work on the change starts | The fast path at `73fac8af9c~1`, the commit before the write budget, and at the HEAD of that day | Each other: the pair is the time cost of the write budget (`Session.armFastPathBudget`), which has no figure until then |
+  | After, when the change has landed | The fast path at the HEAD of that day. Any time figure the perf spec above has recorded by then is taken again in the same run | The "before" run |
+
+  Thomas takes both on his Mac, with the same host and the same harness. A
+  time figure for this path comes only from there
+  (`ai/META-DECISIONS.md`, "Test systems and labs"): a figure from another
+  host is neither reported nor compared. The same decision asks for the same
+  pair around the event-bus spec, recorded there; the decision itself is in
+  the perf spec, "The write budget's time figure".
 
 ## Required Reading
 

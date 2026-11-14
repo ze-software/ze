@@ -50,20 +50,25 @@ config type is `BenchmarkConfig`, with the pass declared as `perf.Pass` in
 **The write budget's time figure: left the release work (owner decision,
 2026-11-14).** Asked about the figure row 1 names, Thomas answered: "4 can wait
 the fanout code". He added a sentence by dictation that the interface cut off:
-"However we should [measure] it before and after the sp...". The reading taken
-is "we should measure it before and after the spec": the figure has two halves,
-one on each side of that work. This spec's closure does not wait on either
-half, and `Depends` stays `-`.
+"However we should [measure] it before and after the sp...". The sentence is
+transcribed as it arrived, the word in brackets supplied; the reading taken is
+"we should measure it before and after the spec". Asked the same day which work
+"the fanout code" names, the postponed event-bus spec or the BGP forward
+fan-out to destination peers, he answered: "I think it was both." So the fast
+path's time is measured before and after each of the two pieces of work, four
+measurement points in all. This spec's closure waits on none of them, and
+`Depends` stays `-`.
 
 | Question | Answer |
 |----------|--------|
-| What is measured | The time of the route-server fast path (`tryDirectWriteNoFlush`, `forward_rs_direct.go`), on one host with one harness |
-| First half, before the fanout work starts landing | The fast path at `73fac8af9c~1` and at the then-current HEAD. This pair is also the time cost of the write budget |
-| Second half, after the fanout work has landed | The fast path at the then-current HEAD, against the first half |
+| What is measured | The time of the route-server fast path (`tryDirectWriteNoFlush`, `forward_rs_direct.go`), on one host with one harness for all four points |
+| Point 1, before the fix of `spec-bgp-session-write-wedge-fast-path-holds-source` starts | The fast path at `73fac8af9c~1` and at the HEAD of that day. This pair is also the time cost of the write budget. That spec is in the release bucket and the event-bus spec is postponed past the release, so this is expected to be the first point taken; whichever "before" is taken first carries the `73fac8af9c~1` comparison |
+| Point 2, after that fix has landed | The fast path at the HEAD of that day, against point 1 |
+| Point 3, before the work of `spec-review-bus-async-fanout` starts | The fast path at the HEAD of that day |
+| Point 4, after that work has landed | The fast path at the HEAD of that day, against point 3 |
 | Who takes it, and where | Thomas, on his Mac. A time figure from any other host is not reported or compared (the measurement rule below) |
-| What exists until then | No time figure for the budget. The only proof is the allocation one: `TestFastPathBudgetAddsNoAllocation`, zero added allocations |
-| Open, put to Thomas on 2026-11-14 | Which work "the fanout code" names. Two candidates: the deferred event-bus spec `spec-review-bus-async-fanout` (`plan/post-release/engineering/`), whose work is the plugin server's delivery of an event to plugins and engine subscribers and does not touch the fast path; or work on the BGP forward fan-out to destination peers (`docs/architecture/bgp/fanout-dedup.md`, `docs/architecture/bgp/structural-forwarding.md`) |
-| Where the measurement is recorded | Here only, until that answer names the spec that will carry it |
+| What exists until point 1 | No time figure for the budget. The only proof is the allocation one: `TestFastPathBudgetAddsNoAllocation`, zero added allocations |
+| Where each point is recorded | Points 1 and 2 in `plan/release/fixes/spec-bgp-session-write-wedge-fast-path-holds-source.md`, points 3 and 4 in `plan/post-release/engineering/spec-review-bus-async-fanout.md`. Each spec carries its own pair; nothing is owed here |
 
 **Measurement rule (`ai/META-DECISIONS.md`, "Test systems and labs").** A time
 or throughput figure (ns/op, convergence, a profile's seconds) is recorded only

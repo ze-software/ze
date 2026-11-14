@@ -399,6 +399,44 @@ by an agent.
 |------|-----|-------------|
 | All four problems | Owner deferral, 2026-11-14 | This spec, in `plan/post-release/engineering/` |
 | The bound on the blocking engine-to-plugin send, as far as a BGP session is concerned | It is a release defect and this spec no longer provides it | `plan/release/fixes/spec-bgp-session-write-wedge-plugin-parked-writer.md` |
+| The route-server fast path's time, before and after this spec's code | Owner decision, 2026-11-14; a time figure comes only from Thomas's Mac | "Follow-on measurement" below |
+
+## Follow-on measurement (owner decision, 2026-11-14)
+
+This item follows this spec's code and changes none of its design. Asked about
+the time cost of the write budget on the BGP route-server fast path
+(`Session.armFastPathBudget`, called from `tryDirectWriteNoFlush` in
+`internal/component/bgp/reactor/forward_rs_direct.go`), which was never
+measured, Thomas answered: "4 can wait the fanout code". He added, by dictation
+that the interface cut off: "However we should [measure] it before and after
+the sp...", the word in brackets supplied, read as: measure it before and after
+the spec. Asked which work "the fanout code" names, this spec or the BGP
+forward fan-out to destination peers
+(`plan/release/fixes/spec-bgp-session-write-wedge-fast-path-holds-source.md`),
+he answered: "I think it was both."
+
+| Run | What is measured | Against |
+|-----|------------------|---------|
+| Before, when work on this spec's code starts | The fast path at the HEAD of that day. If the pair around the fast-path fix has not been taken by then, also the fast path at `73fac8af9c~1`, the commit before the write budget | - |
+| After, when this spec's code has landed | The fast path at the HEAD of that day | The "before" run |
+
+Thomas takes both on his Mac, with the same host and the same harness. A time
+figure comes only from there (`ai/META-DECISIONS.md`, "Test systems and
+labs"): a figure from another host is neither reported nor compared.
+
+The expected result is no change, and the measurement is what confirms it.
+The fan-out this spec is about is the plugin server handing an event to
+plugins and engine subscribers (`Server.deliverEvent`). The session that
+deferred this spec reported that the fast path bypasses that delivery. Read at
+the producer on 2026-11-14: `tryDirectWriteNoFlush` itself emits no event. The
+writer it calls reports each written UPDATE to the session's message callback
+with the sent direction (`Session.writeUpdateBody`, `onMessageReceived`), and
+where that callback leads was not traced, so the report stands as reported and
+not verified.
+
+The decision is recorded in
+`plan/release/validation/spec-perf-rs-fast-path-regression-and-pass-labels.md`,
+"The write budget's time figure".
 
 ## History
 
@@ -409,3 +447,4 @@ by an agent.
 | 2026-11-11 | Commit ecfbbdfed3 added the delivery failure and slow-batch counters and their doctor record |
 | 2026-11-14 | Disposition at 746b18426d: all four problems still occur; the July design no longer fits, because the blocking calls moved into the redistribution orchestrator, the batch became borrow-only with no way to keep it, and a drop rule in both directions contradicts the recorded forward-path backpressure (commit ac90f6226b) |
 | 2026-11-14 | Postponed by Thomas and moved to `plan/post-release/engineering/`, rewritten to describe the system as it is, with no design chosen |
+| 2026-11-14 | Thomas asked for the route-server fast path's time to be measured before and after this spec's code ("Follow-on measurement") |
