@@ -165,6 +165,7 @@ Skeleton level; the design phase expands these.
 | AC-2 | QS-6: ze and keepalived both v3 IPv6, link-local plus global VIP | Election completes; unsolicited NA observed after failover; the neighbor entry resolves to the virtual MAC |
 | AC-3 | `--list` after both land | QS-5 and QS-6 appear in `SCENARIOS`, absent from `PENDING_SCENARIOS` |
 | AC-4 | Full lab run | QS-1..QS-3 still pass unchanged |
+| AC-5 | VRRP IPv6 advertisement checksum: rows `RFC9568-7.2-5` and `RFC5798-7.2-1`, audit verdicts `weak` (owned here for AC-11 of `plan/release/validation/spec-rfc-verdict-test-fix-pass.md`, 2026-11-14). RFC 9568 Section 7.2: "The following operations MUST be performed when transmitting a VRRP packet:", item "Compute the VRRP checksum"; RFC 5798 Section 7.2 carries the same item. RFC 9568 Section 5.2.8: "For the IPv6 address family, the checksum calculation also includes a prepended "pseudo-header", as defined in Section 8.1 of [RFC8200]." | Ze has the kernel fill the IPv6 checksum: `openV6` (`internal/plugins/vrrp/transport/backend_linux.go`) sets `IPV6_CHECKSUM` to 6 on the TX socket. No tagged unit of either row sees it today: the transport unit's fake backend carries no IPv6 checksum and the instance unit calls `FillChecksum` in its own body, so removing the setsockopt leaves every unit tagged for these rows green. Met when the QEMU unit `TestIntegrationAdvertV6OnWire` (`internal/plugins/vrrp/transport/transport_integration_linux_test.go`), which verifies the captured checksum under the RFC 8200 pseudo-header, carries `RFC9568-7.2-5 positive` and `RFC5798-7.2-1 positive`; `./le rfc record` observes it red with that setsockopt removed and green restored; an agent that wrote neither tag re-judges both verdicts `enforced`; and QS-6 (AC-2) is the peer evidence, keepalived electing against ze's IPv6 advertisements |
 
 ## 🧪 TDD Test Plan
 
@@ -174,6 +175,7 @@ Skeleton level; the design phase expands these.
 | (existing) `TestEncodeGoldenV2` | `internal/plugins/vrrp/packet/packet_test.go` | the v2 byte shape QS-5 asserts on the wire; already passing, referenced as the contract | |
 | (existing) `TestRoundTrip` | `internal/plugins/vrrp/packet/packet_test.go` | v2 and v3 IPv6 codec coverage the scenarios rely on | |
 | new codec test only if QS-5 or QS-6 exposes a real wire defect | `internal/plugins/vrrp/packet/` | regression for whatever the interop run finds | |
+| (existing, QEMU, gains two tags) `TestIntegrationAdvertV6OnWire` | `internal/plugins/vrrp/transport/transport_integration_linux_test.go` | AC-5: the kernel-filled IPv6 checksum on a captured advertisement verifies under the RFC 8200 pseudo-header; red with the `IPV6_CHECKSUM` setsockopt removed from `openV6` | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -204,6 +206,7 @@ the QEMU lab's job (`ai/rules/interop-and-goal-validation.md`).
 - `internal/le/integration/gates.go` - only if the run needs a longer timeout or an extra kernel probe
 - `docs/functional-tests.md` - the lab's scenario inventory
 - `docs/features/rfc-status.md` - RFC 3768 and RFC 9568 IPv6 rows gain interop evidence
+- `internal/plugins/vrrp/transport/transport_integration_linux_test.go` - AC-5: the two `RFC requirement:` tags on `TestIntegrationAdvertV6OnWire`, with the discrimination records `./le rfc record` writes under `rfc/discrimination/rfc9568/` and `rfc/discrimination/rfc5798/` and the re-judged verdicts under `rfc/audit/`
 
 ## Implementation Steps
 
