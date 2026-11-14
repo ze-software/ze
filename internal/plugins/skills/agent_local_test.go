@@ -171,6 +171,24 @@ func TestShowAgentSkillNamesAnOutdatedStub(t *testing.T) {
 	assert.Equal(t, outdatedStub(), readFile(t, claudeStub(home)))
 }
 
+// TestShowNamesTheHarnessInTheFixForAnOutdatedStub proves that the fix show
+// prints reaches the harness it reports.
+//
+// Goal: with only Claude Code found, an outdated shared stub is fixed by a
+// create that names a harness reading it, because a create without agent
+// acts on Claude Code alone and leaves the shared stub as it is. Method: a
+// home with Claude Code found and an outdated shared stub, show, then Pi's
+// row.
+func TestShowNamesTheHarnessInTheFixForAnOutdatedStub(t *testing.T) {
+	home := isolatedHome(t, ".claude")
+	writeFile(t, sharedStub(home), outdatedStub())
+
+	pi := rowOf(t, runSetup(t, verbShow, pathShowAgentSkill), "pi", itemSkill)
+
+	assert.Equal(t, stateOutdated, pi.State)
+	assert.Contains(t, pi.Note, "\nze create agent skill agent pi\n")
+}
+
 // TestCreateRefreshesAnOutdatedStub proves AC-3, create half.
 //
 // Goal: create rewrites an outdated stub of Ze's and answers updated. Method:
@@ -257,6 +275,42 @@ func TestCreateReplacesALinkedSkillDirectoryOrFileAndLeavesItsTarget(t *testing.
 			assert.Zero(t, info.Mode()&os.ModeSymlink, "the link is still at %s", link)
 			assert.Equal(t, stubText(formLocal), readFile(t, claudeStub(home)))
 			assert.Equal(t, kept, readFile(t, filepath.Join(target, "SKILL.md")), "the link's target was changed")
+		})
+	}
+}
+
+// TestAFileAtTheZeDirectorysPlaceIsLeftByCreateShowAndDelete proves that a
+// regular file where the ze directory belongs is not Ze's to remove, AC-4 and
+// AC-5 together.
+//
+// Goal: a file the operator placed at ~/.claude/skills/ze is not a link, so
+// no command replaces or removes it: each answers foreign, names the file,
+// and create says how to replace it. Method: write such a file, run the
+// command, read the row and the file's bytes.
+func TestAFileAtTheZeDirectorysPlaceIsLeftByCreateShowAndDelete(t *testing.T) {
+	const operators = "the operator's own notes\n"
+	cases := []struct {
+		verb setupVerb
+		path string
+	}{
+		{verbCreate, pathCreateAgentSkill},
+		{verbShow, pathShowAgentSkill},
+		{verbDelete, pathDeleteAgentSkill},
+	}
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			home := isolatedHome(t, ".claude")
+			entry := filepath.Join(home, ".claude", "skills", "ze")
+			writeFile(t, entry, operators)
+
+			row := rowOf(t, runSetup(t, tc.verb, tc.path, "agent", "claude"), "claude", itemSkill)
+
+			assert.Equal(t, stateForeign, row.State)
+			assert.Equal(t, entry, row.Path)
+			assert.Equal(t, operators, readFile(t, entry), "the operator's file was changed")
+			if tc.verb == verbCreate {
+				assert.Contains(t, row.Note, "rm "+entry+" && ze create agent skill")
+			}
 		})
 	}
 }

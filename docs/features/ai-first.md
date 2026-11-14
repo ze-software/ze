@@ -160,7 +160,9 @@ Ze owns a stub only by that marker line. A second run leaves a current stub
 untouched (`unchanged`) and rewrites one an older ze wrote (`updated`); a
 `SKILL.md` without the marker is left as it is (`foreign`), with the command
 that replaces it. A link at the `ze` directory or at its `SKILL.md` is
-replaced by Ze's own file and its target is left; a linked skills directory
+replaced by Ze's own file and its target is left. Anything else Ze did not
+write at that place, such as a file where the `ze` directory belongs, is left
+as it is (`foreign`) by every command; a linked skills directory
 (a dotfiles setup) is followed, and the stub is written in the directory it
 points at.
 
@@ -223,7 +225,8 @@ default path relative to the home directory, the state `not-inspected` and,
 for create and show, the stub to write. That stub tells the agent to ask the
 Ze system it is connected to for `show skill ze` over the connection it
 already uses, and names no local `ze` command.
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, agentPlan, stubText, localRun, remoteAnswer, createStub, removeStub -->
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, agentPlan, stubText, localRun, remoteAnswer -->
+<!-- source: internal/plugins/skills/agent_stub.go -- findStub, createStub, inspectStub, removeStub -->
 <!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, hookEditor, readSettings, readLayout, withGroup, withoutGroup, replace, stillAsRead -->
 
 ### Session context

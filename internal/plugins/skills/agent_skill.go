@@ -606,8 +606,10 @@ func (r *localRun) foundAmong(list []*harness, except *harness) []*harness {
 func (r *localRun) answer() agentSkillAnswer {
 	acted, sharedOnly := r.selection()
 	plan := agentPlan(formLocal, acted, sharedOnly)
-	// One stub directory may serve several harnesses: it is acted on once,
-	// and every row that reads it reports the same outcome.
+	// One stub directory may serve several harnesses: create and delete act
+	// on it once, and every row that reads it reports the same outcome. Show
+	// changes nothing, so it inspects the place for each row, and each row's
+	// fix names that row's harness.
 	stubs := make(map[string]outcome)
 	rows := make([]setupRow, 0, len(plan))
 	for _, item := range plan {
@@ -620,6 +622,9 @@ func (r *localRun) answer() agentSkillAnswer {
 		switch item.item {
 		case itemSkill:
 			done, seen := stubs[place.skills]
+			if r.verb == verbShow {
+				seen = false
+			}
 			if !seen {
 				done = r.stub(item, place)
 				stubs[place.skills] = done
@@ -645,7 +650,9 @@ func (r *localRun) stub(item planItem, place harnessPlace) outcome {
 	case verbCreate:
 		return createStub(place.skills, []byte(item.content), r.rerun)
 	case verbShow:
-		return inspectStub(place.skills, []byte(item.content), r.rerun)
+		var create textbuf.Buffer
+		create.Str("ze ").Str(pathCreateAgentSkill).Str(" agent ").Str(item.harness.name)
+		return inspectStub(place.skills, []byte(item.content), r.rerun, create.String())
 	case verbDelete:
 		if r.named != nil && !r.named.ownSkills {
 			if readers := r.foundAmong(sharedReaders(), r.named); len(readers) > 0 {

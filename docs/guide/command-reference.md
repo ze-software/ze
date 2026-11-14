@@ -2638,8 +2638,9 @@ owner-only. A linked file is written through to its final target and the
 link stays.
 
 Each stub row answers `created`, `updated` (a stub an older ze wrote),
-`unchanged`, `foreign` (a `SKILL.md` without Ze's marker, left as it is, with
-the command that replaces it) or `refused` (with the reason and the fix). Each
+`unchanged`, `foreign` (a `SKILL.md` without Ze's marker, or a file where the
+`ze` directory belongs, left as it is, with the command that replaces it) or
+`refused` (with the reason and the fix). Each
 hook row answers `created`, `updated` (Ze's group as an older ze wrote it,
 rewritten in place), `unchanged` or `refused`. A hook row is refused, and the
 file left as it is, for a file Ze does not fully understand (not valid JSON, a
@@ -2671,7 +2672,8 @@ ze delete agent skill agent <claude|codex|opencode|pi|all>
 ```
 
 Removes the stub Ze wrote, and its directory when that leaves it empty. It
-leaves a `SKILL.md` without Ze's marker (`foreign`). `agent` is required:
+leaves a `SKILL.md` without Ze's marker, and anything else Ze did not write
+at the stub's place (`foreign`). `agent` is required:
 `agent all` acts on every harness found, and a bare `delete agent skill` is
 refused with the values it takes. With one harness named, the shared stub
 stays while another harness found on the machine still reads it (`kept`,
@@ -2688,7 +2690,8 @@ stub's default path relative to the home directory with the state
 `not-inspected`, and for create and show the stub to place, whose body tells
 the agent to ask the Ze system it is connected to for `show skill ze`. The
 answer carries no hook.
-<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun, remoteAnswer, createStub, inspectStub, removeStub, exitCode -->
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun, remoteAnswer, exitCode -->
+<!-- source: internal/plugins/skills/agent_stub.go -- findStub, createStub, inspectStub, removeStub -->
 <!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, readLayout, withoutGroup -->
 <!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf agent -->
 

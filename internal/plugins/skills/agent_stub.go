@@ -19,6 +19,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// leftAsItIsNote is the note of a delete row whose place holds something Ze
+// did not write.
+const leftAsItIsNote = "Ze did not write what is at this place, so it left it."
+
 // stubFinding is what sits at a stub's place.
 type stubFinding int
 
@@ -26,9 +30,17 @@ const (
 	findingUnspecified stubFinding = iota
 	// findingAbsent: no ze directory, or no SKILL.md in it.
 	findingAbsent
-	// findingLinked: the ze entry is a link or a file, or SKILL.md is a link
-	// or another non-regular entry. Write replaces the entry, never its target.
+	// findingLinked: the ze entry or SKILL.md is a link. Write replaces the
+	// link, never its target.
 	findingLinked
+	// findingEntryAtDirectory: an entry that is neither a directory nor a
+	// link, such as the operator's own file, sits where the ze directory
+	// belongs. Ze did not write it, so no command removes it.
+	findingEntryAtDirectory
+	// findingEntryAtFile: an entry that is neither a regular file, a
+	// directory nor a link, such as a pipe, sits where SKILL.md belongs. Ze
+	// did not write it, so no command removes it.
+	findingEntryAtFile
 	// findingDirectoryAtFile: a directory sits where SKILL.md belongs.
 	findingDirectoryAtFile
 	// findingCurrent: Ze's stub, byte for byte the one this binary writes.
@@ -71,8 +83,11 @@ func findStub(place skillstub.Path, zeDirectory string, body []byte) (stubFindin
 	if err != nil {
 		return findingUnspecified, err
 	}
-	if !info.IsDir() {
+	if info.Mode()&os.ModeSymlink != 0 {
 		return findingLinked, nil
+	}
+	if !info.IsDir() {
+		return findingEntryAtDirectory, nil
 	}
 	info, err = os.Lstat(place.File())
 	if errors.Is(err, os.ErrNotExist) {
@@ -84,8 +99,11 @@ func findStub(place skillstub.Path, zeDirectory string, body []byte) (stubFindin
 	if info.IsDir() {
 		return findingDirectoryAtFile, nil
 	}
-	if !info.Mode().IsRegular() {
+	if info.Mode()&os.ModeSymlink != 0 {
 		return findingLinked, nil
+	}
+	if !info.Mode().IsRegular() {
+		return findingEntryAtFile, nil
 	}
 	owned, err := place.OwnedBy(stubMarker)
 	if err != nil {
@@ -120,7 +138,11 @@ func createStub(skills string, body []byte, rerun string) outcome {
 	case findingCurrent:
 		return outcome{state: stateUnchanged, path: file}
 	case findingForeign:
-		return outcome{state: stateForeign, path: file, note: foreignNote(file)}
+		return outcome{state: stateForeign, path: file, note: foreignNote(file, rerun)}
+	case findingEntryAtDirectory:
+		return outcome{state: stateForeign, path: zeDirectory, note: entryNote(zeDirectory, rerun)}
+	case findingEntryAtFile:
+		return outcome{state: stateForeign, path: file, note: entryNote(file, rerun)}
 	case findingDirectoryAtFile:
 		return outcome{state: stateRefused, path: file, note: directoryNote(file, rerun)}
 	case findingAbsent, findingLinked, findingOutdated:
@@ -145,7 +167,10 @@ func createStub(skills string, body []byte, rerun string) outcome {
 }
 
 // inspectStub reports what sits at the stub's place and changes nothing.
-func inspectStub(skills string, body []byte, rerun string) outcome {
+// create is the command line that writes this harness's stub, for a fix: it
+// names the harness, because a create without agent acts only on the
+// harnesses found, which may leave this one out.
+func inspectStub(skills string, body []byte, rerun, create string) outcome {
 	place, zeDirectory, err := stubPlace(skills)
 	if err != nil {
 		return outcome{state: stateRefused, path: skills, note: failedNote("reach", skills, err, rerun)}
@@ -161,17 +186,21 @@ func inspectStub(skills string, body []byte, rerun string) outcome {
 	case findingOutdated:
 		return outcome{state: stateOutdated, path: file, note: noteLines(
 			"This stub is Ze's, written by another ze version. To write the one this ze carries, run:",
-			"ze create agent skill")}
+			create)}
 	case findingAbsent:
 		return outcome{state: stateMissing, path: file}
 	case findingLinked:
 		return outcome{state: stateMissing, path: file, note: noteLines(
 			"A link is at this place, not Ze's stub. Create replaces the link and leaves its target. Run:",
-			"ze create agent skill")}
+			create)}
 	case findingForeign:
-		return outcome{state: stateForeign, path: file, note: foreignNote(file)}
+		return outcome{state: stateForeign, path: file, note: foreignNote(file, create)}
+	case findingEntryAtDirectory:
+		return outcome{state: stateForeign, path: zeDirectory, note: entryNote(zeDirectory, create)}
+	case findingEntryAtFile:
+		return outcome{state: stateForeign, path: file, note: entryNote(file, create)}
 	case findingDirectoryAtFile:
-		return outcome{state: stateRefused, path: file, note: directoryNote(file, "ze create agent skill")}
+		return outcome{state: stateRefused, path: file, note: directoryNote(file, create)}
 	case findingUnspecified:
 		panic("BUG: findStub answered no finding without an error")
 	}
@@ -193,15 +222,17 @@ func removeStub(skills, rerun string) outcome {
 	switch finding {
 	case findingAbsent:
 		return outcome{state: stateAbsent, path: file}
-	case findingLinked, findingForeign, findingDirectoryAtFile:
-		return outcome{state: stateForeign, path: file, note: "Ze did not write what is at this place, so it left it."}
+	case findingLinked, findingForeign, findingDirectoryAtFile, findingEntryAtFile:
+		return outcome{state: stateForeign, path: file, note: leftAsItIsNote}
+	case findingEntryAtDirectory:
+		return outcome{state: stateForeign, path: zeDirectory, note: leftAsItIsNote}
 	case findingCurrent, findingOutdated:
 		removed, err := place.RemoveOwnedBy(stubMarker)
 		if err != nil {
 			return outcome{state: stateRefused, path: file, note: failedNote("remove", file, err, rerun)}
 		}
 		if !removed {
-			return outcome{state: stateForeign, path: file, note: "Ze did not write what is at this place, so it left it."}
+			return outcome{state: stateForeign, path: file, note: leftAsItIsNote}
 		}
 		return outcome{state: stateRemoved, path: file}
 	case findingUnspecified:
@@ -221,12 +252,23 @@ func keptSharedStub(skills string, readers []*harness) outcome {
 }
 
 // foreignNote says that a SKILL.md Ze did not write was left, and how to
-// replace it.
-func foreignNote(file string) string {
+// replace it: remove it, then run create, the command line that writes the
+// stub.
+func foreignNote(file, create string) string {
 	return noteLines(
 		"A SKILL.md that Ze did not write is at this place, so Ze left it as it is.",
 		"Ze replaces only a stub whose first line after its frontmatter is Ze's marker. To replace it, run:",
-		"rm "+file+" && ze create agent skill")
+		"rm "+file+" && "+create)
+}
+
+// entryNote says that an entry Ze did not write, and that is not a link, was
+// left where the stub belongs, and how to replace it: remove it, then run
+// create, the command line that writes the stub.
+func entryNote(entry, create string) string {
+	return noteLines(
+		entry+" is not a link and Ze did not write it, so Ze left it as it is.",
+		"Ze replaces only a link or its own stub at this place. To replace it, run:",
+		"rm "+entry+" && "+create)
 }
 
 // directoryNote says that a directory sits where the stub's file belongs.

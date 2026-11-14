@@ -8,11 +8,11 @@
 | Release reason | A new operator convenience in the shipped binary. No release profile needs it, and no shipped behaviour is wrong without it. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 4/7 |
+| Phase | 7/7 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -192,14 +192,12 @@ Not applicable: Scope is cli.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name | No | |
-
-These rows are filled with evidence by the implementation and judged at closure, as on every spec.
+| No bypassed layers (data flows through the intended path) | Yes | Both routes call `agentPlan` (`internal/plugins/skills/agent_skill.go`); the local answer prints through `command.PrintLocalAnswer` and the registered drawings, the daemon answer is a `plugin.Response` the dispatcher renders through the pipe layer |
+| No unintended coupling (components stay isolated) | Yes | The plugin imports `command`, `plugin`, `plugin/server`, `cli/sshclient` and core leaves only, no other plugin (`agent_context.go` imports `sshclient.DaemonAddress`, not the signal plugin's `RunStatus`) |
+| No duplicated functionality (extends existing, does not recreate) | Yes | The stub file operations live once, in `internal/core/skillstub`, called by the plugin and by `internal/le/ai/sync` |
+| Zero-copy preserved where applicable (refs, not copies) | N-A | No wire path: the settings splice builds one output slice per command run |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them | Yes | `internal/plugins/skills/register.go`: four `command.MustRegisterLocalMeta`, four builtin RPCs through `pluginserver.RegisterRPCs`, two `command.MustRegisterTextRenderer` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name | Yes | No commit of this spec changes code under `internal/component/command/`, `internal/component/plugin/server/` or `cmd/ze/hub/`: the only edit there, `8958e42641`, corrects comments in `command/surface.go` and `cli/client/main.go`. Completion and the validator read the YANG enumeration |
 
 ## Risks & Assumptions
 
@@ -209,11 +207,11 @@ These rows are filled with evidence by the implementation and judged at closure,
 | A-1 | `registry.Artifact` can declare this feature's route difference | The first draft's reading of `internal/plugins/support/register.go` | The design needed another fit | The design review read `Artifact` and the comparison test: it cannot. The pairing and a sibling declaration replace it | broken 2026-11-13, before any code; design changed with the owner |
 | A-2 | A system plugin can register a builtin RPC for its own YANG node, as `doctor` and `ping` do from their command packages | `loadLocalData` reads `AllBuiltinRPCs`; the commands page lists owner-registered RPCs | The daemon command is registered another way the plugin model offers; if none exists for a system plugin, STOP and bring it to the main thread | The design review's second round read it: `pluginserver.RegisterRPCs`, called from the `register.go` of the `ntp` and `geodns` plugins and of `doctor`'s command package | confirmed 2026-11-13 by reading; the implementer re-reads one of them before use |
 | A-9 | Inside `ze cli`, a local-data command whose path a builtin also holds is answered in the client's own process, so the command installs there | The commands door says `ze cli` answers a local-data command in its own process before it asks the daemon, and `doctor` is such a paired command | Inside `ze cli` the command answers the content instead of installing. The owner asked for both behaviours, so this goes back to him with the evidence before any handler is written | The wiring agent traced it before writing anything: `ze cli -c` answers in the client's process, and an interactive session is a shell on the daemon, where only the builtin answers. `doctor` is no counter-example: its pair sits on two paths | broken 2026-11-13, before any code. Brought to the owner, who directed the design be decided from how the commands are used; see the Model fit row |
-| A-3 | A session-start hook's output reaches the agent in Claude Code and in Codex | Rex's hook does this in Claude Code on the owner's machine; Codex unverified, and its hook format is known only from Rex's output | The Codex hook is dropped and its row says unsupported | A live session in each harness, before the hook phase starts | unvalidated: documented for both harnesses ("plain-text stdout is added to the context", the Claude Code hooks reference and the Codex hooks documentation, research of 2026-11-14); the live proof is AC-31 |
-| A-4 | Codex runs a newly added hook once the user approves it | Rex's documentation says so. Corrected 2026-11-14: Rex's Codex entry on the owner's machine does have a trust record. Codex identifies a trusted hook by its position and a hash in its own `config.toml`, and skips a new or changed hook, with a notice, until the user trusts it through `/hooks` (Codex source at tag `rust-v0.169.0`) | Codex users get no hook; the note Ze prints is still true | The live Codex session of A-3 | unvalidated: documented as above; the live proof is AC-31 |
-| A-5 | OpenCode and Pi load a stub from the shared directory and offer no session-start hook | OpenCode's discovery proof of 2026-11-13; Pi by its source; hook formats not found | A hook there is future work | Recorded as a limitation | unvalidated |
+| A-3 | A session-start hook's output reaches the agent in Claude Code and in Codex | Rex's hook does this in Claude Code on the owner's machine; Codex unverified, and its hook format is known only from Rex's output | The Codex hook is dropped and its row says unsupported | A live session in each harness, before the hook phase starts | confirmed 2026-11-14 by the AC-31 sessions on the owner's Linux server: Claude Code's `hook_response` event carries the four context lines and the agent quotes `ze dev (built unknown)` (`scratch/ac31/claude-session.jsonl`, events 3 and 8); Codex 0.169.0, after the hook was trusted, has the agent state `ze dev (built unknown)` (`codex-session2.jsonl`, item 0). The live proof ran after the hook phase, not before it |
+| A-4 | Codex runs a newly added hook once the user approves it | Rex's documentation says so. Corrected 2026-11-14: Rex's Codex entry on the owner's machine does have a trust record. Codex identifies a trusted hook by its position and a hash in its own `config.toml`, and skips a new or changed hook, with a notice, until the user trusts it through `/hooks` (Codex source at tag `rust-v0.169.0`) | Codex users get no hook; the note Ze prints is still true | The live Codex session of A-3 | confirmed 2026-11-14: before trust, Codex listed the hook as "New hook - review required" and the session's agent said it was told no version (`codex-session.jsonl`, item 0); after the owner trusted it through `/hooks`, the next session's agent stated the version (`codex-session2.jsonl`, item 0) |
+| A-5 | OpenCode and Pi load a stub from the shared directory and offer no session-start hook | OpenCode's discovery proof of 2026-11-13; Pi by its source; hook formats not found | A hook there is future work | Recorded as a limitation | confirmed for discovery: OpenCode 1.19.4 listed the stubs under `.agents/skills/`, and Pi 0.73.1 reads that directory by its source (`docs/contributing/claude-code-cheatsheet.md`, "Where a Skill Lives"); no hook format was found for either, so their hook rows answer `unsupported`. Whether a model there follows the stub stays unproven, under Known Limitations |
 | A-6 | The functional runner can give a test its own home directory | A `.ci` sets an environment variable with the `env` option (`test/ui/cli-argument-pattern-refused.ci`); none sets `HOME` today | The end-to-end proof moves to a compiled fixture | Write the wiring `.ci` first | confirmed: `option=env` with a relative value, read against the test's own work directory (`docs/architecture/testing/ci-format.md`, "expect=file"); the UI run showed both new tests reach the handlers (per-spec state file) |
-| A-7 | The stub file operations can move to core with the marker and wording supplied by the caller, leaving `./le ai sync` byte for byte unchanged | The operations are file calls; their `le` wording is in three known places | A sync regression in every session | `./le test unit pkg path ./internal/le/ai/sync/` passes with its tests' assertions unchanged | unvalidated |
+| A-7 | The stub file operations can move to core with the marker and wording supplied by the caller, leaving `./le ai sync` byte for byte unchanged | The operations are file calls; their `le` wording is in three known places | A sync regression in every session | `./le test unit pkg path ./internal/le/ai/sync/` passes with its tests' assertions unchanged | confirmed with the core move, commit `55f78701fc`: the sync package's tests passed with no test file edited, and `./le ai sync update` and `check` were clean on that build (Implementation Steps, phase 2) |
 | A-8 | Each harness's configuration directory is the one named here: `~/.claude` (or `CLAUDE_CONFIG_DIR`), `~/.codex` (or `CODEX_HOME`), `~/.config/opencode`, `~/.pi` | Rex's documentation for the first two; OpenCode's own paths command; Pi inferred | A harness is reported as not found when it is installed; the operator names it with `agent` | Check each on the owner's machine in the wiring phase | confirmed: `~/.claude`, `~/.codex`, `~/.config/opencode` and `~/.pi` all exist on the owner's machine (per-spec state file, phase 1 handoff) |
 
 ### Risks
@@ -335,6 +333,15 @@ These rows are filled with evidence by the implementation and judged at closure,
 | `TestTheFourCommandsArePlainLocalWithADaemonCommand` | `internal/plugins/skills/agent_test.go` | AC-27, AC-28 (wiring): each path has a local handler, no local-data handler (so `command.ServeLocal`, which `ze cli -c` asks, does not serve it), and a builtin RPC for its node | |
 | `TestTheRemoteStubSendsTheAgentToTheRouterAndTheRemotePlanHasNoHook` | `internal/plugins/skills/agent_local_test.go` | AC-21, R-7: no `ze show skill` order and no hook item in the remote form; both present in the local form | |
 | `TestTheZeGuideNamesTheSetupCommand` | `internal/plugins/skills/skills_test.go` | AC-30 | |
+| `TestCreateRefreshesAnOutdatedHookGroup` | `internal/plugins/skills/agent_hook_test.go` | AC-7: an older ze's group is rewritten in place and answers `updated` | |
+| `TestAnotherInstallersGroupIsNeverTouched` | `internal/plugins/skills/agent_hook_test.go` | R-2: create and delete leave another installer's group byte for byte | |
+| `TestShowSaysItCannotSeeCodexsTrust` | `internal/plugins/skills/agent_hook_test.go` | AC-14, show half: the Codex row says Ze cannot see the trust, and to check with `/hooks` | |
+| `TestASecondCreateLeavesACurrentHookGroupUnchanged` | `internal/plugins/skills/agent_hook_test.go` | AC-2 for the hook: a current group answers `unchanged` and the file is not rewritten | |
+| `TestAgentContextBoundsADialThatNeverEnds` | `internal/plugins/skills/agent_context_test.go` | AC-23: a dial that blocks until its context ends returns within the bound | |
+| `TestAgentContextAnswersAnUnreadableAddressAsNotAnswering` | `internal/plugins/skills/agent_context_test.go` | R-14 | |
+| `TestTheValidatorRefusesAnUnknownOrRepeatedAgent`, `TestBareDeleteAgentSkillIsRefusedNamingTheValues`, `TestCreateAndShowRefuseAgentAll` | `internal/plugins/skills/skills_model_test.go` | AC-26, AC-19's bare delete | |
+| `TestAFileAtTheZeDirectorysPlaceIsLeftByCreateShowAndDelete` | `internal/plugins/skills/agent_local_test.go` | AC-4 and AC-5: a regular file where the `ze` directory belongs is not a link, so every command answers `foreign` and leaves it (added at closure, Review Gate finding 1) | |
+| `TestShowNamesTheHarnessInTheFixForAnOutdatedStub` | `internal/plugins/skills/agent_local_test.go` | AC-3, AC-18: the fix show prints names the row's harness, so it reaches a shared stub no found harness reads (added at closure, Review Gate finding 2) | |
 | The core stub operations' tests | the core leaf's test file | The symlink and marker guarantees, with a caller-supplied marker and typed errors | |
 
 Preservation tests, green before and after: every test of `internal/le/ai/sync` (AC-29, proven when the core move landed: the package's tests passed with no test file edited) and `TestLocalCommandDaemonMatchesLocal`, which is not edited (AC-28).
@@ -371,12 +378,13 @@ Not applicable: no wire protocol. The harness proof is AC-31.
 - `ai/INDEX.md` - a keyword row for setting an operator's agent up
 
 ## Files to Create
-- `internal/plugins/skills/agent.go` - the harness table, the plan producer, the three skill handlers and their daemon commands
+- `internal/plugins/skills/agent.go` - the four command paths and wire methods; the harness table, the plan producer, the three skill handlers and their daemon commands went to `agent_skill.go`, and the stub's file actions (`findStub`, `createStub`, `inspectStub`, `removeStub`) to `agent_stub.go`
+- `internal/plugins/skills/agent_local_test.go` - the shell-route tests, in the package itself because they read the rows as values
 - `internal/plugins/skills/agent_hook.go` - reading, splicing and replacing a settings file
 - `internal/plugins/skills/agent_context.go` - the context handler and its daemon command
 - `internal/plugins/skills/agent_test.go`, `agent_hook_test.go`, `agent_context_test.go` - the tests above
 - A core leaf under `internal/core/` for the marker-owned, symlink-safe stub file operations, with its tests
-- `test/ui/agent-skill-create-show.ci`, `test/ui/agent-skill-delete.ci`, `test/ui/agent-context.ci`
+- `test/ui/agent-skill-create-show.ci`, `test/ui/agent-skill-delete.ci`, `test/ui/agent-context.ci` (the delete test was drafted under `test/draft/ui/` and promoted to `test/ui/` in commit `2388cd9e93`)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -576,3 +584,190 @@ Not applicable: no wire protocol. The harness proof is AC-31.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/core/skillstub`: the marker-owned, symlink-safe stub file operations, moved out of `internal/le/ai/sync`, which calls them (`55f78701fc`).
+- Four commands in `internal/plugins/skills`, each a plain local handler plus the plugin's builtin RPC on the same YANG node: `create agent skill`, `show agent skill`, `delete agent skill` (`agent_skill.go`, `agent_stub.go`) and `show agent context` (`agent_context.go`) (`78b8f37b4f`, `028062336c`).
+- The session-start hook for Claude Code and Codex: a byte splice of the settings file, refused on any shape Ze does not fully understand, replaced only while the file is as read (`agent_hook.go`, `2388cd9e93`).
+- The bundled `ze` guide, the usage page and the help text name the setup commands (`9aaf000146`); comments on which `ze cli` form answers in its own process corrected (`8958e42641`).
+- Closure fixes: `findStub` tells a link from any other entry Ze did not write, and the fixes `show agent skill` prints name the row's harness (`agent_stub.go`, `agent_skill.go`).
+
+### Bugs Found/Fixed
+- A regular file where the `ze` directory belongs was read as a link: `create` removed it and said a link had been replaced. Now every command answers `foreign` and leaves it. Covered by `TestAFileAtTheZeDirectorysPlaceIsLeftByCreateShowAndDelete`.
+- `show agent skill` told the operator to run `ze create agent skill` for an outdated stub, which does not reach a shared stub when no harness that reads it is found. The fix line now names the row's harness. Covered by `TestShowNamesTheHarnessInTheFixForAnOutdatedStub`.
+- Met in passing and journaled, owned by `spec-web-cli-config-one-off-defects`: the attached console offering offline-root commands (`48c5dfd637`).
+
+### Documentation Updates
+- `docs/features/ai-first.md`, "Setting an agent up" and "Session context"; `docs/guide/command-reference.md`, the four commands; `docs/guide/mcp/overview.md`, the daemon answer; `docs/architecture/api/commands.md`, the pairing table; `ai/doors/commands-cli.md`, `ze cli -c` against the interactive session; `docs/contributing/claude-code-cheatsheet.md`, the core package; `features/ai-first-design.md`; `ai/INDEX.md`.
+- At closure: the source anchors of `ai-first.md` and `command-reference.md` named `createStub`, `inspectStub` and `removeStub` under `agent_skill.go` after the split; they now name `agent_stub.go`. Both pages say that a file at the `ze` place is left (`foreign`).
+- `./le doc check all` at closure: one drift line, the wiki command catalog against the live catalog (`../wiki/command-catalog.md`). The catalog holds the four commands (wiki commit `405c8a31a5`); the owed catalog check names the disagreeing command.
+
+### Deviations from Plan
+- `agent.go` holds only the paths and wire methods. The plan producer and handlers are in `agent_skill.go`, and the stub's file actions in `agent_stub.go`.
+- The shell-route tests sit in `agent_local_test.go`, in the package itself, because `agent_test.go` is an external package linking `plugin/all`.
+- The delete functional test was drafted under `test/draft/ui/` and promoted to `test/ui/agent-skill-delete.ci`.
+- A-3 and A-4 were proven live after the hook phase, not before it; the hook phase built from the harnesses' documentation.
+- Show inspects a shared stub once per row, so each row's fix names its own harness; create and delete still act on it once.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: `registry.Artifact` could declare the route difference | It means a file kept in the daemon's store, which this feature never keeps | Design review, 2026-11-13 | Design changed with the owner before code |
+| assumption | A-9: `ze cli` answers a paired local-data command in its own process | Only `ze cli -c` does; an interactive session is a shell on the daemon | Wiring agent's trace, before any handler | The owner decided from use: plain local plus a builtin; the commands door corrected |
+| approach | The stub split carried `createStub`, `inspectStub` and `removeStub` to `agent_stub.go` and left two pages' source anchors naming `agent_skill.go` | An anchor names the file that holds the symbol | Closure review | Anchors repointed at closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One command installs the `ze` stub skill each harness lists | Done | `internal/plugins/skills/agent_skill.go` `createAgentSkillLocal`, `agent_stub.go` `createStub` | |
+| Where the harness supports hooks, a session-start hook | Done | `internal/plugins/skills/agent_hook.go` `createHook` | Claude Code and Codex |
+| A second command reports what is installed | Done | `agent_skill.go` `showAgentSkillLocal`, `agent_stub.go` `inspectStub`, `agent_hook.go` `inspectHook` | |
+| A third removes it | Done | `agent_skill.go` `deleteAgentSkillLocal`, `agent_stub.go` `removeStub`, `agent_hook.go` `deleteHook` | |
+| Through the daemon, write nothing and answer the content to place | Done | `agent_skill.go` `remoteAnswer`, `agent_context.go` `respond` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCreateAgentSkillWritesTheStubForEachHarnessFound`, `TestTheStubCarriesTheZeGuidesNameAndDescriptionAndTheMarker`, `test/ui/agent-skill-create-show.ci` | |
+| AC-2 | Done | `TestASecondCreateLeavesABackdatedStubUntouched`, `TestASecondCreateLeavesACurrentHookGroupUnchanged` | |
+| AC-3 | Done | `TestShowAgentSkillNamesAnOutdatedStub`, `TestCreateRefreshesAnOutdatedStub`, `TestShowNamesTheHarnessInTheFixForAnOutdatedStub` | |
+| AC-4 | Done | `TestAForeignZeSkillIsLeftByCreateShowAndDelete`, `TestAFileAtTheZeDirectorysPlaceIsLeftByCreateShowAndDelete` | |
+| AC-5 | Done | `TestCreateReplacesALinkedSkillDirectoryOrFileAndLeavesItsTarget` | |
+| AC-6 | Done | `TestCreateWritesInsideALinkedSkillsDirectory` | |
+| AC-7 | Done | `TestCreateSplicesOneHookGroupAndLeavesEveryOtherByte`, `TestCreateRefreshesAnOutdatedHookGroup` | |
+| AC-8 | Done | `TestCreateInsertsAMissingHooksOrSessionStartKey` | |
+| AC-9 | Done | `TestCreateMakesAMissingSettingsFile` | |
+| AC-10 | Done | `TestASettingsFileZeDoesNotUnderstandIsLeftAndRefused` | |
+| AC-11 | Done | `TestALinkedSettingsFileIsWrittenThroughToItsTarget` | |
+| AC-12 | Done | `TestASettingsFileThatCannotBeWrittenIsRefused` | |
+| AC-13 | Done | `TestASettingsFileChangedSinceTheReadIsNotReplaced` | |
+| AC-14 | Done | `TestTheCodexHookRowSaysItNeedsApproval`, `TestShowSaysItCannotSeeCodexsTrust` | |
+| AC-15 | Done | `TestHarnessesWithoutHooksAnswerUnsupportedAndShareOneStub` | |
+| AC-16 | Done | `TestANamedAgentIsWrittenEvenWhenNotFoundAndNoOtherIs` | |
+| AC-17 | Done | `TestWithNoHarnessFoundTheSharedStubIsWritten` | |
+| AC-18 | Done | `TestShowAgentSkillCreatesAndChangesNoFile`, `test/ui/agent-skill-create-show.ci` | |
+| AC-19 | Done | `TestDeleteRemovesWhatZeWroteAndASecondDeleteAnswersAbsent`, `TestDeleteSplicesOutOnlyZesHookGroup`, `TestBareDeleteAgentSkillIsRefusedNamingTheValues`, `test/ui/agent-skill-delete.ci` | |
+| AC-20 | Done | `TestDeleteKeepsASharedStubAnotherFoundHarnessReads` | |
+| AC-21 | Done | `TestCreateAgentSkillThroughTheDaemonAnswersThePlanAndTouchesNoFile`, `TestTheDaemonPlanUsesDefaultPathsWhateverTheDaemonsEnvironment`, `TestDeleteThroughTheDaemonAnswersWhatToRemove`, `TestTheRemoteStubSendsTheAgentToTheRouterAndTheRemotePlanHasNoHook` | |
+| AC-22 | Done | `TestAgentContextNamesTheVersionTheDaemonAndTheConfigDirectory` | |
+| AC-23 | Done | `TestAgentContextWithNoDaemonAnswersWithinItsBoundAndSucceeds`, `TestAgentContextBoundsADialThatNeverEnds`, `test/ui/agent-context.ci` | |
+| AC-24 | Done | `TestAgentContextThroughTheDaemonCarriesNoPath` | |
+| AC-25 | Done | `TestTheInstalledHookCommandSucceedsSilentlyWithoutZe` | |
+| AC-26 | Done | `TestTheValidatorRefusesAnUnknownOrRepeatedAgent`, `TestCreateAndShowRefuseAgentAll`, `TestTheModelsAgentValuesAreTheHarnessTable` | |
+| AC-27 | Done | `TestTheFourCommandsArePlainLocalWithADaemonCommand`: no local-data handler, so `command.ServeLocal` (`ze cli -c`) cannot answer it, and an interactive session dispatches on the daemon | By the registry, not by a `ze cli` run |
+| AC-28 | Done | `TestTheFourCommandsArePlainLocalWithADaemonCommand`; no code edit under `internal/component/command/`, `plugin/server/`, `cmd/ze/hub/` | |
+| AC-29 | Done | The sync package's tests unchanged and green with the core move (`55f78701fc`) | |
+| AC-30 | Done | `TestTheZeGuideNamesTheSetupCommand` | |
+| AC-31 | Done | The event logs of 2026-11-14 on the owner's Linux server, Goal Validation below | A proof on one machine with a model in the loop |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the Unit Tests table | Done | `internal/plugins/skills/*_test.go`, `internal/core/skillstub/skillstub_test.go` | The two closure tests are owed a run |
+| `agent-skill-create-show`, `agent-skill-delete`, `agent-context` | Done | `test/ui/` | PASS, main thread, 2026-11-14 |
+| `command-contract-skills` | Done | `test/ui/command-contract-skills.ci` | Unchanged file; the contract check covers the new nodes |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/skills/register.go`, `yang/ze-skills-cmd.yang`, `main.go`, `data/ze.md`, `data/ze-full.md` | Done | |
+| `internal/le/ai/sync/ai.go`, `internal/core/skillstub/` | Done | `55f78701fc` |
+| `agent.go`, `agent_skill.go`, `agent_stub.go`, `agent_hook.go`, `agent_context.go` and their tests | Changed | Split recorded in Deviations |
+| The pages of Files to Modify | Done | Documentation Updates above |
+| The three `.ci` files | Done | |
+
+### Audit Summary
+- **Total items:** 31 ACs, 5 task requirements, the test and file plans
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** the file split and the test file placement, recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One `ze` command sets the operator's agent up: a stub skill the harness lists, which sends the agent to the guide the binary serves | Live session with a model in the loop | `ze create agent skill` exit 0 on the owner's Linux server. Claude Code (`tmp/session/2026-11-13-180252/scratch/ac31/claude-session.jsonl`): event 9 the agent calls the Skill tool for `ze`, event 11 the stub body with Ze's marker, event 13 the agent runs `ze show skill ze`. Codex 0.169.0 (`codex-session.jsonl`): the agent reads `~/.agents/skills/ze/SKILL.md`, then runs `ze show skill ze` |
+| Where the harness supports hooks, a session-start hook tells the agent what it stands on | Live session | Claude Code event 3: `hook_response`, exit 0, output `ze dev (built unknown)`, the daemon line, the config directory, the guide line; event 8 the agent quotes the version. Codex after `/hooks` trust (`codex-session2.jsonl`): item 0 the agent states `ze dev (built unknown)`, item 1 runs `ze show skill ze`. Before trust (`codex-session.jsonl`, item 0) the agent was told no version, as AC-14's note says |
+| A second command reports what is installed | Functional | `test/ui/agent-skill-create-show.ci`: `ze show agent skill` answers Claude Code's skill and hook `current` |
+| A third command removes it | Functional | `test/ui/agent-skill-delete.ci`: after create, `ze delete agent skill agent all` answers `removed`, the stub file is absent, another skill survives, and show answers `missing` |
+| Through the daemon the commands write nothing and answer the content to place | Unit over the real dispatcher | `TestCreateAgentSkillThroughTheDaemonAnswersThePlanAndTouchesNoFile` compares the home's bytes before and after a dispatch |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every acceptance criterion is met. OpenCode and Pi have no model-in-the-loop proof, which no AC names (Known Limitations) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ze-agent-skill-setup-5b78d95f-9b15-43a0-a54e-7568755905a6.md` (7 files, verdict clean) |
+| `./le spec review check` | clean over the seven files commit A carries |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and top-down walk, symlink and ownership safety of every file call, settings splice and scanner, daemon-route isolation from file and environment calls, operator messages and their fix lines, documentation anchors, test shape |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A regular file (or any entry that is neither a directory nor a link) where the `ze` directory belongs was classed `findingLinked`, so `create` removed the operator's file through `skillstub.Path.Write` and said a link had been replaced; a pipe at `SKILL.md` took the same route | `internal/plugins/skills/agent_stub.go` `findStub` | Two findings, `findingEntryAtDirectory` and `findingEntryAtFile`, answered `foreign` by create, show and delete with `entryNote`; `TestAFileAtTheZeDirectorysPlaceIsLeftByCreateShowAndDelete` |
+| 2 | ISSUE | `show agent skill` printed `ze create agent skill` as the fix for an outdated, linked, foreign or blocked stub; with only Claude Code found that create never reaches the shared stub, so the fix did not fix | `internal/plugins/skills/agent_stub.go` `inspectStub`; `agent_skill.go` `localRun.stub`, `localRun.answer` | The fix names the row's harness (`ze create agent skill agent <name>`), and show inspects a shared stub per row; `TestShowNamesTheHarnessInTheFixForAnOutdatedStub` |
+| 3 | ISSUE | Source anchors in `docs/features/ai-first.md` and `docs/guide/command-reference.md` named `createStub`, `inspectStub` and `removeStub` under `agent_skill.go` after the split moved them to `agent_stub.go` | the two pages | Anchors repointed, and the pages say a file at the `ze` place is left |
+
+### Run 1
+3 ISSUE (above), NOTEs: `readTarget` checks the target with `os.Stat` before `os.Open`, so a target swapped for a pipe in between could block the read (the operator's own home, a few microseconds); a Codex delete that empties Ze's group in place, followed by a create, appends a new group and leaves the empty one (by design, positions are trusted); `ze doc check all` reports the wiki catalog drift.
+
+### Run 2
+Over the closure diff: 0 BLOCKER, 0 ISSUE. Every switch over `stubFinding` lists the two new values (`createStub`, `inspectStub`, `removeStub`); `findStub` checks the link bit before the directory bit, so a linked `ze` directory still reaches the replace path AC-5 tests; `le`'s use of `skillstub.Path.Write` is untouched; the new notes end with the command alone on its line. Style pass: no new `panic`, no allocating formatter, comments are sentences, the guard order states one fact per `if`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/skills/agent.go`, `agent_skill.go`, `agent_stub.go`, `agent_hook.go`, `agent_context.go` | Yes | `wc -l`: 27, 767, 259, 929, 189 lines before the closure edit |
+| `internal/plugins/skills/agent_test.go`, `agent_local_test.go`, `agent_hook_test.go`, `agent_context_test.go` | Yes | `wc -l`: 247, 472, 549, 198 before the closure edit |
+| `internal/core/skillstub/skillstub.go`, `skillstub_test.go` | Yes | 246 and 352 lines |
+| `test/ui/agent-skill-create-show.ci`, `test/ui/agent-skill-delete.ci`, `test/ui/agent-context.ci` | Yes | 27, 40 and 23 lines |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-30 | The tests named in the Audit pass | `./le test unit pkg path ./internal/plugins/skills/` ok and the three UI tests PASS (main thread, 2026-11-14, before the closure fix); the closure fix owes the same runs |
+| AC-31 | The live sessions | The three event logs, read at closure; quoted in Goal Validation |
+| AC-28 | No code edit to shared command code | `git show --name-only` of the seven commits: only `8958e42641` touches `internal/component/command/surface.go`, a comment |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze create agent skill agent claude`, then `ze show agent skill` | `test/ui/agent-skill-create-show.ci` | Yes: read at closure, it sets `HOME` and both harness variables inside the work directory |
+| `ze show agent context` | `test/ui/agent-context.ci` | Yes |
+| `create agent skill` through the daemon dispatcher | `TestCreateAgentSkillThroughTheDaemonAnswersThePlanAndTouchesNoFile` | Yes: `daemonDispatcher` loads the builtins as the daemon does |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | Mistake Log row 1 |
+| A-2 | confirmed | `register.go` calls `pluginserver.RegisterRPCs`, and `TestTheFourCommandsArePlainLocalWithADaemonCommand` finds the builtins |
+| A-3 | confirmed | `claude-session.jsonl` events 3 and 8; `codex-session2.jsonl` item 0 |
+| A-4 | confirmed | `codex-session.jsonl` (untrusted: no version) against `codex-session2.jsonl` (trusted: the version) |
+| A-5 | confirmed for discovery | `docs/contributing/claude-code-cheatsheet.md`, "Where a Skill Lives"; model following stays a Known Limitation |
+| A-6 | confirmed | The UI tests run with a home of their own |
+| A-7 | confirmed | The sync tests unchanged and green at `55f78701fc` |
+| A-8 | confirmed | The four directories exist on the owner's machine |
+| A-9 | broken | Mistake Log row 2 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/features/ai-first.md`: a link is replaced, anything else Ze did not write is left | `agent_stub.go` `findStub`, `createStub` | Yes |
+| `docs/guide/command-reference.md`: the states of each command | `agent_skill.go` state constants, `agent_stub.go`, `agent_hook.go` | Yes |
+| `ai/doors/commands-cli.md`: `ze cli -c` answers in its own process, the interactive session on the daemon | `internal/component/cli/client/main.go`, the two `command.ServeLocal` calls; `sshclient.RunInteractive` | Yes |
+| `docs/architecture/api/commands.md`: the four commands in the pairing table | `register.go` | Yes |
+| No RFC, config or wire page | The feature touches no protocol and no config | Yes |
