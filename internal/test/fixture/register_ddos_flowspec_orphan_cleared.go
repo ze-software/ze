@@ -4,9 +4,8 @@
 
 package fixture
 
-// The clearing barrier of the FlowSpec orphan tests:
-// test/plugin/ddos-flowspec-orphan-doctor.ci and
-// test/draft/plugin/ddos-flowspec-stopped-orphan-doctor.ci. It only runs
+// The clearing barrier of the FlowSpec orphan test,
+// test/plugin/ddos-flowspec-orphan-doctor.ci, its only user. It only runs
 // `ze cli` commands, so it is registered on every host.
 func init() {
 	Register("plugin/ddos-flowspec-orphan-cleared", ddosFlowspecOrphanCleared)

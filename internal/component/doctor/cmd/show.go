@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/doctor"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -42,8 +43,8 @@ func HandleDoctor(cmdCtx *pluginserver.CommandContext, validated command.Validat
 // declared name the plugin's registry entry already holds). A nil source holds
 // no plugin.
 func answerDaemonDoctor(source doctorCheckSource, callerName string, validated command.ValidatedArgs) (*plugin.Response, error) {
-	runtime := func() []diagnostic.Diagnostic {
-		diags := doctor.RunRuntimeChecks()
+	runtime := func(judged *config.Tree) []diagnostic.Diagnostic {
+		diags := doctor.RunRuntimeChecks(judged)
 		if source == nil {
 			return diags
 		}

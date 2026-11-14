@@ -39,8 +39,11 @@ const DoctorPlatformAny = "any"
 // Tree is typed as any to avoid a cycle between diagnostic and config;
 // check functions that need *config.Tree should type-assert.
 //
-// A runtime-phase check is handed Platform alone: it reads its owner's live
-// state, never a config tree, store or directory, so every other field is
+// A runtime-phase check is handed Platform and Tree: the tree the post-config
+// phase of the same answer judged, nil when that phase did not run. That tree
+// is the saved configuration, never the running one, so a runtime check reads
+// it only to agree with a config-phase check that read the same file. It reads
+// its owner's live state, never a store or directory, so every other field is
 // empty for it by design.
 type DoctorCheckContext struct {
 	Tree      any

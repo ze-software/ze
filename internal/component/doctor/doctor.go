@@ -42,7 +42,13 @@ func Run(validated command.ValidatedArgs) int {
 	return command.PrintLocalAnswerWith(doctorPath, command.AnswerLocal(answerLocal, validated), renderDoctor)
 }
 
-func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
+// runChecks runs the config phases over the configuration at configPath and
+// answers their findings, with the tree the post-config phase judged. The tree
+// is nil when that phase did not run: the configuration is missing, does not
+// parse, or the loader refused it, and a finding above says which. The daemon
+// route hands it to the runtime phase (Answer, RunRuntimeChecks), so a runtime
+// check agrees with a config-phase check that read the same saved file.
+func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config.Tree) {
 	store, storeDiags := resolveStorageWithDiag(configPath)
 	diags = append(diags, storeDiags...)
 	defer func() {
@@ -72,7 +78,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 			Message:  err.Error(),
 		})
 		diags = append(diags, runDoctorChecks(doctorCheckPhaseMissingConfig, baseCtx)...)
-		return diags
+		return diags, nil
 	}
 
 	// Parsed-tree checks MUST accept invalid semantics and apply nothing. Run
@@ -84,7 +90,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 			Severity: diagnostic.SeverityError,
 			Message:  parseErr.Error(),
 		})
-		return diags
+		return diags, nil
 	}
 	baseCtx.Tree = parsed
 	diags = append(diags, runDoctorChecks(diagnostic.DoctorPhaseParsedConfig, baseCtx)...)
@@ -96,7 +102,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 			Severity: diagnostic.SeverityError,
 			Message:  loadErr.Error(),
 		})
-		return diags
+		return diags, nil
 	}
 
 	tree := result.Tree
@@ -110,7 +116,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePostConfig, checkCtx)...)
 
-	return diags
+	return diags, tree
 }
 
 func resolveStorageWithDiag(configPath string) (storage.Storage, []diagnostic.Diagnostic) {

@@ -43,5 +43,10 @@ func init() {
 	if err := diagnostic.RegisterDoctorCheck(daemonCapabilitiesCheck); err != nil {
 		panic("BUG: daemon-capabilities doctor check registration refused: " + err.Error())
 	}
-	diagnostic.RegisterDoctorProvider(runChecks)
+	// The provider's caller (the support bundle) runs no runtime phase, so the
+	// tree runChecks returns for that phase has no reader on this path.
+	diagnostic.RegisterDoctorProvider(func(configPath string) []diagnostic.Diagnostic {
+		diags, _ := runChecks(configPath)
+		return diags
+	})
 }

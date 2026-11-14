@@ -79,7 +79,8 @@ func TestDoctorRuntimePhaseRunsOnlyThroughTheRuntimeRunner(t *testing.T) {
 
 	// The local route's own runner, over a config file that does not exist,
 	// as ze doctor runs it with no daemon.
-	for _, d := range runChecks(filepath.Join(t.TempDir(), "absent.conf")) {
+	localDiags, _ := runChecks(filepath.Join(t.TempDir(), "absent.conf"))
+	for _, d := range localDiags {
 		if d.Code == "doctor-test-runtime-only" {
 			t.Errorf("the local route answered the runtime check: %+v", d)
 		}
@@ -89,7 +90,7 @@ func TestDoctorRuntimePhaseRunsOnlyThroughTheRuntimeRunner(t *testing.T) {
 	}
 
 	var got *diagnostic.Diagnostic
-	diags := RunRuntimeChecks()
+	diags := RunRuntimeChecks(nil)
 	for i := range diags {
 		if diags[i].Code == "doctor-test-runtime-only" {
 			got = &diags[i]

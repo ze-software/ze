@@ -87,17 +87,20 @@ func runRegisteredChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagn
 // it never looked at as healthy. runChecks, the local route, never asks for
 // this phase.
 //
-// A runtime check is handed the platform alone. It reads its owner's live
-// state, never a config tree: the daemon route loads the config file from the
-// store, not the running configuration, so a tree here would be a second,
-// possibly different, answer to what is running.
-func RunRuntimeChecks() []diagnostic.Diagnostic {
+// A runtime check is handed the platform and judged, the tree the post-config
+// phase of the same answer judged (runChecks), nil when that phase did not run.
+// That tree is the saved configuration doctor read, never the running one: the
+// daemon route loads the config file from the store. A runtime check uses it
+// only to agree with a config-phase check that read the same file, and never
+// reads it as what the daemon runs; it reads its owner's live state where it
+// lives.
+func RunRuntimeChecks(judged *config.Tree) []diagnostic.Diagnostic {
 	// The answer this runs beside already reports a platform detection
 	// failure (runChecks, through resolveDoctorPlatform), so its findings are
 	// not repeated here; a nil platform still runs every check declared for
 	// any platform.
 	platform, _ := resolveDoctorPlatform()
-	return runRegisteredChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{Platform: platform})
+	return runRegisteredChecks(diagnostic.DoctorPhaseRuntime, doctorCheckContext{Tree: judged, Platform: platform})
 }
 
 // doctorTree answers the config tree a registered check reads.

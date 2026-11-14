@@ -57,10 +57,12 @@ func init() {
 	// The plugin reads and writes its record through the SDK state calls, which
 	// the daemon answers only for a key the owning plugin was granted here.
 	statestore.RegisterPluginKeys(Name, announcementKey)
-	if err := diagnostic.RegisterDoctorCheck(orphanRecordCheck); err != nil {
-		var tb textbuf.Buffer
-		_ = tb.Str("ddos-flowspec: doctor check registration failed: ").Err(err).Byte('\n').StdErr()
-		os.Exit(1)
+	for _, check := range []diagnostic.DoctorCheck{orphanRecordCheck, stoppedRecordCheck} {
+		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
+			var tb textbuf.Buffer
+			_ = tb.Str("ddos-flowspec: doctor check registration failed: ").Err(err).Byte('\n').StdErr()
+			os.Exit(1)
+		}
 	}
 
 	reg := registry.Registration{
@@ -401,9 +403,10 @@ func stopResponder(r *responder, end exitKind) {
 		panic("BUG: ddos-flowspec: stopResponder reached its exit-kind switch with no exit kind, past the entry check that refuses one")
 	}
 	// The plugin is on its way out, so its own runtime check no longer answers.
-	// While ddos flowspec stays configured, doctor reports the stopped plugin
-	// (doctor-plugin-stopped, process.RecordStopped) or, after a restart, the
-	// restarted plugin withdraws the rule at start; once the section is removed,
+	// While ddos flowspec stays configured, the daemon's doctor reports the
+	// stopped plugin (doctor-plugin-stopped, process.RecordStopped) and the
+	// recorded rule (stoppedRecordCheck), or, after a restart, the restarted
+	// plugin withdraws the rule at start; once the section is removed,
 	// orphanRecordCheck reports the record with the withdrawal by hand.
 	logger().Warn("ddos-flowspec: the FlowSpec rule could not be withdrawn on the way out; it stays recorded and may still be at the BGP peers. The next start of the plugin withdraws it. While ddos flowspec is configured and the plugin is not running, ze doctor reports the plugin as stopped and the command under fix starts it; once the section is removed, ze doctor reports the recorded rule and prints the withdrawal to send by hand",
 		"target", r.target.DstPrefix, "error", err, "fix", process.RestartCommand(Name),

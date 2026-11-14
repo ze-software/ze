@@ -52,7 +52,7 @@ func TestRunChecksReportsTheRedistributeRefusal(t *testing.T) {
 }
 `)
 
-	diags := runChecks(cfgPath)
+	diags, _ := runChecks(cfgPath)
 	var report *diagnostic.Diagnostic
 	for i := range diags {
 		if diags[i].Code == "doctor-config-parse" {

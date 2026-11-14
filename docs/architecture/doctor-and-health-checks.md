@@ -50,11 +50,27 @@ only), because in its process that state is empty and the check would report
 a box it never looked at as healthy. It asks the daemon instead (next section).
 
 A `runtime` check only reads, and applies nothing. It is handed the platform
-alone, never a config tree: the daemon route loads the config file from the
-store, not the running configuration, so the check reads its owner's live
-state where it lives. The dns-source checks (`doctor-dns-source-empty`,
-`doctor-dns-source-interface-silent`, `doctor-dns-source-self-unserved`) are
-the first such checks, owned by `internal/component/config/system`.
+and the configuration doctor read: the tree the `post-config` phase of the same
+answer judged, or no tree when that phase did not run (the configuration is
+missing, does not parse, or the loader refused it), which the check reports as
+what it cannot tell. That tree is the saved file the daemon route loads from
+the store, never the running configuration. A runtime check uses it only to
+agree with a config-phase check that read the same file, so the two do not both
+report one fact, and it never reads the tree as what the daemon runs. Its
+owner's live state is still read where it lives. The dns-source checks
+(`doctor-dns-source-empty`, `doctor-dns-source-interface-silent`,
+`doctor-dns-source-self-unserved`) are the first such checks, owned by
+`internal/component/config/system`.
+
+| In-tree runtime check | Owner | Reads | Reports | Code |
+|-----------------------|-------|-------|---------|------|
+| `ddos-flowspec-stopped-record` | `internal/plugins/ddos/flowspec` | the daemon's plugin snapshot, the store the daemon publishes, and the configuration doctor read | a recorded FlowSpec rule while the daemon holds no running `ddos-flowspec` process: the plugin configured and stopped, with the restart as fix; or no process of that name while that configuration names `ddos flowspec` or did not load, with `ze show config running` as fix and no withdrawal, because a plugin block of another name may hold the rule live. With the section absent from that configuration it is silent: the `post-config` check `ddos-flowspec-orphan-record` reports the record | `doctor-ddos-flowspec-orphan-announcement`, `doctor-storage-unavailable` |
+<!-- source: internal/component/doctor/doctor.go -- runChecks -->
+<!-- source: internal/component/doctor/answer.go -- RuntimeChecks, Answer -->
+<!-- source: internal/plugins/ddos/flowspec/doctor.go -- stoppedRecordCheck, judgeStoppedRecord, unrunReport, orphanRecordCheck -->
+<!-- test: internal/component/doctor/doctor_test.go TestRuntimeChecksReceiveTheConfigurationDoctorRead -->
+<!-- test: internal/plugins/ddos/flowspec/doctor_stopped_record_test.go TestStoppedRecordCheckWithTheSectionUnrunOffersNoWithdrawal -->
+<!-- test: internal/plugins/ddos/flowspec/doctor_stopped_record_test.go TestRecordChecksRegisterAtTheirPhases -->
 
 The MPLS label checks are plugin runtime checks, each declared in its
 plugin's Stage 1 registration and answered by its doctor callback, because the
@@ -501,8 +517,8 @@ otherwise), and the limit says nothing about whether the lock was taken.
 Every check declares the phase it runs in, and `runChecks` runs the phases in
 order: `pre-config`, `missing-config` (only when no config is found),
 `parsed-config`, `post-config`. The fifth phase, `runtime`, never runs there:
-only the daemon route runs it (see "The runtime phase: checks only the daemon
-runs"). The phase set is declared once, in
+only the daemon route runs it, handed the tree `post-config` judged, which
+`runChecks` returns (see "The runtime phase: checks only the daemon runs"). The phase set is declared once, in
 `pkg/plugin/rpc` (`DoctorCheckPhase`), and `internal/core/diagnostic` aliases
 it, so a check registered in the tree and one a plugin declares name the same
 phases, and a plugin can declare every phase an in-tree check can use. Each
@@ -1022,8 +1038,9 @@ raise only a code this check declares (`docs/architecture/api/process-protocol.m
 
 ## Plugin state a runtime check reads
 
-A runtime check is handed the platform alone, and `DoctorCheckContext` is
-shared core, so it carries no handle on the plugin server. The server publishes
+A runtime check is handed the platform and the configuration doctor read, and
+`DoctorCheckContext` is shared core, so it carries no handle on the plugin
+server. The server publishes
 itself instead, in the core-leaf registry shape of `internal/core/ipsecinventory`:
 `StartWithContext` publishes and `Stop` withdraws, and a check calls
 `server.PluginDoctorSnapshot` for value types. Each configured plugin appears

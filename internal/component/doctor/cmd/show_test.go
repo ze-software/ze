@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/doctor"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -96,7 +97,7 @@ func TestDoctorOneProducer(t *testing.T) {
 // with none, over a config file that does not exist (both report the missing
 // config the same way), and compare what each answers.
 func TestDoctorDaemonRouteCarriesPluginChecks(t *testing.T) {
-	runtime := func() []diagnostic.Diagnostic {
+	runtime := func(*config.Tree) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{Code: "fixture-plugin-check", Severity: diagnostic.SeverityError, Message: "plugin fixture is unhappy"}}
 	}
 	withChecks := doctor.Answer(commandtest.Args(), runtime)

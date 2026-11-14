@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -28,7 +29,12 @@ const doctorPath = "doctor"
 // (answerLocalWith), because the caller's own process holds no live state to
 // read. Answer reads nil as "no runtime check to add", which only a test
 // passes, never as a failure to look.
-type RuntimeChecks func() []diagnostic.Diagnostic
+//
+// Answer hands it the tree its post-config phase judged (runChecks), nil when
+// that phase did not run. The tree is the saved configuration doctor read,
+// never the running one, so a runtime check uses it only to agree with a
+// config-phase check that read the same file.
+type RuntimeChecks func(judged *config.Tree) []diagnostic.Diagnostic
 
 // readinessAnswer is the answer of the readiness checks. It marshals as the
 // DoctorResult every surface already reads (`schema-version`, `ready`,
@@ -83,9 +89,9 @@ type readinessFunc func(request doctorRequest, configPath string) command.LocalA
 // (renderDoctor) exits 1 for it.
 func Answer(validated command.ValidatedArgs, runtime RuntimeChecks) command.LocalAnswer {
 	return answerDoctor(validated, func(request doctorRequest, configPath string) command.LocalAnswer {
-		diags := runChecks(configPath)
+		diags, judged := runChecks(configPath)
 		if runtime != nil {
-			diags = append(diags, runtime()...)
+			diags = append(diags, runtime(judged)...)
 		}
 		return readinessPayload(diags, request.asJSON)
 	})

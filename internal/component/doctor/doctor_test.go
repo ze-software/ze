@@ -204,9 +204,63 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 	}))
 	t.Cleanup(func() { diagnostic.UnregisterDoctorCheckForTest(fixtureName) })
 
-	diags := runChecks(cfgPath)
+	diags, _ := runChecks(cfgPath)
 	assert.True(t, called, "registered plugin check did not receive parsed plugin context")
 	assertDiagCode(t, diags, "doctor-plugin-missing")
+}
+
+// TestRuntimeChecksReceiveTheConfigurationDoctorRead proves that the runtime
+// phase is handed the tree the post-config phase judged, and no tree when the
+// configuration is missing.
+//
+// VALIDATES: a runtime check can agree with a config-phase check that read the
+// same saved file (docs/architecture/doctor-and-health-checks.md, "The runtime
+// phase: checks only the daemon runs").
+// METHOD: runChecks over a file that loads and over an absent one, then
+// RunRuntimeChecks with the tree each run returned, through a registered
+// runtime check that records the tree it was handed.
+// PREVENTS: a runtime check left to guess what the configuration names, and a
+// missing configuration handed over as an empty tree.
+// MUTATION: build the context in RunRuntimeChecks without its Tree, and the
+// loaded case goes red (the check receives no tree).
+func TestRuntimeChecksReceiveTheConfigurationDoctorRead(t *testing.T) {
+	cfgPath := writeTestConfig(t, `plugin {
+	internal rib {
+		use bgp-rib
+	}
+}
+`)
+	owner, err := storage.Create(filepath.Dir(cfgPath))
+	require.NoError(t, err)
+	require.NoError(t, owner.Close())
+
+	const fixtureName = "doctor-runtime-tree-fixture"
+	var received []*config.Tree
+	require.NoError(t, diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name:         fixtureName,
+		Phase:        diagnostic.DoctorPhaseRuntime,
+		Component:    "test",
+		Dependencies: []string{"config-loaded"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{"doctor-test-runtime-tree"},
+		Check: func(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+			received = append(received, doctorTree(ctx))
+			return nil
+		},
+	}))
+	t.Cleanup(func() { diagnostic.UnregisterDoctorCheckForTest(fixtureName) })
+
+	_, loaded := runChecks(cfgPath)
+	require.NotNil(t, loaded, "runChecks returned no tree for a configuration that loads")
+	RunRuntimeChecks(loaded)
+
+	_, missing := runChecks(filepath.Join(t.TempDir(), "absent.conf"))
+	assert.Nil(t, missing, "runChecks returned a tree for a configuration that does not exist")
+	RunRuntimeChecks(missing)
+
+	require.Len(t, received, 2)
+	assert.Same(t, loaded, received[0], "the runtime check was not handed the tree the post-config phase judged")
+	assert.Nil(t, received[1], "the runtime check was handed a tree while the configuration is missing")
 }
 
 // The systemd unit tests that sat here moved with the check to

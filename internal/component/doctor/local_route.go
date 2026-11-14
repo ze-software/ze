@@ -107,7 +107,8 @@ func answerLocalWith(validated command.ValidatedArgs, ask daemonAsk) command.Loc
 		if err == nil {
 			return command.LocalAnswer{Payload: readinessAnswer{DoctorResult: result, asJSON: request.asJSON}}
 		}
-		diags := runChecks(configPath)
+		// The local route runs no runtime check, so the tree has no reader here.
+		diags, _ := runChecks(configPath)
 		diags = append(diags, runtimeNotChecked(err))
 		return readinessPayload(diags, request.asJSON)
 	})
