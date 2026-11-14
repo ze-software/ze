@@ -6,8 +6,10 @@ package iface
 
 import (
 	"fmt"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // TunnelKind discriminates between the supported tunnel encapsulation kinds.
@@ -193,6 +195,51 @@ type TunnelSpec struct {
 	VNISet          bool
 	Port            uint16 // vxlan only; UDP destination port; 0 = default 4789
 	PortSet         bool
+}
+
+// CheckRemote refuses a remote endpoint that names no single remote: an
+// address that does not parse, and the unspecified address (0.0.0.0 or ::).
+//
+// The refusal covers every kind, not sit alone. The schema states that one
+// tunnel interface reaches one remote endpoint and that ze builds no
+// multipoint tunnel (the remote container of ze-iface-conf.yang), so no kind
+// has a use for an unspecified remote. The kernel decapsulator matches the
+// outer source of a received packet against the remote ze installs, and an
+// unspecified remote matches every source, whatever the kind.
+//
+// Config verify calls it for each tunnel (parseTunnelEntry), so `ze config
+// validate` and a commit refuse the config before any backend sees it. The
+// netlink and VPP backends call it again before they program a tunnel, as the
+// paired check of the same property on a second path.
+//
+// An empty RemoteAddress answers nil: that is the absent leaf, which the YANG
+// `mandatory true` on remote ip refuses at validate, and which each backend
+// refuses as a missing remote. It is not an address to judge here.
+func (s *TunnelSpec) CheckRemote() error {
+	if s.RemoteAddress == "" {
+		return nil
+	}
+	fix := "set interface tunnel " + s.Name + " encapsulation " + s.Kind.String() + " remote ip <address>"
+	remote, err := netip.ParseAddr(s.RemoteAddress)
+	if err != nil {
+		return opererr.Wrap(err,
+			"remote ip "+s.RemoteAddress+" is not an IP address",
+			"ze cannot send encapsulated packets to a remote it cannot read",
+			fix)
+	}
+	// RFC 4213 Section 3.6: "The decapsulator MUST verify that the tunnel
+	// source address is correct before further processing packets, to
+	// mitigate the problems with address spoofing (see Section 4)."
+	// The decapsulator checks the outer source against the remote ze
+	// installs, so an unspecified remote turns that check off.
+	if remote.Unmap().IsUnspecified() {
+		return opererr.New(
+			"remote ip "+s.RemoteAddress+" is the unspecified address, not the address of a remote endpoint",
+			"a tunnel with an unspecified remote accepts encapsulated packets from any source, "+
+				"and RFC 4213 Section 3.6 requires the tunnel to accept them only from its configured remote",
+			fix)
+	}
+	return nil
 }
 
 // tunnelEncapSchemaPath is the schema path of the tunnel encapsulation

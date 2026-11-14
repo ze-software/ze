@@ -321,16 +321,15 @@ func parseTunnelRemote(spec iface.TunnelSpec) (net.IP, error) {
 	if spec.RemoteAddress == "" {
 		return nil, fmt.Errorf("remote ip is required for tunnel %q", spec.Name)
 	}
+	// RFC 4213 Section 3.6. Config verify already refused an unparsable or
+	// unspecified remote through the same check; this is its pair on the
+	// backend path, for a spec that reached CreateTunnel another way.
+	if err := spec.CheckRemote(); err != nil {
+		return nil, err
+	}
 	ip := net.ParseIP(spec.RemoteAddress)
 	if ip == nil {
 		return nil, fmt.Errorf("remote ip %q is not a valid IP address", spec.RemoteAddress)
-	}
-	// RFC 4213 Section 3.6: "The decapsulator MUST verify that the tunnel
-	// source address is correct before further processing packets". The
-	// kernel decapsulator matches the outer source against the Remote Ze
-	// installs; an unspecified Remote is a wildcard that matches any source.
-	if ip.IsUnspecified() {
-		return nil, fmt.Errorf("remote ip %s for tunnel %q is unspecified: the tunnel would accept packets from any source", ip, spec.Name)
 	}
 	if err := checkAddressFamily(spec.Kind, ip, "remote ip"); err != nil {
 		return nil, err

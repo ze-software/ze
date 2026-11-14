@@ -763,6 +763,10 @@ func parseTunnelEntry(name string, m map[string]any, tunnels tunnelSchema) (tunn
 	if entry.Spec.LocalAddress == "" && entry.Spec.LocalInterface == "" {
 		return entry, errLocalIpOrLocalInterfaceRequired
 	}
+	// RFC 4213 Section 3.6
+	if err := entry.Spec.CheckRemote(); err != nil {
+		return entry, err
+	}
 	if !matchedKind.isBridgeable() {
 		for i := range entry.Units {
 			if entry.Units[i].VLANID > 0 {

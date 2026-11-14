@@ -314,6 +314,35 @@ func TestCreateTunnelV4OnV6Kind(t *testing.T) {
 	})
 }
 
+// TestBuildTunnelLinkRefusesAnUnspecifiedRemote verifies the backend pair of
+// the config verify refusal on both underlay families: a spec whose remote is
+// 0.0.0.0 or :: is refused by buildTunnelLink, before any netlink call, with
+// the operator error iface.TunnelSpec.CheckRemote builds. The function touches
+// no kernel state for a spec with no local interface, so no namespace is owed.
+//
+// VALIDATES: parseTunnelRemote calls the shared check for every kind.
+// PREVENTS: a wildcard tunnel that decapsulates from any source when a spec
+// reaches CreateTunnel without passing config verify.
+func TestBuildTunnelLinkRefusesAnUnspecifiedRemote(t *testing.T) {
+	for _, spec := range []iface.TunnelSpec{
+		{Kind: iface.TunnelKindSIT, Name: "tsit", LocalAddress: "192.0.2.1", RemoteAddress: "0.0.0.0"},
+		{Kind: iface.TunnelKindGRE, Name: "tgre", LocalAddress: "192.0.2.1", RemoteAddress: "0.0.0.0"},
+		{Kind: iface.TunnelKindIP6Tnl, Name: "tip6", LocalAddress: "2001:db8::1", RemoteAddress: "::"},
+		{Kind: iface.TunnelKindIPIP6, Name: "tipip6", LocalAddress: "2001:db8::1", RemoteAddress: "::"},
+	} {
+		t.Run(spec.Kind.String(), func(t *testing.T) {
+			_, err := buildTunnelLink(spec)
+			if err == nil {
+				t.Fatalf("%s tunnel with remote %s accepted", spec.Kind, spec.RemoteAddress)
+			}
+			want := "remote ip " + spec.RemoteAddress + " is the unspecified address"
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("refusal %q does not say %q", err, want)
+			}
+		})
+	}
+}
+
 // tunnelDeviceTTL creates one tunnel and returns the outer-header TTL the
 // kernel reports for the resulting netdev. Each kind stores the value in its
 // own Go type, so the read is a type switch rather than one field access.

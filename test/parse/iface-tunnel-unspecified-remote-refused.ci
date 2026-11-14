@@ -1,0 +1,104 @@
+# Test: ze config validate refuses a tunnel whose remote ip is the unspecified
+# address, on both underlay families and under both interface backends.
+#
+# QUESTION: does the shipped `ze config validate` path (YANG checks, then the
+# iface InProcessConfigVerifier, VerifyPluginConfigContent) refuse remote ip
+# 0.0.0.0 and :: before any backend sees the config? A unit test drives
+# verifyIfaceConfig directly and cannot show that the binary's offline
+# validation reaches it, or what the operator reads on stdout.
+#
+# VALIDATES: RFC 4213 Section 3.6 ("The decapsulator MUST verify that the
+#   tunnel source address is correct before further processing packets") at
+#   the operator path. The refusal lives in config verify
+#   (iface.TunnelSpec.CheckRemote, called from parseTunnelEntry), for every
+#   tunnel kind:
+#   seq=1 a sit tunnel with a specific remote loads (the accepted counterpart,
+#         so the refusals below cannot all pass against a verifier that refuses
+#         every tunnel);
+#   seq=2 sit, remote ip 0.0.0.0, backend netlink: refused, naming the address,
+#         the reason and the set command;
+#   seq=3 ip6tnl, remote ip ::, backend netlink: refused the same way;
+#   seq=4 gre, remote ip 0.0.0.0, backend vpp: refused the same way, so the
+#         refusal does not depend on the backend.
+# PREVENTS: a config that commits and fails only when the netlink backend
+#   applies it (the refusal used to live in parseTunnelRemote alone), and a
+#   VPP tunnel to the unspecified address, which the VPP backend accepted.
+#
+# Every cmd asserts its own exit with exit=, because expect=exit:code= reads only
+# the last command (docs/architecture/testing/ci-format.md). Needles carry no ':'.
+#
+# RED PROOF: delete the `if err := entry.Spec.CheckRemote()` block of
+#   parseTunnelEntry (internal/component/iface/config.go): seq=2, 3 and 4 exit 0,
+#   red. Make CheckRemote refuse every remote: seq=1 exits 1, red.
+
+stdin=accepted:terminator=EOF_ACCEPTED
+interface {
+	backend netlink;
+	tunnel sit0 {
+		encapsulation {
+			sit {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+}
+EOF_ACCEPTED
+
+stdin=sit:terminator=EOF_SIT
+interface {
+	backend netlink;
+	tunnel sit0 {
+		encapsulation {
+			sit {
+				local { ip 192.0.2.1; }
+				remote { ip 0.0.0.0; }
+			}
+		}
+	}
+}
+EOF_SIT
+
+stdin=ip6tnl:terminator=EOF_IP6TNL
+interface {
+	backend netlink;
+	tunnel tnl6 {
+		encapsulation {
+			ip6tnl {
+				local { ip 2001:db8::1; }
+				remote { ip ::; }
+			}
+		}
+	}
+}
+EOF_IP6TNL
+
+stdin=vppgre:terminator=EOF_VPPGRE
+interface {
+	backend vpp;
+	tunnel gre0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 0.0.0.0; }
+			}
+		}
+	}
+}
+EOF_VPPGRE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=accepted:exit=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=sit:exit=1
+expect=stdout:contains=remote ip 0.0.0.0 is the unspecified address, not the address of a remote endpoint
+expect=stdout:contains=accepts encapsulated packets from any source
+expect=stdout:contains=set interface tunnel sit0 encapsulation sit remote ip <address>
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ip6tnl:exit=1
+expect=stdout:contains=is the unspecified address, not the address of a remote endpoint
+expect=stdout:contains=set interface tunnel tnl6 encapsulation ip6tnl remote ip <address>
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=vppgre:exit=1
+expect=stdout:contains=remote ip 0.0.0.0 is the unspecified address, not the address of a remote endpoint
+expect=stdout:contains=set interface tunnel gre0 encapsulation gre remote ip <address>

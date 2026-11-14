@@ -64,6 +64,12 @@ func (b *vppBackendImpl) tunnelEndpoints(spec iface.TunnelSpec) (src, dst ip_typ
 	if err != nil {
 		return src, dst, fmt.Errorf("ifacevpp: tunnel %q local %q: %w", spec.Name, spec.LocalAddress, err)
 	}
+	// RFC 4213 Section 3.6. Config verify already refused an unparsable or
+	// unspecified remote through the same check; this is its pair on the
+	// backend path, as the netlink backend's parseTunnelRemote does.
+	if err = spec.CheckRemote(); err != nil {
+		return src, dst, fmt.Errorf("ifacevpp: tunnel %q: %w", spec.Name, err)
+	}
 	dst, err = ip_types.ParseAddress(spec.RemoteAddress)
 	if err != nil {
 		return src, dst, fmt.Errorf("ifacevpp: tunnel %q remote %q: %w", spec.Name, spec.RemoteAddress, err)

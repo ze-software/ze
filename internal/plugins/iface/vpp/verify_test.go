@@ -193,6 +193,33 @@ func TestCreateTunnelLocalInterfaceRejected(t *testing.T) {
 	}
 }
 
+// TestCreateTunnelRefusesAnUnspecifiedRemote verifies the backend pair of the
+// config verify refusal: a gre, gretap, ipip or vxlan spec whose remote is
+// 0.0.0.0 reaches CreateTunnel and is refused with the operator error
+// iface.TunnelSpec.CheckRemote builds, before any VPP request is sent.
+// VALIDATES: the VPP backend refuses what the netlink backend refuses.
+// PREVENTS: a VPP tunnel to the unspecified address when a spec bypasses verify.
+func TestCreateTunnelRefusesAnUnspecifiedRemote(t *testing.T) {
+	for _, kind := range []iface.TunnelKind{iface.TunnelKindGRE, iface.TunnelKindGRETap, iface.TunnelKindIPIP, iface.TunnelKindVxlan} {
+		t.Run(kind.String(), func(t *testing.T) {
+			ch := &progChannel{swIfIndex: 1}
+			b := newTunnelBackend(ch)
+			err := b.CreateTunnel(iface.TunnelSpec{
+				Kind:          kind,
+				Name:          "tun0",
+				LocalAddress:  "192.0.2.1",
+				RemoteAddress: "0.0.0.0",
+				VNI:           100,
+				VNISet:        true,
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "remote ip 0.0.0.0 is the unspecified address")
+			require.Contains(t, err.Error(), "set interface tunnel tun0 encapsulation "+kind.String()+" remote ip <address>")
+			require.Empty(t, ch.requests)
+		})
+	}
+}
+
 // TestCreateTunnelUnsupportedKind passes unsupported, unset and unknown kinds
 // directly to the backend, proving rejection emits no programming request.
 func TestCreateTunnelUnsupportedKind(t *testing.T) {

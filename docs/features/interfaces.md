@@ -549,11 +549,18 @@ one `dhcp-expired` for each, and solicits again.
   remote endpoints use the same `local { ip ... } remote { ip ... }` shape as the
   BGP peer connection block, with `local { interface ... }` as an alternative when
   the source should be taken from another interface. The remote is mandatory and
-  must be a specific address: the netlink backend refuses `0.0.0.0` and `::`,
-  because the kernel decapsulator matches the outer source address against the
-  remote, and an unspecified remote accepts packets from any source (RFC 4213
-  Section 3.6 requires the decapsulator to verify the tunnel source).
+  must be a specific address, on every tunnel kind: config verify refuses
+  `0.0.0.0` and `::` (and a remote that is not an address), so `ze config
+  validate` and a commit refuse it on either backend, naming the `set interface
+  tunnel <name> encapsulation <kind> remote ip <address>` command that fixes it.
+  The decapsulator matches the outer source address against the remote, and an
+  unspecified remote accepts packets from any source (RFC 4213 Section 3.6
+  requires the decapsulator to verify the tunnel source). The netlink and VPP
+  backends run the same check again before they program a tunnel.
+<!-- source: internal/component/iface/tunnel.go -- TunnelSpec.CheckRemote -->
+<!-- source: internal/component/iface/config.go -- parseTunnelEntry -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- parseTunnelRemote -->
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- tunnelEndpoints -->
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 - **The mirror shares its qdisc, so it owns only its filters.** Mirroring attaches a
   tc mirred filter at priority 1 to the qdisc at handle `ffff:` on the source

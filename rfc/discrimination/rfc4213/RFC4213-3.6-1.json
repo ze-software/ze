@@ -18,7 +18,7 @@
     "claim-sha": "6b6daa03405823d4",
     "route": "revert",
     "producer": "internal/plugins/iface/netlink/tunnel_linux.go::parseTunnelRemote",
-    "producer-sha": "dc64b468a456865c",
+    "producer-sha": "4b1039d2e22f5de8",
     "break": "body of parseTunnelRemote replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
