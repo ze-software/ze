@@ -20,10 +20,23 @@ import (
 // summary, a keyword's Help, a value's line) is one line of at most 60
 // characters, and every node but a pass-through area carries a long
 // description for the header the menu prints above an entered level.
-// Method: walk leroot.Tree(), whose first build runs the startup check, then
-// read every declared value through the same ValueCandidates completion uses.
-// PREVENTS: a word help, completion, the menu or `le help ai` prints blank.
+// Method: first run leroot.TextFaults, the rule the startup check applies, over
+// every registered area and fail naming each fault (the item, the fix and its
+// package), so an overlong Help is a red test here rather than only a le that
+// panics at its first fault for every session; TestMain narrows the run to this
+// test when any fault exists. Then walk leroot.Tree(), whose first build runs
+// the startup check, and read every declared value through the same
+// ValueCandidates completion uses.
+// PREVENTS: a word help, completion, the menu or `le help ai` prints blank or
+// overlong, and a bad line that stops ./le before any test names it.
 func TestEveryWordLeOffersSaysWhatItDoes(t *testing.T) {
+	faults := leroot.TextFaults(leroot.Commands())
+	for _, fault := range faults {
+		t.Error("le " + fault)
+	}
+	if len(faults) > 0 {
+		t.Fatalf("%d le texts break the startup check, which would stop le at the first", len(faults))
+	}
 	walkDescribed(t, "", leroot.Tree())
 
 	described := 0

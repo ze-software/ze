@@ -104,6 +104,53 @@ func TestEveryItemWithoutTextStopsLeNamingIt(t *testing.T) {
 	}
 }
 
+// TestEveryTextFaultIsNamedInOneStop proves that one walk names every fault,
+// so an author fixes them in one round: an area whose keyword Help and one
+// ValueHelp line are both over 60 characters answers two faults from
+// TextFaults, and the startup stop carries both, each on its own BUG line.
+// Method: register one probe area with two overlong texts and run TextFaults
+// and requireEveryItemHasText over it alone.
+// VALIDATES: TextFaults, and requireEveryItemHasText stopping with all of it.
+// PREVENTS: a stop that names the first fault only, which costs one round per
+// fault while ./le is down for every session.
+func TestEveryTextFaultIsNamedInOneStop(t *testing.T) {
+	name := "zz-describe-every-fault"
+	tooLong := strings.Repeat("x", shortMax+1)
+	list := leaction.List{Area: name, Actions: []leaction.Row{describedRow()}}
+	list.Actions[0].Parameters[0].Help = tooLong
+	list.Actions[0].Parameters[0].ValueHelp = map[string]string{"build": tooLong, "test": "test only"}
+	setActions(name, func() leaction.List { return list })
+	roots := []registry.RootCommand{{Name: name, Meta: registry.Meta{ShortHelp: "a probe",
+		Description: "A probe area with two overlong texts.", Mode: "offline", Section: registry.SectionTest}}}
+
+	want := []string{
+		`parameter "zz-describe-every-fault run step" has a Help of 61 characters`,
+		`value "build" of "zz-describe-every-fault run step" has a ValueHelp line of 61 characters`,
+	}
+	faults := TextFaults(roots)
+	if len(faults) != len(want) {
+		t.Fatalf("TextFaults answered %d faults, want %d: %q", len(faults), len(want), faults)
+	}
+	for index, fault := range faults {
+		if !strings.Contains(fault, want[index]) {
+			t.Errorf("fault %d does not say %q: %q", index, want[index], fault)
+		}
+		if !strings.Contains(fault, "(internal/le/zz-describe-every-fault/)") {
+			t.Errorf("fault %d names no package: %q", index, fault)
+		}
+	}
+
+	stop := stopOf(func() { requireEveryItemHasText(roots) })
+	if strings.Count(stop, "BUG: le ") != len(want) {
+		t.Fatalf("the stop carries %d BUG lines, want %d: %q", strings.Count(stop, "BUG: le "), len(want), stop)
+	}
+	for _, line := range want {
+		if !strings.Contains(stop, line) {
+			t.Errorf("the stop does not say %q: %q", line, stop)
+		}
+	}
+}
+
 // stopOf runs check and answers the BUG panic it raised, or "" when it raised
 // none.
 func stopOf(check func()) (stop string) {

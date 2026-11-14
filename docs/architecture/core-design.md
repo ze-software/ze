@@ -268,9 +268,16 @@ publishes it as `value-help`. A registry that holds the values, such as the
 stress scenarios, fills `ValueHelp` from where each value is declared. le
 refuses to start while any of these is blank, or while `ValueHelp` describes a
 value the keyword does not declare, or while a short text is over 60
-characters or spans two lines, and the refusal names the item, what to fill in
-and the package it goes in.
-<!-- source: internal/le/le/root/describe.go -- requireEveryItemHasText -->
+characters or spans two lines, and the refusal names every such item, what to
+fill in and the package it goes in. Because `./le` is rebuilt from the tree
+every session shares, the same rule (`leroot.TextFaults`) also runs as a unit
+test over every registered area, `TestEveryWordLeOffersSaysWhatItDoes` in
+`internal/le`, so a 61-character `Help` is a red test in that package before
+it is a le that will not start. A text that would break the check narrows that
+package's run to this one test, which fails with one line per fault.
+<!-- source: internal/le/le/root/describe.go -- requireEveryItemHasText, TextFaults -->
+<!-- source: internal/le/describe_test.go -- TestEveryWordLeOffersSaysWhatItDoes -->
+<!-- source: internal/le/main_test.go -- TestMain -->
 <!-- source: internal/le/le/action/valuehelp.go -- ValueCandidates -->
 
 **A retired name is refused, naming the command that replaced it.** The
