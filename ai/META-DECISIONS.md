@@ -412,6 +412,15 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   [the website style guide](../website/style-guide/index.html#sg-design-principles),
   including its information-preservation map and owner approval for removals.
   This decision applies to the website only.
+- What Thomas has ruled about the website's look or wording stays until he
+  changes it. Each ruling is recorded in `website/AI.md`, "Owner rulings",
+  applied at the scope he stated in one rule that later elements inherit, and
+  pinned by a test that goes red when it is undone. An agent reads that
+  section before its first website edit and never changes what a ruling fixes
+  while doing other work. When a pinned test goes red after its edit, it
+  repairs the edit, never the test. A ruling he has to repeat was applied too
+  narrowly or left unpinned: the agent finds how it was undone and closes
+  that route in the same work.
 - Completing approved website changes includes regenerating and checking the
   canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
   A private preview is an intermediate review artifact. Local regeneration

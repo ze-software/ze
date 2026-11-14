@@ -513,10 +513,14 @@ with the same gap after the release group as between metrics.
 The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
 VPP as forwarding options. The management clause describes interfaces and
 services.
-Links in the hero are never underlined. In the introduction and the
-capabilities paragraph they are a brighter blue than the muted text around
-them, so a reader can tell them apart by color alone, and turn white on
-hover; keyboard focus remains outlined.
+Links in the hero are never underlined, in any state. One rule covers every
+link the hero holds, so a link added later is not underlined either. A text
+link, one inside a paragraph or a caption, is a brighter blue than the muted
+text around it, so a reader can tell it apart by color alone, and turns white
+on hover; keyboard focus remains outlined. This is an owner ruling
+("Owner rulings" below).
+<!-- source: website/assets/css/30-components.css -- .site-home .hero a -->
+<!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined -->
 The release text has a Planned release title above two lines: Initial version
 and Q4 2026. The separator between release and counters is vertical on desktop
 and horizontal when the counters stack below release at tablet widths and below.
@@ -556,6 +560,32 @@ Before adding or restyling a page or component, read the
 [design principles and review requirements](style-guide/index.html#sg-design-principles).
 That section is the canonical record of the owner's approved website design
 rules. Apply it to proposals and implementation.
+
+#### Owner rulings
+
+An owner ruling is a change Thomas told an agent to make to how the site looks
+or reads. It stays until he changes it. Read this section before your first
+website edit.
+
+1. Apply a ruling at the scope he stated (the hero, every card, the whole
+   site) in one rule that covers that scope. Never apply it one element at a
+   time: an element added or renamed later then falls outside it, and the old
+   look comes back.
+2. Record the ruling in the table below and pin it with a test that goes red
+   when it is undone, in the same work. A ruling with no test is not finished.
+3. Never change what a ruling fixes while doing other work: a restyle, a new
+   section, a stylesheet tidy-up, a regeneration. When the work in hand seems
+   to need it, stop and ask Thomas, quoting the ruling.
+4. When a pinned test goes red after your edit, repair your edit. Only Thomas
+   changes a ruling, and then the style, the row and the test change together.
+5. When Thomas has to repeat a ruling, the earlier fix was too narrow or was
+   never pinned. Find the route by which it was undone and close it before
+   you report the work.
+
+| Ruling | Scope | Rule that applies it | Test that pins it |
+|--------|-------|----------------------|-------------------|
+| Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |
+<!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined -->
 
 The approved design uses logo blue for Ze's identity and a distinct soft
 background behind each card's small category badge. Follow the canonical

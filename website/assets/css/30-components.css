@@ -1282,6 +1282,13 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home #hero-title em { font-size: 0.95em; font-style: normal; color: var(--brand-bright); }
 .site-home .hero-start-points { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; max-width: none; margin: 0 0 1.1rem; color: var(--hero-muted); font-size: 0.75rem; line-height: 1.6; font-weight: 400; }
 .site-home .hero-start-points span { display: inline; margin: 0; padding: 0; color: var(--hero-muted); background: none; -webkit-background-clip: border-box; background-clip: border-box; -webkit-text-fill-color: currentColor; }
+/* Owner ruling (website/AI.md, "Owner rulings"): no link in the hero is ever
+   underlined, in any state; a text link stands out by color. These two rules
+   cover the whole hero, so a link added later inherits the ruling instead of
+   the browser's underline. TestHeroLinksAreNeverUnderlined pins it. */
+.site-home .hero a, .site-home .hero a:hover, .site-home .hero a:focus-visible, .site-home .hero a * { text-decoration: none; }
+.site-home .hero :where(p, figcaption) a { color: #6ccbf7; }
+.site-home .hero :where(p, figcaption) a:hover { color: #fff; }
 .site-home .hero-intro { color: var(--hero-text); font-size: 1.2rem; line-height: 1.6; margin-bottom: 1.1rem; }
 .site-home .hero-intro a { color: #6ccbf7; text-decoration: none; }
 .site-home .hero-intro a:hover { color: #fff; }
@@ -1325,7 +1332,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-project-metric { display: flex; flex: 0 0 auto; flex-direction: column; width: max-content; max-width: 100%; gap: 0.35rem; padding: 0.2rem 1rem; color: var(--hero-text); text-decoration: none; border-inline-start: 1px solid #2c4564; }
 .site-home .hero-project-metric strong { font-size: clamp(1.45rem, 2.6vw, 2rem); line-height: 1.15; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.035em; color: #a7dbfa; white-space: nowrap; }
 .site-home .hero-project-metric > span { font-size: 0.76rem; line-height: 1.5; color: var(--hero-muted); }
-.site-home .hero-project-metric:hover > span { color: var(--hero-text); text-decoration: underline; }
+.site-home .hero-project-metric:hover > span { color: var(--hero-text); }
 .site-home .hero-project-metric:focus-visible { outline: 2px solid #8fcff4; outline-offset: 4px; border-radius: 0.15rem; }
 .site-home .hero-primary-actions { flex: 1; min-width: 0; max-width: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .site-home .hero-start-action { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; gap: 0.4rem; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--hero-text); }
