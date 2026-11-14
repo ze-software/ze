@@ -147,6 +147,22 @@ time for that destination.
 <!-- test: internal/component/bgp/reactor/forward_rs_export_chain_test.go TestRSFastPathRunsTheExportChain -->
 <!-- test: test/plugin/role-otc-rs-withdraw-eor.ci -->
 
+The fast path writes into the destination's write buffer from the source
+peer's read goroutine and does not flush. It takes the destination's write
+path without waiting and hands the UPDATE to the destination's forward worker
+when the path is held. When a batch overflows the buffer, the write reaches
+the socket there, so it carries the session's write budget: a destination that
+reads nothing fails that write once the budget has passed, is retired and
+reported as a peer that stopped reading, and the source's read loop goes on.
+The budget costs one deadline call per destination per batch, never one per
+UPDATE: it is armed on the destination's first write of the batch, stands
+until the batch's flush clears it, and is armed again only after another
+writer held the destination's write path or after a sixteenth of it has
+passed (`docs/architecture/core-design.md`, "Write Deadline").
+<!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+<!-- source: internal/component/bgp/reactor/session_write_mutex.go -- armFastPathBudget, releaseFastPathWrites -->
+<!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathStalledDestinationDoesNotStallSource -->
+
 A destination whose replay fence is up (`Peer.initialUpdateOwed`, raised when
 its session comes up) is handed back to the plugin rail on both passes of
 `reactorForwardRSSection`, so the fast path neither writes to it nor parks

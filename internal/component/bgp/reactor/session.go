@@ -440,12 +440,17 @@ type Session struct {
 	initialReplay atomic.Uint64
 	// A write failure seals this exact connection before any further writer.
 	writeFailed error
-	// writeBudgetArmed says the holder of writeMu armed the socket's write
-	// deadline (armWriteDeadline), so releaseWrites owes its clearing. Owned by
-	// writeMu. A holder that armed nothing, such as the RS fast path or a writer
-	// on a retired session, leaves the socket's deadline alone.
+	// writeBudgetArmed says the socket carries a write deadline a writer armed
+	// (armWriteDeadline) and no release has cleared, so releaseWrites owes its
+	// clearing. Owned by writeMu. It is set by the holder of the path, or left
+	// set by the route-server fast path, the one writer whose release keeps its
+	// budget (releaseFastPathWrites): a mark still set when that path takes the
+	// write path again says no other writer released it in between
+	// (armFastPathBudget). A holder that armed nothing on a socket with no
+	// standing budget, such as a writer on a retired session, leaves the
+	// socket's deadline alone.
 	writeBudgetArmed bool
-	// writeBudget is the budget the holder armed, and writeBudgetEnd the
+	// writeBudget is the budget last armed, and writeBudgetEnd the
 	// deadline it gave the socket. Owned by writeMu and read only while
 	// writeBudgetArmed is set: a write that fails on a deadline is a budget
 	// expiry only when writeBudgetEnd has passed (writeBudgetExpiry), because

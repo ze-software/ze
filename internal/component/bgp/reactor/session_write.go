@@ -1050,9 +1050,17 @@ func (s *Session) appendFwdDirty(peer *Peer, dst *Session) {
 //
 // For each dirty session: takes the write path without waiting
 // (tryAcquireWrite), which arms the session's write budget, flushes bufWriter
-// and releases the path, which clears the budget. A flush that fails retires
-// the destination session (flushWrites), and a successful one that carried
-// bytes resets its send hold timer.
+// and releases the path, which clears the budget: the flush's own, and with it
+// the one the fast path left standing for the batch (releaseFastPathWrites). A
+// flush that fails retires the destination session (flushWrites), and a
+// successful one that carried bytes resets its send hold timer.
+//
+// A destination this call does not flush itself keeps the fast path's budget
+// standing until its next release: the forward worker's, when the flush was
+// handed off, or the next writer's, when the session was retained or dropped.
+// That deadline sits on a socket nobody is writing to and fails no later
+// writer: every writer arms its own, and the fast path reads a standing
+// budget's age before it trusts it (armFastPathBudget).
 //
 // A session whose writeMu is held is handed to its peer's forward worker
 // (Peer.handOffForwardFlush), which waits for writeMu and flushes. It is not
@@ -1243,9 +1251,11 @@ func (s *Session) holdWrites() {
 // releaseWrites releases the write path taken by holdWrites or by any form of
 // the write path acquisition (session_write_mutex.go). It clears the socket's
 // write deadline first, so the next taker never meets a budget another writer
-// armed. It clears exactly what its holder armed (writeBudgetArmed): a write
+// armed. It clears whatever is armed (writeBudgetArmed), its holder's budget or
+// one the route-server fast path left standing (releaseFastPathWrites): a write
 // that failed and retired the session still has its deadline cleared before the
-// path is given back, and a holder that armed nothing leaves the socket alone.
+// path is given back, and on a socket with no budget armed it leaves the socket
+// alone. It is the one release that clears; the fast path's keeps.
 func (s *Session) releaseWrites() {
 	// Before the path is given back: a socket write a panic unwound through
 	// leaves its octets staged for the next taker (discardInterruptedWrite).

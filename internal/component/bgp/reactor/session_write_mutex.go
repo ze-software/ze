@@ -101,6 +101,12 @@ func (m *sessionWriteMutex) Unlock() {
 // session for it, as the write to that socket would have (armWriteOrRetire). A
 // control message's form only hands the error back (armWriteOrRelease).
 //
+// The route-server fast path is the one writer with a form of its own: it
+// takes the path with writeMu.TryLock on the source peer's read goroutine, arms
+// with armFastPathBudget and releases with releaseFastPathWrites, so its budget
+// is paid once per destination per batch and stands until the next release
+// clears it.
+//
 // The takers of writeMu that write nothing (negotiateWith, setSendCtxID,
 // connectionEstablished, the policy reload barriers, the paths-limit readers)
 // lock it directly: they have no write to bound.
@@ -156,6 +162,53 @@ func (s *Session) tryAcquireWrite(budget time.Duration) error {
 // (sendUpdateHeld).
 func (s *Session) armWriteBudget(budget time.Duration) error {
 	return s.armWriteDeadline(s.clock.Now(), budget)
+}
+
+// fastPathBudgetShare is the share of a standing budget the route-server fast
+// path lets pass before it arms a new one: a sixteenth. A fast-path write that
+// reaches the socket therefore has at least fifteen sixteenths of the budget.
+const fastPathBudgetShare = 16
+
+// armFastPathBudget arms the write budget of a route-server fast-path write
+// (tryDirectWriteNoFlush), which pays for it once per destination per batch
+// rather than once per UPDATE. The caller MUST hold writeMu, and MUST give the
+// path back with releaseFastPathWrites, which leaves the budget standing.
+//
+// A budget that stands (writeBudgetArmed) was armed by an earlier fast-path
+// write and cleared by nobody since, so this write is covered by it and the
+// socket is not touched. It arms a new one in two cases. Another writer held
+// the path in between: its releaseWrites cleared the deadline and the mark
+// together, which is how this session records that it did. Or a share of the
+// standing budget has passed (fastPathBudgetShare): a batch has no bound in
+// time, since its source can stop in the middle of a message or keep sending
+// for minutes, and a deadline armed once for all of it would fail the write of
+// a destination that reads every octet.
+func (s *Session) armFastPathBudget(budget time.Duration) error {
+	now := s.clock.Now()
+	if s.writeBudgetArmed {
+		if s.writeBudgetEnd.Sub(now) >= budget-budget/fastPathBudgetShare {
+			return nil
+		}
+	}
+	return s.armWriteDeadline(now, budget)
+}
+
+// releaseFastPathWrites gives back a write path the route-server fast path
+// took with writeMu.TryLock. Unlike releaseWrites it leaves the socket's write
+// deadline and writeBudgetArmed as they are, so the budget armFastPathBudget
+// armed covers the batch's later writes to this destination at no cost.
+//
+// A standing budget binds nobody else. Every other writer arms its own before
+// it writes, and whichever comes next clears this one when it releases: the
+// batch's deferred flush (flushFwdDirty), the forward worker that took the
+// flush over (fwdBatchHandler), or any other holder. A batch that ends with no
+// flush of this destination leaves the deadline on a socket nobody is writing
+// to, where it fails nothing: the next fast-path write reads its age before it
+// trusts it (armFastPathBudget). It does not outlive its connection either: the
+// fast path writes only to an Established session, and the OPEN that every new
+// connection writes first is released through releaseWrites.
+func (s *Session) releaseFastPathWrites() {
+	s.writeMu.Unlock()
 }
 
 // armWriteDeadline arms the socket's write deadline to now plus budget, and

@@ -79,7 +79,13 @@ same reason.
 The fast path does not flush what it writes. The source's read loop flushes
 every destination it wrote to once its read buffer drains
 (`Session.flushFwdDirty`), and takes each destination's `writeMu` with
-`TryLock`, so a slow destination never stalls the source. A destination whose
+`TryLock`, so the flush never waits behind another writer. A write the fast
+path makes can still reach the socket, when the batch overflows the
+destination's `bufWriter`, and it does so on the source's read goroutine. That
+write carries the session's write budget, armed once per destination per batch
+and cleared by this flush, so a destination that reads nothing holds the
+source for no longer than the budget before it is retired
+(`docs/architecture/core-design.md`, "Write Deadline"). A destination whose
 `writeMu` is held at that moment is handed to its forward worker as an item
 that carries no bytes (`Peer.handOffForwardFlush`). The worker's batch takes
 `writeMu` with a blocking `Lock`, then flushes. Waiting for the source's next
@@ -88,6 +94,8 @@ stays quiet, because a writer that holds `writeMu` does not always flush when
 it releases it: one whose own UPDATE is refused returns before its flush.
 <!-- source: internal/component/bgp/reactor/session_write.go -- flushFwdDirty -->
 <!-- source: internal/component/bgp/reactor/peer.go -- handOffForwardFlush -->
+<!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+<!-- source: internal/component/bgp/reactor/session_write_mutex.go -- armFastPathBudget, releaseFastPathWrites -->
 
 "Pending in overflow" counts the bytes the worker still OWES that destination,
 not the items still sitting in `w.overflow`. An item the worker has moved onto

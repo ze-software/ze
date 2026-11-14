@@ -10,8 +10,18 @@ import "github.com/ze-software/ze/internal/component/bgp/fsm"
 // TCP bufWriter from the caller's goroutine (source peer's read goroutine),
 // bypassing the forward pool channel send and goroutine context switch.
 //
-// Does NOT flush or set write deadlines. The caller batches flushes via
-// Session.flushFwdDirty when the source bufReader has no more data.
+// Does NOT flush. The caller batches flushes via Session.flushFwdDirty when the
+// source bufReader has no more data.
+//
+// The write is bounded by the session's write budget, like every other write
+// to a session socket: a batch that overflows the destination's bufWriter
+// writes to the socket right here, on the source's read goroutine, and a
+// destination that reads nothing would hold that goroutine and its own write
+// path for good. The budget is armed once per destination per batch, never
+// once per UPDATE, and left standing when the path is given back
+// (Session.armFastPathBudget, Session.releaseFastPathWrites). A write that
+// outlasts it fails, which retires the destination (Session.retireWrite) and
+// reports it as a peer that stopped reading; the source's loop then goes on.
 //
 // Returns (handled, delivered, dstSession):
 //   - (true, true, session): bytes reached the peer's bufWriter; needs deferred flush
@@ -54,16 +64,16 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 	// A live policy restoration can raise its replay fence after dispatch
 	// admission. It raises the fence under this same write lock.
 	if peer.forwardOrderHold(item.initialUpdate) {
-		session.writeMu.Unlock()
+		session.releaseFastPathWrites()
 		return false, false, nil
 	}
 
 	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
-		session.writeMu.Unlock()
+		session.releaseFastPathWrites()
 		return true, false, nil
 	}
 	if item.session != session {
-		session.writeMu.Unlock()
+		session.releaseFastPathWrites()
 		return true, false, nil
 	}
 	session.sentMeta = item.meta
@@ -76,8 +86,15 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		session.sentSourcePeerStr = ""
 		session.sentSourceMessageID = 0
 		session.sentForward = nil
-		session.writeMu.Unlock()
+		session.releaseFastPathWrites()
 	}()
+	if err := session.armFastPathBudget(fwdWriteDeadline()); err != nil {
+		// A socket that refuses its deadline is closed: retire the session, as
+		// the write to it would have (armWriteOrRetire does the same for the
+		// other UPDATE writers). The item is consumed and reached nobody.
+		session.retireWrite(err)
+		return true, false, session
+	}
 	for _, body := range item.rawBodies {
 		if err := session.writeRawUpdateBody(body); err != nil {
 			return true, false, session

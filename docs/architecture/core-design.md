@@ -2236,6 +2236,7 @@ Every writer of a session socket takes the session's write path through one acqu
 | UPDATE, raw message and ROUTE-REFRESH writers, forward pool batches included | until it is free | the session budget: 30 seconds, set by `ze.fwd.write.deadline` |
 | A request-scoped write (an API route batch) | until it is free or the request ends | the earlier of the request's deadline and the session budget; a canceled request expires the deadline at once |
 | KEEPALIVE, OPEN, NOTIFICATION | no longer than the control budget | the control budget: a third of the hold time, held between 10 and 30 seconds; one second for the NOTIFICATION of a hold timer or Send Hold Timer expiry and of the read task's panic guard |
+| A route-server fast-path write | none: a busy path sends the UPDATE to the destination's forward worker | the session budget, armed once per destination per batch and left standing |
 | The deferred flush of route-server fast-path writes | none: a busy path hands the flush to the destination's forward worker | the session budget |
 | A held run of messages (the initial sync's config routes and End-of-RIB) | until it is free, once for the run | the session budget, armed again for each message |
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendUpdateCounted, requestWriteDeadline, writeMessageWithin, controlWriteDeadline, flushFwdDirty, holdWrites, sendUpdateHeld -->
@@ -2254,8 +2255,16 @@ Every failed write ends in `retireWrite`, and that is the one place a budget exp
 A control message that finds the write path held for its whole budget is not sent and the session is not retired for it: a KEEPALIVE timer that fires behind a stuck writer gives up, and a NOTIFICATION sender is told nothing was sent. The close that follows that NOTIFICATION does not wait for the path again: it interrupts the writer and closes the socket.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeMessageWithin, errWritePathBusy -->
 
-The route-server fast path writes to a destination under a non-waiting take of the write path and arms no budget for that write: only its deferred flush carries one.
+The route-server fast path is the one writer that does not pay for a budget on every acquisition. It writes to a destination under a non-waiting take of the write path, on the source peer's read goroutine, and a batch that overflows the destination's write buffer reaches the socket there, so the write is bounded like any other. The budget is armed when a destination first receives a write in a batch, and the fast path's release leaves it standing where every other release clears it: the later writes of the batch to that destination find it armed and set no deadline. Two things make the fast path arm again. Another writer held the destination's write path in between, and its release cleared the deadline and the mark that says one is armed. Or a sixteenth of the standing budget has passed: a batch has no bound in time, because its source can stop in the middle of a message or send for minutes, and a deadline armed once for all of it would fail the write of a destination that reads every octet. So a fast-path write that reaches the socket has between fifteen sixteenths of the session budget and all of it.
+
+A standing budget is cleared by the next release of that destination's write path: the batch's deferred flush, the forward worker that took the flush over, or any other writer. It binds none of them, because each arms its own budget before it writes. A batch that ends with no flush of a destination (the flush met a held path and no worker could take it, or the source's session ended) leaves the deadline on a socket nobody is writing to, and the next fast-path write reads its age before it trusts it. A fast-path write that outlasts its budget retires the destination and is reported as `doctor-bgp-peer-not-reading`, like any other write, and the source's read loop goes on to its other destinations.
 <!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+<!-- source: internal/component/bgp/reactor/session_write_mutex.go -- armFastPathBudget, releaseFastPathWrites, fastPathBudgetShare -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- flushFwdDirty, releaseWrites -->
+<!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathStalledDestinationDoesNotStallSource -->
+<!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathArmsOncePerBatch -->
+<!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathRenewsAnAgedBudget -->
+<!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathBudgetDoesNotLeak -->
 
 The two refusals written to a raw connection that has no session, the collision loser and a connection to an administratively held peer, carry a 30-second write deadline of their own.
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- rejectConnectionCollision -->
