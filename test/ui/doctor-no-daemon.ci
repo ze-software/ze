@@ -9,7 +9,12 @@
 option=env:var=ZE_CONFIG_DIR:value=.
 
 tmpfs=probe.conf:mode=600:terminator=EOF_CONF
+# NTP is enabled so the exit code is not set by doctor-clock-no-sync, an ERROR
+# on Ze's own system (clockNoSyncSeverity, internal/plugins/ntp/doctor.go).
 environment {
+	ntp {
+		enabled true
+	}
 	web {
 		enabled true
 	}

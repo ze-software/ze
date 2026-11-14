@@ -49,6 +49,13 @@ bgp {
         }
     }
 }
+# NTP is enabled so the exit code is not set by doctor-clock-no-sync, an ERROR
+# on Ze's own system (clockNoSyncSeverity, internal/plugins/ntp/doctor.go).
+environment {
+    ntp {
+        enabled true
+    }
+}
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json config bgp-listen.conf
