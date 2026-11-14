@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -4926,8 +4927,22 @@ func TestDHCPv6DUIDPatternRefusesMalformed(t *testing.T) {
 	}
 	for _, malformed := range []string{"", "00:01", octets(131), "0001aabb", "00:01:zz", "00:01:a", "00-01-aa", "00:01:aa:"} {
 		err := parse(malformed)
-		if assert.Error(t, err, "duid %q accepted", malformed) {
-			assert.Contains(t, err.Error(), "pattern", "duid %q", malformed)
+		if !assert.Error(t, err, "duid %q accepted", malformed) {
+			continue
 		}
+		// The refusal is the duid leaf's pattern refusal: the typed error names
+		// the kind, the leaf, the setting path and the value as typed, and the
+		// operator text says the value is not in the accepted format. The word
+		// "pattern" is no longer printed (the tree-walk refusal names the
+		// format in words), so the kind is asserted on the typed field.
+		refusal, found := errors.AsType[*configyang.ValidationError](err)
+		if !assert.True(t, found, "duid %q refused with %T, want a *yang.ValidationError: %v", malformed, err, err) {
+			continue
+		}
+		assert.Equal(t, configyang.ErrTypePattern, refusal.Type, "duid %q", malformed)
+		assert.Equal(t, "duid", refusal.Leaf(), "duid %q", malformed)
+		assert.Equal(t, malformed, refusal.Got, "duid %q", malformed)
+		assert.Equal(t, []string{"interface", "ethernet", "eth0", "unit", "0", "ipv6", "dhcpv6", "duid"}, refusal.Segments(), "duid %q", malformed)
+		assert.Contains(t, err.Error(), strconv.Quote(malformed)+" is not in the accepted format", "duid %q", malformed)
 	}
 }
