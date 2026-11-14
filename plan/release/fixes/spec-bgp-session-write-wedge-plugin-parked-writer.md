@@ -70,11 +70,11 @@ cycle. The record belongs on the connection's claim (`socketClaim`).
 Constraints already known:
 
 - The delivery seam itself, `Process.Deliver` and its 64-slot event queue, is
-  the subject of `plan/release/fixes/spec-review-bus-async-fanout.md` (Status
-  `design`): its finding 1 is this same blocking send. The design of this spec
-  starts by deciding, with Thomas, whether the bound belongs to that seam (this
-  spec then keeps only the reactor's side: what is held across the delivery,
-  and the session-end joins) or to the reactor.
+  the subject of `plan/post-release/engineering/spec-review-bus-async-fanout.md`:
+  its problem 1 is this same blocking send. Thomas postponed that spec on
+  2026-11-14, with no design chosen, so the send stays as it is for the first
+  release. The bound this spec needs is therefore its own to design, on the
+  reactor's side: what is held across the delivery, and the session-end joins.
 - `TestSessionDownFollowsBufferedDeliveries` pins that a peer's down follows
   its buffered deliveries, a contract with plugins.
 
@@ -102,7 +102,7 @@ To be completed at design. Known today:
 |-----------|-------|-----------|
 | Bounded close routine | `session_connection.go` `closeConnWithin` | Does not apply to a writer parked on a plugin: it closes the socket and returns, and the writer stays parked |
 | Held-path report | `session_connection.go` `reportWritePathHeld`, code `doctor-bgp-write-path-held` | Extends: the record of the report moves to the connection's claim |
-| Plugin event delivery | `plugin/process/delivery.go` `Process.Deliver` | To be decided with `spec-review-bus-async-fanout`, which owns the seam |
+| Plugin event delivery | `plugin/process/delivery.go` `Process.Deliver` | Does not apply: the send stays unchanged for the first release (`spec-review-bus-async-fanout` is postponed), so this spec bounds what the reactor holds across it |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
