@@ -402,6 +402,10 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			}
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
+				// An update installs a prefix that was not installed before
+				// when its first add was refused or it was only retained from
+				// a previous run, so the installed count can change here too.
+				m.routesInstalled.Set(float64(len(f.installed)))
 				if len(c.Labels) > 0 && !wasMPLS {
 					m.mplsInstalls.Inc()
 				}
