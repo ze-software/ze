@@ -5,6 +5,34 @@ budget. Spec: `plan/immediate/spec-bgp-update-propagation-rfc-defects.md`
 (status in-progress, phase 4/4). Claim released at stop; re-claim with
 `./le spec claim spec plan/immediate/spec-bgp-update-propagation-rfc-defects.md`.
 
+## Update 2026-11-14 (read this first)
+
+The spec closed on 2026-10-23 (`2c15907179`, `a6495deab3`) with the five AC-13 reds unfilled
+("red INTEROP-RED-D1" to "-D5" in its Goal Validation). Three are now observed, two are not.
+Everything below this section is history: the export route it describes is no longer allowed.
+
+Method: arm64 Mac, QEMU docker-lab guest, the current GoBGP and FRR 10.7.1 images. Each red is
+`./le test qemu docker-lab lab 'test integration interop' env 'GOFLAGS=-overlay=<json>
+INTEROP_SCENARIO=<name>'`, so the lab's host build compiles one broken file and no tracked file
+changes; each red was followed at once by the same command without the overlay. The staged
+binary's hash differed between each red and its green.
+
+| Scenario | Break | Red | Green |
+|----------|-------|-----|-------|
+| `bgp-attr-flags-low-nibble-gobgp` | `attrs[pos] &^= attrFlagsUnusedMask` deleted from `normalizeTransmittedUpdate` (`reactor/session_egress_normalize.go`) | FAIL after 2m41s at assertion 3: the route never reaches GoBGP | pass, 1m5s |
+| `bgp-mup-malformed-t1st-withdraw-gobgp` | `recognizerFor` (`plugins/nlri/mup/rfc7606.go`) returns `nlritype.Keep` where it returned `Withdraw` | FAIL after 3m4s at assertion 4: the wait for the valid route sharing the UPDATE times out | pass, 2m2s |
+| `bgp-role-rs-client-learned-not-upward-frr` | `\|\| srcRole == roleRS` removed from `OTCEgressFilter` (`plugins/role/otc.go`) | FAIL after 1m22s at assertion 4: FRR holds 10.10.0.0/24, which must be absent | pass, 48s |
+| `bgp-large-community-no-repeat-gobgp` | the `AttrLargeCommunity` branch of `normalizeTransmittedUpdate` disabled | Not observed: the run died in setup, the lab's `le` not compiling while another edit was in flight | RED on the real build, for another reason: Ze refuses the scenario's config, "community settings are set but no filter chain runs them: peer gobgp sets filter egress community, and its export chain does not run bgp-filter-community:egress". The scenario was never converted to that enforcement |
+| `bgp-rfc7999-blackhole-readvertise-frr` | `blackholeReadvertiseRefused` (`plugins/filter_community/blackhole.go`) returns false | Not observed: the red built Ze, then the `ze_le` build failed in `bgp/reactor` (another session's refactor in flight: a call to `waitPeerUpBarrier` in `peer_initial_sync.go` not yet given its new argument) | Not observed, same build failure |
+
+Owed: convert `bgp-large-community-no-repeat-gobgp` to the export-chain enforcement, then its
+red and green; the blackhole pair once `bgp/reactor` builds; then the observed lines go into the
+scenario rows of `docs/architecture/testing/interop.md` (the five catalogue rows for these
+scenarios), which could not be edited on 2026-11-14 because the file held another session's
+uncommitted hunks. The five broken copies and overlays were session scratch and are gone: each
+break is the single change named above. This file is removed when all five rows hold an
+observed red.
+
 ## Done this session
 
 | Item | Evidence |
