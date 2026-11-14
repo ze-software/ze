@@ -2154,8 +2154,9 @@ fingerprints, and refuses a requirement that already has one. With
 `mode rejudge` it replaces the verdicts a judge re-made after re-reading the
 tests. Each id MUST already have a verdict, and each new entry takes the place of
 the old one with fresh fingerprints. An `upgrade_reason` is accepted in this mode
-alone. It is required when a `weak` or `wrong` verdict becomes `enforced` over
-byte-identical units, and refused on any other move.
+alone, on any `weak`, `wrong` or `partial` verdict raised to `enforced`. It is
+required there when every tagged unit is byte-identical, and refused on any
+move that is not such an upgrade.
 <!-- source: internal/le/rfc/audit_stamp.go -- auditStamp -->
 <!-- source: internal/le/rfc/audit_stamp.go -- rejudgeRefusal -->
 `./le rfc check` is read-only, and `./le rfc update` writes the five derived

@@ -420,9 +420,10 @@ func stampRefusal(rid string, entry any, mode stampMode, judged, held bool, tagC
 // A weak, wrong or partial verdict raised to `enforced` over units byte-identical to the
 // recorded ones needs an `upgrade_reason`: upgradeOverUnchangedUnits is the
 // test `./le rfc check` applies to the same move, so the stamp refuses here
-// what the gate would refuse at commit. A reason on any other move is refused,
-// because in the file it reads as the justification of an upgrade that never
-// happened.
+// what the gate would refuse at commit. A reason is accepted on any weak, wrong
+// or partial verdict raised to `enforced`, units changed or not, and refused on
+// a move that is not such an upgrade, because in the file it reads as the
+// justification of an upgrade that never happened.
 func rejudgeRefusal(rid string, recorded, verdict map[string]any) string {
 	var tb textbuf.Buffer
 	_, carriesReason := verdict[verdictFieldUpgradeReason]

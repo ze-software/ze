@@ -154,11 +154,11 @@ hand and stamp again: the diff then shows a deleted finding, which the findings 
 
 - Every id in the file MUST already have a verdict. One id with none refuses the whole file.
   A first judgement is stamped without `mode rejudge`.
-- Each entry replaces the recorded one at the same place in the file, with fingerprints
-  computed fresh. The other verdicts stay byte-identical.
-- `upgrade_reason` is accepted in this mode alone. It is REQUIRED when a `weak`, `wrong` or `partial`
-  verdict becomes `enforced` while every tagged unit is byte-identical to the recorded one,
-  and it is REFUSED on any other move. The stamp applies the same test as `./le rfc check`
+- Each entry rewrites that id's `rfc/audit/<stem>/<id>.json` with fingerprints computed
+  fresh. No other verdict file changes.
+- `upgrade_reason` is accepted in this mode alone, on any `weak`, `wrong` or `partial`
+  verdict raised to `enforced`. It is REQUIRED there when every tagged unit is byte-identical
+  to the recorded one, and it is REFUSED on any move that is not such an upgrade. The stamp applies the same test as `./le rfc check`
   (`upgradeOverUnchangedUnits`), so it refuses at stamp time what the gate refuses at commit.
 - The same refusals as the default mode apply to the vocabulary, the rows and the fields
   the command computes.

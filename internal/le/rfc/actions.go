@@ -156,8 +156,9 @@ var actions = leaction.New(area,
 		"closed vocabulary, 'enforced' over no tag or a partial scope, partial without verified producer-break claims, and 'not-applicable' over a tagged row. " +
 		"mode rejudge (default new) is for a verdict a judge has re-made after re-reading the " +
 		"tests: it refuses an id with no verdict, replaces each recorded entry in place with " +
-		"fresh fingerprints, and admits upgrade_reason, which it requires when a weak, wrong or partial " +
-		"verdict becomes enforced over byte-identical units and refuses on any other move",
+		"fresh fingerprints, and admits upgrade_reason on any weak, wrong or partial verdict raised to " +
+		"enforced: it requires one there when every tagged unit is byte-identical, and refuses one on " +
+		"any move that is not such an upgrade",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem the verdicts belong to", Value: keyStem, Requirement: leaction.Required},

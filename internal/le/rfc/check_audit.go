@@ -302,8 +302,8 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 	return errs
 }
 
-// findingUpgrade reports whether a verdict moved from a finding, 'weak' or
-// 'wrong', to 'enforced'.
+// findingUpgrade reports whether a verdict moved from a finding, 'weak',
+// 'wrong' or 'partial', to 'enforced'.
 func findingUpgrade(was, now map[string]any) bool {
 	oldValue := verdictValue(was)
 	if oldValue != VerdictWeak && oldValue != VerdictWrong && oldValue != VerdictPartial {
