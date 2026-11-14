@@ -241,10 +241,28 @@ How, from the producers read 2026-11-14:
 | 3 | Leaves the operation queue as it is | unlike a queued teardown, which discards routes the operator's stop makes moot, these operations are still owed. An operation the interrupted drain had already sent is sent again by the next session, which is harmless for an announce or a withdraw |
 | 4 | Sends no End-of-RIB before the NOTIFICATION | the initial update did not complete, so no marker is true |
 
+As implemented (2cd7ac9f09, 2026-11-14), steps 1 and 2 run in the other
+order: the state change and the teardown come first, and the gate and the
+owed marker are cleared after, as the queued teardown does
+(`endSessionAfterSyncPanic`). A route that arrives in between then joins the
+kept queue for the next session rather than going to the session being ended.
+
 The NOTIFICATION is the one the run loop's own panic recovery sends for an
 internal fault (`docs/architecture/behavior/peer-lifecycle.md`, "`safeRunOnce`
 and panic recovery" and "Panic recovery summary"); the implementation reads
 that path and RFC 4486 before choosing a subcode, and does not invent one.
+Settled 2026-11-14: it is Cease with subcode 0, Unspecific. RFC 4486 Section 3
+lists eight Cease subcodes and none is for an internal fault, and RFC 4271
+Section 4.5 says: "If no appropriate Error Subcode is defined, then a zero
+(Unspecific) value is used for the Error Subcode field."
+
+Found 2026-11-14 while the change was judged: a panic inside the socket write
+left the interrupted message staged in the session's write buffer, and the
+next flush sent it ahead of the NOTIFICATION. The first test judge refused the
+count-only test change for this reason. The write-path release now drops what
+an interrupted socket write left staged (`Session.releaseWrites`,
+`discardInterruptedWrite`), and the unwind tests assert the wire content. Both
+are in 2cd7ac9f09.
 
 ### D-4. The session-ready expectation set says what it is for
 
@@ -332,7 +350,10 @@ One thing the read did not settle: the 43 held files that push a route from a
 stages script to a peer that may still be in its initial sync. Such a route
 is queued and drains before the sync's marker (`sendInitialRoutes`, read by
 the main thread), so a test expecting the marker first there would be wrong
-the other way. Phase 5 checks those files for that shape before it closes.
+the other way. Settled 2026-11-14 in phase 5: none of the 43 has that shape.
+Each orders its route behind the marker by a fixture wait on the marker
+counter, by the marker seen in the peer's output, or by a peer action that
+fires only after it matched the marker (A-3).
 
 The two announce-withdraw tests do not regain a marker expectation: their
 withdraw can legitimately reach the wire before the marker, and no `seq` form
@@ -392,8 +413,8 @@ and the peer expects the route and the marker in one `seq` group.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A process's routes arriving AFTER the marker is correct, because a peer's do | owner ruling, 2026-09-18 | the 2026-08-30 ruling still governs and only the window closes, by widening `forwardOrderHold` instead | owner confirmation at the gate | confirmed 2026-11-14: the ruling is right, and the marker has no bearing on what Ze forwards |
 | A-2 | AC-2 (a forwarded route never precedes the marker) is the order the owner wants | the skeleton's AC table, written 2026-09-18; no owner sentence states it | FRR and BIRD both send a forwarded route before their marker and RFC 4724 is silent, so AC-2 makes Ze stricter than both with no RFC sentence behind it; the header of `test/plugin/ipv4-announce-withdraw.ci` already reads the ruling as "A peer's routes have no defined order against our marker either" | owner decision at the research gate | broken 2026-11-14: Thomas ruled the marker has no bearing on what Ze forwards, so no order is promised and AC-2 is withdrawn |
-| A-3 | The roughly 77 functional tests that place the marker before a forwarded route are load-dependent on the race rather than proofs of an order | census by the research agent over `test/` (652 files with a marker expectation); `redistribute-export-reject` read by the main thread, the rest classified by pattern | some of them hold the order by another mechanism (a source that sends only after the destination's marker), and they are unaffected by the decision | reading each affected test at design, before any is changed | confirmed in part 2026-11-14: a per-file read found 71 such tests, of which 55 hold the order by a real wait, 10 rest on timing (8 race, 2 healthcheck), 1 is usually held and 5 share a fixture that never requires the marker. The 43 first classed as held are confirmed again in phase 5 for the stages-script shape D-5 names |
-| A-4 | A route sent after the marker costs a graceful-restart helper a flush and relearn only when the helper held it as stale | derived by the research agent from FRR `bgp_update_receive_eor` and BIRD `bgp_rx_end_mark`; not re-read by the main thread | the cost is larger or absent, which changes the weight of the choice but not what the RFC permits | reading both receiver functions at design | unvalidated |
+| A-3 | The roughly 77 functional tests that place the marker before a forwarded route are load-dependent on the race rather than proofs of an order | census by the research agent over `test/` (652 files with a marker expectation); `redistribute-export-reject` read by the main thread, the rest classified by pattern | some of them hold the order by another mechanism (a source that sends only after the destination's marker), and they are unaffected by the decision | reading each affected test at design, before any is changed | confirmed in part 2026-11-14: a per-file read found 71 such tests, of which 55 hold the order by a real wait, 10 rest on timing (8 race, 2 healthcheck), 1 is usually held and 5 share a fixture that never requires the marker. The 43 first classed as held are confirmed again in phase 5 for the stages-script shape D-5 names. Confirmed 2026-11-14 in phase 5: all 43 files re-read, all 43 held, and none pushes a route from a stages script into a sync still running. The orderers are a fixture wait on the marker counter, the marker seen in the peer's output, or a peer action that fires only once it has matched the marker. One condition: a counter wait asks for one marker, so it holds only where the peer negotiates one family or the expected marker is the first family sent |
+| A-4 | A route sent after the marker costs a graceful-restart helper a flush and relearn only when the helper held it as stale | derived by the research agent from FRR `bgp_update_receive_eor` and BIRD `bgp_rx_end_mark`; not re-read by the main thread | the cost is larger or absent, which changes the weight of the choice but not what the RFC permits | reading both receiver functions at design | confirmed 2026-11-14, refined, by a source-check agent that quoted the deciding lines (the main thread did not open the upstream files itself). FRR 10.7.1 `bgp_update_receive_eor` calls `bgp_clear_stale_route` only under `nsf`, and that removes only paths still flagged stale. BIRD 3.4.0 `bgp_rx_end_mark` calls `bgp_graceful_restart_done` only when `gr_active`, and `rt_refresh_end` prunes only routes of an older stale cycle. So the withdraw and re-announce cost falls only on a route the helper held as stale and that was not re-announced before the marker. Any other route after the marker is an ordinary UPDATE. During the receiver's own startup, its deferral or update-delay may already have ended, so such a route misses the first batch |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -402,11 +423,21 @@ and the peer expects the route and the marker in one `seq` group.
 | R-2 | Stale text tells a third-party plugin author that the End-of-RIB waits for the session-ready report | `pkg/plugin/rpc/types.go` (`SignalsSessionReady`), `docs/architecture/api/process-protocol.md` "Session-Ready Declaration (Stage 1)", `docs/architecture/plugin/plugin-system.md` | correct each sentence in this work; the field's comment is part of the public SDK contract (`ai/doors/system.md`), and `ai/doors/bgp-plugins.md` already states the rule the pages must match |
 | R-3 | Removing the dead readiness channel breaks the five tests that read it | `peer_initial_sync_test.go`, `peer_up_barrier_test.go`, `rs_receipt_readiness_test.go`, `api_sync_test.go` | each test is re-pointed at the fact it meant to observe (the fence lowering) through the test-judge route, or the channel stays with a reader named |
 | R-5 | An explicit marker parked in the forward overflow during the sync is never released | the peer of `api-eor-during-initial-sync` never receives its marker | the gate's opening is already followed by the overflow wake in `sendInitialRoutes`; the unit test asserts the write with no further traffic |
-| R-6 | An explicit marker that did not take the claim hands back a claim it does not own when its write fails (`settleEndOfRIB` releases by family, whoever claimed) | a second automatic marker for one family after a failed explicit write | read at implementation; if real, the forward item records whether it owns the claim |
-| R-7 | A test reactor without a forward pool writes an explicit marker at once, ahead of queued routes | a unit test on that path sees the marker first | production always builds the pool (`reactor.go`); the new unit tests run with one, and the no-pool arm keeps the suppression for both forms |
+| R-6 | An explicit marker that did not take the claim hands back a claim it does not own when its write fails (`settleEndOfRIB` releases by family, whoever claimed) | a second automatic marker for one family after a failed explicit write | read at implementation; if real, the forward item records whether it owns the claim. Confirmed real at the producer 2026-11-14 and fixed in a2302b8968: the queued item records whether it took the claim (`fwdEndOfRIB.ownsClaim`), and a failed write hands back only an owned claim (`settleEndOfRIB`) |
+| R-7 | A test reactor without a forward pool writes an explicit marker at once, ahead of queued routes | a unit test on that path sees the marker first | production always builds the pool (`reactor.go`); the new unit tests run with one, and the no-pool arm keeps the suppression for both forms. Holds as written 2026-11-14: the reactor's constructor always builds the forward pool, and `announceEOR`'s no-pool arm stands down both forms while the peer queues or the sync owes its marker |
+| R-10 | `request quiesce` does not see a requested marker still in the forward queue: its settle predicate (`Peer.pendingSync`) reads the operation queue, the queueing gate and the owed flag only. A replay's marker already had the same gap, so this is not a regression | a fixture that quiesces right after it asks for a marker tears the session down before the marker is written | fixtures wait for the peer's marker counter before they quiesce, as `fixture10EORDuringInitialSync` does |
 | R-8 | Ending the session on a recovered panic loops if the panic is deterministic for that peer's table | reconnect, panic, reconnect | the existing reconnect backoff bounds it, and the panic is logged with its stack each time; a looping peer is visible where a silently stuck one was not |
 | R-9 | A `manual-eor` operator relies on today's replay marker reaching the peer | a route-server client configured with `manual-eor` stops receiving any marker until a process asks | the gate question on D-2; if the owner keeps today's behaviour, AC-6's survivor clause changes and D-2 is dropped. Answered 2026-11-14: withhold all automatic markers. The change is stated in `docs/guide/configuration.md` and in the news fragment at closure, so such an operator reads it |
 | R-4 | A hold added before the marker parks forwards that nothing wakes | a forwarded UPDATE delivered only when the next one arrives | every store that ends a hold is followed by the overflow wake, and a unit test asserts delivery with no further traffic |
+
+### Implementation notes (2026-11-14)
+
+The spec was implemented without a claim: the WIP cap refused it (15 specs in
+progress, cap 12), and the owner had ordered the work. The Status therefore
+stayed `ready` during implementation. The closure claims it one above the
+in-progress count only to close it. The work landed as a2302b8968 (D-1, D-2,
+R-6), 2cd7ac9f09 (D-3), 0461489d41 (D-5 and the two new tests) and 4aa1f84ff6
+(D-4).
 
 ## Blast Radius
 
@@ -422,7 +453,7 @@ and the peer expects the route and the marker in one `seq` group.
 |-------------|---|--------------|------|
 | a session established with a route-pushing plugin configured | → | `sendInitialRoutes` writes the marker without waiting | `test/plugin/initial-sync-marker-beside-process-route.ci` (new) |
 | `update text nlri eor` from a process during the initial sync | → | `announceEOR` queues the marker behind the forward queue | `test/plugin/api-eor-during-initial-sync.ci` (new) |
-| the same command on a `manual-eor` peer, through the ExaBGP bridge | → | `announceEOR`, the sync's withheld marker | `test/exabgp-compat/api/api-manual-eor.ci` (existing, its one-second sleep removed) |
+| the same command on a `manual-eor` peer, through the ExaBGP bridge | → | `announceEOR`, the sync's withheld marker | `test/exabgp-compat/api/api-manual-eor.ci` (existing, its one-second sleep replaced by a wait for the session to be up). Corrected 2026-11-14: removing the sleep does not make the request land inside the sync. The bridge acknowledges the peer-up event once it has written the line to the script (`Bridge.handleDeliverEvent`), so an external script cannot be made to ask inside the sync. This test proves a requested marker reaches a `manual-eor` peer whenever the request lands; the during-sync case is row 2's test and `TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes` |
 
 ## Acceptance Criteria
 
@@ -451,7 +482,7 @@ stand; AC-3 is widened by AC-4. Each row names what is still permitted and why.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | brings up a session on a router carrying a route-pushing plugin | Ze's own table, then the marker; the plugin's route before or after it | `test/plugin/initial-sync-marker-beside-process-route.ci` |
-| 2 | runs an ExaBGP script that announces its routes and then `announce eor` against a `manual-eor` peer, with no delay | bridge, text command, `announceEOR`, forward queue, wire | `test/exabgp-compat/api/api-manual-eor.ci` |
+| 2 | runs an ExaBGP script that announces its routes and then `announce eor` against a `manual-eor` peer, with no delay | bridge, text command, `announceEOR`, forward queue, wire | `test/exabgp-compat/api/api-manual-eor.ci`, which proves the marker arrives whenever the request lands; a request made during the sync is proven by `test/plugin/api-eor-during-initial-sync.ci` and `TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes` (corrected 2026-11-14: a bridge script cannot be made to ask inside the sync) |
 
 ## 🧪 TDD Test Plan
 
@@ -462,7 +493,8 @@ stand; AC-3 is widened by AC-4. Each row names what is still permitted and why.
 | `TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes` | `internal/component/bgp/reactor/reactor_api_forward_test.go` | AC-5: a marker asked for with the gate closed is written after the queued announce, and the answer counts it | new |
 | `TestReplayEndOfRIBStandsDownWhileSyncOwesItsMarker` | same file | AC-5's permitted survivor: the replay form writes nothing and is answered handled | new, or the existing suppression tests re-pointed at the replay form |
 | `TestManualEORPeerReceivesOnlyTheRequestedMarker` | same file | AC-6: one write per explicit request, none from the sync, none from a replay at any point | new |
-| `TestInitialSyncPanicEndsTheSession` | `internal/component/bgp/reactor/peer_initial_sync_unwind_test.go` | AC-7: after a recovered panic with a queued operation the session is ended and the queue is kept for the next one | new |
+| `TestInitialSyncPanicEndsTheSession` | `internal/component/bgp/reactor/peer_initial_sync_unwind_test.go` | AC-7: after a recovered panic with a queued operation the session is ended and the queue is kept for the next one. AC-7's "the next session's sync sends the queued operations" rests on the existing queue drain of `sendInitialRoutes` and has no two-session test of its own (2026-11-14) | new |
+| the wire-content assertions of the three unwind tests | `internal/component/bgp/reactor/peer_initial_sync_unwind_test.go` | D-3: after a recovered panic the wire holds what the socket took before the fault, then only the Cease / Unspecific NOTIFICATION, with no End-of-RIB (2cd7ac9f09) | changed through the test judge |
 | the five readers of `apiSyncReady` | `peer_initial_sync_test.go`, `peer_up_barrier_test.go`, `rs_receipt_readiness_test.go`, `api_sync_test.go` | AC-9: each observes `initialUpdateOwed` going false | changed through the test judge |
 | `TestAnnounceEOR_SkipsPeerInInitialRouteSync`, `TestAnnounceEORDefersToCurrentSessionMarker`, `TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed` | `reactor_api_forward_test.go`, `peer_initial_sync_test.go` | they pin "an explicit marker is not written while the sync owes its own", which D-1 replaces | changed through the test judge: the old expectation is the defect in the owned journal row |
 
@@ -479,8 +511,8 @@ bound is not touched.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `initial-sync-marker-beside-process-route` | `test/plugin/initial-sync-marker-beside-process-route.ci` | AC-1: a process pushes one route; the peer requires the route and the marker in one `seq` group | new |
-| `api-eor-during-initial-sync` | `test/plugin/api-eor-during-initial-sync.ci` | AC-5 and AC-6: a process announces a route and asks for the marker before the session is up, on a `manual-eor` peer; the peer requires the route, then exactly one marker | new |
-| `api-manual-eor` | `test/exabgp-compat/api/api-manual-eor.ci` | AC-6 through the bridge, with the script's one-second sleep removed so the request lands inside the sync | existing, changed |
+| `api-eor-during-initial-sync` | `test/plugin/api-eor-during-initial-sync.ci` | AC-5 and AC-6: a process announces a route and asks for the marker before the session is up, on a `manual-eor` peer; the peer requires the route, then exactly one marker. Corrected 2026-11-14: the process asks from inside the peer-up delivery (`fixture10EORDuringInitialSync`), not before the session is up (`announceEOR` skips a peer that is not Established). The engine completes that delivery before it starts the sync, so the queueing gate is closed on every run. Its first version asked after the sync and stayed green against the old drop; the committed version (0461489d41) went red against the old drop ("ze never sent its End-of-RIB to peer1") and green on a2302b8968 | new |
+| `api-manual-eor` | `test/exabgp-compat/api/api-manual-eor.ci` | AC-6 through the bridge, with the script's one-second sleep removed so the request lands inside the sync. Corrected 2026-11-14: the sleep is replaced by a wait for the session to be up, and the request still need not land inside the sync, because the bridge acknowledges the peer-up event once it has written the line to the script. The test proves a requested marker reaches a `manual-eor` peer whenever the request lands; the during-sync case is `api-eor-during-initial-sync` and `TestExplicitEndOfRIBDuringSyncFollowsQueuedRoutes` | existing, changed |
 | the eight race files of D-5 | `test/plugin/`, `test/reload/` | AC-4 | changed through the test judge |
 | the five RPKI relay tests | fixture `internal/test/fixture/plugin_fixture_15_rpki.go` | AC-4: the fixture waits for the marker counter | fixture changed |
 | the fifteen unsure files of D-5 | `test/plugin/`, `test/reload/` | AC-4, after the deciding fact is read | assessed at implementation |
@@ -507,6 +539,24 @@ bound is not touched.
 - `test/plugin/plugin-nexthop.ci` - its header still quotes the 2026-08-30 ruling as current.
 - `plan/journal/grace-bound-hides-a-missing-signal.md`, `plan/journal/guard-addition-drops-what-it-refuses.md` - the two owned rows.
 - The eight race files and the changed existing tests named in the test plan.
+
+Corrected 2026-11-14, after implementation. The `holdWrites` comment in
+`session_write.go` was already corrected by the session-write-wedge work
+(178cffd97d), so this spec did not edit it; it added only the discard call at
+the top of `releaseWrites` (2cd7ac9f09). The implementation also touched these
+files, which the list above lacks:
+
+- `internal/component/bgp/reactor/forward_eor.go` - the queued marker records whether it took the claim (`fwdEndOfRIB.ownsClaim`), and `settleEndOfRIB` hands back only an owned claim (R-6).
+- `internal/component/bgp/reactor/session_write_interrupted.go` (new) - `discardInterruptedWrite` drops what a socket write a panic unwound through left staged (D-3).
+- `internal/component/bgp/reactor/session_wire.go` - the socket boundary marks a write that never returned (`observedBGPWriter.writeOpen`), which the discard reads (D-3). Design doc: `docs/architecture/mrt.md`.
+- `internal/component/bgp/reactor/peer_settings.go` - the `ManualEOR` comment: every automatic marker is withheld, and a requested one is always written (D-2).
+- `internal/component/bgp/types/types.go` - the `ReplayEORMeta` comment: when the engine treats a replay's marker as an automatic one (D-1, D-2).
+- `internal/component/bgp/reactor/peer_derived_bindings.go`, `internal/component/bgp/reactor/api_sync.go` - comments on the session-ready expectation set and the replay fence it arms (D-4, 4aa1f84ff6).
+- `internal/component/plugin/server/events.go`, `pkg/plugin/rpc/enums.go` - the same correction in `Server.declaresSessionReady` and the `ReasonAttached` comment (D-4, 4aa1f84ff6).
+- `internal/test/fixture/plugin_fixture_10.go` - `fixture10EORDuringInitialSync`, the fixture of `api-eor-during-initial-sync`, which asks from inside the peer-up delivery.
+- `internal/test/fixture/register_initial_sync_marker_beside_process_route.go` (new) - the fixture of `initial-sync-marker-beside-process-route`.
+- `test/exabgp-compat/etc/api-manual-eor.conf`, `test/exabgp-compat/etc/run/api-manual-eor.run` - the script waits for the session to be up in place of the sleep, and its header says what the test can and cannot prove.
+- `docs/exabgp/exabgp-differences.md` - a requested marker is held behind pending routes and never dropped, as in ExaBGP (Documentation checklist row 6).
 
 ## Files to Create
 - `test/plugin/initial-sync-marker-beside-process-route.ci`

@@ -393,6 +393,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `declared-format-contradicts-payload` | 2026-10-20 | AC-59: adj-rib-in `handleReceived` keys a VPN NLRI without its RD, stores one NLRI per section |
 | `gate-excludes-part-of-its-population` | 2026-09-02 | AC-60: `countPeerUpBarrier` asks the registry by process name, not registration name |
 | `two-owners-share-one-name` | 2026-10-10 | AC-61: `recordCreatedPeerLocked` overwrites an operator's peer of the same name |
+| `silent-fall-through` | 2026-11-14 | `fwdPool.safeBatchHandle` keeps the session after a recovered batch panic, leaving a hole in what the peer was sent |
 
 ## Rows found already fixed
 
