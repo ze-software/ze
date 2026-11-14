@@ -3,7 +3,7 @@
   "requirement_sha": "33ccc5dc8f9017e6",
   "tests": {
     "internal/plugins/ospf/rfc5340_vlink_test.go::TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress": "a73f6782c488d1ff",
-    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "cf3ed7a48ed0f2a3"
   },
   "units": {
     "internal/plugins/ospf/rfc5340_vlink_test.go::TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress": "553aad12b7800b77",

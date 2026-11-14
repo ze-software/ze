@@ -3,8 +3,8 @@
   "requirement_sha": "b0701552f09f76a3",
   "tests": {
     "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "871029566403d2c9",
-    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "571c66c643c8a516",
-    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "cf3ed7a48ed0f2a3",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "cf3ed7a48ed0f2a3"
   },
   "units": {
     "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "ba63c1b97bc34aaa",

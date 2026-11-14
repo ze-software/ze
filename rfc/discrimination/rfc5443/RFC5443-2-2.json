@@ -7,8 +7,8 @@
     "claim-sha": "fe64dddace0f7c67",
     "route": "revert",
     "producer": "internal/plugins/ospf/lsdb/origination.go::routerLinks",
-    "producer-sha": "b4bf643c3c3ad703",
-    "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3ca7baf4a78e6c01",
+    "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5443-2-2",
@@ -18,8 +18,8 @@
     "claim-sha": "8be5e5e0a030ddd0",
     "route": "revert",
     "producer": "internal/plugins/ospf/lsdb/origination.go::routerLinks",
-    "producer-sha": "b4bf643c3c3ad703",
-    "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "3ca7baf4a78e6c01",
+    "break": "body of routerLinks replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5443-2-2",
