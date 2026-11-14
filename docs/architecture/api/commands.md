@@ -498,17 +498,23 @@ registered itself. The two routes call one producer, so they cannot drift:
 | `show traceroute` | `tracerouteResults` | `showTracerouteLocal` prints it | `handleTraceroute` |
 | `show interface` | `iface.ListInterfaces`, `iface.GetInterface` | `cmdShow` renders the list or one interface (`--json` prints the payload) | `handleShowInterface`, `handleShowInterfaceDetail` answer it as data |
 | `show version` | `zeversion.Answer` | `printVersion` prints it (`ze show version`, `ze version`, `ze --version`) | `handleShowVersion`; `--extended` reaches both routes as a token, since the model declares no leaf |
+| `create agent skill`, `show agent skill`, `delete agent skill`, `show agent context` | the plan producer and the context producer of the skills plugin, added by this work in a later phase. Today both routes of all four answer one fixed refusal saying the command is not implemented yet (`notImplemented`) | `createAgentSkillLocal`, `showAgentSkillLocal`, `deleteAgentSkillLocal`, `showAgentContextLocal`: at a shell the command will act on the caller's own home | `handleCreateAgentSkill`, `handleShowAgentSkill`, `handleDeleteAgentSkill`, `handleShowAgentContext`, the RPCs for `ze-skills:create-agent-skill` and its siblings: they will write nothing and answer the stub a remote agent places |
 | `monitor ping`, `monitor traceroute` | `NewPingSession`, `NewTracerouteSession` | the local loop prints each result | the `ze cli` view and the hub's SSH session factory inject the producer itself as the view factory; SSH exec and `ze cli -c` stream from the same producer (`streamMonitorPing`, `streamMonitorTraceroute`), and the one-shot RPC answers a sample of it: `handleMonitorPing` the rows of a bounded run, `handleMonitorTraceroute` one probe round |
 
 The bridge leaves such a path to its builtin: when the YANG node's own RPC is
 registered as a builtin, the local-data handler on that path is the command's
 no-daemon route (`loadLocalData`). `doctor` is local-data because its answer
 is about the host it runs on, whichever host that is. `show ping` and `show
-traceroute` stay plain local commands, because `ze cli` answers a local-data
-command in its own process before it asks the daemon, and a ping asked through
-`ze cli` is sent from the router; `show interface` and `show version` stay
-plain local for the same reason, since each describes the daemon's host or
-binary. `doctor config <file>` is confined on the
+traceroute` stay plain local commands, because `ze cli -c` answers a
+local-data command in its own process before it asks the daemon, and a ping
+asked through `ze cli` is sent from the router; `show interface` and `show
+version` stay plain local for the same reason, since each describes the
+daemon's host or binary. An interactive `ze cli` session never answers in the
+client's process: it is a shell on the daemon (`sshclient.RunInteractive`),
+where every typed line is dispatched. The agent setup commands are plain local
+because a person sets their agent up at a shell, where the handler reaches
+their home; `ze cli` is the router's CLI, so every form of it gets the
+daemon's answer. `doctor config <file>` is confined on the
 daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/component/doctor/answer.go -- Answer, answerLocal, renderDoctor -->
 <!-- source: internal/core/version/version.go -- Answer -->
@@ -518,6 +524,10 @@ daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
 <!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->
 <!-- source: internal/component/traceroute/cmd/traceroute.go -- tracerouteResults, handleTraceroute -->
+<!-- source: internal/plugins/skills/agent.go -- notImplemented, createAgentSkillLocal, handleCreateAgentSkill -->
+<!-- source: internal/plugins/skills/register.go -- agent setup registrations -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
+<!-- source: internal/component/cli/client/main.go -- runInteractiveSession, execute -->
 <!-- source: internal/component/ping/cmd/monitor.go -- handleMonitorPing, streamMonitorPing -->
 <!-- source: internal/component/traceroute/cmd/monitor.go -- handleMonitorTraceroute, streamMonitorTraceroute -->
 
@@ -535,7 +545,7 @@ kind and the expected answer.
 |--------------|---------------|--------------------------------|--------------------------------------------|
 | Hidden (a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
-| Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, answered in its own process; SSH does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
+| Local or local-data at an offline root, with a declared daemon path | `ze cli` offers a local-data one, which `ze cli -c` answers in its own process; SSH, and the interactive `ze cli` shell it carries, does not, and offers the daemon path | Offered | Not offered: the daemon path is, as its own registration |
 | Plugin command (Stage 1 declaration) | Offered | Not offered: no plugin runs in the shell's process | Offered |
 | Plugin command whose path is a schema node with no `ze:command` of its own (`Modeled`, as `show vrrp interface`, whose command node is `name` below it) | Offered | Offered: shell completion walks the shipped schema, which holds the node | Offered |
 | Streaming (`RegisterStreamingHandler`) | Offered as a stream | Offered as a stream | By its one-shot declaration: `OneShotSample` offered, `OneShotStreamingOnly` not ("One-shot answer of a streaming command") |

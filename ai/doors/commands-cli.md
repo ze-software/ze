@@ -33,14 +33,20 @@ The daemon dispatcher they feed is
     ping`)
 
   Pick one on purpose. A local-data command is answered locally by
-  `command.ServeLocal` (the `ze cli` client, `internal/component/cli/client`)
-  and the plain `ze <verb>` handler, and for REST, gRPC, MCP, SSH and the web
-  by the dispatcher (`plugin/server` `loadLocalData`). The handler reads
+  `command.ServeLocal` (`ze cli -c`, `internal/component/cli/client`) and the
+  plain `ze <verb>` handler, and for REST, gRPC, MCP, SSH and the web by the
+  dispatcher (`plugin/server` `loadLocalData`). The handler reads
   `ValidatedArgs.Route()` to refuse what only the caller's own process holds,
   and `command.CallerPath` to confine a file its caller names (`commands.md`,
   "Served by the daemon too"). An answer about the daemon's host stays plain
-  local plus a builtin, because `ze cli` answers a local-data command in its
-  own process before it asks the daemon.
+  local plus a builtin, because `ze cli -c` answers a local-data command in
+  its own process before it asks the daemon (the two `command.ServeLocal`
+  calls in `internal/component/cli/client/main.go`, in `run` and
+  `cliClient.execute`). An interactive `ze cli` session is a shell on the
+  daemon (`runInteractiveSession`, then `sshclient.RunInteractive` in
+  `internal/component/cli/sshclient/terminal.go`): every line typed there is
+  dispatched by the daemon, so a local-data command answers there as on SSH,
+  and a plain local command reaches only its owner's builtin.
 - **Which surfaces offer a command is one predicate**, `command.AnswerSurface`
   (`internal/component/command/surface.go`), read by every surface producer
   and judged by `TestEveryCommandOnEverySurface` (`commands.md`, "Which

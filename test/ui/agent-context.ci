@@ -1,0 +1,23 @@
+# Test: ze show agent context at a shell with no daemon
+# QUESTION: does the command a session-start hook runs exit 0 and name the Ze
+# version and that no daemon answered, when nothing listens?
+# VALIDATES: spec-ze-agent-skill-setup wiring row 2, AC-23.
+# PREVENTS: a hook that fails or stays silent on a machine with no daemon.
+#
+# Method: no daemon is started. The home and config directories point inside
+# the test's own work directory, and the daemon address is the test's leased
+# $PORT on loopback, where nothing listens, so a daemon another session runs on
+# the default port cannot answer the dial.
+
+option=env:var=HOME:value=.
+option=env:var=XDG_CONFIG_HOME:value=.config
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=ze.ssh.host:value=127.0.0.1
+option=env:var=ze.ssh.port:value=$PORT
+
+cmd=foreground:seq=1:exec=ze show agent context:exit=0
+expect=exit:code=0
+reject=stderr:contains=not implemented
+expect=stdout:contains=(built
+expect=stdout:contains=not answering
+expect=stdout:contains=ze show skill ze

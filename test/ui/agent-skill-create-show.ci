@@ -1,0 +1,27 @@
+# Test: ze create agent skill, then ze show agent skill, at a shell
+# QUESTION: does `ze create agent skill agent claude` write the ze stub skill
+# and the session-start hook into Claude Code's directory under the operator's
+# home, and does `ze show agent skill` then report both as current?
+# VALIDATES: spec-ze-agent-skill-setup wiring row 1, AC-1, AC-7, AC-16, AC-18.
+# PREVENTS: a setup command that answers but installs nothing, or that writes
+# outside the home it was given.
+#
+# Method: every child runs in the test's own work directory, so HOME and the
+# two harness variables point inside it and nothing reaches the home of whoever
+# runs the suite. No daemon runs: the plain local handler answers at a shell.
+
+option=env:var=HOME:value=.
+option=env:var=CLAUDE_CONFIG_DIR:value=.claude
+option=env:var=CODEX_HOME:value=.codex
+option=env:var=XDG_CONFIG_HOME:value=.config
+
+cmd=foreground:seq=1:exec=ze create agent skill agent claude:exit=0
+expect=exit:code=0
+reject=stderr:contains=not implemented
+expect=file:glob=.claude/skills/ze/SKILL.md:contains=ze show skill ze
+expect=file:glob=.claude/settings.json:contains=show agent context
+
+cmd=foreground:seq=2:exec=ze show agent skill:exit=0
+expect=exit:code=0
+reject=stderr:contains=not implemented
+expect=stdout:contains=current

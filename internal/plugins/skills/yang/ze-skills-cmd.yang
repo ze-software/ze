@@ -2,7 +2,8 @@ module ze-skills-cmd {
     namespace "urn:ze:skills:cmd";
     prefix skillscmd;
     import ze-extensions { prefix ze; }
-    description "The show skills and show skill commands, owned by the skills plugin, which registers their handlers. See the plugin self-containment rule.";
+    description "The show skills and show skill commands, and the commands that set an operator's agent up to use Ze (create, show and delete agent skill, show agent context), owned by the skills plugin, which registers their handlers. See the plugin self-containment rule.";
+    revision 2026-11-14 { description "Declare create agent skill, show agent skill, delete agent skill and show agent context, each served by the plugin's own daemon command."; }
     revision 2026-11-02 { description "Declare the full flag show skill already read, so every route judges it against the model."; }
     revision 2026-10-12 { description "Rename skills list and skills get to show skills and show skill: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Initial: declare the skills command the skills plugin already served."; }
@@ -36,6 +37,86 @@ matches the running version. Prints each bundled skill with its one-line descrip
 carries one.";
                 ze:help "Return expanded content (with examples and patterns).";
             }
+        }
+
+        container agent {
+            config false;
+            description "What the ze skill and its session-start hook look like for the operator's
+agent harnesses.";
+            ze:help "Inspect how the operator's agent is set up to use Ze.";
+
+            container skill {
+                config false;
+                ze:command "ze-skills:show-agent-skill";
+                description "At a shell, reports for each harness the plugin knows whether the ze
+stub skill and its session-start hook are installed, and changes no file. Through the daemon,
+answers the stub a remote agent places, since the daemon cannot see the caller's home.";
+                ze:help "Show whether the ze skill is set up for each agent harness.";
+                uses agent-name;
+            }
+
+            container context {
+                config false;
+                ze:command "ze-skills:show-agent-context";
+                description "The lines a session-start hook puts in front of the agent: the Ze
+version, whether the daemon answers, and where the guide is. Through the daemon, the version
+and that the caller reached the daemon.";
+                ze:help "Show what an agent session is told about this Ze.";
+            }
+        }
+    }
+
+    container create {
+        config false;
+
+        container agent {
+            config false;
+            description "Set the operator's agent harnesses up to use Ze.";
+            ze:help "Set an agent harness up to use Ze.";
+
+            container skill {
+                config false;
+                ze:command "ze-skills:create-agent-skill";
+                description "At a shell, installs the ze stub skill and, where the harness has
+hooks, a session-start hook, for every harness found or for the one named. Through the daemon,
+writes nothing and answers the stub a remote agent places.";
+                ze:help "Install the ze skill for the operator's agent harnesses.";
+                uses agent-name;
+            }
+        }
+    }
+
+    container delete {
+        config false;
+
+        container agent {
+            config false;
+            description "Remove what create agent skill installed.";
+            ze:help "Remove the Ze setup from an agent harness.";
+
+            container skill {
+                config false;
+                ze:command "ze-skills:delete-agent-skill";
+                description "At a shell, removes the ze stub skill and the session-start hook
+Ze installed, for every harness found or for the one named, and leaves every file Ze did not
+write. Through the daemon, writes nothing and answers the file a remote agent removes.";
+                ze:help "Remove the ze skill from the operator's agent harnesses.";
+                uses agent-name;
+            }
+        }
+    }
+
+    grouping agent-name {
+        leaf agent {
+            type enumeration {
+                enum claude { ze:help "Claude Code."; }
+                enum codex { ze:help "Codex."; }
+                enum opencode { ze:help "OpenCode."; }
+                enum pi { ze:help "Pi."; }
+            }
+            description "The one harness to act on. Without it the command acts on every harness
+whose configuration directory exists.";
+            ze:help "Agent harness.";
         }
     }
 }
