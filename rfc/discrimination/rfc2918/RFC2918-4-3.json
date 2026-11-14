@@ -62,7 +62,7 @@
     "claim-sha": "c89ca1a7c20cd43b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::sendUpdateCounted",
-    "producer-sha": "3c2c8e988e6dfcc3",
+    "producer-sha": "b8625f56693b2b4a",
     "break": "body of sendUpdateCounted replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
