@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Priority | P3 |
-| Release reason | RFC 9234 is declared by no release profile (`rfc/profiles/` names it nowhere), so its absent requirement waits until after the first release |
+| Priority | P1 |
+| Release reason | `rfc/short/rfc9234.md` names `route-server` in its Use cases row, and `rfc/profiles/route-server.md` is a release profile (its Release row is `yes`), so this MUST NOT is owed before the first release |
 | RFC gaps | RFC9234-5-9 |
 | Depends | - |
 | Phase | - |
@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Provenance: AC-11 of `plan/release/validation/spec-rfc-verdict-test-fix-pass.md`
+Provenance: AC-11 of `spec-rfc-verdict-test-fix-pass` (closed 2026-11-14, `plan/learned/051-rfc-verdict-test-fix-pass.md`)
 needs every `weak` audit verdict named in an owning spec's acceptance criteria.
 `rfc/audit/rfc9234/RFC9234-5-9.json` is `weak` and no spec named it. The
 closest existing spec, `plan/post-release/features/spec-bgp-deferred-confederation-otc.md`,
@@ -112,7 +112,7 @@ Candidates only. The design phase confirms or rejects each one.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Row `RFC9234-5-9`, audit verdict `weak` (owned here for AC-11 of `plan/release/validation/spec-rfc-verdict-test-fix-pass.md`). A route carries an OTC set to a private ASN inside a domain numbered with private ASNs behind an Internet-facing ASN, and the route leaves through that domain's Internet-facing edge | No OTC with a value other than the Internet-facing ASN reaches the external peer. Proven when a negative unit sends a private-ASN OTC out of the Internet-facing edge and asserts that the value does not leave, a positive unit and that negative both carry the `RFC9234-5-9` tag, `./le rfc record` observes a recorded break of the producer turning the negative red, and an agent that wrote neither test re-judges the verdict `enforced` |
+| AC-1 | Row `RFC9234-5-9`, audit verdict `weak` (owned here for AC-11 of `spec-rfc-verdict-test-fix-pass` (closed 2026-11-14, `plan/learned/051-rfc-verdict-test-fix-pass.md`)). A route carries an OTC set to a private ASN inside a domain numbered with private ASNs behind an Internet-facing ASN, and the route leaves through that domain's Internet-facing edge | No OTC with a value other than the Internet-facing ASN reaches the external peer. Proven when a negative unit sends a private-ASN OTC out of the Internet-facing edge and asserts that the value does not leave, a positive unit and that negative both carry the `RFC9234-5-9` tag, `./le rfc record` observes a recorded break of the producer turning the negative red, and an agent that wrote neither test re-judges the verdict `enforced` |
 
 ## 🧪 TDD Test Plan
 
@@ -151,10 +151,9 @@ The enforcing code carries `// RFC 9234 Section 5: "..."` above the check, quote
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1 demonstrated
-- [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-
 - [ ] `./le test unit pkg path ./internal/component/bgp/plugins/role/` passes
 - [ ] `./le rfc check` clean for `rfc9234`
+- [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
 
 ### TDD
 - [ ] Tests written

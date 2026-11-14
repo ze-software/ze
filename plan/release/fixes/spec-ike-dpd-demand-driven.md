@@ -394,7 +394,7 @@ with no proof of life". That is a change in a documented config leaf's meaning
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | (fill during design, after Q-1 is answered) | (fill during design) |
-| AC-2 | RFC7296-2.4-2, `weak` in `rfc/audit/rfc7296.json` with an empty `tests` map (its note names `newDPDState`); moved here by P-3 and AC-10 of `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` | a tagged test proves the whole quoted sentence in both polarities, carries a discrimination record from `./le rfc record`, and an agent that did not write the test re-judges the verdict `enforced` through `./le rfc audit-stamp ... mode rejudge` |
+| AC-2 | RFC7296-2.4-2, `weak` in `rfc/audit/rfc7296.json` with an empty `tests` map (its note names `newDPDState`); moved here by P-3 and AC-10 of `spec-rfc-verdict-test-fix-pass` (closed 2026-11-14, `plan/learned/051-rfc-verdict-test-fix-pass.md`) | a tagged test proves the whole quoted sentence in both polarities, carries a discrimination record from `./le rfc record`, and an agent that did not write the test re-judges the verdict `enforced` through `./le rfc audit-stamp ... mode rejudge` |
 
 ## End-to-End User Stories
 
