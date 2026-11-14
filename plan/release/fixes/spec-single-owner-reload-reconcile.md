@@ -6,10 +6,10 @@
 | Scope | config |
 | Priority | P1 |
 | Release reason | A reload or rollback that leaves the dataplane, the routing table or a running plugin out of step with the committed config is a shipped-daemon defect: the operator's commit says one thing and the box does another. |
-| Depends | `plan/release/fixes/spec-single-owner-lifecycle.md` (the ownership check) |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -94,6 +94,30 @@ nothing across participants); operator config that names tables without the
 
 **Behavior to change:** every row in "Owned journal rows".
 
+## Existing Mechanisms (MANDATORY)
+
+Inventory read at the producers on 2026-11-14. It records what exists. Where
+the "This spec" column needs a choice the design pass has not made, it says
+undecided.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Config transaction coordinator | `internal/component/config/transaction/orchestrator.go` `TxCoordinator`, `Participant`; `docs/architecture/config/transaction-protocol.md`, sections 2 and 6 | Runs verify, apply and rollback over stream events for the participants of one transaction, one transaction at a time. A `Participant` carries the plugin name, its `ConfigRoots`, `WantsConfig`, `ConfigOperations` and budgets | Extends: the single apply function answers the existing apply and rollback events. The coordinator holds its participants per transaction, not in a process-wide registry, so which population the conformance test iterates (these participants, or the plugin registrations in the next row) is undecided and waits for the design pass |
+| Plugin registration as reload participant | `internal/component/plugin/registry/registry.go` `Registration` (`ConfigRoots`, `ConfigReads`); `ai/doors/config-yang.md`, "Boundaries" | A plugin declares the roots it owns and the roots it reads, and the live plugin's `WantsConfig` makes it a reload participant | Extends: it is the registered population a conformance test can derive from without a hand-kept list |
+| SDK apply journal | `docs/architecture/config/transaction-protocol.md`, section 7; `pkg/plugin/sdk/config_tx_gate.go` `configTxGate` | A plugin records each apply step with its undo, and rollback replays the undo steps in reverse. The SDK runs a rollback handler only for an apply it accepted that `config-committed` has not closed | Undecided: the Goal makes rollback the apply function run with the previous tree, which replaces the journal for a participant that moves to it. Whether the journal stays for the undo of a partial apply inside one apply waits for the design pass |
+| Rejected reload compensation | `internal/component/plugin/server/reload_compensation.go` `recordReloadCompensation`, `restoreReload` | Keeps the trees before and after a reload. On rejection it runs a restore transaction over `undo.before`, then calls `RestoreCreatedPeers`, `ApplyConfigDiff(undo.before)` and `SetConfigTree(undo.before)` on the reactor | Extends: the compensation already hands the reactor the tree to restore; the BGP row is that the reactor reads the file instead |
+| BGP full-pipeline reload parse | `internal/component/bgp/reactor/reactor_api.go` `reactorAPIAdapter.loadPeersFullOrTree`; `plan/learned/DESIGN-HISTORY.md`, "Reload re-parses peers through the FULL config pipeline, never the partial tree parser" | With a reload function and a config path, it re-reads and re-parses the file through the full pipeline and ignores its `bgpTree` argument. Without them, it parses the given tree with `GlobalsFromTree` and `PeersFromTree` alone | Extends: the fix keeps the DESIGN-HISTORY constraint (the full pipeline, never the partial parser) and runs it over the given tree |
+| iface owed-apply record | `internal/component/iface/config_apply.go` `applyIsOwed`, `applyOwedConfig` | Records an apply that a not-ready backend deferred, and performs it when vpp connects. The startup, reload and vpp-connect paths in `internal/component/iface/register.go` read it; `reconcileOnRegistryChange` does not | Extends: the registry reconcile reads the same record |
+| iface address owner registry | `internal/component/iface/address_owner.go` `RegisterOwnedAddresses`, `UnregisterOwnedAddresses` | Another owner declares the addresses it owns on an interface, and each change triggers `reconcileOnRegistryChange` | Extends: the learned-address row registers the DHCP, SLAAC and VPP-lifetime addresses here |
+| Kernel route ownership by protocol number | `ai/doors/forwarding.md`, "Who depends on it from outside" | Ze owns kernel routes by `rtm_protocol` (`FIBKernel` 250, `Static` 251) | Does not apply to the rows here, which are about nft tables, addresses and VPP objects. Whether the new markers follow the same shape is undecided |
+| nft table ownership prefix and one-time legacy sweep | `internal/plugins/firewall/nft/backend_linux.go` `backend.Apply`, `shouldDeleteTable`, `isLegacyTable`; `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`, Rules 2 and 2a | The backend deletes a `ze_` table that is desired or held in this instance's `applied` map. On the first reconcile of a process only, it deletes the tables an earlier build wrote without the prefix, judged by name, family and chains | Replaces, per "The fix": the user-data marker replaces the prefix plus the in-memory map as the reclaim test. How the one-time legacy sweep relates to the marker is undecided |
+| Firewall table registry | `internal/component/firewall/registry.go` `RegisterTables`, `ApplyAll`, `mergeSameNameTables` | `RegisterTables` refuses a table name without the `ze_` prefix. `ApplyAll` merges same-name tables of different owners and applies the merged set | Extends: every table this registry hands the backend carries the marker |
+| Firewall table name reservation | `internal/component/firewall/reservation.go` `MustReserveTableNames`, `refuseForeignReservations`, `refuseReservedTableNames`; `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`, Rule 2b | A producer reserves its table names from `init()`. A registration by another owner, and an operator table whose kernel name is reserved, are refused | Extends: it is the collision refusal the firewall merge row asks for, for reserved names |
+| Redistribute import chain and held-route reconcile | `internal/plugins/redistribute/config.go` `compileRuleChains`, `ruleState.apply`, `reconcileConsumers`; `internal/plugins/redistribute/held.go` `withdrawRejectedHeld`; `docs/guide/redistribution.md`, "Route Redistribution"; `docs/guide/route-policy.md`, "Where you attach a chain" | Each import rule's `filters` and `final` compile against the `redistribute import` attachment of the route policy library. A reload's apply installs the new evaluator and reconciles: it withdraws the held routes the new rules reject, then replays every producer. Rollback does the same with the previous evaluator | Extends: AC-9 is judged against this path. The design pass re-reads it first, because the apply already reconciles the held routes |
+| isis node-identity reconcile | `internal/plugins/isis/server.go` `engine.reconcile`, `circuitNeedsRebuild`; `internal/plugins/isis/circuits.go` `buildCircuit` | Reconcile detects a node-identity change (System ID, level or NETs) and closes and reopens every desired circuit when one occurs. `buildCircuit` reads the System ID and the areas from the active config | Extends: the design pass re-reads it first, because it bears on the isis half of AC-11 |
+| bmp receiver reload rail | `internal/component/bgp/plugins/bmp/bmp.go` `OnConfigVerify`, `OnConfigApply`, `applyReceiverConfig` | Verify parses the `environment` receiver config, and apply re-applies the listeners, with a rollback to the replaced config | Extends: the design pass re-reads it first, because it bears on the bmp half of AC-11 |
+| Compiler-enforced single writer | `plan/release/fixes/spec-single-owner-lifecycle.md`, "Owner decisions" D1; `docs/contributing/ze-go-style.md`, "One type per lifecycle state" | No annotation gate and no typed analyzer is built. A state that must have one writer lives in a type with unexported fields in a package of its own | Extends: the owner record takes that form, so the apply function is its only writer |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -119,8 +143,10 @@ nothing across participants); operator config that names tables without the
 
 ### Integration Points
 - The config transaction participant registry: the conformance test iterates it.
-- The ownership check from `spec-single-owner-lifecycle.md`: the owner record
-  fields are annotated so only the apply function writes them.
+- The single-writer rule of `spec-single-owner-lifecycle.md`, decision D1: the
+  owner record's fields live in a type with unexported fields in a package of
+  its own, so the apply function is the only writer and the compiler enforces
+  it. No annotation check is built.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -152,9 +178,10 @@ the config transaction participant registry. For every participant that
 declares a test fixture it runs: apply A, apply B, rollback to A, restart the
 process, and asserts the observed state after each step equals the state a
 fresh apply of that tree produces. A participant that declares no fixture fails
-the test by name, so a new participant cannot skip it. The owner record fields
-carry the ownership annotation, so a write outside the apply function is
-refused at commit.
+the test by name, so a new participant cannot skip it. The owner record's
+fields live in a type with unexported fields in a package of its own, so a
+write outside the apply function does not compile
+(`spec-single-owner-lifecycle.md`, decision D1).
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | -> | Feature Code | Test |
@@ -174,7 +201,7 @@ refused at commit.
 | AC-6 | ze restarts after a previous process left a ze-owned nft table the new config does not request | the table is removed at startup; an operator table without the marker is untouched |
 | AC-7 | An operator table whose name collides with a ze owner table | the commit is refused with what, why and the rename command |
 | AC-8 | A web form save where the third field is refused | the working tree is unchanged |
-| AC-9 | A reload narrows a redistribute import's route-policy chain (`redistribute { destination <d> { import <s> { filters [ ... ]; final ...; } } }`, built by `plan/post-release/features/spec-route-policy-0-umbrella.md` phase 3, which deletes the family/tag matcher and its evaluator) | routes the old chain admitted and the new chain refuses are withdrawn at the destination |
+| AC-9 | A reload narrows a redistribute import's route-policy chain (`redistribute { destination <d> { import <s> { filters [ ... ]; final ...; } } }`: a chain of the route policy library at the `redistribute import` attachment, `docs/guide/route-policy.md` "Where you attach a chain" and `docs/guide/redistribution.md` "Route Redistribution", compiled by `compileRuleChains` in `internal/plugins/redistribute/config.go`; an import rule carries no family or tag field, and family and tag are `match` conditions of the `policy` root) | routes the old chain admitted and the new chain refuses are withdrawn at the destination |
 | AC-10 | A reload adds an `external` plugin program | the program starts and completes its stages |
 | AC-11 | A commit changes isis `net` or `system-id`, or bmp `environment` listeners | the running circuits or listeners reflect the change without a restart |
 | AC-12 | iface carrier or address flap between two reads | the reconcile acts on event-ordered state; the counter its functional test reads counts each repair once |
@@ -199,8 +226,8 @@ refused at commit.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `reload-reject-restores-peers` | `test/reload/` | a rejected reload leaves the previous peers running (AC-3) | |
-| `redistribute-rule-narrowed` | `test/reload/` | narrowing a redistribute import's route-policy chain (a `filters` entry added, or `final accept` turned to `final reject`) withdraws what it no longer admits (AC-9) | |
+| `reload-reject-restores-peers` | `test/reload/reload-reject-restores-peers.ci` | a rejected reload leaves the previous peers running (AC-3) | |
+| `redistribute-rule-narrowed` | `test/reload/redistribute-rule-narrowed.ci` | narrowing a redistribute import's route-policy chain (a `filters` entry added, or `final accept` turned to `final reject`) withdraws what it no longer admits (AC-9) | |
 | `TestIntegrationReconcileKeepsLearnedAddresses` extended | `internal/component/iface/` QEMU integration | AC-5 with VPP lifetimes | |
 | `TestRestartReclaimsMarkedTable` | `internal/plugins/firewall/nft/` Linux integration | AC-6 | |
 
@@ -230,7 +257,7 @@ refused at commit.
 - `internal/plugins/firewall/nft/backend_linux.go`, `internal/component/firewall/registry.go`
 - `internal/plugins/flowspec-firewall/state.go`
 - `internal/component/web/editor.go`
-- `internal/plugins/redistribute/config.go`, `held.go` (AC-9: the apply re-judges held routes against the route-policy chain that `spec-route-policy-0-umbrella` phase 3 compiles; the family/tag evaluator is deleted there), and their page `docs/guide/redistribution.md` (what a reload withdraws)
+- `internal/plugins/redistribute/config.go`, `held.go` (AC-9: the apply re-judges held routes against the route-policy chain that `compileRuleChains` compiles from the rule's `filters` and `final`, `docs/guide/route-policy.md`), and their page `docs/guide/redistribution.md` (what a reload withdraws)
 - `internal/plugins/isis/circuits.go`, `server.go`
 - `internal/component/bgp/plugins/bmp/bmp.go`
 

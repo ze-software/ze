@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -26,7 +26,8 @@ children and three other specs already cite, so it does not carry the
 Status: that page prescribes no status of its own for an umbrella. `ready`
 is the vocabulary's value for a complete design, which is true of the set:
 the owner's decisions are made and he approved the five children at their
-final gate on 2026-11-11, so each reads `ready`. The umbrella holds no
+final gate on 2026-11-11, so each read `ready`. Children 2, 4 and 5 have
+since closed (Children table). The umbrella holds no
 implementation work of its own, so it stays `ready` while the children are
 implemented and is never claimed to start work.
 
@@ -110,10 +111,10 @@ why the choice went to the owner.
 | # | Spec | What it fixes | Doors it names | Status |
 |---|------|---------------|----------------|--------|
 | 1 | `plan/release/fixes/spec-single-owner-lifecycle-1-plugin-process.md` | A plugin that exits with no successor can be started again by a reload; runtime senders reach only running processes; a retired engine-event handler is skipped; no restart between the stop signal and the drain | plugin-infra first; also bgp-engine, hub-engine, forwarding, system-plugins, core | ready |
-| 2 | `spec-single-owner-lifecycle-2-bgp-session` (closed, `plan/learned/048-session-owns-its-sync.md`) | The initial sync ends with its session and is joined; the backoff restarts after a stable session (D2); a passive peer added once the listeners started has a listener | bgp-engine | ready |
+| 2 | `spec-single-owner-lifecycle-2-bgp-session` (closed, `plan/learned/048-session-owns-its-sync.md`) | The initial sync ends with its session and is joined; the backoff restarts after a stable session (D2); a passive peer added once the listeners started has a listener | bgp-engine | closed |
 | 3 | `plan/release/fixes/spec-single-owner-lifecycle-3-bgp-plugins.md` | A validation decision without a message id applies only to a route present now; every forked route-install sink stops with its plugin run; Graceful Restart retention is proven and a failed peer-state delivery ends its recipient | bgp-plugins first; also bgp-engine, plugin-infra, routing-protocols, system-plugins, core | ready |
-| 4 | `plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md` | Every SK-protected inbound IKE message is opened by one function that drops and counts an unauthenticated failure itself, the initiator included; `ze doctor` names it | access-security, core | ready |
-| 5 | `spec-single-owner-lifecycle-5-session-end-locals` (closed) | LDP records a setup failure only for a session that never became operational; L2TP session events reach readers in the order the state changed; the DDoS FlowSpec plugin withdraws on every end it can and records what it could not | routing-protocols, access-security, system-plugins, plugin-infra, core | ready |
+| 4 | `spec-single-owner-lifecycle-4-ike-unauthenticated-input` (closed, commit 1d22056eb4) | Every SK-protected inbound IKE message is opened by one function that drops and counts an unauthenticated failure itself, the initiator included; `ze doctor` names it | access-security, core | closed |
+| 5 | `spec-single-owner-lifecycle-5-session-end-locals` (closed, `plan/learned/046-session-end-locals.md`) | LDP records a setup failure only for a session that never became operational; L2TP session events reach readers in the order the state changed; the DDoS FlowSpec plugin withdraws on every end it can and records what it could not | routing-protocols, access-security, system-plugins, plugin-infra, core | closed |
 
 Every child also names the system door and the le-tooling door (its tests).
 No child depends on another for code. Children 1 and 3 and
@@ -129,22 +130,22 @@ owning spec's own table.
 | # | Class file | Date | Surface (short) | Outcome | Journal row today |
 |---|------------|------|-----------------|---------|-------------------|
 | 1 | rollback-forgets-partial-apply | 2026-08-21 | an unrestarted exit keeps its by-name registrations, loaded mark and slot | child 1 | open |
-| 2 | component-rebuilt-during-reload | 2026-09-20 | ddos flowspec engine exit withdraws nothing | child 5 | open |
+| 2 | component-rebuilt-during-reload | 2026-09-20 | ddos flowspec engine exit withdraws nothing | child 5 | fixed |
 | 3 | stop-leaves-the-work-running | 2026-10-12 | rib remote sink on a context nothing cancels | child 3 | open |
 | 4 | stop-leaves-the-work-running | 2026-09-17 | plugins restarted between the stop signal and the drain | child 1 | open |
 | 5 | plugin-startup-barrier-deadlock | 2026-08-10 | firewall vpp backend waits for VPP in the config stage | `plan/release/fixes/spec-firewall-vpp-apply-before-connect.md` | open |
 | 6 | plugin-startup-barrier-deadlock | 2026-08-19 | daemon stop waited out a cycle between the process manager and the reactor | already fixed, bde0241cf4 | fixed |
 | 7 | plugin-startup-barrier-deadlock | 2026-09-08 | a replacement process published before its handshake | child 1 | open |
-| 8 | late-write-lands-on-the-successor | 2026-08-31 | the initial sync outlives its session | child 2 | open |
+| 8 | late-write-lands-on-the-successor | 2026-08-31 | the initial sync outlives its session | child 2 | fixed |
 | 9 | late-write-lands-on-the-successor | 2026-09-09 | engine event dispatch calls a retired handler | child 1 | open |
-| 10 | late-write-lands-on-the-successor | 2026-10-14 | L2TP SessionDown can reach readers before SessionIPAssigned | child 5 | open |
+| 10 | late-write-lands-on-the-successor | 2026-10-14 | L2TP SessionDown can reach readers before SessionIPAssigned | child 5 | fixed |
 | 11 | late-write-lands-on-the-successor | 2026-10-23 | an early validation decision with message id 0 matches any generation | child 3 | open |
 | 12 | announced-state-never-replayed | 2026-08-31 | BMP collector told a peer is up and never given its routes | already fixed, ee78b53a3d | fixed |
 | 13 | unprotected-message-changes-sa-state | 2026-08-14 | IKE responder: a decrypt failure ended the handshake | already fixed, 31f16fc038 and 7f6d281b6d | fixed |
-| 14 | unprotected-message-changes-sa-state | 2026-09-29 | IKE initiator: a decrypt failure ends the handshake | child 4 | open |
-| 15 | state-read-after-teardown-reset-it | 2026-10-02 | LDP session end reads the state its stop reset | child 5 | open |
-| 16 | state-read-after-teardown-reset-it | 2026-10-11 | BGP backoff restarts only on stop | child 2 | open |
-| 17 | unwired-feature | 2026-10-13 | a passive peer added during the standalone start gets no listener | child 2 | open |
+| 14 | unprotected-message-changes-sa-state | 2026-09-29 | IKE initiator: a decrypt failure ends the handshake | child 4 | fixed |
+| 15 | state-read-after-teardown-reset-it | 2026-10-02 | LDP session end reads the state its stop reset | child 5 | fixed |
+| 16 | state-read-after-teardown-reset-it | 2026-10-11 | BGP backoff restarts only on stop | child 2 | fixed |
+| 17 | unwired-feature | 2026-10-13 | a passive peer added during the standalone start gets no listener | child 2 | fixed |
 | 18 | unwired-feature | 2026-09-08 | rib releases on peer-down against the Graceful Restart verdict | child 3 | open |
 | 19 | false-synchronization-claim | 2026-10-03 | the process registration is read and written with no synchronization | child 1 | open |
 | 20 | late-write-lands-on-the-successor | 2026-10-10 | web leaf field: a value typed during the field's own save | `plan/release/fixes/spec-web-field-save-loses-typed-value.md`; not this root cause | open |
@@ -152,6 +153,10 @@ owning spec's own table.
 Totals: child 1 owns five rows, child 2 three, child 3 three, child 4 one,
 child 5 three; two rows went to specs outside the set; three were found
 already fixed and their journal rows read `fixed:`.
+
+The last column was re-read against the journal on 2026-11-14. Rows 2, 6,
+8, 10, 12 to 17 read `fixed:`; rows 1, 3, 4, 5, 7, 9, 11, 18, 19 and 20
+still read `open:`.
 
 Rows 12 and 18 changed shape under re-verification. Row 12's replay exists
 since ee78b53a3d; what it leaves out became two new rows (next table). Row
@@ -162,28 +167,24 @@ out.
 ## Defects found during this work
 
 Found on 2026-11-11 while the rows were re-read. Each has a journal row and an
-owning spec that lists it, checked on disk the same day, except where the
-last column says otherwise.
+owning spec that lists it, or a journal row that now reads `fixed:`, checked
+on disk on 2026-11-14.
 
 | Defect | Journal row | Owner | Listed by the owner |
 |--------|-------------|-------|---------------------|
 | The forked route-install sinks of OSPF, IS-IS, static and connected run on a context nothing cancels | stop-leaves-the-work-running, 2026-11-11 | child 3 | Yes |
-| A DDoS FlowSpec rule left at the peers by a generation that ended without withdrawing, which nothing remembers | component-rebuilt-during-reload, 2026-11-11 | child 5 | Yes |
+| A DDoS FlowSpec rule left at the peers by a generation that ended without withdrawing, which nothing remembers | component-rebuilt-during-reload, 2026-11-11 | child 5 (closed) | Not needed: the journal row reads `fixed:` (the live rule is recorded in plugin state and withdrawn at the next start) |
 | A BGP peer established before `bgp-bmp` observed it is never announced to a collector | announced-state-never-replayed, 2026-11-11 | `plan/release/fixes/spec-bmp-late-attach-and-forked.md` | Yes |
 | `bgp-bmp` run forked receives no event and sends nothing | silent-fall-through, 2026-11-11 | the same spec | Yes |
 | The traffic vpp backend waits for VPP in the config stage, as the firewall does | plugin-startup-barrier-deadlock, 2026-11-11 | `plan/release/fixes/spec-firewall-vpp-apply-before-connect.md` | Yes |
 | The static plugin picks its backend once, before the handshake, and keeps the kernel backend while VPP is still starting | probe-inability-read-as-absence, 2026-11-11 | the same spec | Yes |
-| An L2TP PPP event queued for an ended session lands on a successor that drew the same session id | identifier-reused-after-its-owner-is-gone, 2026-11-11 | `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` | No: see below |
-| The L2TP route observer and CQM observer are keyed by session id alone | key-omits-a-fact-the-builder-uses, 2026-11-11 | the same spec | No: see below |
-| An L2TP clear, Disconnect or timeout by session id ends the first session with that id on any tunnel | key-omits-a-fact-the-builder-uses, 2026-11-11 (second row of that date) | the same spec | No: see below |
-| The L2TP reactor goroutine publishes synchronously, so one slow RADIUS Accounting-Stop stalls every tunnel | slow-reader-stalls-a-shared-goroutine, 2026-11-11 | the same spec | No: see below |
+| An L2TP PPP event queued for an ended session lands on a successor that drew the same session id | identifier-reused-after-its-owner-is-gone, 2026-11-11 | `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` | Yes |
+| The L2TP route observer and CQM observer are keyed by session id alone | key-omits-a-fact-the-builder-uses, 2026-11-11 | the same spec | Yes |
+| An L2TP clear, Disconnect or timeout by session id ends the first session with that id on any tunnel | key-omits-a-fact-the-builder-uses, 2026-11-11 (second row of that date) | the same spec | Yes |
+| The L2TP reactor goroutine publishes synchronously, so one slow RADIUS Accounting-Stop stalls every tunnel | slow-reader-stalls-a-shared-goroutine, 2026-11-11 | the same spec | Yes |
 
-The L2TP spec was being written when this umbrella was rewritten and was not
-on disk at that moment. The four journal rows exist, and child 5 already
-names that spec as their owner under its "Rows considered and not owned" and
-moved its AC-19 and AC-20 there. Until the spec is on disk and lists the four
-rows once each, no spec's table lists them. The agent writing that spec owns
-making this true.
+The L2TP spec is on disk, and its "Owned journal rows" table lists the four
+L2TP rows once each (read 2026-11-14).
 
 RFC 7854 Section 3.1, behind the first BMP row: "In addition to being sent
 whenever a peer transitions to the Established state, a Peer Up Notification
@@ -197,18 +198,19 @@ what is true now, and the IKE transition item moved under D3.
 ## Sibling specs
 
 Three specs were written against the ownership check this spec no longer
-builds. None is edited here: each needs its own design pass, and the spec edit
-gate asks for that pass in full.
+builds. None is edited by this umbrella: each needs its own design pass, and
+the spec edit gate asks for that pass in full. The stale references of the
+first two were corrected in those specs on 2026-11-14.
 
 | Spec | What is stale in it | What replaces the check |
 |------|---------------------|-------------------------|
-| `plan/release/fixes/spec-single-owner-reload-reconcile.md` | Its Depends row names this spec for "the ownership check", and its design annotates the owner record | The owner record's fields live in a type with unexported fields in a package of its own, so the apply function is the only writer and the compiler enforces it |
+| `plan/release/fixes/spec-single-owner-reload-reconcile.md` | Its Depends row named this spec for "the ownership check", and its design annotated the owner record. Corrected on 2026-11-14: the Depends row is `-`, and its Integration Points and the check that stops the defect coming back state D1; the rest of its design still waits for its design pass. A finding for that pass, not a verdict: the correcting agent read code suggesting several of its owned rows may already be fixed (redistribute re-judging held routes, the bmp receiver reload, the isis identity reconcile, the firewall reserved table names, the flowspec table name), so the pass starts by re-reading its owned rows against the code | The owner record's fields live in a type with unexported fields in a package of its own, so the apply function is the only writer and the compiler enforces it |
 | `plan/release/fixes/spec-typed-identity-keys.md` | Its Depends row named this spec for the same check, and its wiring test expected the check to refuse a composite literal of an identity type. Corrected by its design pass of 2026-11-14 | Each identity type has unexported fields in a package of its own, so its constructor is the only way to build one |
 | `plan/release/fixes/spec-one-owner-per-domain-fact.md` | It plans an analyzer under `internal/le/lint/factowner/`, a directory that does not exist; the Go-source gates live under `internal/le/arch` | Its design pass reads D1 first: a property a type can give is given by a type, and a source gate is the second choice |
 
-Until its design pass runs, the Depends row of the first two is stale: it
-names a prerequisite that will never exist, and neither spec is blocked by
-this one.
+Since 2026-11-14 neither of the first two specs' Depends rows names this
+umbrella, so neither is blocked by it. The third still waits for its design
+pass.
 
 ## Required Reading
 
@@ -324,7 +326,7 @@ wire.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Each of the 17 open routed rows is listed by exactly one spec's table | The seven tables and the journal rows, read 2026-11-11 | A commit that touches the row is refused, or two specs claim one fix | Reading each table on that date; `./le commit create` re-judges it at every commit | validated for rows 1 to 20; not for the L2TP findings (see "Defects found during this work") |
+| A-1 | Each of the 17 open routed rows is listed by exactly one spec's table | The seven tables and the journal rows, read 2026-11-11 | A commit that touches the row is refused, or two specs claim one fix | Reading each table on that date; `./le commit create` re-judges it at every commit | validated for rows 1 to 20; for the L2TP findings on 2026-11-14 (see "Defects found during this work"). Note 2026-11-14: 10 routed rows are still open, the other seven of the 17 now read `fixed:` ("Row routing") |
 | A-2 | No child needs a mechanism only the removed owner object would have given | Each child's Existing Mechanisms and Key Design Decisions | A child reopens the design | Each child's final gate before `ready` | validated 2026-11-11: five children ready, none uses an owner object |
 
 ### Risks
@@ -332,7 +334,7 @@ wire.
 |----|------|--------------|----------------------|
 | R-1 | A sibling spec is implemented from its stale text and builds the annotation check | A file appears under the check's old planned home, or a test named for the ownership check | "Sibling specs" above; each sibling's design pass reads D1 before anything is written |
 | R-2 | Child 3's "Rows considered and not owned" still names `spec-bmp-sflow-export-rfc-defects.md` as the owner of the two BMP findings; on disk `spec-bmp-late-attach-and-forked.md` lists both rows | A reader follows child 3 to the wrong spec | Corrected in child 3 at its final review; the journal and the owning spec's table are already right |
-| R-3 | The L2TP spec is not written, and the four L2TP rows stay listed by nobody | The spec's path is absent, or a commit that carries those rows is refused | The agent writing it; otherwise the main session writes the skeleton from child 5's findings |
+| R-3 | The L2TP spec is not written, and the four L2TP rows stay listed by nobody | The spec's path is absent, or a commit that carries those rows is refused | The agent writing it; otherwise the main session writes the skeleton from child 5's findings. Closed 2026-11-14: the spec is on disk and lists the four rows |
 
 ## Blast Radius
 
