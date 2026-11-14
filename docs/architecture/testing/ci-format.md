@@ -599,7 +599,20 @@ When a raw injection races the independent initial-sync marker, put their
 exact wire expectations in the same `seq` group: both are required, but neither
 is required to arrive first. The observer MUST retain its EOR counter barrier
 before requesting shutdown.
+
+Who stops the daemon decides which side may still be talking to it. For a
+compiled fixture that does not declare `StopsDaemon`, the runner waits for its
+check peers to exit and then signals the daemon, so a non-lingering peer's
+completion ends ze at once: an engine call the fixture still has in flight,
+even a `request quiesce`, then fails on the closed connection. Such a fixture
+MUST make no engine call after the point at which its peer can complete. When
+the fixture has work after that point, the peer lingers and the fixture ends
+the test itself through `fixture.Observe`, declaring `StopsDaemon`
+(`initial-sync-marker-beside-process-route.ci`, `api-eor-during-initial-sync.ci`,
+`ipv4-announce-withdraw.ci`).
 <!-- source: internal/test/peer/reject.go -- Peer.completed -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the default arm waits peers, then selfStop or terminateGracefully -->
+<!-- source: internal/test/fixture/register_initial_sync_marker_beside_process_route.go -- markerBesideProcessRoute -->
 <!-- source: internal/test/peer/checker.go -- Checker.consumeMatches -->
 <!-- source: internal/test/fixture/register_initial_sync_barrier.go -- initialSyncBarrierRaw -->
 

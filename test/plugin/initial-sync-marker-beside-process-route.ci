@@ -31,11 +31,19 @@
 # the route fails the UPDATE expectation; a marker that waited for the process
 # would still pass this file, which asserts no order, so the no-wait property
 # itself is the unit test's to prove.
+#
+# WHO ENDS THE TEST: the process does. The peer lingers once both frames have
+# arrived, and the process, after ze's eor-sent counter rises, quiesces and
+# requests the shutdown that closes the session (it declares StopsDaemon). A
+# peer that closed on completion made the runner stop ze while the process was
+# still inside its quiesce call, which then failed on the closed connection
+# (docs/architecture/testing/ci-format.md, "Observer completion barriers").
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=linger:value=true
 # seq=1 is an unordered pair: ze's End-of-RIB for ipv4/unicast and the route.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # UPDATE: ORIGIN IGP, AS_PATH empty, NEXT_HOP 10.0.1.254, LOCAL_PREF 200,

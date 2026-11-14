@@ -201,8 +201,8 @@ func plugin15RPKIRevalidateRelay(ctx context.Context, p *sdk.Plugin) error {
 	if err := os.WriteFile("source.go", nil, 0o600); err != nil {
 		return fmt.Errorf("release the source UPDATE: %w", err)
 	}
-	if !Poll(ctx, 30, 200*time.Millisecond, func() bool { return plugin15PeerCount(ctx, p, "source", "127.0.0.1", "updates-received") >= 1 }) {
-		return fmt.Errorf("ze never received the source UPDATE")
+	if !Poll(ctx, 60, 500*time.Millisecond, func() bool { return plugin15PeerCount(ctx, p, "source", "127.0.0.1", "updates-received") >= 1 }) {
+		return plugin15SourceMissing(ctx, p, "ze never received the source UPDATE")
 	}
 	if err := plugin14AssertRouteValidation(ctx, p, prefix, 2, true, "before cache synchronization"); err != nil {
 		return err
@@ -274,10 +274,10 @@ func plugin15RPKIPendingWithdrawRelay(ctx context.Context, p *sdk.Plugin) error 
 	if err := os.WriteFile("source.go", nil, 0o600); err != nil {
 		return fmt.Errorf("release the source UPDATEs: %w", err)
 	}
-	if !Poll(ctx, 30, 200*time.Millisecond, func() bool {
+	if !Poll(ctx, 60, 500*time.Millisecond, func() bool {
 		return plugin15PeerCount(ctx, p, "source", "127.0.0.1", "updates-received") >= 2
 	}) {
-		return fmt.Errorf("ze never received both source UPDATEs, the announcement and the withdrawal")
+		return plugin15SourceMissing(ctx, p, "ze never received both source UPDATEs, the announcement and the withdrawal")
 	}
 	if err := plugin14AssertRouteValidation(ctx, p, fence, 2, true, "before cache synchronization"); err != nil {
 		return err
@@ -317,6 +317,30 @@ func plugin15RPKIPendingWithdrawRelay(ctx context.Context, p *sdk.Plugin) error 
 	}
 	fmt.Fprintln(os.Stderr, "OK the destination was sent only the fence path; the withdrawn path reached it as nothing")
 	return nil
+}
+
+// plugin15SourceMissing builds the error for a source UPDATE ze did not count
+// within its wait, carrying the source session as `show bgp peer source
+// detail` shows it at that moment. A stalled read and a budget too tight
+// under load then read apart: a stalled read shows an established session
+// with no last-read, or one older than the release, while a slow run shows
+// the counters still moving. A missing last-read is printed as never, the
+// producer's omission of a zero read time.
+func plugin15SourceMissing(ctx context.Context, p *sdk.Plugin, message string) error {
+	m, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp peer source detail"))
+	if err != nil {
+		return fmt.Errorf("%s; the source session detail could not be read: %w", message, err)
+	}
+	row := plugin15NestedMap(m, "peers", "127.0.0.1")
+	if row == nil {
+		return fmt.Errorf("%s; the source session detail named no peer 127.0.0.1: %v", message, m)
+	}
+	lastRead, ok := row["last-read"]
+	if !ok {
+		lastRead = "never"
+	}
+	return fmt.Errorf("%s; source session state=%v fsm-state=%v updates-received=%v keepalives-received=%v last-read=%v",
+		message, row["state"], row["fsm-state"], row["updates-received"], row["keepalives-received"], lastRead)
 }
 
 // plugin15AssertRouteAbsent waits for Adj-RIB-In to hold no path for prefix.

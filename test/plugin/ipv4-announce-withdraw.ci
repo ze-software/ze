@@ -2,6 +2,10 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
+# The process ends the test (announceWithdraw09 declares StopsDaemon): a peer
+# that closed on the withdraw made the runner stop ze while the process was
+# still inside its last quiesce call.
+option=linger:value=true
 # Test: IPv4 unicast announce/withdraw with JSON format documentation
 # JSON format: {"ipv4/unicast":[{"next-hop":"...","action":"add|del","nlri":["..."]}]}
 # ZE's own initial-sync End-of-RIB is NOT asserted here, and that is the

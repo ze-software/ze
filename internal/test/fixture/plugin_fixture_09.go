@@ -20,8 +20,8 @@ import (
 
 func init() {
 	Register("plugin/interface-type-show", interfaceTypeShow09, StopsDaemon)
-	Register("plugin/ipv4-announce-withdraw", announceWithdraw09("ipv4/unicast", "origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24", "nlri del 10.0.1.0/24"))
-	Register("plugin/ipv6-announce-withdraw", announceWithdraw09("ipv6/unicast", "origin igp local-preference 200 nhop 2001::11 mp ipv6/unicast add fc00:1::/64", "mp ipv6/unicast del fc00:1::/64"))
+	Register("plugin/ipv4-announce-withdraw", announceWithdraw09("ipv4/unicast", "origin igp local-preference 200 nhop 10.0.1.254 nlri add 10.0.1.0/24", "nlri del 10.0.1.0/24"), StopsDaemon)
+	Register("plugin/ipv6-announce-withdraw", announceWithdraw09("ipv6/unicast", "origin igp local-preference 200 nhop 2001::11 mp ipv6/unicast add fc00:1::/64", "mp ipv6/unicast del fc00:1::/64"), StopsDaemon)
 	Register("plugin/l2tp-config-show", l2tpConfigShow09, StopsDaemon)
 	Register("plugin/l2tp-empty-show", l2tpEmptyShow09, StopsDaemon)
 	Register("plugin/l2tp-health-show", l2tpHealthShow09, StopsDaemon)
@@ -154,9 +154,15 @@ func passiveObserve09(ctx context.Context, name string, registration *sdk.Regist
 	}
 }
 
+// announceWithdraw09 announces one route, then withdraws it, quiescing after
+// each so the withdraw cannot overtake the announce on the wire. It ends the
+// test itself: its peer lingers, so the peer's completion on the withdraw can
+// no longer stop the daemon while a quiesce is still in flight. After both
+// commands it waits for the peer's eor-sent counter, a session that is synced,
+// then returns, and Observe quiesces and requests the shutdown.
 func announceWithdraw09(family, add, del string) Driver {
 	return func(ctx context.Context, _ []string) error {
-		return passiveObserve09(ctx, "announce-routes", &sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
+		return observe09(ctx, "announce-routes", func(ctx context.Context, p *sdk.Plugin) error {
 			for _, command := range []string{add, del} {
 				announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text "+command)
 				if err != nil {
@@ -169,7 +175,7 @@ func announceWithdraw09(family, add, del string) Driver {
 					return fmt.Errorf("%s update %q quiesce: status=%s data=%s", family, command, quiesced.status, quiesced.text)
 				}
 			}
-			return nil
+			return fixture10WaitEOR(ctx, p, "peer1", 60)
 		})
 	}
 }
