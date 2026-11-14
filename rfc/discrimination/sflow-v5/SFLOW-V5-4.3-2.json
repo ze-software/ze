@@ -31,5 +31,27 @@
     "producer": "internal/plugins/flowexport/sflow/agent_address.go::classifyAgentAddress",
     "producer-sha": "a648520ef84557a9",
     "break": "body of classifyAgentAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_agent_advice_test.go::TestSFlowV5AgentAddressMultiHomedEngineWarns",
+    "unit-sha": "c26b47b2f0736502",
+    "claim-sha": "094ddb308f36d1e8",
+    "route": "mutant",
+    "producer": "internal/plugins/flowexport/register.go::runEngine",
+    "producer-sha": "49b9781d66816f21",
+    "break": "line 171: \"log.Warn(\\\"flow-export: \\\" + warning)\" -\u003e \"_ = warning\""
+  },
+  {
+    "rid": "SFLOW-V5-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow_v5_agent_advice_test.go::TestSFlowV5AgentAddressOnLoopbackEngineSilent",
+    "unit-sha": "a3112cec39548a58",
+    "claim-sha": "400b6ab0acce0adc",
+    "route": "mutant",
+    "producer": "internal/plugins/flowexport/sflow/agent_address.go::adviseSFlowCollectors",
+    "producer-sha": "4092fcf7ea5d5186",
+    "break": "line 67: \"classifyAgentAddress(agent, ifs)\" -\u003e \"classifyAgentAddress(agent, ifs[:0])\""
   }
 ]

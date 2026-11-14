@@ -1,12 +1,26 @@
 // Design: docs/architecture/flowexport/flow-export-0-umbrella.md -- exporter lifecycle
 // Related: rfc7011_withdrawal_test.go -- the external test that drives these
+// Related: sflow_v5_agent_advice_test.go -- the external test that runs the engine
 //
 // The external test package links the encoder subpackages, which an internal
 // test cannot import because each one imports flowexport to register itself.
-// These wrappers hand that package the unexported exporter, compiled into the
-// test binary only.
+// These wrappers hand that package the unexported exporter and the engine
+// entry, compiled into the test binary only.
 
 package flowexport
+
+import (
+	"log/slog"
+	"net"
+)
+
+// RunEngine runs the plugin's engine over conn, the entry the registry
+// starts the internal plugin through.
+func RunEngine(conn net.Conn) int { return runEngine(conn) }
+
+// SwapLogger installs the plugin logger and answers the one it replaced, so
+// a test reads what runEngine logs and restores the logger after it.
+func SwapLogger(l *slog.Logger) *slog.Logger { return loggerPtr.Swap(l) }
 
 // Exporter is the unexported exporter, named for the external test package.
 type Exporter = exporter
