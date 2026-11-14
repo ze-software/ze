@@ -611,6 +611,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   an agent edits a file, or writes a spec that touches it, it reads the design
   page the file's `// Design:` header links.
 - A hook checks what a command, path or file is, never how a message is worded.
+- Shell tools (`sed`, a codemod, a script) may write tracked files outside
+  `plan/` and `ai/rules/`: using tools on the codebase matters. The hook that
+  refuses a shell write covers those two trees and is not widened to the rest
+  of the repository.
 - An agent never gets past a hook refusal by running the refused command from
   a script file or any other wrapper, even when the refusal is false. It
   reports the refusal, with the command and the hook's message, and a false
