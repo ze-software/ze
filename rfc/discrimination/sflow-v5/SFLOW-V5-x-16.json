@@ -31,5 +31,27 @@
     "producer": "internal/plugins/flowexport/register.go::interfaceCountersFrom",
     "producer-sha": "df72571071f6ef43",
     "break": "body of interfaceCountersFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-16",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromExtended",
+    "unit-sha": "52ebe3d5e97edda5",
+    "claim-sha": "989c7d86e4ea8fb0",
+    "route": "mutant",
+    "producer": "internal/plugins/flowexport/register.go::interfaceCountersFrom",
+    "producer-sha": "df72571071f6ef43",
+    "break": "line 371: \"uint64(speedMbps) * 1_000_000\" -\u003e \"uint64(speedMbps) * 0\""
+  },
+  {
+    "rid": "SFLOW-V5-x-16",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromUnknownSpeed",
+    "unit-sha": "b73eae2e901e22ee",
+    "claim-sha": "c6c1e70a10ec0654",
+    "route": "mutant",
+    "producer": "internal/plugins/flowexport/register.go::ifDirectionFor",
+    "producer-sha": "04edca6cb5ab9916",
+    "break": "line 416: \"return IfDirectionUnknown\" -\u003e \"return IfDirectionOut\""
   }
 ]

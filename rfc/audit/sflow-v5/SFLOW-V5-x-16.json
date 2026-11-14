@@ -1,16 +1,19 @@
 {
-  "note": "Integer clause: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires real values (including zero) for the rest. All three units now carry observed-red records.",
+  "note": "Integer clause, both polarities: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress, and TestInterfaceCountersFromUnknownSpeed requires ifSpeed 0 and ifDirection 0 for unknown speed 0 and empty duplex (ifSpeed is a gauge, not a counter, so the integer clause governs it; ifDirection 0 also matches the if_counters 0 = unkown comment); TestInterfaceCountersFromExtended requires the exact 10 Gbit/s ifSpeed and the full-duplex code for a known link, so a known integer is never sent as the unknown 0. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires the real values, zero included, for the rest. All five units carry observed-red records; the ifSpeed half of the unknown-speed unit is proven by its exact assertion, not by its recorded break, and the unknown-to-0 mapping of a sysfs speed lives upstream in parseLinkSpeedDuplex, which no x-16 unit reaches.",
   "requirement_sha": "578792369cb72d8c",
   "tests": {
     "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "c09c030ae4130286",
     "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
-    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274"
+    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274",
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromExtended": "253a6c8085aa9fb2",
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromUnknownSpeed": "253a6c8085aa9fb2"
   },
   "units": {
     "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero": "5b78f29b2dc2278f",
     "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "b04a9e934cca7756",
-    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034"
+    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034",
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromExtended": "ac929cfbadfa24f2",
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromUnknownSpeed": "72873cd80478bec1"
   },
-  "upgrade_reason": "The earlier weak verdict rested only on the counter-clause units lacking a discrimination record; both now carry observed-red records against interfaceCountersFrom. Re-read both units: they assert the exact sentinel and the exact available values, so a 0-for-unknown or sentinel-everywhere producer fails.",
   "verdict": "enforced"
 }

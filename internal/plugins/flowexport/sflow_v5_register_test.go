@@ -26,6 +26,13 @@ func TestIfDirectionFor(t *testing.T) {
 // fields: rx-multicast maps to IfInMulticastPkts, the sysfs Mbit/s speed scales
 // to bit/s, and the duplex string maps to ifDirection. Guards the regression
 // where these fields were left zero.
+//
+// MUTATION: replacing `uint64(speedMbps) * 1_000_000` in interfaceCountersFrom
+// (register.go) with `uint64(speedMbps) * 0`, so a known speed is written as
+// the unknown value 0, turns this test red and leaves
+// TestInterfaceCountersFromUnknownSpeed green.
+//
+// RFC requirement: SFLOW-V5-x-16 negative -- for a link with a known speed and duplex, interfaceCountersFrom writes the speed scaled to bit/s into ifSpeed and the full-duplex code into ifDirection, not the unknown value 0.
 func TestInterfaceCountersFromExtended(t *testing.T) {
 	info := &iface.InterfaceInfo{
 		Name:    "eth0",
@@ -67,6 +74,13 @@ func TestInterfaceCountersFromExtended(t *testing.T) {
 // TestInterfaceCountersFromUnknownSpeed verifies a virtual / down link whose
 // sysfs speed and duplex are unknown leaves ifSpeed and ifDirection zero rather
 // than reporting a bogus rate.
+//
+// MUTATION: replacing `return IfDirectionUnknown` in ifDirectionFor
+// (register.go), the unknown-duplex arm interfaceCountersFrom reaches, with
+// `return IfDirectionOut`, turns this test red and leaves
+// TestInterfaceCountersFromExtended green.
+//
+// RFC requirement: SFLOW-V5-x-16 positive -- for a link whose speed and duplex are unknown, interfaceCountersFrom writes 0 into the integer fields ifSpeed and ifDirection.
 func TestInterfaceCountersFromUnknownSpeed(t *testing.T) {
 	info := &iface.InterfaceInfo{
 		Name:  "veth0",
