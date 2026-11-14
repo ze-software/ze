@@ -185,8 +185,16 @@ the loopback address of the agent."
 Only the fixture for the multi-homed cases exists. The two `.ci` cases meant to
 call it, a routed one and a loopback one, were never committed, so no test
 exercises the routed multi-homed classification through the daemon today. The
-existing absent-address case and the classifier unit tests are the only
-coverage of this warning.
+existing absent-address case is the only daemon coverage of this warning.
+
+Below the daemon, the classifier unit tests judge the classification and the
+advice text, and two engine tests judge what the operator sees. They start
+`runEngine` as an internal plugin over the real SDK startup, with an iface
+backend answering a fixed multi-homed router, and deliver one sflow collector
+through the configure callback. An agent address on a routed interface draws
+exactly one WARN, and one on `lo` or a dummy interface draws none; the config
+is applied in both cases.
+<!-- source: internal/plugins/flowexport/sflow_v5_agent_advice_test.go -- TestSFlowV5AgentAddressMultiHomedEngineWarns, TestSFlowV5AgentAddressOnLoopbackEngineSilent -->
 
 The fixture creates two real, addressed veth interfaces before starting Ze, and
 its collector reads back their kernel type, addresses and up state. Unlike dummy
