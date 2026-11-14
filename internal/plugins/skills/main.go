@@ -231,12 +231,23 @@ func skillNames() string {
 func usage() string {
 	p := helpfmt.Page{
 		Command:   "ze show skills",
-		ShortHelp: "List and retrieve version-matched Ze skills for agents",
-		Usage:     []string{"ze show skills [--json]", "ze show skill <name> [--full] [--json]"},
+		ShortHelp: "List and retrieve version-matched Ze skills for agents, and set an agent up to use them",
+		Usage: []string{
+			"ze show skills [--json]",
+			"ze show skill <name> [--full] [--json]",
+			"ze create agent skill [agent <name>]",
+			"ze show agent skill [agent <name>]",
+			"ze delete agent skill agent <name|all>",
+			"ze show agent context",
+		},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "show skills", Desc: "List all bundled skills"},
 				{Name: "show skill <name>", Desc: "Retrieve skill content by name"},
+				{Name: "create agent skill", Desc: "Install the ze skill in each agent harness found, and a session-start hook where the harness has one"},
+				{Name: "show agent skill", Desc: "Report what is installed in each agent harness, changing nothing"},
+				{Name: "delete agent skill", Desc: "Remove what Ze installed from the named agent harness, or from all"},
+				{Name: "show agent context", Desc: "Print the Ze version, the daemon, and the config directory for a session"},
 			}},
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: flagJSON, Desc: "Output as structured JSON"},
@@ -248,6 +259,8 @@ func usage() string {
 			"ze show skill ze",
 			"ze show skill ze-diagnostics --full",
 			"ze show skills --json",
+			"ze create agent skill",
+			"ze delete agent skill agent all",
 		},
 	}
 	var help bytes.Buffer

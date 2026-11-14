@@ -47,7 +47,9 @@ func init() {
 	command.MustRegisterLocalMeta(pathCreateAgentSkill, createAgentSkillLocal, registry.Meta{
 		ShortHelp: "Install the ze skill for the operator's agent harnesses.",
 		Description: "Writes a stub skill named ze, which sends the agent to the guide this binary " +
-			"carries, for every harness found or for the one agent names.",
+			"carries, for every harness found or for the one agent names. For Claude Code and " +
+			"Codex it also adds one session-start hook, which runs ze show agent context, to the " +
+			"harness's settings file.",
 		Mode: modeOffline,
 	})
 	command.MustRegisterLocalMeta(pathShowAgentSkill, showAgentSkillLocal, registry.Meta{
@@ -55,9 +57,10 @@ func init() {
 		Mode:      modeOffline,
 	})
 	command.MustRegisterLocalMeta(pathDeleteAgentSkill, deleteAgentSkillLocal, registry.Meta{
-		ShortHelp:   "Remove the ze skill from the operator's agent harnesses.",
-		Description: "Takes agent <name> for one harness, or agent all for every harness found.",
-		Mode:        modeOffline,
+		ShortHelp: "Remove the ze skill from the operator's agent harnesses.",
+		Description: "Takes agent <name> for one harness, or agent all for every harness found. " +
+			"Removes the stub and the session-start hook Ze installed, and nothing else.",
+		Mode: modeOffline,
 	})
 	command.MustRegisterLocalMeta(pathShowAgentContext, showAgentContextLocal, registry.Meta{
 		ShortHelp: "Show what an agent session is told about this Ze.",

@@ -34,3 +34,23 @@ Use `ze show skill ze-diagnostics` for the diagnostic workflow.
 Use `ze show skill ze-config` for config syntax and common errors.
 Use `ze show skill ze-commands` for CLI and dispatch key reference.
 Use `ze show skill ze-agent` for the agent edit loop.
+
+## Agent Setup
+
+At a shell, `ze create agent skill` sets an agent up. It writes a stub skill named `ze`
+for each agent harness it finds (Claude Code, Codex, OpenCode, Pi). The stub tells the
+agent to run `ze show skill ze`, so the guide always matches the installed binary. For
+Claude Code and Codex it also installs a session-start hook that runs
+`ze show agent context`, which prints the Ze version, whether the daemon answered, and
+the config directory. `agent <name>` sets up one harness only.
+
+- `ze show agent skill` reports each harness, the state of its stub and hook, and the
+  path it read. It changes nothing.
+- `ze delete agent skill agent all` removes what Ze installed. `agent <name>` removes
+  it from one harness, and keeps the shared stub while another harness found reads it.
+- Codex runs a new hook only after you trust it: open Codex, run `/hooks`, and trust
+  the hook that runs `ze show agent context`.
+
+Through the daemon (MCP, REST, gRPC, SSH, web, `ze cli`), the three `agent skill`
+commands write no file. They answer what an agent on another machine places in its own
+home.

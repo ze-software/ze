@@ -48,7 +48,8 @@ carries one.";
                 config false;
                 ze:command "ze-skills:show-agent-skill";
                 description "At a shell, reports for each harness the plugin knows whether it was
-found and whether the ze stub skill is installed, and changes no file. Through the daemon,
+found and whether the ze stub skill and, for Claude Code and Codex, the session-start hook are
+installed, and changes no file. Through the daemon,
 answers the stub a remote agent places, since the daemon cannot see the caller's home.";
                 ze:help "Show whether the ze skill is set up for each agent harness.";
                 uses agent-name;
@@ -78,7 +79,8 @@ and that the caller reached the daemon.";
                 ze:command "ze-skills:create-agent-skill";
                 description "At a shell, installs the ze stub skill for every harness found or
 for the one named, and with no harness found the shared stub Codex, OpenCode and Pi read.
-Through the daemon, writes nothing and answers the stub a remote agent places.";
+For Claude Code and Codex it also adds one session-start hook to the harness's settings file,
+leaving every other byte of that file as it was. Through the daemon, writes nothing and answers the stub a remote agent places.";
                 ze:help "Install the ze skill for the operator's agent harnesses.";
                 uses agent-name;
             }
@@ -97,8 +99,8 @@ Through the daemon, writes nothing and answers the stub a remote agent places.";
                 config false;
                 ze:command "ze-skills:delete-agent-skill";
                 description "At a shell, removes the ze stub skill Ze installed, for the harness
-named or, with agent all, for every harness found, and leaves every file Ze did not write.
-Through the daemon, writes nothing and answers the file a remote agent removes.";
+named or, with agent all, for every harness found, takes its session-start hook out of the
+harness's settings file, and leaves every file and hook Ze did not write. Through the daemon, writes nothing and answers the file a remote agent removes.";
                 ze:help "Remove the ze skill from the operator's agent harnesses.";
                 leaf agent {
                     type enumeration {

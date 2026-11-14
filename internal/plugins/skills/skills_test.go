@@ -99,6 +99,28 @@ func TestSkillsGetFull(t *testing.T) {
 	assert.True(t, len(full) > len(compact), "full should be longer than compact")
 }
 
+// TestTheZeGuideNamesTheSetupCommand proves the `ze` guide tells its reader how
+// to set an agent up.
+//
+// Goal: an agent or an operator who reads `show skill ze`, compact or
+// expanded, learns that `ze create agent skill` sets an agent up, so the guide
+// and the setup commands do not live apart. Method: each spelling goes through
+// command.ValidateModelArgs, as a route does, then through the real showSkill
+// handler, and the guide content it answers must name the command.
+func TestTheZeGuideNamesTheSetupCommand(t *testing.T) {
+	for _, tokens := range [][]string{{"ze"}, {"ze", "full"}} {
+		validated, err := command.ValidateModelArgs("show skill", tokens, nil)
+		require.NoError(t, err, "the model refused show skill %q", tokens)
+		var result command.LocalAnswer
+		written := captureOutput(t, func() { result = showSkill(validated) })
+		assert.Empty(t, written, "handler wrote to stdout or stderr for %q", tokens)
+		require.Equal(t, 0, result.Code, "show skill %q: %s", tokens, result.Diagnostic)
+		answer, ok := result.Payload.(skillAnswer)
+		require.True(t, ok, "show skill %q answered %T", tokens, result.Payload)
+		assert.Contains(t, answer.Skill.Content, "ze create agent skill", "show skill %q", tokens)
+	}
+}
+
 func TestSkillsGetInnerSkill(t *testing.T) {
 	out := local(t, showSkill, "show skill", "ze-diagnostics")
 	assert.Contains(t, out, "ze-diagnostics")

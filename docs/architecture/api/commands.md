@@ -525,7 +525,8 @@ daemon route like every other caller path (`command.CallerPath`).
 <!-- source: internal/component/plugin/server/local_bridge.go -- loadLocalData, AnswerLocalData -->
 <!-- source: internal/component/ping/cmd/ping.go -- pingResults, handleShowPing -->
 <!-- source: internal/component/traceroute/cmd/traceroute.go -- tracerouteResults, handleTraceroute -->
-<!-- source: internal/plugins/skills/agent.go -- notImplemented, createAgentSkillLocal, handleCreateAgentSkill -->
+<!-- source: internal/plugins/skills/agent_skill.go -- agentPlan, createAgentSkillLocal, handleCreateAgentSkill -->
+<!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext -->
 <!-- source: internal/plugins/skills/register.go -- agent setup registrations -->
 <!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 <!-- source: internal/component/cli/client/main.go -- runInteractiveSession, execute -->
