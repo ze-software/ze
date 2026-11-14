@@ -119,7 +119,10 @@ const (
 
 // stubMarker is the first line after the stub's frontmatter. It is what makes
 // a stub Ze's own: create refreshes and delete removes only a SKILL.md that
-// carries it, byte for byte, and both routes write the same one.
+// carries it, byte for byte, and both routes write the same one. It keeps the
+// long form `ze delete agent skill agent all`, which still works, rather than
+// the shorter bare delete: changing one byte of it would make every stub
+// already installed foreign, so Ze would no longer refresh or remove it.
 const stubMarker = "<!-- Installed by ze create agent skill. Remove it with ze delete agent skill agent all. -->"
 
 // setupVerb is which of the three commands runs.
@@ -326,28 +329,22 @@ func agentValues() string {
 }
 
 // agentChoice is what the agent leaf selects: the harness it names, or nil for
-// every harness (no agent on create and show, `agent all` on delete).
+// every harness (no agent on any of the three, or `agent all` on delete).
 type agentChoice struct {
 	named *harness
 }
 
-// selectedAgent reads the agent leaf. Only
-// delete accepts `all` and only delete requires the leaf, because a delete
-// that acts on every harness MUST be typed as such (ai/rules/cli.md). The
-// validator judges both before the handler runs; this refuses again, so a
-// route that skipped the model still cannot reach the every-harness form.
-// prefix is how the route spells a command in its fix: "ze " at a shell, ""
-// through the daemon.
+// selectedAgent reads the agent leaf. No agent selects every harness on all
+// three commands, so a bare delete takes the same every-harness choice
+// `agent all` takes. Only delete also accepts `all`, which the owner kept as
+// the explicit spelling of that choice; create and show refuse it, because
+// their no-agent form already is every harness. The validator refuses `all`
+// on create and show before the handler runs; this refuses again, so a route
+// that skipped the model answers the same. prefix is how the route spells a
+// command in its fix: "ze " at a shell, "" through the daemon.
 func selectedAgent(verb setupVerb, validated command.ValidatedArgs, prefix string) (agentChoice, error) {
 	value, given := validated.Value(leafAgent)
 	if !given {
-		if verb == verbDelete {
-			var fix textbuf.Buffer
-			return agentChoice{}, opererr.New("delete agent skill names no harness, so nothing was removed",
-				"Removing Ze's setup from every harness found is typed as agent all, so an early Enter "+
-					"cannot do it. Name one of "+agentValues()+", or all.",
-				fix.Str(prefix).Str(pathDeleteAgentSkill).Str(" agent all").String())
-		}
 		return agentChoice{}, nil
 	}
 	if value == agentAll {
@@ -475,8 +472,8 @@ type localRun struct {
 	rerun  string
 	home   string
 	places map[string]harnessPlace
-	// named is the harness the operator named, or nil: every harness for
-	// create and show, `agent all` for delete.
+	// named is the harness the operator named, or nil for every harness: no
+	// agent on any of the three, or `agent all` on delete.
 	named *harness
 }
 
@@ -486,8 +483,8 @@ type localRun struct {
 // (ai/rules/go-standards.md). Every path is made absolute, because a relative
 // HOME would otherwise change meaning with the working directory.
 func newLocalRun(verb setupVerb, path string, validated command.ValidatedArgs) (*localRun, error) {
-	// A nil named harness on delete is `agent all`: selectedAgent refuses a
-	// delete that names none.
+	// A nil named harness on delete is every harness found, whether the
+	// operator typed `agent all` or no agent: selectedAgent answers both alike.
 	choice, err := selectedAgent(verb, validated, "ze ")
 	if err != nil {
 		return nil, err
@@ -579,7 +576,7 @@ func (r *localRun) selection() (acted, sharedOnly []*harness) {
 		}
 		return found, nil
 	}
-	// delete agent all: every harness found, and the shared stub even when
+	// delete with no agent or agent all: every harness found, and the shared stub even when
 	// none of its readers is, because a create that found none wrote it.
 	if len(r.foundAmong(sharedReaders(), nil)) == 0 {
 		return found, sharedReaders()

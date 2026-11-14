@@ -58,7 +58,8 @@ func init() {
 	})
 	command.MustRegisterLocalMeta(pathDeleteAgentSkill, deleteAgentSkillLocal, registry.Meta{
 		ShortHelp: "Remove the ze skill from the operator's agent harnesses.",
-		Description: "Takes agent <name> for one harness, or agent all for every harness found. " +
+		Description: "Acts on every harness found, or on the one agent <name> names; agent all " +
+			"also spells every harness found. " +
 			"Removes the stub and the session-start hook Ze installed, and nothing else.",
 		Mode: modeOffline,
 	})

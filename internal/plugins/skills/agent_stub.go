@@ -248,7 +248,7 @@ func keptSharedStub(skills string, readers []*harness) outcome {
 	return outcome{state: stateKept, path: file, note: noteLines(
 		"Ze kept the shared stub, because "+titlesOf(readers)+", found on this machine, still read it.",
 		"To remove it for every harness found, run:",
-		"ze delete agent skill agent all")}
+		"ze delete agent skill")}
 }
 
 // foreignNote says that a SKILL.md Ze did not write was left, and how to

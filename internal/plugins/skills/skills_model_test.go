@@ -3,8 +3,9 @@
 package skills
 
 import (
-	"errors"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,13 +32,13 @@ func agentDefOf(t *testing.T, path string) command.ArgDef {
 }
 
 // TestTheModelsAgentValuesAreTheHarnessTable proves R-11 and the selector
-// rule of AC-26.
+// rule of AC-26, as the owner changed it: agent is optional on all three.
 //
 // Goal: the agent enumeration of create and show is exactly the harness
-// table, and delete's is the table plus all, mandatory, so the model and the
-// table cannot drift and a bare delete cannot act on every harness. Method:
-// read each path's agent leaf from the loaded model and compare its values
-// and its mandatory flag with the table.
+// table, and delete's is the table plus all, and no path makes agent
+// mandatory, so the model and the table cannot drift and a bare delete
+// reaches the handler. Method: read each path's agent leaf from the loaded
+// model and compare its values and its mandatory flag with the table.
 func TestTheModelsAgentValuesAreTheHarnessTable(t *testing.T) {
 	names := make([]string, len(harnesses))
 	for i := range harnesses {
@@ -50,7 +51,7 @@ func TestTheModelsAgentValuesAreTheHarnessTable(t *testing.T) {
 	}{
 		{pathCreateAgentSkill, names, false},
 		{pathShowAgentSkill, names, false},
-		{pathDeleteAgentSkill, append(slices.Clone(names), agentAll), true},
+		{pathDeleteAgentSkill, append(slices.Clone(names), agentAll), false},
 	}
 	for _, tc := range cases {
 		def := agentDefOf(t, tc.path)
@@ -71,26 +72,74 @@ func TestTheValidatorRefusesAnUnknownOrRepeatedAgent(t *testing.T) {
 		for i := range harnesses {
 			assert.Contains(t, err.Error(), harnesses[i].name, "%s: the refusal names no %s", path, harnesses[i].name)
 		}
+		if path == pathDeleteAgentSkill {
+			assert.Contains(t, err.Error(), agentAll, "%s: the refusal does not name all", path)
+		}
 		_, err = command.ValidateModelArgs(path, []string{"agent", "claude", "agent", "codex"}, nil)
 		assert.Error(t, err, "%s accepted agent twice", path)
 	}
 }
 
-// TestBareDeleteAgentSkillIsRefusedNamingTheValues proves AC-19's refusal
-// and AC-26's selector rule.
+// TestBareDeleteAgentSkillActsAsAgentAll proves the owner's default for
+// delete: with no agent, `delete agent skill` acts on every harness found,
+// exactly as `delete agent skill agent all` does.
 //
-// Goal: `delete agent skill` with no agent is refused by the validator, and
-// the refusal's usage names the harnesses and all. Method: the model's
-// validator with no token, then the missing-argument fault's usage.
-func TestBareDeleteAgentSkillIsRefusedNamingTheValues(t *testing.T) {
+// Goal: a bare delete passes the model's validator, and it leaves a home
+// exactly as agent all leaves an identical one, stub and hook alike, for a
+// harness with its own stub directory and a hook (Claude Code), one that
+// reads the shared stub and has a hook (Codex), and one with no hook (Pi).
+// Method: two homes prepared the same way by create, beside an operator's own
+// skill; a bare delete in one and agent all in the other; then the rows and
+// every entry left compared with the home replaced by ~. The bare delete's
+// own rows and files are checked removed too, so the comparison cannot pass
+// on two identical refusals.
+func TestBareDeleteAgentSkillActsAsAgentAll(t *testing.T) {
 	_, err := command.ValidateModelArgs(pathDeleteAgentSkill, nil, nil)
-	require.Error(t, err, "a bare delete agent skill was accepted")
-	var missing *command.MissingArgumentError
-	require.True(t, errors.As(err, &missing), "the refusal is not a missing argument: %v", err)
-	assert.Equal(t, leafAgent, missing.Leaf)
-	for _, value := range append([]string{agentAll}, harnesses[0].name) {
-		assert.Contains(t, missing.Usage(), value, "the refusal's usage names no %s", value)
+	require.NoError(t, err, "the model refused a bare delete agent skill")
+
+	bare, bareFiles := deleteInPreparedHome(t)
+	all, allFiles := deleteInPreparedHome(t, "agent", agentAll)
+
+	assert.Equal(t, all, bare, "a bare delete answered unlike agent all")
+	assert.Equal(t, allFiles, bareFiles, "a bare delete left the home unlike agent all")
+	for _, agent := range []string{"claude", "codex", "pi"} {
+		assert.Equal(t, stateRemoved, rowOf(t, bare, agent, itemSkill).State, "%s skill", agent)
 	}
+	for _, agent := range []string{"claude", "codex"} {
+		assert.Equal(t, stateRemoved, rowOf(t, bare, agent, itemHook).State, "%s hook", agent)
+	}
+	assert.NotContains(t, bareFiles, filepath.Join("~", ".claude", "skills", "ze", "SKILL.md"))
+	assert.NotContains(t, bareFiles, filepath.Join("~", ".agents", "skills", "ze", "SKILL.md"))
+	assert.Contains(t, bareFiles, filepath.Join("~", ".claude", "skills", "other", "SKILL.md"))
+}
+
+// deleteInPreparedHome prepares a fresh home with Claude Code, Codex and Pi
+// found, an operator's own skill beside Ze's, and Ze's stubs and hooks written
+// by create; runs delete agent skill with tokens through the model, as the
+// shell route does; and answers its rows and every entry left under the home,
+// each with the home replaced by ~ so two homes compare.
+func deleteInPreparedHome(t *testing.T, tokens ...string) (agentSkillAnswer, map[string]string) {
+	t.Helper()
+	home := isolatedHome(t, ".claude", ".codex", ".pi")
+	writeFile(t, filepath.Join(home, ".claude", "skills", "other", "SKILL.md"), "another skill\n")
+	runSetup(t, verbCreate, pathCreateAgentSkill)
+	require.FileExists(t, claudeStub(home))
+	require.FileExists(t, sharedStub(home))
+	require.FileExists(t, claudeSettings(home))
+	require.FileExists(t, codexHooks(home))
+
+	answer := runSetup(t, verbDelete, pathDeleteAgentSkill, tokens...)
+
+	answer.Setup.Note = strings.ReplaceAll(answer.Setup.Note, home, "~")
+	for i := range answer.Setup.Rows {
+		answer.Setup.Rows[i].Path = strings.ReplaceAll(answer.Setup.Rows[i].Path, home, "~")
+		answer.Setup.Rows[i].Note = strings.ReplaceAll(answer.Setup.Rows[i].Note, home, "~")
+	}
+	files := make(map[string]string)
+	for path, entry := range snapshotOf(t, home) {
+		files[strings.Replace(path, home, "~", 1)] = entry
+	}
+	return answer, files
 }
 
 // TestCreateAndShowRefuseAgentAll proves the second half of AC-26's selector

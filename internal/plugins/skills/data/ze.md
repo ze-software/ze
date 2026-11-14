@@ -30,4 +30,4 @@ Use `ze show skill <name>` to load the one relevant to your task.
 
 At a shell, `ze create agent skill` sets an agent up: it installs the `ze` skill in each agent harness
 it finds and, for Claude Code and Codex, a session-start hook that runs `ze show agent context`.
-`ze show agent skill` checks the setup, and `ze delete agent skill agent all` removes it.
+`ze show agent skill` checks the setup, and `ze delete agent skill` removes it.

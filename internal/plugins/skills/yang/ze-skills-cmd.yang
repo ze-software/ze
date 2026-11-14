@@ -3,7 +3,7 @@ module ze-skills-cmd {
     prefix skillscmd;
     import ze-extensions { prefix ze; }
     description "The show skills and show skill commands, and the commands that set an operator's agent up to use Ze (create, show and delete agent skill, show agent context), owned by the skills plugin, which registers their handlers. See the plugin self-containment rule.";
-    revision 2026-11-14 { description "Declare create agent skill, show agent skill, delete agent skill and show agent context, each served by the plugin's own daemon command. delete agent skill requires agent, which also takes all."; }
+    revision 2026-11-14 { description "Declare create agent skill, show agent skill, delete agent skill and show agent context, each served by the plugin's own daemon command. delete agent skill with no agent acts on every harness found, as agent all does."; }
     revision 2026-11-02 { description "Declare the full flag show skill already read, so every route judges it against the model."; }
     revision 2026-10-12 { description "Rename skills list and skills get to show skills and show skill: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Initial: declare the skills command the skills plugin already served."; }
@@ -99,7 +99,7 @@ leaving every other byte of that file as it was. Through the daemon, writes noth
                 config false;
                 ze:command "ze-skills:delete-agent-skill";
                 description "At a shell, removes the ze stub skill Ze installed, for the harness
-named or, with agent all, for every harness found, takes its session-start hook out of the
+named or, with no agent or agent all, for every harness found, takes its session-start hook out of the
 harness's settings file, and leaves every file and hook Ze did not write. Through the daemon, writes nothing and answers the file a remote agent removes.";
                 ze:help "Remove the ze skill from the operator's agent harnesses.";
                 leaf agent {
@@ -110,9 +110,8 @@ harness's settings file, and leaves every file and hook Ze did not write. Throug
                         enum pi { ze:help "Pi."; }
                         enum all { ze:help "Every harness whose configuration directory exists."; }
                     }
-                    mandatory true;
-                    description "The harness to remove Ze's setup from, or all. A bare delete is
-refused, so that an early Enter or a completion cannot remove the setup from every harness.";
+                    description "The one harness to remove Ze's setup from. Without it, or with
+all, delete acts on every harness whose configuration directory exists.";
                     ze:help "Agent harness, or all.";
                 }
             }

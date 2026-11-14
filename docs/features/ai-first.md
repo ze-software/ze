@@ -145,7 +145,7 @@ how-to, with the command's output and the Codex trust step, see
 ```
 ze create agent skill
 ze show agent skill
-ze delete agent skill agent all
+ze delete agent skill
 ```
 
 At a shell, `ze create agent skill` writes a stub skill named `ze` for each
@@ -173,8 +173,8 @@ points at.
 `ze show agent skill` reports, for every harness the plugin knows, whether it
 was found and the stub's state (`current`, `outdated`, `missing`, `foreign`),
 and changes nothing. `ze delete agent skill` removes a stub Ze wrote and its
-emptied directory, and takes `agent <name>` or `agent all`: a bare delete is
-refused, so an early Enter cannot remove the setup from every harness. With
+emptied directory. Without `agent` it acts on every harness found, as
+`agent all` does, and `agent <name>` limits it to one harness. With
 one harness named, the shared stub stays while another harness found on the
 machine still reads it, and the answer names that harness. Each command
 answers one row per harness and item; the hook rows of OpenCode and Pi answer

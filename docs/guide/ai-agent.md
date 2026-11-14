@@ -95,7 +95,7 @@ not say whether Codex trusts it.
 
 ```
 ze show agent skill
-ze delete agent skill agent all
+ze delete agent skill
 ```
 
 `ze show agent skill` reports, for each harness Ze knows, whether Ze found it
@@ -106,8 +106,9 @@ version wrote and leaves a current setup as it is.
 <!-- source: internal/plugins/skills/agent_hook.go -- inspectHook -->
 
 `ze delete agent skill` removes only what Ze wrote. A `SKILL.md` without Ze's
-marker and every hook Ze did not add stay as they are. The command needs
-`agent <name>` or `agent all`. When you name one harness, the shared skill
+marker and every hook Ze did not add stay as they are. Without `agent` it acts
+on every harness Ze finds, as `agent all` does, and `agent <name>` limits it to
+one harness. When you name one harness, the shared skill
 under `~/.agents` stays while another harness on the machine still reads it.
 <!-- source: internal/plugins/skills/agent_stub.go -- removeStub, keptSharedStub -->
 <!-- source: internal/plugins/skills/agent_hook.go -- deleteHook -->

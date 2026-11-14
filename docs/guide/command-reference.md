@@ -2668,14 +2668,13 @@ Codex trusts the hook, and to check with `/hooks`. It changes no file.
 ### delete agent skill
 
 ```
-ze delete agent skill agent <claude|codex|opencode|pi|all>
+ze delete agent skill [agent <claude|codex|opencode|pi|all>]
 ```
 
 Removes the stub Ze wrote, and its directory when that leaves it empty. It
 leaves a `SKILL.md` without Ze's marker, and anything else Ze did not write
-at the stub's place (`foreign`). `agent` is required:
-`agent all` acts on every harness found, and a bare `delete agent skill` is
-refused with the values it takes. With one harness named, the shared stub
+at the stub's place (`foreign`). Without `agent` it acts on every harness
+found, and `agent all` does the same. With one harness named, the shared stub
 stays while another harness found on the machine still reads it (`kept`,
 naming that harness). Rows answer `removed`, `absent`, `kept`, `foreign`,
 `refused` or `unsupported`. A hook row answers `removed`, `absent` or

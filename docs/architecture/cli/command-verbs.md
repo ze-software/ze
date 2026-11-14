@@ -392,6 +392,14 @@ refused, and the refusal names the explicit forms. `clear dns cache` alone does
 nothing and answers with `clear dns cache all`. A typo, an early Enter or a tab
 completion that stops at the prefix therefore cannot empty a cache or reset
 every session. The owner's words and the rule are in `ai/rules/cli.md`.
+
+One command is an exception by the owner's decision: `delete agent skill` with
+no `agent` acts on every agent harness found, and `agent all` spells the same
+thing. It removes only the stub skill and the session-start hook Ze installed
+in the caller's own home, and `create agent skill` puts them back. No other
+command takes this exception from it.
+<!-- source: internal/plugins/skills/agent_skill.go -- selectedAgent -->
+
 The refusal lists only commands that completion and help also show, so a prefix
 whose only commands below it are hidden stays an unknown command. A command that
 is whole still runs when longer commands extend it: `show peer` runs although

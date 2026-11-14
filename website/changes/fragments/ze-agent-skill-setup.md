@@ -24,7 +24,7 @@ only after you trust it through `/hooks`.
 Ze edits a harness's settings file only where it understands the whole file,
 leaves every other byte as it was, and never touches a skill or a hook it did
 not write. `ze show agent skill` reports what is installed, and
-`ze delete agent skill agent all` removes it.
+`ze delete agent skill` removes it.
 
 Through the daemon (MCP, SSH, REST, gRPC, the web and `ze cli`), the same
 commands write nothing: they answer the skill a remote agent should place on

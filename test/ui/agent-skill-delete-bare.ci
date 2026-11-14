@@ -1,0 +1,47 @@
+# Test: ze delete agent skill with no agent, after a create, at a shell
+# QUESTION: after `ze create agent skill agent claude`, does a bare
+# `ze delete agent skill` act on every harness found, as `agent all` does:
+# remove the ze stub skill and the session-start hook Ze wrote for Claude Code,
+# leave another skill beside it, and leave `ze show agent skill` reporting both
+# as missing?
+# VALIDATES: the owner's default for delete agent skill, every harness found
+# when no agent is given; AC-19 (stub and hook) through the bare form.
+# PREVENTS: a bare delete that is refused, that acts on no harness, or that
+# removes a skill Ze did not write.
+#
+# Method: every child runs in the test's own work directory, so HOME and the
+# two harness variables point inside it and nothing reaches the home of whoever
+# runs the suite. No daemon runs: the plain local handler answers at a shell.
+# The other skill is written by the test itself before the create.
+
+option=env:var=HOME:value=.
+option=env:var=CLAUDE_CONFIG_DIR:value=.claude
+option=env:var=CODEX_HOME:value=.codex
+option=env:var=XDG_CONFIG_HOME:value=.config
+
+tmpfs=.claude/skills/other/SKILL.md:terminator=EOF_OTHER
+---
+name: other
+description: a skill Ze did not write
+---
+The operator's own skill.
+EOF_OTHER
+
+cmd=foreground:seq=1:exec=ze create agent skill agent claude:exit=0
+expect=exit:code=0
+expect=stdout:pattern=claude hook. created
+
+cmd=foreground:seq=2:exec=ze delete agent skill:exit=0
+expect=exit:code=0
+expect=stdout:pattern=claude skill. removed
+expect=stdout:pattern=claude hook. removed
+reject=stdout:contains=refused
+reject=stderr:contains=names no harness
+
+cmd=foreground:seq=3:exec=ze show agent skill agent claude:exit=0
+expect=exit:code=0
+expect=stdout:pattern=claude skill. missing
+expect=stdout:pattern=claude hook. missing
+
+expect=file:path=.claude/skills/ze/SKILL.md:absent=true
+expect=file:path=.claude/skills/other/SKILL.md:contains=The operator's own skill.

@@ -546,7 +546,7 @@ Offline commands for agent-driven config validation and repair:
 | `ze show skills [--json]` | List bundled agent skills |
 | `ze show skill <name> [--full]` | Load version-matched skill content |
 | `ze show agent context` | The Ze version, whether the daemon answers, and the guide to read |
-| `ze create agent skill`, `ze show agent skill`, `ze delete agent skill agent <name\|all>` | Install, report and remove the `ze` stub skill in the caller's agent harnesses |
+| `ze create agent skill`, `ze show agent skill`, `ze delete agent skill [agent <name\|all>]` | Install, report and remove the `ze` stub skill in the caller's agent harnesses |
 
 These commands do not require a running daemon. Agents use them to validate
 and fix config before committing.

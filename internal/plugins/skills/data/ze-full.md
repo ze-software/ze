@@ -46,7 +46,7 @@ the config directory. `agent <name>` sets up one harness only.
 
 - `ze show agent skill` reports each harness, the state of its stub and hook, and the
   path it read. It changes nothing.
-- `ze delete agent skill agent all` removes what Ze installed. `agent <name>` removes
+- `ze delete agent skill` removes what Ze installed. `agent <name>` removes
   it from one harness, and keeps the shared stub while another harness found reads it.
 - Codex runs a new hook only after you trust it: open Codex, run `/hooks`, and trust
   the hook that runs `ze show agent context`.
