@@ -152,11 +152,33 @@ func readHostFacts(root string) (hostFacts, error) {
 // rerun, the install command to run once the source can be read, alone on the
 // last line. The read error follows the explanation as evidence and names the
 // path.
+//
+// The fix follows the cause, because the rerun helps only where a second read
+// can succeed. A source that does not exist (/proc/modules or /sys/class/net:
+// the two optional sources never answer this) is a container with no /proc or
+// /sys, or a kernel built without loadable modules, and running the install
+// again reads the same nothing: the fix names the place the install runs,
+// and the reason says a kernel with no module list is one it cannot check. A
+// permission refusal and any other read failure keep the rerun.
 func hostUnreadable(err error, rerun string) error {
-	return opererr.Wrap(err,
-		"the install was refused and no step ran: le could not read what this host relies on its kernel for",
+	const problem = "the install was refused and no step ran: le could not read what this host relies on its kernel for"
+	if errors.Is(err, fs.ErrNotExist) {
+		return opererr.Wrap(err, problem,
+			"the install learns the interface names and the firewall modules this host uses from /sys/class/net and /proc/modules,"+
+				" and a Ze kernel that lacks one of them boots the host with no network or no firewall."+
+				" A container without /proc or /sys has neither, and a kernel built with no loadable module support has no module list:"+
+				" this install cannot check such a kernel and does not replace it",
+			"run the install on the Docker host itself, outside any container, where /proc and /sys are mounted")
+	}
+	if errors.Is(err, fs.ErrPermission) {
+		return opererr.Wrap(err, problem,
+			"a Ze kernel that lacks one of those things boots the host with no network or no firewall, so the install does not guess;"+
+				" give this user read access to the path named here, then run the install again",
+			rerun)
+	}
+	return opererr.Wrap(err, problem,
 		"a Ze kernel that lacks one of those things boots the host with no network or no firewall, so the install does not guess;"+
-			" run it on the Docker host itself, as a user that can read the path named here",
+			" the read failed for a reason other than a missing path or a refused permission, so run the install again",
 		rerun)
 }
 

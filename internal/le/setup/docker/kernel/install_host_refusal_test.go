@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,37 +130,113 @@ func TestDockerKernelInstallRefusesBeforeAnyStepForAHostTheKernelBreaks(t *testi
 
 // VALIDATES: a host source the check cannot read refuses the install in the
 // operator's terms, as an operator error: no step ran, why the read matters,
-// the path as evidence, and the install command, with its builder, as the fix
-// on the last line. A cache entry with no readable config says the same and
-// ends on the rebuild commands as its fix.
+// the path as evidence, and a fix on the last line that fits the cause. A host
+// with no module list (a container without /proc, a kernel with no loadable
+// modules) is told where the install runs and never to run it again, which
+// would read the same nothing. A refused permission and any other read
+// failure keep the install command, with its builder.
+// METHOD: the missing module list goes through cachedKernelServesHost over a
+// staged host root. A refused permission cannot be staged for a test that may
+// run as root, so it and the other-failure case hand hostUnreadable the read
+// error readHostFacts would return.
 // PREVENTS: a bare `open /proc/modules: no such file or directory` as the
-// whole message.
+// whole message, and a rerun offered where it cannot help.
 func TestDockerKernelInstallSaysWhyAnUnreadableHostIsRefused(t *testing.T) {
 	release := pinnedRelease(t) + "-ze"
 	root := stageInstallHost(t, "eth0")
 	if err := os.Remove(filepath.Join(root, "proc", "modules")); err != nil {
 		t.Fatal(err)
 	}
+	const rerun = "./le setup docker kernel install builder qemu"
 	err := cachedKernelServesHost(cachedKernel(t, release, "-ze"), release, root, "qemu")
 	if err == nil {
 		t.Fatal("a host whose module list cannot be read was accepted")
 	}
-	for _, want := range []string{"the install was refused and no step ran", "no network or no firewall", filepath.Join(root, "proc", "modules")} {
+	for _, want := range []string{"the install was refused and no step ran", "no network or no firewall",
+		filepath.Join(root, "proc", "modules"), "no loadable module support"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not say %q: %v", want, err)
 		}
 	}
 	lines := strings.Split(err.Error(), "\n")
-	if got, want := lines[len(lines)-1], "fix: ./le setup docker kernel install builder qemu"; got != want {
-		t.Errorf("last line = %q, want the install command %q", got, want)
+	if got, want := lines[len(lines)-1], "fix: run the install on the Docker host itself, outside any container, where /proc and /sys are mounted"; got != want {
+		t.Errorf("last line = %q, want %q", got, want)
+	}
+	if strings.Contains(err.Error(), rerun) {
+		t.Errorf("a host with no module list is told to run the install again, which cannot help: %v", err)
+	}
+
+	// A module list that is there and cannot be read (a directory in its
+	// place, so the read fails with EISDIR whoever runs the test) takes the
+	// rerun branch through cachedKernelServesHost, which is the caller that
+	// hands hostUnreadable the builder the operator named.
+	unreadable := stageInstallHost(t, "eth0")
+	modules := filepath.Join(unreadable, "proc", "modules")
+	if err := os.Remove(modules); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(modules, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	err = cachedKernelServesHost(cachedKernel(t, release, "-ze"), release, unreadable, "qemu")
+	if err == nil {
+		t.Fatal("a host whose module list is a directory was accepted")
+	}
+	for _, want := range []string{"the install was refused and no step ran", "no network or no firewall", modules} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("unreadable module list: the refusal does not say %q: %v", want, err)
+		}
+	}
+	lines = strings.Split(err.Error(), "\n")
+	if got, want := lines[len(lines)-1], "fix: "+rerun; got != want {
+		t.Errorf("unreadable module list: last line = %q, want the install command %q", got, want)
+	}
+
+	if got := installRerun("qemu"); got != rerun {
+		t.Errorf("rerun with a builder = %q, want %q", got, rerun)
 	}
 	if got, want := installRerun(""), "./le setup docker kernel install"; got != want {
 		t.Errorf("rerun with no builder = %q, want %q", got, want)
 	}
+	for _, tc := range []struct {
+		cause error
+		says  string
+	}{
+		{&fs.PathError{Op: "open", Path: "/proc/modules", Err: fs.ErrPermission}, "give this user read access"},
+		{&fs.PathError{Op: "read", Path: "/proc/modules", Err: errors.New("input/output error")}, "run the install again"},
+	} {
+		err := hostUnreadable(tc.cause, installRerun("qemu"))
+		for _, want := range []string{"the install was refused and no step ran", "no network or no firewall", "/proc/modules", tc.says} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%v: the refusal does not say %q: %v", tc.cause, want, err)
+			}
+		}
+		lines := strings.Split(err.Error(), "\n")
+		if got, want := lines[len(lines)-1], "fix: "+rerun; got != want {
+			t.Errorf("%v: last line = %q, want the install command %q", tc.cause, got, want)
+		}
+	}
+}
 
-	err = cachedKernelServesHost(t.TempDir(), release, root, "qemu")
+// VALIDATES: a cache entry with no readable config refuses at the first read
+// an install makes of it (cachedKernelRelease), as an operator error: no step
+// ran, the release, why the config is read, and the rebuild commands as the
+// fix. The later read in cachedKernelServesHost answers the same error.
+// PREVENTS: a bare `open <cache>/config: no such file or directory` from the
+// release check, which runs before the host check and so decides what an
+// operator sees.
+func TestDockerKernelInstallSaysWhyAnUnreadableCacheConfigIsRefused(t *testing.T) {
+	release := pinnedRelease(t) + "-ze"
+	cache := cachedKernel(t, release, "-ze")
+	if err := os.Remove(filepath.Join(cache, "config")); err != nil {
+		t.Fatal(err)
+	}
+	_, err := cachedKernelRelease(cache, pinnedVersion(t), "qemu")
 	if err == nil {
 		t.Fatal("a cache entry with no config was accepted")
+	}
+	if later := cachedKernelServesHost(cache, release, stageInstallHost(t, "eth0"), "qemu"); later == nil || later.Error() != err.Error() {
+		t.Errorf("the host check's read answers %v, want the release check's %v", later, err)
 	}
 	for _, want := range []string{"the install was refused and no step ran", release, "rebuild the cache entry"} {
 		if !strings.Contains(err.Error(), want) {

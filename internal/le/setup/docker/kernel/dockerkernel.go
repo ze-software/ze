@@ -518,11 +518,11 @@ func cachedKernelRelease(cache, version, builder string) (string, error) {
 	}
 	release := entries[0].Name()
 
-	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
+	config, err := cachedKernelConfig(cache, release, builder)
 	if err != nil {
 		return "", err
 	}
-	suffix, err := kernelLocalVersion(string(config))
+	suffix, err := kernelLocalVersion(config)
 	if err != nil {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("the runtime kernel in ").Str(cache).Str(" is release ").Str(release).
@@ -542,6 +542,23 @@ func cachedKernelRelease(cache, version, builder string) (string, error) {
 			Str(" pins. Rebuild it with:\n").Str(runtimeKernelRebuild(builder)).String())
 	}
 	return release, nil
+}
+
+// cachedKernelConfig reads the kernel config of the cache entry holding
+// release. It is the one site that states the unreadable-config refusal, as an
+// operator error with the rebuild commands as its fix: cachedKernelRelease
+// reads the config first, so that is where an install meets it, and
+// cachedKernelServesHost reads it again through the same function.
+func cachedKernelConfig(cache, release, builder string) (string, error) {
+	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
+	if err != nil {
+		return "", opererr.Wrap(err,
+			"the install was refused and no step ran: the cached Ze kernel "+release+" has no config this user can read",
+			"the install reads that config for the release suffix and to check that the kernel carries what this host relies on,"+
+				" so that the host does not boot with no network or no firewall; rebuild the cache entry",
+			strings.TrimSpace(runtimeKernelRebuild(builder)))
+	}
+	return string(config), nil
 }
 
 // kernelLocalVersion answers the CONFIG_LOCALVERSION a kernel config sets, and
@@ -647,13 +664,9 @@ func installRerun(builder string) string {
 // next as the fix, so the install's ReportError hands the operator all three.
 // The rebuild is two commands, and the fix carries both, one per line.
 func cachedKernelServesHost(cache, release, root, builder string) error {
-	config, err := os.ReadFile(filepath.Join(cache, "config")) //nolint:gosec // a file inside the cache entry this command resolved
-	if err != nil {
-		return opererr.Wrap(err,
-			"the install was refused and no step ran: the cached Ze kernel "+release+" has no config this user can read",
-			"the install reads that config to check that the kernel carries what this host relies on,"+
-				" so that the host does not boot with no network or no firewall; rebuild the cache entry",
-			strings.TrimSpace(runtimeKernelRebuild(builder)))
+	config, configErr := cachedKernelConfig(cache, release, builder)
+	if configErr != nil {
+		return configErr
 	}
 	facts, factsErr := readHostFacts(root)
 	if factsErr != nil {
@@ -663,7 +676,7 @@ func cachedKernelServesHost(cache, release, root, builder string) error {
 	if depsErr != nil {
 		return depsErr
 	}
-	if lacks := zeKernelServesHost(release, string(config), deps); lacks != nil {
+	if lacks := zeKernelServesHost(release, config, deps); lacks != nil {
 		return opererr.New(lacks.Error(),
 			"a host that boots this kernel comes up with no network or no firewall; once the options are set, rebuild the cache entry",
 			strings.TrimSpace(runtimeKernelRebuild(builder)))
