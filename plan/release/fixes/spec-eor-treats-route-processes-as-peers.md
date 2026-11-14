@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Priority | P1 |
 | Release reason | Required correctness of shipped configuration, routing or forwarding behavior; existing partial implementations and remaining proof are retained. |
 | Scope | bgp |
@@ -12,6 +12,33 @@
 | Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+Set by the closure agent on 2026-11-14. The closure's review read the eight
+commits of this work (a2302b8968, 2cd7ac9f09, 0461489d41, 4aa1f84ff6,
+036e5184e9, 49b01f67ac, 923628582e, 8d8a506457) as an independent reader and
+found one BLOCKER and one ISSUE. The spec goes back to `/ze-implement`; the
+main thread sets it to `in-progress` when both are cleared, and the closure
+then runs again.
+
+| # | Severity | What blocks | Producer | What clears it |
+|---|----------|-------------|----------|----------------|
+| 1 | BLOCKER | No interop scenario proves D-1 and D-2 against another implementation. Both change which End-of-RIB markers reach a peer: a marker a process asks for during the initial sync now reaches the wire where it was dropped, and a `manual-eor` peer no longer receives a replay's marker. `ai/rules/interop-and-goal-validation.md` exempts only a change with no wire-visible effect, a config-only feature or tooling, and `ai/doors/bgp-engine.md`, "Gates", says any wire-visible change owes `./le test integration interop`. No scenario under `test/interop/scenarios/` sets `manual-eor` or asks for a marker (searched 2026-11-14), and every functional test of this work runs against Ze's own test peer | `reactorAPIAdapter.announceEOR` (`internal/component/bgp/reactor/reactor_api_forward.go`); the `sendEORFamilies(sendEOR, ...)` call in `Peer.sendInitialRoutes` (`peer_initial_sync.go`) | A named scenario (for instance `bgp-manual-eor-requested-frr`): Ze peers with FRR under `behavior { manual-eor true }`, with graceful restart negotiated so FRR records the marker; a process, or an ExaBGP script through the bridge as `bgp-exabgp-bridge-vpnv4-frr` does, announces a route and asks for the marker. The check asserts FRR holds the route and has recorded Ze's End-of-RIB for the family only after the request, and none before it. Before the check is written, read FRR's source at the lab's version for what it records and prints on a received End-of-RIB (`bgp_update_receive_eor`, and the vty or JSON field that shows it) and name the function (`ai/rules/interop-and-goal-validation.md`). Red walk: rebuild the Ze image with the old suppression branch restored, see red, restore, see green, and record it in this spec's Goal Validation |
+| 2 | ISSUE | AC-8 is not met: three test comments and one failure message still say the End-of-RIB waits for the session-ready report | `internal/component/bgp/plugins/rib/rib_replay_test.go`: the doc comment of `TestPeerUpEmptyRibOutSignalsReady` ("The reactor arms waitForAPISync(2s) ... and sends its EOR only after that wait returns"), the message of its first `require.Equal` ("the reactor waits the full waitForAPISync(2s) and the EOR is 2.5s late"), the PREVENTS line of `TestPeerUpEmptyRibOutSignalsReadyOnceOnly` ("inflating apiSyncCount ... a multi-plugin peer's wait"); `internal/component/bgp/reactor/api_sync_test.go`, the section comment above `warnRecorder` ("waitForAPISync ... is released") | Rewrite each to say what the report does now: it is credited, and a fence owner's report lowers the replay fence (`Peer.creditAPIReady`, `Peer.lowerReplayFence`). The VALIDATES and PREVENTS lines 4aa1f84ff6 already rewrote in the first test are the model. Text only, no assertion changes; the main thread runs the two packages' tests after |
+
+Judged and not blocking:
+
+| Subject | Verdict | Evidence |
+|---------|---------|----------|
+| Interop for D-3 | Not owed | No peer can make the sync panic, so no other implementation can reach the path; its wire output is a Cease with subcode 0, the NOTIFICATION every existing scenario's teardown already exchanges. The proof is the unwind tests' wire assertions (`peer_initial_sync_unwind_test.go`) |
+| `Peer.endSessionAfterSyncPanic` checks `syncSessionGoneLocked` under the read lock, then tears down unlocked | NOTE | Same check-then-act shape as `runQueuedTeardown`, its declared model; the session it names is the one the recovering goroutine owns |
+| `Peer.syncOwed` reads the forward queue counts | NOTE | `request quiesce` now waits while a peer's forward queue holds items, so a quiesce under sustained forwarding can time out; its error names the peer and the reason (`peerSyncOwedError`) |
+| A panic in the route-server fast path's write | NOTE | `forward_rs_direct.go` releases the write path with a plain unlock, so `discardInterruptedWrite` does not run there; owned by the open row 2026-11-14 in `plan/journal/silent-fall-through.md` (owner `spec-bgp-one-off-defects`) |
+
+Still owed by the main thread before the closure runs again: the stress pass
+over the sixteen plugin tests, which could not build at its last attempt, and
+`./le rfc check` for `rfc4724`.
 
 ## Task
 
@@ -597,7 +624,8 @@ Added 2026-11-14, for the quiesce race in the implementation notes (R-10):
 |-------------------|----------|---------------|
 | YANG schema (new RPCs/config) | N-A | no leaf |
 | CLI commands/flags | N-A | none |
-| Functional test for new RPC/API | Yes | the ordering test AC-2 names |
+| Functional test for new RPC/API | Yes | corrected 2026-11-14 (AC-2 is withdrawn): `test/plugin/api-eor-during-initial-sync.ci` and `test/plugin/initial-sync-marker-beside-process-route.ci` |
+| Interop scenario (wire-visible change) | Yes | owed, see Blocker row 1: a requested End-of-RIB on a `manual-eor` peer, against FRR |
 | Prometheus counters/metrics | No | `eorSent` keeps its contract, markers that reached the socket |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no family change |
 
