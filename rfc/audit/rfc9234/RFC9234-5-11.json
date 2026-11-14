@@ -3,7 +3,7 @@
   "requirement_sha": "78a1a888b502be21",
   "tests": {
     "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "b9d665dbb9f116f6",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "8802c5fd72d90813"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "cb38b5c5f2ca8ffc"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "1c4fe9f926d8cc87",

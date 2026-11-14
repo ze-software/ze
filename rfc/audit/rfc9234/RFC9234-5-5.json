@@ -2,8 +2,8 @@
   "note": "Independent source rejudgment against full Section 5 and the Section 4.2 local-role prerequisite. TestOTCEgressWireBytesCheck supplies a real OTC attribute, a source with no role configuration and no role metadata, and complementary locally configured Provider/Peer/RS/Customer destination relationships. Exact false outcomes for remote Provider, Peer and RS therefore isolate the existing-wire-OTC rule from source export-set and metadata suppression. True Customer and OTC-absent Provider controls reject blanket dropping. OTCEgressFilter calls checkOTCEgress before operator export-set evaluation. The added local destination configurations establish applicability without changing wire input or outcome assertions. There is no existing discrimination record for this requirement to count as current proof; corrected runtime execution remains owed to the parent.",
   "requirement_sha": "041f5055e7ddc27a",
   "tests": {
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "8802c5fd72d90813",
-    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck#2": "8802c5fd72d90813"
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "cb38b5c5f2ca8ffc",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck#2": "cb38b5c5f2ca8ffc"
   },
   "units": {
     "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "f2c10a173f25e209",
