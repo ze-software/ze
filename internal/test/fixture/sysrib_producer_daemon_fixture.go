@@ -250,7 +250,10 @@ func sysribProducerPID(ctx context.Context, p *sdk.Plugin, daemon, previous int)
 		last = sysribProducerCheckIdentity(ctx, p, daemon, identity)
 		return last == nil
 	}) {
-		return 0, fmt.Errorf("new authenticated SDK producer identity not observed (previous PID %d): %w", previous, last)
+		if last != nil {
+			return 0, fmt.Errorf("new authenticated SDK producer identity not observed (previous PID %d): %w", previous, last)
+		}
+		return 0, fmt.Errorf("new authenticated SDK producer identity not observed (previous PID %d): <nil>", previous)
 	}
 	return identity.PID, importSay("SDK route-install producer has a live authenticated daemon descendant PID " + strconv.Itoa(identity.PID))
 }
@@ -356,7 +359,10 @@ func sysribProducerKill(ctx context.Context, pid int) error {
 	}) {
 		return nil
 	}
-	return fmt.Errorf("producer PID %d did not exit after SIGKILL: %w", pid, last)
+	if last != nil {
+		return fmt.Errorf("producer PID %d did not exit after SIGKILL: %w", pid, last)
+	}
+	return fmt.Errorf("producer PID %d did not exit after SIGKILL: <nil>", pid)
 }
 
 func sysribProducerStaticPresent(ctx context.Context, p *sdk.Plugin) error {

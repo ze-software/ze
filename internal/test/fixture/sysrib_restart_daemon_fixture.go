@@ -81,9 +81,11 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 			if err := syscall.Kill(oldChild, syscall.SIGKILL); err != nil {
 				return err
 			}
+			var stateErr error
 			if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
-				state, err := daemonProcessState(ctx, oldChild)
-				if err != nil {
+				var state string
+				state, stateErr = daemonProcessState(ctx, oldChild)
+				if stateErr != nil {
 					return false
 				}
 				if state == "" {
@@ -91,6 +93,9 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 				}
 				return strings.HasPrefix(state, "Z")
 			}) {
+				if stateErr != nil {
+					return fmt.Errorf("killed owner PID %d did not exit; read error: %w", oldChild, stateErr)
+				}
 				return fmt.Errorf("killed owner PID %d did not exit", oldChild)
 			}
 			if err := importKernel(ctx, sysribRestartForward, 0); err != nil {
@@ -111,10 +116,14 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 		if _, err := requireDone02(ctx, p, "request plugin restart "+sysribExecutionOwner); err != nil {
 			return err
 		}
+		// The capture error is copied under the capture's mutex, as await
+		// does, so a broken event stream is told apart from a missing withdrawal.
+		var captureErr error
 		if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
 			capture.mu.Lock()
 			defer capture.mu.Unlock()
-			if capture.err != nil {
+			captureErr = capture.err
+			if captureErr != nil {
 				return false
 			}
 			if capture.withdrawals[sysribRestartForward] <= beforeForward {
@@ -122,6 +131,9 @@ func sysribRestartDriver(ctx context.Context, args []string) error {
 			}
 			return capture.withdrawals[sysribRestartDiscard] > beforeDiscard
 		}) {
+			if captureErr != nil {
+				return fmt.Errorf("owner replacement never withdrew both old-generation outputs; capture error: %w", captureErr)
+			}
 			return fmt.Errorf("owner replacement never withdrew both old-generation outputs")
 		}
 		if err := sysribExecutionPlacement(ctx, p, args[0]); err != nil {

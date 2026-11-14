@@ -237,7 +237,12 @@ func importCandidateState(ctx context.Context, p *sdk.Plugin, prefix, source str
 			}
 			return false
 		}) {
-			return fmt.Errorf("%s: %s path metadata did not match distance=%d tag=%v selected=%t hidden-by=%q chain=%q: %s", command, source, distance, tag, selected, hiddenBy, chain, last)
+			// The wanted tag is a pointer: print its value, and spell the
+			// unset tag the way %v prints a nil pointer.
+			if tag != nil {
+				return fmt.Errorf("%s: %s path metadata did not match distance=%d tag=%d selected=%t hidden-by=%q chain=%q: %s", command, source, distance, *tag, selected, hiddenBy, chain, last)
+			}
+			return fmt.Errorf("%s: %s path metadata did not match distance=%d tag=<nil> selected=%t hidden-by=%q chain=%q: %s", command, source, distance, selected, hiddenBy, chain, last)
 		}
 	}
 	return nil

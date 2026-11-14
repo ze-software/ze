@@ -154,7 +154,10 @@ func sysribSlowDriver(ctx context.Context, args []string) error {
 			}
 			return after > before
 		}) {
-			return fmt.Errorf("same-process routing recovery did not count reconstruction: before=%g after=%g: %w", before, after, metricErr)
+			if metricErr != nil {
+				return fmt.Errorf("same-process routing recovery did not count reconstruction: before=%g after=%g: %w", before, after, metricErr)
+			}
+			return fmt.Errorf("same-process routing recovery did not count reconstruction: before=%g after=%g: <nil>", before, after)
 		}
 		current, detail, err := sysribExecutionChildren(ctx, daemon)
 		if err != nil {
@@ -201,7 +204,10 @@ func sysribSlowStopped(ctx context.Context, pid int) error {
 	}) {
 		return nil
 	}
-	return fmt.Errorf("routing child PID %d is not stopped: state %q: %w", pid, state, last)
+	if last != nil {
+		return fmt.Errorf("routing child PID %d is not stopped: state %q: %w", pid, state, last)
+	}
+	return fmt.Errorf("routing child PID %d is not stopped: state %q: <nil>", pid, state)
 }
 
 func sysribSlowSurvivors(ctx context.Context) error {
@@ -302,7 +308,10 @@ func sysribSlowCurrentKernel(ctx context.Context) error {
 		}
 		return true
 	}) {
-		return fmt.Errorf("multi-page snapshot did not reconstruct the exact kernel table: %s: %w", last, lastErr)
+		if lastErr != nil {
+			return fmt.Errorf("multi-page snapshot did not reconstruct the exact kernel table: %s: %w", last, lastErr)
+		}
+		return fmt.Errorf("multi-page snapshot did not reconstruct the exact kernel table: %s: <nil>", last)
 	}
 	if err := importKernel(ctx, sysribSlowControl, 1, "6 "+sysribSlowControl+" ", "proto 250 "); err != nil {
 		return err
