@@ -20,8 +20,13 @@ Publish, per RFC and per profile, how many of the optional features an RFC
 defines Ze offers: "optional features offered / optional features defined"
 (the fttx-edge mockup showed 12 / 20, with invented numbers). Thomas chose to
 keep this figure beside the per-row SHOULD / MAY states that
-`spec-rfc-figures-sectioned-presentation` introduced (closed 2026-10-31; the
-states are documented in `docs/contributing/rfc-conformance-gates.md`), as its own spec so it does not hold that one up.
+`spec-rfc-figures-sectioned-presentation` introduced (closed 2026-10-31), as
+its own spec so it does not hold that one up. Since
+`spec-rfc-figures-built-and-proven`, the intent states (not ever, not yet, not
+decided) are no longer published, so the figure sits beside the four open
+optional sections that replaced them: proof pending, exclusion unchecked, not
+assessed and not built (documented in
+`docs/contributing/rfc-conformance-gates.md`, "Coverage figures").
 
 The figure counts features, not rows: one optional feature (an RFC option, a
 mode, a transport) usually spans several requirement rows, MUST rows

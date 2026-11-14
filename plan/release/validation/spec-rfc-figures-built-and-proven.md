@@ -8,11 +8,11 @@
 | Release reason | Accurate support claims: the published RFC figures draw one "Ze correctness gap" segment over rows that are not built and rows that are tested but carry no recorded proof, so a reader cannot tell an absent feature from a pending proof |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -40,9 +40,9 @@ Thomas ruled three things on 2026-11-13, recorded in `ai/META-DECISIONS.md`
 
 | Ruling | What this spec delivers |
 |--------|-------------------------|
-| A requirement that has tests but no recorded proof is published apart from one that is not built, never under one heading | The unproven Ze-owned MUST rows are split into two sections on every surface that draws or prints them |
+| A requirement that has tests but no recorded proof is published apart from one that is not built, never under one heading | The unproven Ze-owned MUST rows are split into four open sections (proof pending, exclusion unchecked, not assessed, not built) on every surface that draws or prints them. The design had two; the third and fourth came from Thomas's later decisions, recorded below |
 | A requirement the operating system meets counts as done in every published figure once its test proves it, unless a rule names a reason to keep it out | Every published proven count and percentage counts OS verified rows with Ze proven rows |
-| A public page says what is not built and says nothing about whether or when it will be | No public page or published data file carries an intent (never, not yet, undecided) for an unmet requirement. The open optional rows are split the way the MUST rows are, into not built and proof pending |
+| A public page says what is not built and says nothing about whether or when it will be | No public page or published data file carries an intent (never, not yet, undecided) for an unmet requirement. The open optional rows are split the way the MUST rows are, into the same four open sections |
 
 Thomas's words on the third ruling: "we should effectively document what we
 will not build, or what is not currently built and perhaps don't say anything
@@ -88,6 +88,25 @@ register needs all of them empty.
 | Rollup lines print the sections' text, and a rollup holds no per-RFC figures, so the intent counts would vanish from them | "The intent in private text" |
 | A not-built count larger than the unproven rows would pass the add-back check if proof pending were a remainder | Both sections are counted row by row, never derived by subtraction |
 
+## Owner decisions during the page review, 2026-11-13 and 2026-11-14
+
+Thomas reviewed the rendered pages from the working tree before phase 5. His
+decisions changed the design below, and the sections after this one are
+corrected to them. The acceptance criteria now name the four open sections
+directly, so the note above about "the two sections" is history only.
+
+| Question | Decision |
+|----------|----------|
+| An open row that no tagged test covers | A fourth open section, "Not assessed" (`not-assessed`), at the MUST and the optional level. Thomas: "Keep the number real." A row lands there when no non-gap tag covers it, so "Proof pending" never claims a test that does not exist |
+| The label of the fourth section | Thomas dictated "Not Asserted". The pages were built as "Not assessed", and he confirmed "Not assessed" on 2026-11-14 |
+| Order of the open sections | Proof pending, OS testing gap, Exclusion unchecked, Not assessed, Not built, on both bars, the tree text, the glossary and the profile tables |
+| Card groups on the compliance pages | Positive, Negative, Neutral, Totals, in that order |
+| The per-RFC total card | Last, under Totals. The 2026-09-01 decision not to lead with it stands. It is outlined with no coloured edge, labelled "Mandatory requirements (MUST level)", and its sibling denominator reads "of N mandatory requirements" |
+| A colour for Neutral | Yellow rejected: amber is the warn tone, and a neutral number takes no colour |
+| Card layout | Two cards per line |
+| The card "No test at all" | Relabelled "Declared gap or no test". The at-a-glance row beside it reads "Mandatory requirements with no test and no annotation", because the two count different rows |
+| The pages | Approved by Thomas on 2026-11-14 |
+
 ## Which row lands where
 
 Every owed row that is not proven, not excluded and not performed by a lower
@@ -101,9 +120,13 @@ row at a time.
 | 2 | Unannotated, with an audit verdict of wrong, unimplemented or partial, and not proven | Not built | The audit says the obligation is unmet (A-6) |
 | 3 | `{linux-limit}` whose register entry fails its check | Not built | Its trait says unmet, and without a verified limit entry the claim that Linux blocks it is unproven. None exists on 2026-11-13 |
 | 4 | Optional row marked `{intent: not-ever}` | Not built | Thomas declined it, so its proof is not pending. The page says only that it is not built |
-| 5 | Unannotated or `{single-polarity}`, not proven: a tag with no record, a stale record, a `no-break` escape | Proof pending | A test exists and no recorded break proves it yet |
+| 5 | Unannotated or `{single-polarity}`, not proven, that a non-gap tag covers: a tag with no record, a stale record, a `no-break` escape | Proof pending, at both levels | A test exists and no recorded break proves it yet. The tag test is `figureEvidence.tested`, the same at the MUST and the optional level |
 | 6 | `{not-applicable}` or `{feature-declined}` whose evidence fails its check | Exclusion unchecked | Thomas's decision, 2026-11-13. The kind bars tests, so no proof can ever be recorded for it while it keeps the annotation. `rfc/exclusion-evidence-backlog.txt` counts 30 `not-applicable` rows in this state across the corpus |
-| 7 | Unannotated with no tagged test at all | Proof pending at the optional level; refused at the MUST level | A MUST row of an enrolled RFC with no test and no annotation is a red of `./le rfc check` (`evaluate`, `internal/le/rfc/check_core.go`). A red does not hold a commit, so the corpus test of A-1 states how many exist rather than asserting none |
+| 7 | Unannotated with no tagged test at all | Not assessed, at both levels | Thomas's decision during the page review ("Keep the number real."): nothing yet says whether Ze meets the row, so it is neither proof pending nor not built. At the MUST level such a row is also a red of `./le rfc check` (`evaluate`, `internal/le/rfc/check_core.go`), and a red does not hold a commit. The count over the 196 implemented RFCs is 0. Across all walked documents it is 191, and 16 of those are rows of RFC 9582, which the route-server profile requires (Known Limitations) |
+
+The rule is one function, `openSectionOf` in `internal/le/rfc/profilecoverage.go`,
+asked in that order: not built (rows 1 to 4), exclusion unchecked (row 6),
+proof pending (row 5), and not assessed for every other open row (row 7).
 
 Row 6 is a third section, "Exclusion unchecked", by Thomas's decision of
 2026-11-13. A row whose "not owed" claim has no checked evidence is neither
@@ -112,7 +135,9 @@ on the MUST bar and the overview bar, and defined in the glossary as a row
 claimed not to bind Ze whose evidence is still to be checked. It stays inside
 Kept, as such a row does today, and the register reads complete only when it
 is empty. The alternative, counting it as not built, was set aside because it
-overstates what is missing by up to 30 rows.
+overstates what is missing by up to 30 rows. "Not assessed" (row 7) is the
+fourth open section, added during the page review, and the register needs it
+empty too.
 
 ## The numerator
 
@@ -126,21 +151,24 @@ published, and they must agree with each other.
 | Tree row `mandatory-proven`, read by the status page Proof cell, the site's per-RFC Proof cell, the update report and `test/ui/le-rfc-derived-proof-render.ci` | Ze proven of all MUST rows | Ze proven plus OS verified, so every reader of the published count agrees without a change of its own |
 | Evidence cell and `proven-by-kind` | Proven rows by strongest test kind, summing to the Proof numerator | Gains one kind, `os`, for the OS verified rows, so it still sums to the Proof numerator |
 | `Sections.Must.ZeProven` and the bar's Ze proven segment | Ze proven | Unchanged: the bar keeps showing who performs a row |
+| Profile rollup in `data/rfc-requirements.json` and `./le rfc tree` or `./le rfc next` JSON (`Rollup`, `ScopeRollup`) | `mandatory.proven`, Ze proven only | A flat `mandatory-proven` that counts OS verified rows, as the tree row does (`internal/le/rfc/rollup_published.go`). Reading it back takes the OS verified rows out again, and a published count smaller than its OS verified rows is refused. In process, `Rollup.Mandatory.Proven` stays Ze only |
 
 The health floor in `test/health/quality-baseline.json` reads 66.2 for proof
 density while the published figure is 45.2. What that floor measures against
 was not established in this design, and the implementation reads the floor's
-producer before touching the density (R-3).
+producer before touching the density (R-3). Answered in phase 2: R-3 in Risks.
 
 ## The two bars
 
 | Bar | Segments, left to right |
 |-----|-------------------------|
-| MUST | Ze proven, OS verified, Proof pending, OS testing gap, Exclusion unchecked, Not built |
-| Overview | Ze MUST proven, OS verified (MUST and optional), SHOULD proven, Not owed, Proof pending (MUST and optional), OS testing gap (MUST and optional), Exclusion unchecked (MUST and optional), Not built (MUST and optional) |
+| MUST | Ze proven, OS verified, Proof pending, OS testing gap, Exclusion unchecked, Not assessed, Not built |
+| Overview | Ze MUST proven, OS verified (MUST and optional), SHOULD proven, Not owed, Proof pending (MUST and optional), OS testing gap (MUST and optional), Exclusion unchecked (MUST and optional), Not assessed (MUST and optional), Not built (MUST and optional) |
 
-The overview bar sums the two levels in one segment for proof pending, for
-exclusion unchecked and for not built, as it already does for the OS segments. The three intent segments
+This is the order as built, declared once in `rfcBars`
+(`internal/le/site/rfcdata.go`). The overview bar sums the two levels in one
+segment for proof pending, for exclusion unchecked, for not assessed and for
+not built, as it already does for the OS segments. The three intent segments
 and their style rules are deleted.
 
 ## The intent in private text
@@ -217,9 +245,9 @@ false zero.
 - No percentage on the tree, the RFC index, the profile pages or the detail pages.
 
 **Behavior to change:**
-- The mandatory "Ze correctness gap" section becomes two sections, on every surface.
+- The mandatory "Ze correctness gap" section becomes four open sections (proof pending, exclusion unchecked, not assessed, not built), on every surface.
 - Published proven counts and percentages count OS verified rows.
-- Published shapes carry the open optional rows as not built and proof pending, in place of three intent counts.
+- Published shapes carry the open optional rows in the same four sections, in place of three intent counts.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -308,25 +336,33 @@ false zero.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every MUST row in proof pending carries a tagged test | `evaluate` in `internal/le/rfc/check_core.go` reports an enrolled gated row with no test and no annotation as a red; the published buckets of 2026-11-10 count 0 such rows. A red holds no commit, so the gate does not make the count zero by construction | A few proof-pending rows have no test | A corpus test reports the count and fails above zero, naming each row; the fix is a tag or an annotation on that row, never a change to the section's words | unvalidated |
-| A-2 | No summary carries an `{intent}` marker | `grep '{intent' rfc/short` answers 0 files on 2026-11-13 | Collapsing the public counts would remove published information, which needs the owner's information-preservation approval | The same grep at implementation | unvalidated |
-| A-3 | `spec-site-rfc-recorded-data` has built nothing when this spec's site phase starts | That spec's status on 2026-11-12: design, three open questions | A recording exists in the old shape, and this spec owes a regeneration step and a schema value | Check that spec's status and the tree for its recording file before the site phase | unvalidated |
-| A-4 | Nothing outside this repository reads the field names of `data/rfc/` | Thomas, design gate 2026-11-13: "Nothing outside" | An outside reader breaks on the renamed fields | Confirmed by Thomas | confirmed |
-| A-7 | Most open optional rows carry neither an unmet mark nor a tagged test, so the optional "proof pending" count will hold rows with no test behind them | No gate obliges a test on an optional row; RFC 4271 publishes 31 open optional rows and 3 proven | The count is smaller than feared and the name is accurate | Count the open optional rows with no tag over the live corpus at implementation, and state that count in the glossary sentence's wording | unvalidated |
-| A-5 | OS verified is 0 across the corpus, so the percentage does not move when this lands | Site data of 2026-11-10 | The home card and the health floor move at landing; the floor file needs its new value recorded | Read the count from the tree at implementation | unvalidated |
-| A-6 | An unproven row whose only unmet mark is an audit verdict (wrong, unimplemented, partial) belongs under "not built" | The existing predicate treats summary and audit alike for the unmet list | Rows that are built but defective are named "not built" | Count them at implementation; above a handful, raise the name with Thomas | unvalidated |
+| A-1 | Every MUST row in proof pending carries a tagged test | `evaluate` in `internal/le/rfc/check_core.go` reports an enrolled gated row with no test and no annotation as a red; the published buckets of 2026-11-10 count 0 such rows. A red holds no commit, so the gate does not make the count zero by construction | A few proof-pending rows have no test | A corpus test reports the count and fails above zero, naming each row; the fix is a tag or an annotation on that row, never a change to the section's words | superseded: once "Not assessed" exists, an untagged open row lands there and never in proof pending, so proof pending holds tagged rows by construction and the assumption can no longer fail. The question it guarded moved to the not assessed section: MUST not assessed is 0 over the 196 implemented RFCs (`TestNotAssessedMustRowsAreNamed` names each such row). `TestEveryProofPendingRowCarriesATaggedTest` stays, because the judge refused its deletion |
+| A-2 | No summary carries an `{intent}` marker | `grep '{intent' rfc/short` answers 0 files on 2026-11-13 | Collapsing the public counts would remove published information, which needs the owner's information-preservation approval | The same grep at implementation | confirmed: 0 markers at implementation |
+| A-3 | `spec-site-rfc-recorded-data` has built nothing when this spec's site phase starts | That spec's status on 2026-11-12: design, three open questions | A recording exists in the old shape, and this spec owes a regeneration step and a schema value | Check that spec's status and the tree for its recording file before the site phase | confirmed: that spec is still in design with nothing built, so its recording takes the four-section shape as its first schema |
+| A-4 | Nothing outside this repository reads the field names of `data/rfc/` | Thomas, design gate 2026-11-13: "Nothing outside" | An outside reader breaks on the renamed fields | Confirmed by Thomas | confirmed by Thomas |
+| A-7 | Most open optional rows carry neither an unmet mark nor a tagged test, so the optional "proof pending" count will hold rows with no test behind them | No gate obliges a test on an optional row; RFC 4271 publishes 31 open optional rows and 3 proven | The count is smaller than feared and the name is accurate | Count the open optional rows with no tag over the live corpus at implementation, and state that count in the glossary sentence's wording | confirmed, and worse than assumed: 1,811 of the open optional rows over the implemented RFCs had no test. That count is why Thomas added "Not assessed", so proof pending no longer holds them |
+| A-5 | OS verified is 0 across the corpus, so the percentage does not move when this lands | Site data of 2026-11-10 | The home card and the health floor move at landing; the floor file needs its new value recorded | Read the count from the tree at implementation | confirmed: OS verified is 0 at implementation, so no published percentage moved and the floor file was not edited |
+| A-6 | An unproven row whose only unmet mark is an audit verdict (wrong, unimplemented, partial) belongs under "not built" | The existing predicate treats summary and audit alike for the unmet list | Rows that are built but defective are named "not built" | Count them at implementation; above a handful, raise the name with Thomas | built as assumed: such a row lands in not built (`openSectionOf` over `figureEvidence.unmet`). The count of rows whose only unmet mark is an audit verdict was not measured, so it was not put to Thomas. It is owed at closure |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | "Not built" is drawn from `{gap}` marks, and some marks sit on code that exists (`spec-fttx-edge-unproven-row-review` found such rows) | A row in the not-built section with a passing tagged test | Out of scope by Thomas's decision; the section's glossary sentence says it counts what the summary declares, and the row review specs correct the marks |
 | R-2 | The optional "proof pending" section overstates rows that have no test at all (A-7). Thomas chose the split knowing this | A reader takes an untested optional row for a tested one | The glossary sentence for the optional section says it counts every open optional row the summary does not declare unmet, tested or not. If A-7's count is large, the result goes back to Thomas with the number before the pages are approved |
-| R-3 | The health proof density floor ratchets on a number whose definition changes, and the floor file reads 66.2 against a published 45.2 | The health run reports the density against its floor | Read the floor's producer first and establish what 66.2 is measured against. The change to the density is zero today (A-5); the floor's meaning is restated in `docs/architecture/testing/test-health.md` in the same change |
+| R-3 | The health proof density floor ratchets on a number whose definition changes, and the floor file reads 66.2 against a published 45.2 | The health run reports the density against its floor | Read the floor's producer first and establish what 66.2 is measured against. The change to the density is zero today (A-5); the floor's meaning is restated in `docs/architecture/testing/test-health.md` in the same change. Answered in phase 2: 66.2 is the best value the floor ever held under the definition used before 2026-10-31, which counted every MUST row. The metric already reads warn against it. The baseline file was not edited, and restating the floor is Thomas's call |
 | R-4 | Goldens and browser assertions pin the old segment words, so every one changes | The site tests go red on label text | Each changed expectation goes to the `ze-test-judge` route with the ruling as the source that makes the old expectation wrong |
 | R-5 | Another session holds uncommitted edits in `internal/le/site/` (`actions.go`, `build.go`, `producer.go` on 2026-11-13) | A foreign hunk in a file this spec edits | Commit this spec's hunks alone per `ai/rules/git-safety.md`; do not start the site phase while that session's work is in flight on the same files |
 | R-6 | `./le rfc next` re-derives which rows owe Ze code per row (`rowOwes`), so its totals can disagree with the new sections | The next report's counts differ from the tree's | A test holds the next report's Ze-owed MUST count equal to the MUST sections that are not proven and not OS, for one corpus. The equality is MUST only: `rowOwes` skips an optional not-ever row, which the sections count as not built |
 | R-8 | The intent marker stays readable in public: the repository is public, the ledger links each summary file, and a requirement marshalled by `le` carries its intent | A reader finds a not-ever marker in a summary | Accepted: the ruling is about what the pages and their data state, and the summary is the private planning record kept in a public repository. Named in Known Limitations |
-| R-7 | A published file keeps an intent key through a type this spec did not reach | The guard test of AC-7 goes red | The guard reads every file the build publishes, not a list of known files |
+| R-7 | A published file keeps an intent key through a type this spec did not reach | The guard test of AC-7 goes red | The guard reads every file the build publishes, not a list of known files. As built, the guard in `TestDataIndexAndFilesAgree` reads one published per-RFC file (Known Limitations) |
+
+Risks met during implementation:
+
+| ID | Risk met | What happened | Outcome |
+|----|----------|---------------|---------|
+| R-9 | Other sessions' uncommitted edits break the shared build | Four times another session's mid-edit stopped the build in the main checkout, once during the page review (a DDoS plugin file with an unused import and undefined names) | Each time the work waited for that session, and no copy of the tree was used |
+| R-10 | The weakening guard refuses its own author's repair | The guard and its approval tool refused the rename of the helper `intentRow` to `splitIntentRow` in the untracked new file `sections_split_test.go` (the false positive of `plan/journal/guard-blocks-its-own-authors-repair.md`) | Thomas ran the rename by hand. The guard is not fixed |
+| R-3 answered | The health floor's definition | See R-3 above | No floor change; Thomas decides whether to restate it |
 
 ## Blast Radius
 
@@ -341,7 +377,7 @@ false zero.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le help rfc tree` through the built binary | → | the tree action's declared help | `test/ui/le-help-rfc-tree-sections.ci` |
-| `./le rfc tree` | → | `SectionsOf` with the two sections | `TestTreeActionRendersLevelsAndFigures` |
+| `./le rfc tree` | → | `SectionsOf` with the four open sections | `TestTreeActionRendersLevelsAndFigures` |
 | `./le site build`, RFC data step | → | `rfcBars`, `writeRFCData` | `TestDataIndexAndFilesAgree` |
 | A reader's browser on a profile page | → | `rfc-figures.js` drawing the declared segments | `TestTheBrowserDrawsRFCFiguresFromTheirFiles` |
 | `./le site build`, home card | → | `factsFromRFCLedger`, `ProvenPercent` | `TestTheHomeCardCountsOSVerifiedRows` |
@@ -351,44 +387,57 @@ false zero.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A walked RFC with unproven owed MUST rows, some declared unmet by the summary or the audit | Its sections hold a not-built count equal to those declared rows and a proof-pending count equal to the rest, and the two with Ze proven, OS verified and OS testing gap sum to Kept | Kept, Total and not owed are unchanged for every RFC: the split moves no row across the bar's edge |
+| AC-1 | A walked RFC with unproven owed MUST rows, some declared unmet by the summary or the audit, some claimed not owed with failing evidence, some covered by a tagged test and some covered by none | Its four open sections hold, row by row: not built the declared unmet rows, exclusion unchecked the failing not-owed claims, proof pending the tagged rest, not assessed the untagged rest; the four with Ze proven, OS verified and OS testing gap sum to Kept | Kept, Total and not owed are unchanged for every RFC: the split moves no row across the bar's edge |
 | AC-2 | A row the audit calls wrong that a verifying record proves, and a `{linux-limit}` row whose evidence passes | The first counts as Ze proven and the second as not owed; neither is in the not-built count, and both stay in the unmet id list | The unmet id list keeps every id it lists today, because it is the summary's disclosure and not a section |
-| AC-3 | Any surface that draws or prints the MUST sections: the tree and its help, the per-RFC and profile data files, the requirement ledger, the bars, the list columns, the glossary, the health detail | Each names the two sections in the same words and order, taken from the one split and the one bar declaration | The OS segments keep their names and order relative to Ze proven |
+| AC-3 | Any surface that draws or prints the MUST sections: the tree and its help, the per-RFC and profile data files, the requirement ledger, the bars, the list columns, the glossary, the health detail | Each names the four open sections in the same words and order (the open part reads proof pending, OS testing gap, exclusion unchecked, not assessed, not built), taken from the one split and the one bar declaration | The OS segments keep their names and order relative to Ze proven |
 | AC-4 | A corpus with at least one OS verified MUST row | The home card count and percentage, the health proof density, the tree's published proven count, the status page Proof cell, the site's per-RFC Proof cell and the update report's figure each count that row as proven, and the Evidence cell lists it under an `os` kind so its counts still sum to the Proof numerator | The MUST bar still draws OS verified as its own segment, because who performs a row stays visible |
 | AC-5 | A row carrying a `no-break` or `kernel-producer` escape, or a lower-layer row with a tag and no record | It is counted in no proven figure, and stays an OS testing gap or proof pending | No escaped row is permitted in a numerator: the owner rule publishes it as escaped, never as proven |
-| AC-6 | A set of RFCs for the `register` value | It reads complete only when no member is unwalked and not built, proof pending, exclusion unchecked and OS testing gap are all 0 | A set with no member still reads "no rows" |
-| AC-7 | Every file `./le site build` publishes, and every page it renders | Open optional rows appear as a not-built count and a proof-pending count, and each published file and page holds those two where the three intent counts were | The summaries keep their markers, and `./le rfc tree` text and `./le rfc next` keep reading them, because the marker is a private planning fact |
-| AC-8 | A summary with `{intent: not-ever}` and `{intent: not-yet}` rows | `./le rfc tree` prints the three intent counts in each row's text and in each rollup line, `./le rfc next` still skips a not-ever row, and the not-ever row is counted as not built | The tree's JSON carries the two optional sections and no intent count, because the site publishes that type; a row read back from that JSON prints no intent clause |
-| AC-9 | A walked RFC with open optional rows, some declared unmet by the summary or the audit | Its optional sections hold a not-built count equal to those declared rows and a proof-pending count equal to the rest, and with proven, OS verified, OS testing gap and not owed they sum to the optional Total | The optional Total and every other optional section are unchanged, because the split only renames how the open rows are divided |
-| AC-10 | The docs that describe the figures | `rfc-conformance-gates.md`, `site-facts.md`, `gh-pages.md` and `testing/test-health.md` describe the two sections, the numerator and the private marker, with source anchors | Sections of those pages this spec does not reach stay as they are |
+| AC-6 | A set of RFCs for the `register` value | It reads complete only when no member is unwalked and proof pending, OS testing gap, exclusion unchecked, not assessed and not built are all 0, and a sum that lacks one of those fields reads not complete | A set with no member still reads "no rows" |
+| AC-7 | Every file `./le site build` publishes, and every page it renders | Open optional rows appear as proof pending, exclusion unchecked, not assessed and not built counts, and each published file and page holds those four where the three intent counts were | The summaries keep their markers, and `./le rfc tree` text and `./le rfc next` keep reading them, because the marker is a private planning fact |
+| AC-8 | A summary with `{intent: not-ever}` and `{intent: not-yet}` rows | `./le rfc tree` prints the three intent counts in each row's text and in each rollup line, `./le rfc next` still skips a not-ever row, and the not-ever row is counted as not built | The tree's JSON carries the four open optional sections and no intent count, because the site publishes that type; a row read back from that JSON prints no intent clause |
+| AC-9 | A walked RFC with open optional rows, some declared unmet by the summary or the audit or marked not ever, some tagged and some untagged | Its optional sections split those rows by the same rule as AC-1 into not built, exclusion unchecked, proof pending and not assessed, and with proven, OS verified, OS testing gap and not owed they sum to the optional Total | The optional Total and every other optional section are unchanged, because the split only renames how the open rows are divided |
+| AC-10 | The docs that describe the figures | `rfc-conformance-gates.md`, `site-facts.md`, `gh-pages.md` and `testing/test-health.md` describe the four open sections, the numerator (the profile rollup included) and the private marker, with source anchors | Sections of those pages this spec does not reach stay as they are |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMustGapSplitsIntoNotBuiltAndProofPending` | `internal/le/rfc/sectioncounts_test.go` | AC-1 | |
-| `TestNotBuiltCountsOnlyUnprovenOwedRows` | `internal/le/rfc/profilecoverage_test.go` | AC-2 | |
-| `TestSectionsOfRefusesFiguresThatDoNotAddBack` | `internal/le/rfc/sectioncounts_test.go` | AC-1 add-back over the new sections (existing, extended) | |
-| `TestProvenPercentCountsOSVerifiedRows` | `internal/le/rfc/implemented_test.go` | AC-4, AC-5 | |
-| `TestProofCellCountsOSVerifiedRows` | `internal/le/rfc/render_ledger_test.go` | AC-4 | |
-| `TestEvidenceKindsSumToTheProofNumerator` | `internal/le/rfc/render_ledger_test.go` | AC-4, with an OS verified row | |
-| `TestAProofCellReadBackFromJSONCountsOSVerifiedRows` | `internal/le/rfc/tree_test.go` | AC-4 through the published row the site reads | |
-| `TestANotOwedClaimWithoutEvidenceIsExclusionUnchecked` | `internal/le/rfc/profilecoverage_test.go` | "Which row lands where", row 6: the row is in the third section at its level, in neither of the other two, and inside Kept | |
-| `TestANotEverRowIsNotBuilt` | `internal/le/rfc/intent_test.go` | "Which row lands where", row 4 | |
-| `TestRollupLinesKeepTheIntentCounts` | `internal/le/rfc/tree_test.go` | AC-8 | |
-| `TestTheFallbackRegisterNeedsEveryOpenMustSectionEmpty` | `internal/le/site/rfcdata_test.go` | AC-6 in the fallback fill | |
-| `TestRegisterCompleteNeedsNoOpenMustSection` | `internal/le/rfc/profilecoverage_test.go` | AC-6 (replaces `TestRegisterCompleteNeedsNoZeOrOSGap`) | |
-| `TestOpenOptionalRowsSplitIntoNotBuiltAndProofPending` | `internal/le/rfc/sectioncounts_test.go` | AC-7, AC-9 | |
-| `TestOpenOptionalRowsWithNoTestAreCounted` | `internal/le/rfc/corpus_test.go` | A-7 over the live corpus | |
-| `TestTreeJSONCarriesNoIntentCounts` | `internal/le/rfc/tree_test.go` | AC-8 | |
-| `TestTreeTextKeepsTheIntentCounts` | `internal/le/rfc/tree_test.go` | AC-8 | |
-| `TestNextOwesWhatTheMustSectionsCount` | `internal/le/rfc/next_test.go` | R-6, MUST level only | |
-| `TestEveryProofPendingRowCarriesATaggedTest` | `internal/le/rfc/corpus_test.go` | A-1 over the live corpus | |
-| `TestTheBarLayoutSeparatesNotBuiltFromProofPending` | `internal/le/site/rfcdata_test.go` | AC-3 | |
-| `TestNoPublishedRFCDataNamesAnIntent` | `internal/le/site/rfcdata_test.go` | AC-7 over what the data step writes (the per-RFC and profile files, the index, the requirement ledger, the site facts), matching the three keys exactly so an unrelated word such as "not-yet-active" is not a hit | |
-| `TestTheHomeCardCountsOSVerifiedRows` | `internal/le/site/facts_test.go` | AC-4 | |
-| `TestProofDensityCountsOSVerifiedRows` | `internal/le/test/health/collect_rfc_test.go` | AC-4 | |
+| `TestMustGapSplitsIntoNotBuiltAndProofPending` | `internal/le/rfc/sections_split_test.go` | AC-1 | pass (rfc package, whole) |
+| `TestNotBuiltCountsOnlyUnprovenOwedRows` | `internal/le/rfc/sections_split_test.go` | AC-2 | pass (rfc package, whole) |
+| `TestSectionsOfRefusesFiguresThatDoNotAddBack` | `internal/le/rfc/sectioncounts_test.go` | AC-1 add-back over the new sections (existing, extended) | pass (rfc package, whole) |
+| `TestProvenPercentCountsOSVerifiedRows` | `internal/le/rfc/implemented_test.go` | AC-4, AC-5 | pass (rfc package, whole) |
+| `TestProofCellCountsOSVerifiedRows` | `internal/le/rfc/render_ledger_test.go` | AC-4 | pass (rfc package, whole) |
+| `TestEvidenceKindsSumToTheProofNumerator` | `internal/le/rfc/render_ledger_test.go` | AC-4, with an OS verified row | pass (rfc package, whole) |
+| `TestAProofCellReadBackFromJSONCountsOSVerifiedRows` | `internal/le/rfc/tree_test.go` | AC-4 through the published row the site reads | pass (rfc package, whole) |
+| `TestAPublishedRowWhoseProvenCountLacksItsOSRowsIsRefused` | `internal/le/rfc/tree_test.go` | AC-4: a published row whose proven count is smaller than its OS verified rows is refused on read-back | pass (rfc package, whole) |
+| `TestANotOwedClaimWithoutEvidenceIsExclusionUnchecked` | `internal/le/rfc/sections_split_test.go` | "Which row lands where", row 6: the row is in exclusion unchecked at its level, in no other open section, and inside Kept | pass (rfc package, whole) |
+| `TestAnOpenRowWithNoTestIsNotAssessed` | `internal/le/rfc/sections_split_test.go` | "Which row lands where", row 7, at both levels | pass (rfc package, whole) |
+| `TestANotEverRowIsNotBuilt` | `internal/le/rfc/sections_split_test.go` | "Which row lands where", row 4 | pass (rfc package, whole) |
+| `TestRollupLinesKeepTheIntentCounts` | `internal/le/rfc/sections_split_test.go` | AC-8 | pass (rfc package, whole) |
+| `TestRFCFigureSetAnswersAsTheScriptDoes` | `internal/le/site/rfcprofiles_figures_test.go` | AC-6 in the fallback fill: each of the four open MUST sections alone keeps the register open (existing, extended; it took the place of the planned `TestTheFallbackRegisterNeedsEveryOpenMustSectionEmpty`) | pass (site package) |
+| `TestTheBrowserDrawsAProfilePageFromItsFiles` | `internal/le/site/browsertest/rfcprofilepage_test.go` | AC-6 in the browser script's register (existing, extended) | pass (browsertest package, whole) |
+| `TestRegisterCompleteNeedsNoOpenMustSection` | `internal/le/rfc/sections_split_test.go` | AC-6 over the five open MUST sections | pass (rfc package, whole) |
+| `TestRegisterCompleteNeedsNoZeOrOSGap` | `internal/le/rfc/profilecoverage_test.go` | AC-6, the earlier test, kept under its name beside the new one and updated to the new fields | pass (rfc package, whole) |
+| `TestOpenOptionalRowsSplitIntoNotBuiltAndProofPending` | `internal/le/rfc/sections_split_test.go` | AC-7, AC-9 | pass (rfc package, whole) |
+| `TestOpenOptionalRowsWithNoTestAreCounted` | `internal/le/rfc/sections_split_corpus_test.go` | A-7 over the live corpus: tagged open optional rows are proof pending, untagged ones not assessed | pass (rfc package, whole) |
+| `TestNotAssessedMustRowsAreNamed` | `internal/le/rfc/sections_split_corpus_test.go` | Row 7 over the live corpus: names every MUST row in not assessed | pass (rfc package, whole) |
+| `TestEveryProofPendingRowCarriesATaggedTest` | `internal/le/rfc/sections_split_corpus_test.go` | A-1 over the live corpus. It now holds by construction; kept because the judge refused its deletion | pass (rfc package, whole) |
+| `TestTreeJSONCarriesNoIntentCounts` | `internal/le/rfc/sections_split_test.go` | AC-8 | pass (rfc package, whole) |
+| `TestTreeTextKeepsTheIntentCounts` | `internal/le/rfc/sections_split_test.go` | AC-8 | pass (rfc package, whole) |
+| `TestNextOwesWhatTheMustSectionsCount` | `internal/le/rfc/sections_split_test.go` | R-6, MUST level only | pass (rfc package, whole) |
+| `TestAPublishedRollupCountsOSVerifiedRows` | `internal/le/rfc/rollup_published_test.go` | The profile rollup row of "The numerator" | pass (rfc package, whole) |
+| `TestAPublishedRollupWhoseProvenCountLacksItsOSRowsIsRefused` | `internal/le/rfc/rollup_published_test.go` | The rollup read-back refusal | pass (rfc package, whole) |
+| `TestAPublishedScopeRollupKeepsItsOwnFields` | `internal/le/rfc/rollup_published_test.go` | A scope rollup's own fields survive its custom JSON | pass (rfc package, whole) |
+| `TestTheBarLayoutKeepsTheAgreedOrder` | `internal/le/site/rfcdata_test.go` | AC-3: both bars' built order (existing, extended; it took the place of the planned `TestTheBarLayoutSeparatesNotBuiltFromProofPending`) | pass (site package) |
+| `TestDataIndexAndFilesAgree` | `internal/le/site/rfcdata_test.go` | AC-7 and AC-9: a published per-RFC file holds the four open sections at both levels equal to the model, and none of the three intent keys, matched exactly (it took the place of the planned `TestNoPublishedRFCDataNamesAnIntent`, over one file only: Known Limitations) | pass (site package) |
+| `TestTheHomeCardCountsOSVerifiedRows` | `internal/le/site/facts_test.go` | AC-4 | pass (site package) |
+| `TestProofDensityCountsOSVerifiedRows` | `internal/le/test/health/collect_rfc_test.go` | AC-4 | pass (health package, whole) |
+| `TestLeTreeSectionWordsAreReadFromTheTreeText`, `TestLeTreeSectionWordsRefuseLinesThatDisagree`, `TestLeTreeHelpMustNameEveryWordInOrder` | `internal/test/fixture/ui_fixture_le_help_rfc_tree_sections_test.go` | The wiring fixture's parser and order check | no run recorded in the state file |
+
+The site package passes except five tests that were red before this work and
+that it does not reach: the lab ISO size, the homepage proof strip, the
+homepage hero, a lost-fact refusal message, and the shared header.
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -399,37 +448,66 @@ false zero.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `le-help-rfc-tree-sections` | `test/ui/le-help-rfc-tree-sections.ci` | An agent reads `./le help rfc tree` and `./le rfc tree` through the built binary; the fixture holds every section word the help names equal to the words the tree's own text prints, so the help cannot name a section the tree does not | |
-| `TestTheBrowserDrawsRFCFiguresFromTheirFiles` | `internal/le/site/browsertest/rfcfigures_test.go` | A reader opens a profile page and sees not built and proof pending, each with its count, for the MUST rows and for the optional rows | |
-| `TestRFCSegmentColoursAreReadableInBothThemes` | `internal/le/site/browsertest/rfcfigures_test.go` | The new segments are readable in both themes | |
+| `le-help-rfc-tree-sections` | `test/ui/le-help-rfc-tree-sections.ci` | An agent reads `./le help rfc tree` and `./le rfc tree` through the built binary; the fixture holds every section word the help names equal to the words the tree's own text prints, so the help cannot name a section the tree does not | pass, through the le built from 67932475cc |
+| `TestTheBrowserDrawsRFCFiguresFromTheirFiles` | `internal/le/site/browsertest/rfcfigures_test.go` | A reader opens a profile page and sees the four open sections, each with its count, for the MUST rows and for the optional rows | pass (browsertest package, whole) |
+| `TestRFCSegmentColoursAreReadableInBothThemes` | `internal/le/site/browsertest/rfcfigures_test.go` | The new segments are readable in both themes | pass (browsertest package, whole) |
+| `le-rfc-derived-proof-render` | `test/ui/le-rfc-derived-proof-render.ci` | The status page Proof cell equals the tree's proven of total, with OS verified rows counted | pass after 5b56fc88cf |
 
 ## Files to Modify
-- `internal/le/rfc/profilecoverage.go` - the not-built count in `figuresByStem`; `Rollup.mandatoryComplete`
-- `internal/le/rfc/sectioncounts.go` - the section types, `sectionsOf`, `add`, the add-back checks, `String`
-- `internal/le/rfc/implemented.go` - `ProvenPercent`
-- `internal/le/rfc/render_ledger.go` - `evidenceCell` gains the `os` kind; `statusPageIntro` names OS verified rows
-- `internal/le/rfc/tree.go` - the text cell prints the intent counts from the figures; the published proven count
-- `internal/le/rfc/actions.go` - the tree help text
-- `internal/le/rfc/next.go` - the comment on `rowOwes` that names "its own SHOULD segment", and the rollup lines' intent clause
-- `internal/le/rfc/check_evidence.go` - the comment on `notOwedGap` that names the "Ze correctness gap"
-- `internal/le/site/rfcdata.go` - the segment names and `rfcBars`
-- `internal/le/site/rfcreader.go` - `rfcSegmentMeanings`
-- `internal/le/site/rfcprofiles.go` - the SHOULD rows of `rfcProfileFigures`, and `rfcProfileFiguresProse`
-- `internal/le/site/rfcfilter.go` - `rfcListCheckWords`
-- `internal/le/site/rfcfallback.go` - `rfcRegisterOf`
-- `internal/le/site/facts.go` - the proven count, its source sentence, and the comment that names the "Ze correctness gap"
-- `plan/post-release/engineering/spec-rfc-optional-feature-ratio.md` - its Task places its figure beside the per-row SHOULD states this spec stops publishing; its text is corrected to the two optional sections
-- `internal/le/test/health/collect_rfc.go` - density and detail prose
-- `website/assets/js/rfc-figures.js` - `registerOf`
-- `website/assets/css/30-components.css` - the segment rules
-- `internal/le/site/testdata/rfc-bars.json`, `internal/le/site/testdata/rfc-compliance-pages.json`, `internal/le/site/testdata/rfc-profile-page.json` - goldens
-- `docs/contributing/rfc-conformance-gates.md`, `docs/architecture/site-facts.md`, `docs/contributing/gh-pages.md`, `docs/architecture/testing/test-health.md`
-- `plan/post-release/engineering/spec-site-rfc-recorded-data.md` - its Depends row names this spec, so its recording and goldens are cut from the split shape
 
-`internal/le/site/rfcdetail.go`, `internal/le/site/rfccompliance.go` and `internal/le/site/homebody.go` were read and need no edit: the first two draw through the shared tier and bar helpers, and the home card's sentence already says "for Ze or the OS".
+As built, matched to `git show --stat` of the three commits. Commit
+092738d86e (wiring fixture) modified no existing file.
+
+Feature code:
+- `internal/le/rfc/profilecoverage.go` - the four open counts at both levels in `figuresByStem` (`openSectionOf`, `countOpen`, `figureEvidence.tested`), the private intent sum, `StemFigures.MustProven`, the `os` evidence kind, `Rollup.mandatoryComplete`, and the rollup's JSON tags removed (5b56fc88cf, 67932475cc)
+- `internal/le/rfc/sectioncounts.go` - the section types, `sectionsOf`, `open`, `add`, the add-back checks, `String`, `MustSections.Proven` (5b56fc88cf, 67932475cc)
+- `internal/le/rfc/implemented.go` - `ProvenPercent` (5b56fc88cf)
+- `internal/le/rfc/render_ledger.go` - `proofCell`, `evidenceCell` with the `os` kind, `statusPageIntro` (5b56fc88cf)
+- `internal/le/rfc/tree.go` - the published proven count and its read-back, the text cell's intent clause (5b56fc88cf, 67932475cc)
+- `internal/le/rfc/actions.go` - the tree help text (67932475cc)
+- `internal/le/rfc/next.go` - the comments on `rowOwes` and the owes constants; `rowOwes` calls `declinedForever` (67932475cc)
+- `internal/le/rfc/check_evidence.go` - the comment on `notOwedGap` (67932475cc)
+- `internal/le/rfc/priority.go` - `ScopeRollup` publishes through its own JSON (67932475cc)
+- `internal/le/rfc/weekly_source.go` - the `rfc-proven` note says the count holds OS performed rows (67932475cc)
+- `internal/le/site/rfcdata.go` - the segment names and `rfcBars` (5b56fc88cf, 67932475cc)
+- `internal/le/site/rfcreader.go` - `rfcSegmentMeanings` (67932475cc)
+- `internal/le/site/rfcprofiles.go` - the SHOULD rows of `rfcProfileFigures`, and `rfcProfileFiguresProse` (67932475cc)
+- `internal/le/site/rfcfilter.go` - `rfcListCheckWords` (67932475cc)
+- `internal/le/site/rfcfallback.go` - `rfcRegisterOpenSections`, `rfcRegisterOf` (67932475cc)
+- `internal/le/site/rfcdetail.go` - prose that called an unchecked exclusion a "Ze gap", the `rfcOutOfScopeValue` comment, and the detail cards of the page review (67932475cc)
+- `internal/le/site/rfccompliance.go` - the bucket meanings and scope note that called an unchecked exclusion a "Ze gap", and the card groups, the total card and the relabelled card of the page review (67932475cc)
+- `internal/le/site/facts.go` - the proven count, its source sentence and comments (5b56fc88cf, 67932475cc)
+- `internal/le/test/health/collect_rfc.go` - density, label and detail prose (5b56fc88cf, 67932475cc)
+- `website/assets/js/rfc-figures.js` - `registerOpenSections`, `registerOf` (67932475cc)
+- `website/assets/css/30-components.css` - the segment rules and the two-per-line cards (67932475cc)
+
+Tests, fixtures and goldens:
+- `internal/le/rfc/`: `featuredeclined_test.go`, `implemented_test.go`, `linux_limit_test.go`, `lowerlayer_test.go`, `profilecoverage_test.go`, `render_ledger_test.go`, `sectioncounts_test.go`, `tree_test.go`, `weekly_source_test.go`
+- `internal/le/site/`: `facts_test.go`, `rfccompliance_test.go`, `rfcdata_test.go`, `rfcdetail_figures_test.go`, `rfcdetail_test.go`, `rfcindex_figures_test.go`, `rfcoutofscope_test.go`, `rfcprofiles_figures_test.go`, `rfcprofiles_test.go`
+- `internal/le/site/browsertest/`: `rfcdetailpage_test.go`, `rfcfigures_test.go`, `rfclistpage_test.go`, `rfcprofilepage_test.go`
+- `internal/le/test/health/collect_rfc_test.go`
+- `internal/test/fixture/ui_fixture_le_rfc_derived_proof.go` (5b56fc88cf) and `internal/test/fixture/ui_fixture_le_help_rfc_tree_sections.go` (gains "Not assessed", 67932475cc)
+- `internal/le/site/testdata/rfc-bars.json`, `internal/le/site/testdata/rfc-compliance-pages.json`, `internal/le/site/testdata/rfc-profile-page.json` - goldens, each with a `Test-judge:` line in 67932475cc
+
+Docs and plans:
+- `docs/contributing/rfc-conformance-gates.md`, `docs/architecture/site-facts.md`, `docs/architecture/testing/test-health.md` (5b56fc88cf, 67932475cc)
+- `docs/contributing/gh-pages.md` (67932475cc), committed by hunks because the file carries another session's uncommitted paragraph (the single-producer render paragraph), which stays in the working tree
+- `plan/post-release/engineering/spec-rfc-optional-feature-ratio.md` - its Task placed its figure beside the per-row SHOULD states this spec stopped publishing; corrected to the four open optional sections in this spec's bookkeeping commit
+- `plan/post-release/engineering/spec-site-rfc-recorded-data.md` - its Depends row names this spec, so its recording and goldens are cut from the four-section shape; edited in the same bookkeeping commit
+
+The design said `internal/le/site/rfcdetail.go`, `internal/le/site/rfccompliance.go`
+and `internal/le/site/homebody.go` needed no edit. That was wrong for the first
+two: both carried prose calling an unchecked exclusion a "Ze gap", and both
+took the page review's card decisions. `homebody.go` needed no edit: the home
+card's sentence already says "for Ze or the OS".
 
 ## Files to Create
-- `test/ui/le-help-rfc-tree-sections.ci` - the help functional test, with its fixture registered under `internal/test/fixture/` beside the one `test/ui/le-help-ai.ci` uses
+- `internal/le/rfc/rollup_published.go` - the published shape of `Rollup` and `ScopeRollup`, with the flat `mandatory-proven` and its read-back refusal (67932475cc)
+- `internal/le/rfc/rollup_published_test.go` - the three rollup tests (67932475cc)
+- `internal/le/rfc/sections_split_test.go` - the split's unit tests (67932475cc)
+- `internal/le/rfc/sections_split_corpus_test.go` - the three corpus tests (67932475cc)
+- `internal/test/fixture/register_le_help_rfc_tree_sections.go`, `internal/test/fixture/ui_fixture_le_help_rfc_tree_sections.go`, `internal/test/fixture/ui_fixture_le_help_rfc_tree_sections_test.go` - the wiring fixture and its unit tests (092738d86e)
+- `test/ui/le-help-rfc-tree-sections.ci` - the help functional test, promoted from its draft (67932475cc)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -497,12 +575,20 @@ shown to Thomas before it is tested and committed.
    - Files: the tests, the three goldens, `rfc-conformance-gates.md` ("Coverage figures", "The intent marker"), `site-facts.md`, `gh-pages.md`, the two sibling specs
    - Verify: `./le site build` and `./le site check` over the `../gh-pages` checkout
 
+**As built.** The work landed as three commits, not two: 092738d86e (the
+wiring fixture, test-only Go, so the launcher's HEAD build could run it),
+5b56fc88cf (the numerator) and 67932475cc (the split, the page-review cards
+and the published rollup). The site tests and goldens of phase 5 were edited
+before Thomas said the pages were approved, at his instruction to proceed;
+he approved the pages on 2026-11-14. The `./le site build` and `./le site
+check` run over `../gh-pages` had not run when this note was written.
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | N-A: tooling scope |
-| Correctness | Kept and Total are equal before and after for every RFC in the corpus; the two sections sum to the old gap count |
+| Correctness | Kept and Total are equal before and after for every RFC in the corpus; the four open sections sum to the old gap count (checked over 339 documents against a baseline taken before the change: 0 mismatches) |
 | Naming | JSON keys kebab-case; the section words are identical on the tree, the bars, the glossary and health |
 | Data flow | The not-built count is taken in `figuresByStem` only; no site file computes a section |
 | Operator errors and doctor codes | N-A for doctor; each `le` refusal names the file, the cause and the command that fixes it |
@@ -513,7 +599,7 @@ shown to Thomas before it is tested and committed.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Two MUST sections on the tree | `./le rfc tree profile route-server` shows both names with counts |
+| Four open MUST sections on the tree | `./le rfc tree profile route-server` shows the four names with counts |
 | No intent in published data | A search of the built site's data directory for the three intent keys answers nothing after `./le site build` |
 | OS verified in the percentage | `TestProvenPercentCountsOSVerifiedRows` passes |
 | Docs current | `./le doc check all` passes for the four pages |
@@ -558,7 +644,12 @@ shown to Thomas before it is tested and committed.
 - The not-built section is as accurate as the `{gap}` and `{partial}` marks. Correcting marks is `spec-fttx-edge-unproven-row-review` for that profile; the other profiles have no such spec yet.
 - Recording the missing proofs is not in this spec.
 - The intent marker stays readable in the public repository's summaries, which the ledger links. The ruling covers what the pages and their data state.
-- Work lands as two commits, not one per phase: the section types cannot change without every reader, and the website rule holds the second commit until Thomas approved the pages.
+- Work landed as three commits, not one per phase: the section types cannot change without every reader, so the split and every reader went in one commit (67932475cc), after the wiring fixture and the numerator.
+- RFC 9582, which the route-server profile requires, has 16 MUST rows with no tagged test and no annotation. They sit outside the 196 implemented RFCs' not assessed count (0), inside the 191 such rows across all walked documents. Found here, not fixed here: this spec changes how rows are counted, not which rows are tested.
+- The guard of AC-7 (`TestDataIndexAndFilesAgree`) reads one published per-RFC file for the three intent keys, not every file the build publishes as R-7 planned. The other files carry no intent key because the section types that every published shape embeds cannot hold one.
+- The changed-code lint (`./le go lint run scope` over the rfc, site and health packages) and `./le doc check all` had not run when this was written: the lint twice refused to plan while other sessions edited its inputs. The main thread runs both next.
+- Five site tests were red before this work and it does not reach them: the lab ISO size, the homepage proof strip, the homepage hero, a lost-fact refusal message, and the shared header.
+- The count of rows in not built whose only unmet mark is an audit verdict (A-6) was not measured.
 
 ## Checklist
 

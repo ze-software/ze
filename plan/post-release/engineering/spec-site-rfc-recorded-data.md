@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | Website build tooling: the site build re-runs the RFC check to render a page, against the owner rule that building the website renders data. It changes no shipped binary |
 | RFC gaps | - |
-| Depends | - |
+| Depends | spec-rfc-figures-built-and-proven |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
@@ -204,7 +204,7 @@ that command before its build (D-6).
 | RFC compliance snapshot | reader | the page's Check results link (public readers) | Linked from the page today; no in-repo reader | Preserve |
 | Requirement ledger | writer | `publishRFCLedger` | `writeNamedArtifact(paths.Output, rfcLedgerFile, ...)` | Preserve format; written from the recording |
 | Requirement ledger | reader | `loadRequirementLedger` (rfc-compliance and profile producers), `internal/le/site/llmsdata.go` | `readArtifactJSON(output, rfcLedgerFile, ...)` | Preserve |
-| Per-RFC and per-profile data | writer | `writeRFCData` | Replaces the directory each build | Preserve format; written from the recording |
+| Per-RFC and per-profile data | writer | `writeRFCData` | Replaces the directory each build | Preserve format; written from the recording. The format is the one `spec-rfc-figures-built-and-proven` landed: four open sections at the MUST and the optional level (`proof-pending`, `exclusion-unchecked`, `not-assessed`, `not-built`), and no intent key (`not-ever`, `not-yet`, `not-decided`) is published |
 | Per-RFC and per-profile data | reader | `loadRFCFigureSet`, `website/assets/js/rfc-figures.js` | `loadFile` of the index | Preserve |
 | Site facts RFC keys | writer | `factsFromRFCLedger` | `rfc.Collect` each build | Preserve keys; derived from the recording |
 | Site facts RFC keys | reader | `internal/le/site/factmark.go`, `site.js`, home producers | `data-ze-stat` marks | Preserve |
