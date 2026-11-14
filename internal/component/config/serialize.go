@@ -58,10 +58,14 @@ func CanInlineContainer(tree *Tree, node *ContainerNode) bool {
 		return inline && len(values) > 0
 	}
 	for name := range tree.values {
-		// The scalar fallback supports unknown fields; known schema children
-		// must have a matching writeInlineLeaf arm.
+		// A known schema child must have a matching writeInlineLeaf arm. A
+		// name the schema does not declare (ze:allow-unknown-fields, such as
+		// a subsystem level under `environment { log }`) keeps its block:
+		// parseContainer reads a brace-less child only when the container
+		// declares it, so the inline form of an undeclared name would not
+		// parse.
 		switch node.Get(name).(type) {
-		case *LeafNode, *MultiLeafNode, *BracketLeafListNode, nil:
+		case *LeafNode, *MultiLeafNode, *BracketLeafListNode:
 			return true
 		}
 	}
@@ -89,7 +93,8 @@ func serializeContainerInline(b *textbuf.Buffer, child *Tree, name string, node 
 }
 
 // writeInlineContainerChild writes the one leaf of an inline container, " name
-// value". Caller holds child.mu.RLock.
+// value". Caller holds child.mu.RLock. The leaf is always one the schema
+// declares: CanInlineContainer refuses a container whose one value is not.
 func writeInlineContainerChild(b *textbuf.Buffer, child *Tree, node *ContainerNode) {
 	// Find the single child in schema order and write it inline.
 	for _, childName := range node.Children() {
@@ -97,15 +102,6 @@ func writeInlineContainerChild(b *textbuf.Buffer, child *Tree, node *ContainerNo
 		if writeInlineLeaf(b, child, childName, childNode) {
 			return
 		}
-	}
-
-	// Fallback: extra values not in schema.
-	for k, v := range child.values {
-		b.Str(" ")
-		b.Str(k)
-		b.Str(" ")
-		b.Str(QuoteIfNeeded(v))
-		return
 	}
 }
 
