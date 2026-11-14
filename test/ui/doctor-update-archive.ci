@@ -1,5 +1,13 @@
 # Test: ze doctor --json reports unreachable update-check and archive destinations
 # VALIDATES: AC-10 update-check URL and archive HTTP destination probes.
+#
+# The platform is pinned to plain-linux because the update-check probe runs only
+# where Ze updates itself. On gokrazy checkUpdateCheckURL
+# (internal/component/config/system/doctor.go) skips the probe and
+# checkUpdateBackendConfig reports doctor-config-platform-mismatch instead,
+# which test/ui/doctor-gokrazy-update-check.ci proves. Ze's own test guest is
+# gokrazy, so without the pin this test asks there for a probe that never runs.
+option=env:var=ze.test.doctor.platform:value=plain-linux
 
 tmpfs=update-archive.conf:terminator=EOF_CONF
 system {
@@ -8,6 +16,13 @@ system {
     }
     archive remote {
         location https://198.51.100.99/archive
+    }
+}
+# NTP is enabled so the exit code is not set by doctor-clock-no-sync, an ERROR
+# on Ze's own system (clockNoSyncSeverity, internal/plugins/ntp/doctor.go).
+environment {
+    ntp {
+        enabled true
     }
 }
 EOF_CONF
