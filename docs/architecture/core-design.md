@@ -2209,7 +2209,9 @@ A teardown that lands during a held run of messages (the initial sync's config r
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendUpdateHeld, writeUpdateGated -->
 <!-- test: internal/component/bgp/reactor/session_close_test.go TestTeardownDuringHeldRunDeliversCease -->
 
-A writer that holds the write path while it waits on a plugin, not on the socket, is not woken by the close. The socket closes and `Session.Run` returns, but the peer's session-end path joins work that waits on that writer, so the peer connects again only when the plugin takes its events or stops. The fix on the `doctor-bgp-write-path-held` event names that case: when the peer reads normally, it sends the operator to `ze show doctor` for a plugin that is not taking its events.
+A writer that holds the write path while it waits on a plugin, not on the socket, is not woken by the close. The socket closes and `Session.Run` returns, but the peer's session-end path joins work that waits on that writer, so the peer connects again only when the plugin takes its events or stops. The fix on the `doctor-bgp-write-path-held` event names that case: when the peer reads normally, it sends the operator to `ze show doctor` for a plugin that stopped, crashed or is slow to take events, the plugin states the doctor has a row for. A plugin that still holds one event batch has no row until that batch ends.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- writePathHeldFix -->
+<!-- test: internal/component/bgp/reactor/session_close_test.go TestTwoClosesBehindHeldPathReportOnce -->
 
 Session teardown records its initiating close reason before attempting a
 NOTIFICATION. This applies to Hold and Send Hold expiry, collision resolution,

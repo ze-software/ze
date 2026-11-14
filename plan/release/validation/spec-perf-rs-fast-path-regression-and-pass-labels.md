@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Release validation: the route-server fast path measures about 5x slower than it did on 2026-09-21, and the comparison report shows Ze's sender-first pass under the bare DUT name, so the published convergence figure for Ze is the wrong pass |
 | RFC gaps | - |
-| Depends | spec-bgp-session-write-wedge.md |
+| Depends | - |
 | Phase | 4/6 |
 | Handoff | - |
 | Updated | 2026-11-14 |
@@ -40,7 +40,7 @@ config type is `BenchmarkConfig`, with the pass declared as `perf.Pass` in
 
 | # | What | Who runs it, on which host | Blocks |
 |---|------|----------------------------|--------|
-| 1 | Wait for `spec-bgp-session-write-wedge` to land. It is changing `session_write.go` and `forward_pool.go`, the path AC-1 and AC-2 measure, so a figure taken before it lands measures code that is about to change | - | Every row below |
+| 1 | Done: `spec-bgp-session-write-wedge` landed in commits `a0d7148d70` to `a00deb847b` and closed on 2026-11-14. It changed `session_write.go`, `forward_pool.go` and `forward_rs_direct.go`, the path AC-1 and AC-2 measure, so every figure below is taken at a HEAD that holds those commits. That spec left one figure to this one: the time cost of the write budget it added to the fast path in `73fac8af9c` (its risk R-5) was never measured, because the development host gives no time figure. The AC-1 and AC-2 runs of rows 3 and 5 are the first that include it; a figure from before the budget needs a run at `73fac8af9c~1` | - | Nothing now |
 | 2 | Rerun the scoped evidence at the then-current HEAD and paste it here: the eight unit tests of the TDD plan, the reactor and `bgp-rs` packages with `-tags ze_bgp`, the six `.ci` tests of AC-4. `session_ownership.go` changed three times after phase 4 (`da6d6056f4`, `1e65b6d4bb`, `08fe903803`) and no run of the allocation guard is recorded after them | The main thread, any host | AC-3, AC-4, AC-5, AC-6 to AC-11 as proven |
 | 3 | AC-2: `BenchmarkAdjOutForwardedWrite`, ns/op and allocs/op | Thomas's Mac, or a Linux QEMU guest on it, for ns/op. Allocation figures may come from any host | Phase 5 |
 | 4 | Phase 5: profile the benchmark; carry the keys only if `fwdPathKeyFor` and the `owners` lookups in `recordSection` still hold more than a quarter of the write's time; otherwise record the measurement and change nothing | Same host as row 3 | Phase 6 |
@@ -420,7 +420,7 @@ stands", row 2).
 5. **Phase: Item 1c, key carry, only if measured** -- Thomas runs the benchmark; if `fwdPathKeyFor` and the `owners` lookups in `recordSection` still hold more than a quarter of the write's time, carry the keys the filter walk derived, in final-body order, to `record`, for the case where the final body is the filter's output; otherwise this phase records the measurement and does nothing
    - Tests: AC-4 set, `TestAdjOutForwardedWriteAllocations`
    - Files: `session_ownership.go`
-   - State: not started. It waits for the AC-2 profile, taken after `spec-bgp-session-write-wedge` lands
+   - State: not started. It waits for the AC-2 profile, taken at a HEAD that holds `spec-bgp-session-write-wedge` (landed, closed 2026-11-14)
 6. **Phase: lab proof** -- Thomas runs AC-1 on the Mac with `PPROF=1`; the output and profile figures are pasted here. If AC-1's bound is not met with AC-4 green, stop with the profile and ask Thomas which way to proceed (A-4)
    - State: not started. No AC-1 run is recorded; the untracked `ze.json` of 2026-11-01 is not one ("Where this stands")
 

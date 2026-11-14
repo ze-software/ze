@@ -43,7 +43,9 @@ reactor unit tests, `test/plugin/reconnect-rapid-initial-sync.ci`,
    way out.** The join is safe after `Session.Run` returns, because
    `closeConn` nils the connection under `writeMu`. A writer with no deadline
    that holds `writeMu` keeps `Run` from returning at all; that is older than
-   the join and is `plan/release/fixes/spec-bgp-session-write-wedge.md`.
+   the join and was fixed by `spec-bgp-session-write-wedge` (closed
+   2026-11-14): every session write carries a budget, and a close interrupts
+   a writer blocked on the socket.
 5. **A daemon-level test of a race the barrier hides cannot go red.** The
    `.ci` and the interop scenario stayed green with the join removed, because
    no in-tree plugin withholds its barrier acknowledgement. They are claimed

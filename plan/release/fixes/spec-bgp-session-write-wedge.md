@@ -505,7 +505,7 @@ Also modified, found by the work (each in the commit of its phase):
 - `internal/component/bgp/reactor/peer_close.go` - `sessionDroppedOwed`, `leaveCause`, `ErrWritePathHeld`
 - `internal/component/bgp/reactor/peer_stats.go` - the peer's last close cause and its time
 - `internal/component/bgp/reactor/reactor_notify.go`, `session_negotiate.go` - the negotiated peer AS is read without `s.mu` under the write path (`negotiatedPeerASNoWait`)
-- `internal/component/bgp/reactor/reactor_api.go` - copies the last close cause into `plugin.PeerInfo`. These two lines are in the working tree and in no commit as of this edit (2026-11-14): without them the cause does not reach the peer summary through the daemon
+- `internal/component/bgp/reactor/reactor_api.go` - copies the last close cause into `plugin.PeerInfo`. These two lines were left out of 178cffd97d and landed in 43cfa9af6e (review round 1's blocker): without them the cause did not reach the peer summary through the daemon
 - `internal/component/plugin/types_bgp.go` - `CloseCause` and `PeerInfo.LastCloseCause`
 - `internal/component/bgp/plugins/cmd/peer/summary.go` - the last error names the close cause when it is the newer record
 - `internal/component/bgp/reactor/delay_open_regression_test.go` - the barrier of `TestDelayOpenExpiryWriteFailureDeliversOneEvent18`, with the judge's approval
@@ -719,7 +719,7 @@ These are the implementation's own review rounds, run on its commits as they lan
 
 ## Defects met in passing, not yet journaled
 
-None of these has a journal row yet. The main thread decides the owning spec of each with Thomas, and the rows are written then.
+Recorded at closure on 2026-11-14: each defect below has an owning spec, named in "Work Not Done", and the four that had no record anywhere have a journal row dated 2026-11-14 (`lock-held-across-a-join`, `per-request-state-on-a-shared-object`, `slow-reader-stalls-a-shared-goroutine`, `test-against-broken-path`). The `code` log key is the exception: `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md` already plans that rename for the reactor files named here, so it got no second record.
 
 | Defect | Where | What it costs |
 |--------|-------|---------------|
@@ -797,3 +797,214 @@ drops the connection. Callers of the routine carry the section reference.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- **One acquisition of the write path.** Every writer takes `writeMu` through `acquireWrite`, `acquireWriteContext`, `acquireWriteWithin` or `tryAcquireWrite` (`session_write_mutex.go`), each of which arms the socket's write deadline; `holdWrites` is the held form, armed per message by `sendUpdateHeld` and by `fwdBatchHandler`; `releaseWrites` is the one release and clears what was armed. A failed write is classified in one place, `recordWriteFailure` (`session_write_budget.go`).
+- **One bounded close routine.** `closeConnWithin` (`session_connection.go`) waits for the write path no longer than `closeWait`, claims the connection (`claimSocket`), then either flushes and closes (`closeFlushed`) or expires the write deadline and closes behind the writer (`dropConn`). It holds neither `s.mu` nor `openMu` across the wait. `ceaseAfterPanic`, `sendHoldTimerExpired`, the hold timer callback and `teardownSession` call it.
+- **The route-server fast path is bounded.** `tryDirectWriteNoFlush` arms a standing budget (`armFastPathBudget`) and releases with `releaseFastPathWrites`.
+- **What the operator sees.** Two codes, `doctor-bgp-peer-not-reading` (WARN, `reportWriteBudgetExpiry`) and `doctor-bgp-write-path-held` (ERROR, `reportWritePathHeld`), each a log line and one report-bus event registered from `register_diagnostic.go`; the peer's last error names a close with no NOTIFICATION (`plugin.CloseCause`, `lastErrorString`).
+- **Smaller repairs.** `rejectAdminDownConnection` is bounded; the sent-event path reads the negotiated peer AS without `s.mu` (`negotiatedPeerASNoWait`); `ze config fmt` keeps a lone undeclared field in its block.
+- **Test means.** The `stop-reading` test-peer option (`internal/test/peer/stop_reading.go`), `test/plugin/session-peer-stops-reading.ci`, and the interop scenario `peer-stops-reading-bird` with its checker (`internal/le/interoplab/bgp/check_peer_stops_reading.go`).
+- Commits, in order: a0d7148d70, 85c1a3c4cb, 3a4031163c, 178cffd97d, dad63913ba, 1c6795e9e4, 759672de14, 73fac8af9c, f1e55f8f86, 43cfa9af6e, 5d862bbab9, 8fabb3a204, a00deb847b.
+
+### Bugs Found/Fixed
+- A sent-event writer took `s.mu` under `writeMu` for a dynamic peer (`notifyOneMessage` calling `Session.Negotiated`), the reverse of the session's lock order. Fixed by `negotiatedPeerASNoWait`; `TestKeepaliveNamesTheNegotiatedASOfADynamicPeer` covers the value.
+- `ze config fmt` wrote a lone undeclared field inline, a form the parser does not read back. Fixed in `CanInlineContainer`; `TestFormatKeepsOneUndeclaredFieldInItsBlock`.
+- The test peer's file-config merge dropped the new option, so the draft `.ci` passed against a daemon that never dropped the session. Fixed in `zeTestMergePeerFileConfig`; `TestPeerFileConfigMergeIsComplete` (existing) was red for it.
+- The cause of a write budget expiry never reached the peer summary: two lines of `reactor_api.go` were left out of 178cffd97d. Fixed in 43cfa9af6e; `TestWriteBudgetExpiryReachesPeerInfo`.
+- A second close of one connection returned while the first was still in its flush, a defect of review round 1's own first fix, caught before it was committed. `TestSecondCloseWaitsForTheClaimant`.
+
+### Documentation Updates
+- Edited by the phases, each with its source anchors: `docs/architecture/core-design.md` ("Write Deadline", the close sequence, the send hold timer), `docs/architecture/behavior/fsm-established.md`, `fsm.md`, `peer-lifecycle.md`, `docs/architecture/bgp/structural-forwarding.md`, `docs/architecture/forward-congestion-pool.md`, `docs/architecture/config/environment.md`, `docs/architecture/testing/ci-format.md`, `interop.md`, `docs/functional-tests.md`, `docs/guide/debugging-tools.md`, `operational-reports.md`, `command-reference.md`, `docs/architecture/api/commands.md`, `docs/features/configuration.md`, `ai/digests/bgp-reactor.md`, `plan/learned/DESIGN-HISTORY.md` (the session lock order row).
+- `./le doc check all`, run at closure on 2026-11-14: FAILED on two causes, neither this work's. The site drift check reports 61 issues in the generated `../gh-pages` reference for the command `update data key` (another spec's command; the fix it names is `./le site build`). The source-anchor check reports six symbols under two anchors: the one in `docs/guide/operational-reports.md` that names the length constants of `internal/core/report/report.go` (a line from 76f62afb59, 2026-11-11) and the one in `docs/functional-tests.md` that names `importCommandOutput` (a line from d73a860caf, 2026-11-13). Every other section passes, the digest anchors included.
+- `./le rfc update`, run at closure: no file changed.
+
+### Deviations from Plan
+- **A-3 was wrong.** A writer can hold the write path while it waits on a plugin, not only on the socket. The close routine does not depend on it; the peer's reconnect does. Owned by a new spec ("Work Not Done").
+- **`rfc/short/rfc9687.md` and `rfc/short/rfc4271.md` were not edited**, although Files to Modify and the Documentation checklist name them. Their requirement rows carry no test links: a test's `RFC requirement:` tag is the link, and the rows are quote-pinned to the RFC text. The two new tagged tests carry their discrimination records, and no row's annotation changed, so no edit was owed.
+- **RFC4271-8.2.2-1 behind a held write path.** RFC 4271 Section 8.2.2 lists, for Event 10, "sends a NOTIFICATION message with the Error Code Hold Timer Expired". With the write path held, Ze attempts that NOTIFICATION for one second and does not write it: the peer reads nothing, so it could not be delivered. The connection is dropped (RFC4271-8.2.2-4) and the ERROR line and event under `doctor-bgp-write-path-held` record that no NOTIFICATION was sent. The tests tagged RFC4271-8.2.2-1 still prove the NOTIFICATION with the write path free, and `TestCloseDeliversNotificationWhenPathFree` proves it for every close path.
+- **The release clears whatever is armed**, on a retired session too (`Session.writeBudgetArmed`), not "unless the session was retired".
+- **The fast path's budget** is armed on a destination's first write and renewed after a sixteenth of it has passed, not once per batch: Thomas amended the approved shape on 2026-11-14 (Key Design Decisions).
+- **The close is idempotent per connection through a claim**, not through a record on the session, and it never seals.
+- **Two diagnostic codes, not one.** A close does not know that a budget passed, and a writer parked on a plugin is a second cause.
+- **AC-11's evidence is an allocation test**, `TestFastPathBudgetAddsNoAllocation`, not a before and after benchmark: the benchmark file is new.
+- **The interop checker lives in `internal/le/interoplab/bgp/`**, with the lab's other checkers, not in the scenario directory. No lab pause step was added (A-5).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3: no writer holds `writeMu` across an unbounded wait other than the socket write | A writer delivers the sent event to plugins under `writeMu` and the adj-RIB-Out mutex, a channel send with no timeout | Read of the writer's callback path before any feature code | Three constraints added to Phase 2 and 3 ("Consequences of A-3"); the remaining defect is owned by `spec-bgp-session-write-wedge-plugin-parked-writer` |
+| approach | Two lines of `reactor_api.go` were left out of the Phase 2 commit 178cffd97d | The peer summary never showed the cause of a budget expiry through the daemon, and every unit test passed, because none drove the `PeerInfo` builder | Review round 1 (its blocker) | Landed in 43cfa9af6e with `TestWriteBudgetExpiryReachesPeerInfo`, which drives the builder |
+| approach | The approved fast-path shape armed the budget once per destination per batch | A batch has no bound in time, so a deadline armed once would fail a write to a destination that reads every octet, and a slow or hostile source could reset other peers' sessions | Phase 4, by reading what ends a batch in `Session.Run` | Put to Thomas, who chose the renewed standing budget; `TestFastPathRenewsAnAgedBudget` |
+| approach | Review round 1's first fix let a second close of a connection return at once | The first close could still be in its flush, so the caller saw a connection still installed | `TestSessionBFDStrictDelayOpenBoundedWait` went red before the fix was committed | The claim carries a completion signal and a second close waits on it; `TestSecondCloseWaitsForTheClaimant`, 100 repetitions under the race detector |
+| approach | Phase 3 first recorded a closed socket only after a drop behind a held path (`markSocketClosed`) | Two closes that both gave up on the path each reported it, and a close that met another close's flush took it for a stuck writer | Review rounds 1 and 2 | One claim per connection, taken before the flush or the drop; `TestTwoClosesBehindHeldPathReportOnce`, `TestCloseBehindAGracefulCloseReportsNothing` |
+| approach | The draft functional test was green before any fix existed | The option never reached the peer (`zeTestMergePeerFileConfig` dropped it), so the peer closed the connection itself and Ze redialed | The run took 6.3 s, which fits one 5 s retry and not a 3 s budget plus a retry | The merge carries the option; the test now asserts the daemon's own WARN line and code, so a peer that does not stall is red |
+| escalation | Fix agents edited files that only compile together in separate edits, three times, in the shared checkout | For seconds the reactor package did not compile, and the main thread reports that one such window voided another session's run | The agents' own handoffs, and the main thread | From review round 2 on, such edits went out in one batch. No rule was changed here; `ai/rules/precommit-verify.md` already tells the other session to report and wait |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 Every write to a session socket is bounded by a write budget | Done | `session_write_mutex.go` `acquireWrite`, `acquireWriteContext`, `acquireWriteWithin`, `tryAcquireWrite`, `armFastPathBudget`; `session_write.go` `sendUpdateHeld`; `peer_admin.go` `rejectAdminDownConnection` | The Deliverables greps show no other taker that writes |
+| G-2 No close path waits on the write path with the socket open beyond a stated bound | Done | `session_connection.go` `closeConnWithin`, `closeWait`, `dropConn` | One second after a timer expiry, the control budget otherwise |
+| G-3 A session whose peer stopped reading ends, the FSM reaches Idle and the peer reconnects | Done | `session_write.go` `retireWrite`, `sendHoldTimerExpired`; `session.go` hold timer callback; `peer_run.go` `runOnce` | Not with a writer parked on a plugin (Work Not Done) |
+| G-4 A healthy session behaves as before | Done | `session_connection.go` `closeFlushed`; `session_write.go` `sendUpdateHeld` | |
+| G-5 Ze drops and re-establishes against a real BIRD that stops reading | Done | `internal/le/interoplab/bgp/check_peer_stops_reading.go` `checkPeerStopsReading` | BIRD 3.4.0 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSendHoldExpiryClosesBehindStuckWriter` (tagged RFC9687-4.3-5, record by revert of `dropConn`) | |
+| AC-2 | Done | `TestHoldExpiryClosesBehindStuckWriter` (tagged RFC4271-8.2.2-4, record by revert of `dropConn`) | |
+| AC-3 | Done | `TestUnboundedWritersAreBounded`, one sub-test per writer of the census | |
+| AC-4 | Done | `TestTeardownClosesBehindStuckWriter`, `TestPeerRemovalAndStopCloseBehindStuckWriter` | |
+| AC-5 | Done | `TestCloseDeliversNotificationWhenPathFree`, eight close paths | |
+| AC-6 | Done | `TestFastPathStalledDestinationDoesNotStallSource` | Met as written; the source's read goroutine is still held for up to the budget (Work Not Done) |
+| AC-7 | Done | `TestInitialSyncOutlastsBudget` | Drives the session calls the held phases make, not `Peer.sendInitialRoutes` |
+| AC-8 | Done | `test/plugin/session-peer-stops-reading.ci` | Red before Phase 2, 80 stress runs clean |
+| AC-9 | Done | Interop `peer-stops-reading-bird` | Red with `dropConn` disabled: 31.1 s against a 20.5 s bound |
+| AC-10 | Done | `TestWriteBudgetExpiryLogsOneCodedWarning`, `TestWriteBudgetExpiryRaisesOneEvent`, `TestWriteBudgetExpiryReachesPeerInfo`, `TestLastErrorNamesCloseWithoutNotification`, and the `.ci`'s log expectation | |
+| AC-11 | Done | `TestFastPathBudgetAddsNoAllocation` | Changed: no before and after benchmark (Deviations) |
+| AC-12 | Done | `TestAdminDownRefusalIsBounded` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The 16 tests of the "Unit Tests" table | Done | The files that table names, each `func` found at HEAD by `git grep` on 2026-11-14 | |
+| The tests of the two "added" tables | Done | `session_write_budget_report_test.go`, `session_close_test.go`, `forward_rs_direct_wedge_test.go`, `peer_close_write_path_held_test.go`, `last_error_close_cause_test.go`, `stop_reading_test.go`, `check_peer_stops_reading_test.go`, `serialize_unknown_field_test.go` | |
+| `session-peer-stops-reading` | Done | `test/plugin/session-peer-stops-reading.ci` | |
+| `peer-stops-reading-bird` | Done | `test/interop/scenarios/peer-stops-reading-bird/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file of "Files to Modify" but three | Done | In the commits listed above |
+| `rfc/short/rfc9687.md`, `rfc/short/rfc4271.md` | Changed | Not edited: no edit was owed (Deviations) |
+| `docs/architecture/testing/interop.md` pause step | Changed | The inventory row only: no step was added (A-5) |
+| Every file of "Files to Create" | Done | The checker is under `internal/le/interoplab/bgp/` (Deviations) |
+
+### Audit Summary
+- **Total items:** 5 goals, 12 acceptance criteria, the three test tables, two file lists
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-11's evidence, the two `rfc/short` files, the checker's location (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 Every write is bounded | Unit, on a peer end that never reads | `TestUnboundedWritersAreBounded`: each writer the census marked unbounded returns an error once its budget has passed; red before Phase 2 ("still blocked"). `TestAdminDownRefusalIsBounded`. The Deliverables greps: four acquisition forms, six `SetWriteDeadline` sites, no `writePathPoll`, no `flushForClose` |
+| G-2 No close waits beyond a stated bound | Unit, write path held by hand | `TestHoldExpiryClosesBehindStuckWriter`, `TestSendHoldExpiryClosesBehindStuckWriter`, `TestTeardownClosesBehindStuckWriter`: red before Phase 3 ("the connection was still open"), green after. `TestCloseHoldsNoSessionLockWhileWaiting`. Each of the two tagged tests is red with `dropConn` disabled (`rfc/discrimination/rfc4271/RFC4271-8.2.2-4.json`, `rfc/discrimination/rfc9687/RFC9687-4.3-5.json`) |
+| G-3 The session ends, the FSM reaches Idle and the peer reconnects | Functional, through the real daemon | `test/plugin/session-peer-stops-reading.ci`: the test peer stops reading connection 1 and keeps it open; Ze logs the coded WARN line, drops the session, dials again, and connection 2 receives the routes. Red before Phase 2 (60 s timeout, the daemon never closed), green after, 80 stress runs with no failure |
+| G-4 A healthy session behaves as before | Unit and functional | `TestCloseDeliversNotificationWhenPathFree`: the peer reads the NOTIFICATION, then the close, on eight close paths. `TestInitialSyncOutlastsBudget`. Functional `deadpeer-holddown` and `open-hold-time-peer-lower-wins` green on the final close routine |
+| G-5 Ze drops and re-establishes against a real BIRD | Interop, BIRD 3.4.0 | `peer-stops-reading-bird`: green, 58 s, on the final close routine; red with `dropConn` disabled (the session closed 31.1 s after the freeze, against a 20.5 s bound). The checker requires a blocked writer (`blockedWriterVerdict`: at least 16 KiB unsent toward the frozen BIRD, and no delivered Hold Timer Expired NOTIFICATION), a new session on both sides, and all 131,074 routes back |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A writer parked delivering the sent event to a plugin holds `writeMu` and the adj-RIB-Out mutex, so the peer does not reconnect until the plugin drains or stops (A-3) | It predates this spec and is plugin backpressure reaching a BGP writer, a design of its own | `plan/release/fixes/spec-bgp-session-write-wedge-plugin-parked-writer.md` |
+| `Session.writePathHeldReported` is kept per Session and never cleared | Reviewed as unreachable past Established today; it is the same held-path report | `plan/release/fixes/spec-bgp-session-write-wedge-plugin-parked-writer.md` |
+| A stalled fast-path destination holds the source's read goroutine for up to the write budget, so a source with a shorter hold time can lose its own session | AC-6 is met as written; removing the hold needs a fast path that never blocks | `plan/release/fixes/spec-bgp-session-write-wedge-fast-path-holds-source.md` |
+| The functional runner accepts `expect=stdout:` and `expect=stderr:` under a test-peer command, where they can never pass | Test tooling, outside this spec's surface | `plan/post-release/engineering/spec-bgp-session-write-wedge-runner-peer-stream-expectation.md` |
+| The reactor's NOTIFICATION log lines put the BGP error code under the `code` log key (`notificationWritten`, `logNotifyOutcome`, `ceaseAfterPanic`) | Those lines predate this spec, and the rename covers eleven reactor sites | `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md`, whose change table already names the rename for `session_write.go`, `session.go` and `session_connection.go` |
+| The time cost of the fast path's budget, before and after Phase 4 (R-5) | A time figure comes only from Thomas's Mac; the development host gives none | `plan/release/validation/spec-perf-rs-fast-path-regression-and-pass-labels.md`, whose AC-1 and AC-2 runs on the Mac measure this path at a HEAD that holds the budget |
+
+## Review Gate
+
+Round 1 scope, written before the round was finished: the whole change set of this spec at HEAD, the thirteen commits a0d7148d70 to a00deb847b that carry `Spec-work: bgp-session-write-wedge`, 84 paths. The round was read in two contexts, neither of which wrote the code. The first closure agent read the write and close paths: `session_write_mutex.go`, `session_write_budget.go`, `forward_rs_direct.go`, `peer_close.go`, the close routine and teardown in `session_connection.go`, the NOTIFICATION senders, control writes, send hold expiry and held writers in `session_write.go`, the timer callbacks and `Run` in `session.go`, and the spec-work diffs of `summary.go`, `types_bgp.go`, `reactor_api.go`, `peer_stats.go`, `peer_session_end.go`, `session_read.go`, `peer_admin.go`, `register_diagnostic.go`, `environment.go` and `cmd_peer.go`. Its continuation reads the rest: `forward_pool.go` (`fwdBatchHandler`), `session_negotiate.go`, `reactor_notify.go`, the comment hunk of `peer.go`, `codes.go`, `serialize.go`, the test-peer option, the interop checker and its registration, every test file of the change set (test shape, vacuity, and the test-rewrite check on the two judged changes), the `.ci`, the scenario configs, the page hunks against source, and the style pass.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-session-write-wedge-c32a0e0b-0086-490f-8221-23e2835f8310.md`, 91 files, verdict clean: the 82 spec-work paths that carry no other session's hunk, and nine further files this closure wrote or edited (four journal classes, three new specs, one learned entry, the news fragment). Left out: `docs/architecture/api/commands.md` and `docs/guide/command-reference.md`, which hold another session's uncommitted hunks in the working tree and are in no closure commit |
+| `./le spec review check` | clean; the record was written again after this table was filled, and the check run after that |
+| Rounds | 2. Round 1 over the whole change set found one ISSUE, a page sentence. Round 2 read the one-sentence fix against `writePathHeldFix` and the `doctor-bgp-write-path-held` description in `codes.go`, and found nothing |
+| Reviewer lenses used | logic and lock order, removed behavior, guard audit, wiring, RFC quotes, user-facing lines, test shape and vacuity, test rewrite, pages against source, style pass |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A page sentence restated the fix of the `doctor-bgp-write-path-held` event in words review round 3 had removed from the fix itself: it sent the operator to `ze show doctor` "for a plugin that is not taking its events", a plugin state the doctor has no row for. Root cause: a00deb847b changed `writePathHeldFix` and the code's description and left the page's paraphrase of them | `docs/architecture/core-design.md`, the paragraph on a writer that waits on a plugin, under the close routine | This closure: the sentence now gives the fix's own words, with a source anchor on `writePathHeldFix` and the test that pins them (`TestTwoClosesBehindHeldPathReportOnce`). Prose only, so no rerun is owed |
+
+Result of the final run: 0 BLOCKER, 0 ISSUE.
+
+How the round was read. Product code was read whole or as its full producing range at HEAD. `session_wedge_test.go`, which holds the two tagged tests, and the two judged test changes (the barrier of `TestDelayOpenExpiryWriteFailureDeliversOneEvent18`, the send-hold bound) were read whole, with their comments. The other test files were read with comment-only lines left out, every statement kept. The style pass applied the questions of `/ze-review` step 18 and read the two guide sections they turn on ("One type per lifecycle state", "When a copy is deliberate"); the whole style guide was not read in this context, which edited no Go.
+
+What the lenses answered:
+- **Wiring.** Every new production symbol has a production caller: the four acquisition forms and `releaseWrites` from every writer; `closeConnWithin` from `closeConn`, `ceaseAfterPanic` and `sendHoldTimerExpired`; `armFastPathBudget` from `tryDirectWriteNoFlush`; `recordWriteBudgetClose` through `attachStatsCallbacks`; `LastCloseCause` from `reactor_api.go` to `lastErrorString`; the two codes from `register_diagnostic.go`; the checker from `register_peer_stops_reading.go`; the option from `peerOptionArms`.
+- **Guards.** `writeBudgetPassed` answers false on every miss (no budget armed, a request's own bound, no deadline error, a deadline not yet passed). `CanInlineContainer` answers false for a name the schema does not declare. The checker's verdicts each refuse on an unread log or socket table rather than count zero.
+- **Tests.** Each new test has a precondition that fails it when the stall it needs never happened, so none passes on a path that did not block. The two tagged tests claim what their bodies assert: the peer end reads the close within the one-second bound plus slack. No assertion of an existing test was dropped: the two changed tests carry their judge's trailer (`Weakening-approved:` in 1c6795e9e4, `RFC-approved:` in 5d862bbab9), and `session_aigp_test.go` and `session_write_held_lock_test.go` changed in comments only.
+- **Style.** No new `panic` is reachable from a socket: `CloseCause.String`, the two `init` registrations and the mutex's `Unlock` guard each name a Ze defect. Every new wait states its bound (`closeWait`, `closeClaimWait`, `closeClearWait`, `closeFlushBudget`, the write budget), and `holdUnread` states what ends it. Each paired call says MUST on both sides (`holdWrites` and `releaseWrites`, `armFastPathBudget` and `releaseFastPathWrites`).
+
+### Notes
+1. Corrected in this closure: the sentence of "Also modified" that said the two `reactor_api.go` lines were in no commit. They are in 43cfa9af6e.
+2. A NOTIFICATION whose one-second wait ran out behind ANOTHER CLOSE's flush and drain leaves its mark, and the close that takes the mark writes the held-path line with a fix that blames the peer or a plugin (`reportUnsentNotification`). Narrow, wording only, known to review round 2.
+3. `rfc/short/rfc9687.md` and `rfc/short/rfc4271.md` were not edited: none was owed (Deviations).
+4. `plugin.CloseCause.String` panics `BUG:` on an unknown value. Only Ze produces the value (`recordWriteBudgetClose`); no peer input reaches it.
+5. `Session.negotiatedPeerAS` is a second holder of the negotiated peer AS, written by `negotiateWith` in the same critical section as `s.negotiated` so a writer can read it without `s.mu`. The fallback of `negotiatedPeerASNoWait` to the field under `TryRLock`, and its answer 0 when that fails, serve tests that install `negotiated` by hand: production always has the atomic set.
+6. The new per-connection facts are fields read by an `if` (`writeBudgetArmed`, `writeBoundRequested`, `notifyMetBusyPath`, `writePathHeldReported`). Each records what happened to a socket at run time, not a stage of a value's validity that a type could carry, so the guide's "One type per lifecycle state" was judged not to bind them. `writePathHeldReported` is the one whose scope is wrong (per Session, not per connection), and it is owned ("Work Not Done").
+7. `fwdBatchHandler` logs "forward set write deadline failed" at WARN with no `code` key. The line predates this spec, which changed only the call above it; the reactor's uncoded lines are `spec-doctor-coverage-6-bgp-engine`'s.
+8. Two tests pin a second, related fact beside their question: `TestTwoClosesBehindHeldPathReportOnce` also pins the words of the fix, and `TestFormatKeepsOneUndeclaredFieldInItsBlock` also pins that a declared leaf keeps its inline form. Each is the control of the same change; no split is asked.
+9. `/ze-review` step 1b cites a section "one question per test" of `ai/rules/testing.md`, and that file holds no such words. The step was applied in its plain sense. The pointer is the skill's to repair, not this spec's.
+10. `TestKeepaliveGivesUpOnBusyWritePath` reads `session.writeFailed` without the write path, which the test itself holds through `holdWritePath`. Test-only.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/session-peer-stops-reading.ci` | Yes | `git ls-tree -r --name-only HEAD`, 2026-11-14 |
+| `test/interop/scenarios/peer-stops-reading-bird/bird.conf`, `ze.conf`, `ze-reload.conf` | Yes | same command |
+| `internal/component/bgp/reactor/session_write_budget.go`, `register_diagnostic.go` | Yes | same command |
+| `internal/test/peer/stop_reading.go` | Yes | same command |
+| `internal/le/interoplab/bgp/check_peer_stops_reading.go`, `register_peer_stops_reading.go` | Yes | same command |
+| `rfc/discrimination/rfc4271/RFC4271-8.2.2-4.json`, `rfc/discrimination/rfc9687/RFC9687-4.3-5.json` | Yes | same command; the second names unit `TestSendHoldExpiryClosesBehindStuckWriter`, route `revert`, producer `session_connection.go::dropConn` |
+| The test files of the TDD tables | Yes | `git grep -l "func <Test>("` at HEAD found each of 24 names checked in the file its table names |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | The close behind a held path | The two tagged tests exist at HEAD in `session_wedge_test.go`; their records name `dropConn` as the producer whose removal turns them red. The main thread's last run of the reactor package is green but for `TestOrdinaryRefreshDoesNotDoublePrepend` ("Evidence obtained") |
+| AC-3, AC-12 | No unbounded writer | The Deliverables greps, re-run at HEAD by the first closure agent: the four forms, `holdWrites`, the close routine's own waits, the fast path's `TryLock`, the non-writing takers; six `SetWriteDeadline` sites; `writePathPoll`, `flushForClose`, `tryWriteMessageWithin` and `markSocketClosed` have no hit |
+| AC-4 to AC-7, AC-10, AC-11 | The unit tests named in the audit | Each `func` found at HEAD; green in the package run above |
+| AC-8 | The functional test | Read at HEAD: `test/plugin/session-peer-stops-reading.ci` declares `stop-reading` on connection 1, two connections, and the daemon's coded WARN line. Green on the final close routine |
+| AC-9 | The interop scenario | The checker read at HEAD: `checkPeerStopsReading` judges the close time (`peerStopsReadingCloseVerdict`), the blocked writer (`blockedWriterVerdict`) and the returned session (`returnVerdict`). Green, 58 s, on the final close routine |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A configured peer that stops reading after Established while Ze announces routes | `test/plugin/session-peer-stops-reading.ci` | Yes: the peer block carries `stop-reading`, which `zeTestMergePeerFileConfig` carries to the peer, and the peer's `runMessageLoop` stops after the first UPDATE on that connection |
+| Hold timer, send hold timer and operator teardown behind a held write path | none (unit: `session_wedge_test.go`) | Yes: each drives a real `Session` to Established with `Run` executing |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestDeadlinePokeFailsBlockedTCPWrite`, green |
+| A-2 | confirmed | `TestUnboundedWritersAreBounded`, green on `net.Pipe` |
+| A-3 | broken | Read of `writeUpdateBody` to `Process.Deliver`; Mistake Log, Deviations, Work Not Done |
+| A-4 | confirmed | `TestInitialSyncOutlastsBudget`; the interop scenario's route exchange |
+| A-5 | confirmed | `Lab.Pause`, `Lab.Unpause` (`internal/le/interoplab/lab.go`) |
+| A-6 | confirmed | `TestFastPathBudgetAddsNoAllocation`, zero allocations |
+| A-7 | confirmed | `test/plugin/session-peer-stops-reading.ci`, 80 stress runs |
+| A-8 | confirmed | `recentEventsCheck` reports a registered event code; `register_diagnostic.go` registers both |
+
+Risks that survive, for the record: R-5 (the fast path's time cost is not measured, Work Not Done) and R-7 (other specs edit the same files; none of this spec's files carries a foreign hunk in its Go at closure).
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1 Feature level | `./le feature report`: `bgp-protocol` stays `experimental` / `supported`; no feature file changed | Yes |
+| 6 User guide | `docs/guide/debugging-tools.md`, in 178cffd97d and 1c6795e9e4 | Yes: the lines the commits added to these pages were read against the symbols their anchors name. One stale sentence was found in `core-design.md` and corrected (Review Gate, finding 1) |
+| 9 RFC | No `rfc/short` edit owed (Deviations); `./le rfc update` changed nothing; `./le rfc tree` lists rfc4271 and rfc9687 with no "not assessed" row | Yes |
+| 10 Test infrastructure | `docs/architecture/testing/ci-format.md`, `docs/functional-tests.md`, `docs/architecture/testing/interop.md` | Yes: the lines the commits added to these pages were read against the symbols their anchors name. One stale sentence was found in `core-design.md` and corrected (Review Gate, finding 1) |
+| 11 Comparison | A grep of `docs/comparison.md` for write deadline, write budget, send hold and stops reading: no hit | Yes |
+| 12 Architecture | `docs/architecture/core-design.md` and the six other pages of row 12 | Yes: the lines the commits added to these pages were read against the symbols their anchors name. One stale sentence was found in `core-design.md` and corrected (Review Gate, finding 1) |
+| Doctor codes | `internal/core/diagnostic/codes.go`: both constants and both `builtinCodes` entries; `register_diagnostic.go` registers both as event codes | Yes |
+| `./le doc check all` | FAILED on the generated site drift and on two anchors older than this work (Documentation Updates) | Yes, as not this work's |
