@@ -40,12 +40,30 @@ config type is `BenchmarkConfig`, with the pass declared as `perf.Pass` in
 
 | # | What | Who runs it, on which host | Blocks |
 |---|------|----------------------------|--------|
-| 1 | Done: `spec-bgp-session-write-wedge` landed in commits `a0d7148d70` to `a00deb847b` and closed on 2026-11-14. It changed `session_write.go`, `forward_pool.go` and `forward_rs_direct.go`, the path AC-1 and AC-2 measure, so every figure below is taken at a HEAD that holds those commits. That spec left one figure to this one: the time cost of the write budget it added to the fast path in `73fac8af9c` (its risk R-5) was never measured, because the development host gives no time figure. The AC-1 and AC-2 runs of rows 3 and 5 are the first that include it; a figure from before the budget needs a run at `73fac8af9c~1` | - | Nothing now |
+| 1 | Done: `spec-bgp-session-write-wedge` landed in commits `a0d7148d70` to `a00deb847b` and closed on 2026-11-14. It changed `session_write.go`, `forward_pool.go` and `forward_rs_direct.go`, the path AC-1 and AC-2 measure, so every figure below is taken at a HEAD that holds those commits. At its closure that spec left one figure to this one: the time cost of the write budget it added to the fast path in `73fac8af9c` (`Session.armFastPathBudget`, its risk R-5), never measured because the development host gives no time figure. That figure left the release work by owner decision of 2026-11-14 ("The write budget's time figure" below) and is no longer owed here. The AC-1 and AC-2 runs of rows 3 and 5 still run at a HEAD that holds the budget, and they are not its before and after pair | - | Nothing now |
 | 2 | Rerun the scoped evidence at the then-current HEAD and paste it here: the eight unit tests of the TDD plan, the reactor and `bgp-rs` packages with `-tags ze_bgp`, the six `.ci` tests of AC-4. `session_ownership.go` changed three times after phase 4 (`da6d6056f4`, `1e65b6d4bb`, `08fe903803`) and no run of the allocation guard is recorded after them | The main thread, any host | AC-3, AC-4, AC-5, AC-6 to AC-11 as proven |
 | 3 | AC-2: `BenchmarkAdjOutForwardedWrite`, ns/op and allocs/op | Thomas's Mac, or a Linux QEMU guest on it, for ns/op. Allocation figures may come from any host | Phase 5 |
 | 4 | Phase 5: profile the benchmark; carry the keys only if `fwdPathKeyFor` and the `owners` lookups in `recordSection` still hold more than a quarter of the write's time; otherwise record the measurement and change nothing | Same host as row 3 | Phase 6 |
 | 5 | AC-1: `./le perf run dut ze` with `PPROF=1`, repeat 4, quiet host; paste the output and the `(*Peer).run` profile figures. This validates or breaks A-1 and A-4 | Thomas's Mac | Closure |
 | 6 | Close the two perf-tool journal rows on the same Mac session: `TestRunPassiveListenHandshakesReceiver` green and `./le perf run dut rustbgpd` measuring rustbgpd (`bc5281e3a0`), and `./le perf run` measuring openbgpd through all four iterations (`430b38ecc6`). Both fixes are written and unrun | Thomas's Mac | Closure |
+
+**The write budget's time figure: left the release work (owner decision,
+2026-11-14).** Asked about the figure row 1 names, Thomas answered: "4 can wait
+the fanout code". He added a sentence by dictation that the interface cut off:
+"However we should [measure] it before and after the sp...". The reading taken
+is "we should measure it before and after the spec": the figure has two halves,
+one on each side of that work. This spec's closure does not wait on either
+half, and `Depends` stays `-`.
+
+| Question | Answer |
+|----------|--------|
+| What is measured | The time of the route-server fast path (`tryDirectWriteNoFlush`, `forward_rs_direct.go`), on one host with one harness |
+| First half, before the fanout work starts landing | The fast path at `73fac8af9c~1` and at the then-current HEAD. This pair is also the time cost of the write budget |
+| Second half, after the fanout work has landed | The fast path at the then-current HEAD, against the first half |
+| Who takes it, and where | Thomas, on his Mac. A time figure from any other host is not reported or compared (the measurement rule below) |
+| What exists until then | No time figure for the budget. The only proof is the allocation one: `TestFastPathBudgetAddsNoAllocation`, zero added allocations |
+| Open, put to Thomas on 2026-11-14 | Which work "the fanout code" names. Two candidates: the deferred event-bus spec `spec-review-bus-async-fanout` (`plan/post-release/engineering/`), whose work is the plugin server's delivery of an event to plugins and engine subscribers and does not touch the fast path; or work on the BGP forward fan-out to destination peers (`docs/architecture/bgp/fanout-dedup.md`, `docs/architecture/bgp/structural-forwarding.md`) |
+| Where the measurement is recorded | Here only, until that answer names the spec that will carry it |
 
 **Measurement rule (`ai/META-DECISIONS.md`, "Test systems and labs").** A time
 or throughput figure (ns/op, convergence, a profile's seconds) is recorded only
