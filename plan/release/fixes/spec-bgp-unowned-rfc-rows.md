@@ -21,12 +21,16 @@ is a product defect.
 
 | What blocks the two closure commits | Producer | What clears it |
 |-------------------------------------|----------|----------------|
-| The Review Gate has no artifact. The closure commit owes a clean, hash-pinned `./le spec review record` over the reviewable files of rows 4, 5 and 9, from a reviewer that is not the agent that narrowed the spec | `checkVerificationGates` (`internal/le/commit/prepare.go`) | An independent `/ze-review` pass over the files the Implementation Audit names, recorded, then the Review Gate table below filled |
-| The owed commands have not run: `./le rfc check`, the scoped package tests and the functional and interop runs listed under Pre-Commit Verification | the main thread schedules them | Each green, pasted into Pre-Commit Verification |
-| Two specs still cite this file by path and commit B removes it: `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` (lines 20, 171, 364) and `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` (lines 20, 461) | `./le spec citation` | Repoint each to the bare stem in commit A. `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` cited the dead path `plan/immediate/spec-bgp-unowned-rfc-rows.md` and now cites the bare stem (review round 1, awaiting the main thread's commit); `test/plugin/rfc2545-third-party-linklocal.ci` already cites the bare stem. The EPE spec is `ready` with no `## Existing Mechanisms` section, so its edit gate (`writeSpecMechanisms`, `internal/le/hookruntime/specmechanisms.go`) asks for that section first |
-| The news declaration is not made. Operators see a change (a third-party next hop now carries its router's Link-Local, `binding-sid srv6` exists, a malformed 32-octet next hop is withdrawn), so commit A owes `website/changes/fragments/spec-bgp-unowned-rfc-rows.md` | `./le commit create` | The fragment written to `website/changes/fragments/README.md` |
+| Five owed runs are not in: the interop scenarios `bgp-rfc2545-third-party-linklocal-frr` and `bgp-sr-policy-gobgp` (Linux Docker lab), `./le rfc check`, and the unit packages `./internal/plugins/iface/netlink/` (Linux) and `./internal/component/bgp/config/`. Every other owed run is green and recorded under Pre-Commit Verification | the main thread schedules them | Each green, its result written into the Goal Validation and Pre-Commit Verification cells that say "not yet run" |
+| Two specs still cite this file by path and commit B removes it: `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` (lines 20, 171, 364) and `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` (lines 20, 461). No other tracked file cites the path (`grep -rn`, 2026-11-14); the two `.ci` tests and the sibling specs cite the bare stem. The spec edit gate refused both repoints on 2026-11-14 for reasons the repoint does not cause: the EPE spec is `ready` with no `## Existing Mechanisms` section (`writeSpecMechanisms`, `internal/le/hookruntime/specmechanisms.go`) and cites a producer `../../peer/address` that resolves outside the checkout; the FSM spec cites `fsm/fsm.go`, which matches two tracked files | `./le spec citation`; the `pretool-writeedit` spec gates | Each spec's own defect repaired by its owner (the missing section, the two producer paths), then lines 20 and 364 (EPE) and 20 and 461 (FSM) restated to the bare stem, and EPE line 171 repointed to `plan/release/validation/spec-bgp-mp-attribute-first-wire-proof.md`, which owns row 10's wire proof, all in commit A |
 
-The main thread sets Status back to `in-progress` when the reviewer starts.
+Cleared on 2026-11-14: the Review Gate artifact is recorded and checks clean
+(Review Gate), and the news fragment is written as
+`website/changes/fragments/bgp-unowned-rfc-rows.md`, the name
+`newsFragmentPath` (`internal/le/commit/newsfragment.go`) expects: the stem
+without `spec-`.
+
+The main thread sets Status back to `in-progress` when it runs the owed commands.
 
 ## Task
 
@@ -146,7 +150,7 @@ Row numbers are the numbers the rows had before the first split.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Reactor to the kernel neighbor table (row 5) | through the `internal/core/network` reader and watch the interface component's backend fills, never an import of `internal/component/iface` from the reactor | Yes: `link_scope.go` and `reactor_iface.go` import `internal/core/network` only |
-| Engine to RIB plugin (row 4) | received UPDATE with treat-as-withdraw already decided | for the reviewer |
+| Engine to RIB plugin (row 4) | received UPDATE with treat-as-withdraw already decided | Yes: `validateLinkLocalNextHopPair` returns an `RFC7606ValidationResult` with `RFC7606ActionTreatAsWithdraw` to the attribute walk (`rfc7606.go` line 548), the same result every other RFC 7606 check returns; `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` observes the withdrawal on a second connection |
 
 ### Integration Points
 - The RFC 7606 attribute walk - row 4.
@@ -156,12 +160,12 @@ Row numbers are the numbers the rows had before the first split.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | for the reviewer | row 4 is called from the attribute walk; row 5 from the per-peer facts refresh |
+| No bypassed layers (data flows through the intended path) | Yes | row 4 is called from the attribute walk (`rfc7606.go` line 548); row 5 from `linkScope.linkLocalNextHop`, which `applyLinkLocalNextHop` and `Peer.linkLocalNextHopFor` call on the per-peer facts; row 9 from `buildTunnelEncap` and `subTLVToJSON` |
 | No unintended coupling (components stay isolated) | Yes | the reactor reads the neighbor table through `internal/core/network` (imports of `link_scope.go`, `reactor_iface.go`), so it gained no dependency on `internal/component/iface`, which the design had accepted |
-| No duplicated functionality (extends existing, does not recreate) | for the reviewer | row 5 extends `linkScope.linkLocalNextHop` with a third-party arm |
-| Zero-copy preserved where applicable (refs, not copies) | for the reviewer | row 4 reads the field in place |
-| Registration over hardcoding, outbound | for the reviewer | the neighbor reader and watch are registered by the interface backend |
-| Registration over hardcoding, inbound | for the reviewer | |
+| No duplicated functionality (extends existing, does not recreate) | Yes | row 5 extends `linkScope.linkLocalNextHop` with the `nextHopRouterThirdParty` arm; row 9 adds a Length-18 arm to the existing type-13 builder and decoder |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | row 4 reads the two addresses from `data[4:36]` in place and allocates only on the malformed result |
+| Registration over hardcoding, outbound | Yes | the interface component registers the neighbor reader and watch (`network.RegisterNeighborTable`, `internal/component/iface/register.go` line 167); the reactor calls `network.WatchNeighbors` and names no backend |
+| Registration over hardcoding, inbound | Yes | row 9 is reached through the SR Policy plugin's registered config route parser and its registered attribute-23 renderer (`TunnelEncapToJSON`); no engine code names the form |
 
 ## Risks & Assumptions
 
@@ -289,23 +293,23 @@ landed change set from the history of these files and of the tests above.
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the `features/<id>.md` declarations whose evidence names these rows; for the reviewer, with `./le feature report` |
-| 2 | Config syntax changed? | Yes | `binding-sid srv6`: the SR Policy page found through `ai/INDEX.md`; for the reviewer |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/bgp-protocol.md`, whose page is `docs/features/bgp-protocol.md`: the SR Policy keyword table (lines 44 to 58) and the next-hop wire form row (line 315) already carry the three behaviors. No scope or level moved |
+| 2 | Config syntax changed? | Yes | `binding-sid srv6 <ipv6-address>`: `docs/features/bgp-protocol.md` lines 45 and 49 to 53 (the form, when to use it, the refused addresses), read against `parseBindingSIDSRv6`; the keyword lists in `docs/architecture/wire/nlri.md` line 712 and `docs/architecture/api/update-syntax.md` line 851 name `binding-sid` |
 | 3 | CLI command added/changed? | No | none |
 | 4 | API/RPC added/changed? | No | none |
 | 5 | Plugin added/changed? | No | no plugin gained a surface |
-| 6 | Has a user guide page? | Yes | the IPv6 next-hop guide page, for the third-party Link-Local; for the reviewer |
-| 7 | Wire format changed? | Yes | the SR Policy wire page for type 13 at Length 18; for the reviewer |
+| 6 | Has a user guide page? | Yes | the third-party Link-Local is on `docs/features/bgp-protocol.md` line 315 (rewritten in review round 1) and `docs/architecture/update-building.md` lines 304 to 319, which also name the `bgp-neighbor-table` doctor check |
+| 7 | Wire format changed? | Yes | type 13 at Length 18: `docs/features/bgp-protocol.md` lines 45 and 58 (written and decoded forms); the capability-77 receive check: `docs/architecture/wire/capabilities.md` lines 432 to 438, anchored to `validateLinkLocalNextHopPair` |
 | 8 | Plugin SDK/protocol changed? | No | none |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | the three `rfc/short/` files above and the generated `docs/features/rfc-status.md` |
 | 10 | Test infrastructure changed? | No | none |
-| 11 | Affects daemon comparison? | For the reviewer | `docs/comparison.md` if it lists the third-party Link-Local |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` has no row for a third-party Link-Local or for the Binding SID forms (`grep -n -i "link-local\|sr policy"`, 2026-11-14: only the "SR Policy" row at line 49, already Yes for Ze) |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/bgp/interface-event-reactions.md` (the neighbor watch) |
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | the neighbor table reader and watch registered in `internal/core/network`, and the neighbour-table doctor check: `docs/architecture/doctor-and-health-checks.md`; for the reviewer |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | re-derive with `./le spec citation anchors spec plan/release/fixes/spec-bgp-unowned-rfc-rows.md`. Declared by the files above: `docs/architecture/core-design.md` (`link_scope.go`: unaffected, no change to the core and registration design), `docs/architecture/wire/capabilities.md` (`rfc7606_linklocal.go`: the receive-side check of capability 77, for the reviewer), `docs/architecture/bgp/interface-event-reactions.md` (`reactor_iface.go`: affected, item 12), `docs/architecture/config/syntax.md` (declared by the SR Policy route parser: affected by the `binding-sid srv6` form, item 2, for the reviewer) |
-| 17 | Existing docs show config/CLI/API examples for this area? | For the reviewer | SR Policy `binding-sid` examples |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | the neighbor table reader and watch registered in `internal/core/network`, and the neighbour-table doctor check. The registration is on `docs/architecture/bgp/interface-event-reactions.md` (lines 84 to 97, anchored to `RegisterNeighborTable` and `WatchNeighbors`) and `docs/features/interfaces.md` (lines 1268 to 1271); the doctor check is named with its code on `docs/architecture/update-building.md` line 319. `docs/architecture/doctor-and-health-checks.md` describes the mechanism and lists no single check by name |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | re-derive with `./le spec citation anchors spec plan/release/fixes/spec-bgp-unowned-rfc-rows.md`. Declared by the files above: `docs/architecture/core-design.md` (`link_scope.go`: unaffected, no change to the core and registration design), `docs/architecture/wire/capabilities.md` (`rfc7606_linklocal.go`: lines 432 to 438 state the check and carry its anchor), `docs/architecture/bgp/interface-event-reactions.md` (`reactor_iface.go`: affected, item 12, done in review round 1), `docs/architecture/config/syntax.md` (declared by the SR Policy route parser: it holds no `binding-sid` text, `grep -rn -i "binding-sid" docs`, so nothing there went stale; the form is documented on the feature page, item 2). `./le doc check all`, 2026-11-14: the source-anchor stage passes; the run as a whole is red on the documentation-drift stage for the `delete data key` command (live registry against the wiki), which another session's uncommitted work on the data commands produces and this spec does not touch |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | the SR Policy keyword table of `docs/features/bgp-protocol.md` (lines 44 to 47) lists `binding-sid srv6`, `binding-sid mpls` and `binding-sid null` beside `srv6-binding-sid` |
 
 ## Implementation Steps
 
@@ -435,7 +439,7 @@ and `buildBindingSIDSRv6SubTLV` each carry their sentence.
 ### Documentation Updates
 - `docs/features/bgp-protocol.md`: the next-hop wire form row says a third-party next hop carries its router's Link-Local from the neighbor table (review round 1).
 - `docs/architecture/bgp/interface-event-reactions.md`: the neighbor table watch (review round 1, checklist item 12).
-- For the reviewer: each other Yes of the Documentation Update Checklist is checked against the page, and `./le doc check all` is run.
+- Closure pass, 2026-11-14: every Yes of the Documentation Update Checklist was checked against its page and the checklist rows now name the page and lines. No page was found stale beyond the two that review round 1 repaired. `./le doc check all` ran: its source-anchor stage passes, and its one red stage (documentation drift on the `delete data key` command) belongs to another session's uncommitted work.
 
 ### Deviations from Plan
 - Row 5 reads the neighbor table through a reader and a watch registered in `internal/core/network`, not through `iface.ListNeighbors` and a neighbour-changed bus event, because the monitor that would emit the event runs only with an `interface` block. The reactor gained no import of the interface component.
@@ -452,7 +456,8 @@ and `buildBindingSIDSRv6SubTLV` each carry their sentence.
 
 ## Implementation Audit
 
-Evidence is from source reading on 2026-11-14. Test runs are owed commands.
+Evidence is from source reading on 2026-11-14. The test runs the main thread
+observed that day are under Pre-Commit Verification, with the runs still owed.
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
@@ -493,11 +498,14 @@ Evidence is from source reading on 2026-11-14. Test runs are owed commands.
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
-| A malformed 32-octet next hop on a capability-77 session is withdrawn, not accepted | functional | `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci`; no conforming peer can send the form, so no interop scenario exists |
-| A third-party next hop on the common subnet carries its router's Link-Local | interop | `bgp-rfc2545-third-party-linklocal-frr`, judged by `checkRFC2545ThirdPartyLinkLocal`, with its recorded break in `rfc/discrimination/rfc2545/RFC2545-3-6.json` |
-| An SRv6 BSID can be signalled in the type-13 sub-TLV at Length 18 and read back | interop | `bgp-sr-policy-gobgp`: GoBGP prints the type-13 Binding SID |
+| A malformed 32-octet next hop on a capability-77 session is withdrawn, not accepted | functional | `./le test bgp plugin linklocal-capability-malformed-nexthop-withdraw`: pass 1/1 (main thread, 2026-11-14). The test sends the malformed pair on one connection and expects the withdrawal of `2001:db8:5701::/48` on the second (`expect=bgp:conn=2:seq=2`), and rejects the malformed pair being relayed. No conforming peer can send the form, so no interop scenario exists; the recorded break is `rfc/discrimination/draft-ietf-idr-linklocal-capability/DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1.json` |
+| A third-party next hop on the common subnet carries its router's Link-Local | functional, in Ze's QEMU guest | `./le test qemu ci test test/plugin/rfc2545-third-party-linklocal.ci`: pass 1/1 (main thread, 2026-11-14). The peer expects the 32-octet next hop `2001:db8:2545::9` then `fe80::9` for the route through the neighbor the table names, and the 16-octet form for the router it does not name |
+| The same, against another implementation | interop | `bgp-rfc2545-third-party-linklocal-frr`, judged by `checkRFC2545ThirdPartyLinkLocal` (FRR decodes the third router's global then its Link-Local, and installs the route through it), with its recorded break in `rfc/discrimination/rfc2545/RFC2545-3-6.json`. Not yet run in this closure: owed on the Linux Docker lab |
+| An SRv6 BSID can be signalled in the type-13 sub-TLV at Length 18 and read back | functional | `./le test bgp encode bgp-srpolicy-bsid-srv6-encode`, `./le test bgp decode bgp-srpolicy-bsid-srv6-decode`, `./le test bgp parse srpolicy-binding-sid-srv6`: each pass 1/1 (main thread, 2026-11-14). The encode test asserts the UPDATE hex, the decode test the JSON with `srv6-sid`, the parse test the refusal of an IPv4 address |
+| The same, against another implementation | interop | `bgp-sr-policy-gobgp`: GoBGP prints the type-13 Binding SID. Not yet run in this closure: owed on the Linux Docker lab |
 
-The runs that show each green are owed commands; none ran in this pass.
+The two interop rows stay open until their runs are in; the closure commits
+wait on them.
 
 ## Work Not Done
 
@@ -511,18 +519,27 @@ The runs that show each green are owed commands; none ran in this pass.
 
 ## Review Gate
 
-Round 1 ran, by a reviewer independent of the agent that narrowed this spec.
-Its findings are fixed below; the artifact is recorded by the main thread once
-a round is clean.
+Two rounds ran, by reviewers independent of the agent that narrowed this spec.
+Round 1's findings are fixed below, in commits 0af5860697 (the two pages) and
+d7aa6f2f93 (the `.ci` comment). Round 2 was clean and the main thread recorded
+the artifact.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not recorded |
-| `./le spec review check` | not run |
-| Rounds | 1 |
+| Artifact | `tmp/review/bgp-unowned-rfc-rows-5c1d37ea-a4ea-4b06-b7b3-2b3b45cd9c24.md`, recorded by the main thread at 2026-11-14T15:12:09Z: verdict clean, rounds 2, reviewers `ze-review` and `ze-review-spec`, 11 files pinned by hash |
+| `./le spec review check` | run on 2026-11-14 over the same 11 files: `review_gate: OK (11 code files, clean, hashes match ...)` |
+| Rounds | 2 |
 | Round 1 scope | the whole diff of the kept rows (4, 5 tested half, 9) |
 | Reviewer lenses used | protocol correctness against the RFC text, test proves claim, spec match |
 | Round 1 verdict | 0 BLOCKER, 2 ISSUE, 4 NOTE |
+| Round 2 verdict | 0 BLOCKER, 0 ISSUE: clean |
+
+The 11 files the artifact pins: `rfc7606_linklocal.go` and
+`draft_ietf_idr_linklocal_capability_malformed_test.go` (message);
+`link_scope.go`, `link_scope_neighbors.go` and
+`rfc2545_third_party_link_local_test.go` (reactor); `config.go`, `attr_json.go`
+and `rfc9830_bsid_srv6_test.go` (srpolicy); `check_rfc2545_third_party.go`
+(interop lab); and the two `test/plugin/` `.ci` tests of rows 4 and 5.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -547,17 +564,17 @@ a round is clean.
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-4 | both polarities tagged and recorded | `grep -rn "RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1"`: `draft_ietf_idr_linklocal_capability_malformed_test.go` lines 47 and 89, `rfc2545_forward_subnet_test.go` lines 231, 232, 627, 628, 701; the record lists five units. Owed run: `./le test unit pkg path ./internal/component/bgp/message/` |
-| AC-5 | tested half tagged and recorded | the record lists `TestRFC2545ThirdPartyLinkLocalAnnounce`, `TestRFC2545ThirdPartyLinkLocalForward` and `checkRFC2545ThirdPartyLinkLocal`. Owed run: `./le test unit pkg path ./internal/component/bgp/reactor/` |
-| AC-6 | both polarities tagged and recorded | `rfc9830_bsid_srv6_test.go` lines 26, 29, 80, 93; the record lists the two units. Owed run: `./le test unit pkg path ./internal/component/bgp/plugins/nlri/srpolicy/` |
-| AC-8 | ledger clean for the three stems | owed run: `./le rfc check` |
+| AC-4 | both polarities tagged and recorded | `grep -rn "RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1"`: `draft_ietf_idr_linklocal_capability_malformed_test.go` lines 47 and 89, `rfc2545_forward_subnet_test.go` lines 231, 232, 627, 628, 701; the record lists five units. Run: `./le test unit pkg path ./internal/component/bgp/message/ path ./internal/component/bgp/plugins/nlri/srpolicy/`: ok; `./le test bgp plugin linklocal-capability-malformed-nexthop-withdraw`: pass 1/1 (main thread, 2026-11-14) |
+| AC-5 | tested half tagged and recorded | the record lists `TestRFC2545ThirdPartyLinkLocalAnnounce`, `TestRFC2545ThirdPartyLinkLocalForward` and `checkRFC2545ThirdPartyLinkLocal`. Run: `./le test unit pkg path ./internal/component/bgp/reactor/ run 'RFC2545\|ThirdParty\|LinkScope\|NeighborWatch\|NeighbourReader\|LinkLocal'`: ok (8.586s); the whole reactor package was not run, because another session is editing it. `./le test qemu ci test test/plugin/rfc2545-third-party-linklocal.ci`: pass 1/1 in Ze's guest (main thread, 2026-11-14). Not yet run: the interop scenario `bgp-rfc2545-third-party-linklocal-frr`; `./le test unit pkg path ./internal/plugins/iface/netlink/` (Linux), which holds the `TestNeighbourWatch*` tests; `./le test unit pkg path ./internal/component/bgp/config/`, which holds the two doctor tests |
+| AC-6 | both polarities tagged and recorded | `rfc9830_bsid_srv6_test.go` lines 26, 29, 80, 93; the record lists the two units. Run: the srpolicy package in the unit run above: ok; `./le test bgp encode bgp-srpolicy-bsid-srv6-encode`, `./le test bgp decode bgp-srpolicy-bsid-srv6-decode`, `./le test bgp parse srpolicy-binding-sid-srv6`: each pass 1/1 (main thread, 2026-11-14). Not yet run: the interop scenario `bgp-sr-policy-gobgp` |
+| AC-8 | ledger clean for the three stems | not yet run: `./le rfc check`. Read on 2026-11-14: rows `-6-1` and `RFC9830-2.4.2-12` carry no annotation, `RFC2545-3-6` is `{partial}`, and the three discrimination records exist |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| malformed 32-octet next hop | `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` | exists; its body is for the reviewer to read |
-| third-party next hop from config | `test/plugin/rfc2545-third-party-linklocal.ci` | exists; its header names AC-5 "through the operator entry point" |
-| `binding-sid srv6` | the three SR Policy `.ci` files | exist; for the reviewer to read |
+| malformed 32-octet next hop | `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` | pass 1/1 (2026-11-14). It runs `ze --plugin ze.bgp-llnh` against two `le test peer` connections and asserts the bytes the second one receives |
+| third-party next hop from config | `test/plugin/rfc2545-third-party-linklocal.ci` | pass 1/1 in Ze's QEMU guest (2026-11-14; `option=needs-linux:caps=net-admin`). It starts `ze start ze.conf` in a network namespace and asserts the MP_REACH next-hop bytes the peer receives |
+| `binding-sid srv6` | the three SR Policy `.ci` files | each pass 1/1 (2026-11-14). Encode drives the config route and `update text` and asserts the UPDATE hex; decode runs `ze bgp decode --json`; parse runs `ze config validate` and asserts the refusal text |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -567,4 +584,6 @@ a round is clean.
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| RFC status rows | `rfc/short/` rows read on 2026-11-14 | the generated page is for the reviewer, after `./le rfc update` |
+| RFC status rows | `rfc/short/` rows read on 2026-11-14: `draft-ietf-idr-linklocal-capability.md` line 128 and `rfc9830.md` line 313 carry no annotation, `rfc2545.md` line 206 is `{partial}` | Yes for the rows. This closure changed no `rfc/short/` row, so the generated `docs/features/rfc-status.md` owes no regeneration; `./le rfc check` (not yet run) judges the records |
+| The Documentation Update Checklist's Yes rows | each row names its page and lines, read on 2026-11-14 | Yes; `./le doc check all` source-anchor stage passes |
+| News fragment | `website/changes/fragments/bgp-unowned-rfc-rows.md`, topic `BGP` (a tag of `website/data/topics.json`), six headings in order | written; `./le commit create` validates it when commit A is prepared |
