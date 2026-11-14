@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9234-5-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressExistingOTCNotRewrittenToLocalASN",
+    "unit-sha": "207c853fca64c4d1",
+    "claim-sha": "5d3e8887801f747f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "d97369eea02981d4",
+    "break": "line 676: \"!hasOTC\" -\u003e \"!hasOTC || true\""
+  }
+]

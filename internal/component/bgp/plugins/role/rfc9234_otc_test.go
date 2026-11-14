@@ -1335,6 +1335,48 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 	assert.Equal(t, uint32(64999), asn, "must use local ASN (64999), not src (65001) or dest peer AS (65002)")
 }
 
+// VALIDATES: RFC 9234 Section 5, "Once the OTC Attribute has been set, it
+// MUST be preserved unchanged (this also applies to an AS Confederation)." at
+// the egress filter: OTCEgressFilter queues no OTC set op over an OTC the
+// route already carries.
+// PREVENTS: the egress stamp being planned over an existing OTC.
+//
+// Method: a route learned from a Provider (our role Customer) carries OTC
+// 64496, the value the Section 5 ingress rule sets for a route from Provider
+// AS 64496. It carries NLRI, so the stamp's "is to be advertised" clause
+// holds, and it goes to a Customer with local AS 64497. The filter must accept
+// it and queue no OTC set op: the only op it could queue is the 64497 stamp
+// that the "not present" condition guards. Only the queued ops are checked,
+// not the bytes written. Documentation ASNs (RFC 5398) are used.
+//
+// RFC requirement: RFC9234-5-6 positive -- a route that already carries OTC 64496 and advertises NLRI to a Customer is accepted and OTCEgressFilter queues no OTC set op, so egress planning leaves the existing value for preservation rather than stamping the local AS 64497.
+func TestOTCEgressExistingOTCNotRewrittenToLocalASN(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleCustomer},
+		"10.0.0.5": {role: roleProvider},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", "", roleProvider)
+	setFilterRemoteRole("10.0.0.5", "", roleCustomer)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	withOTC := buildTestPayload(buildTestAttrs(64496), []byte{24, 10, 2, 2})
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 64496}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 64498, LocalAS: 64497}
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, withOTC, meta, &mods)
+
+	assert.True(t, accept, "a route carrying OTC may be propagated to a Customer (RFC 9234 Section 5)")
+	assert.Empty(t, mods.Ops(),
+		"no OTC set op may be queued over an OTC already set (64496), so the local AS (64497) is not stamped")
+}
+
 // VALIDATES: AC-7 — Non-unicast egress skips OTC processing entirely.
 // PREVENTS: OTC applied to non-unicast families.
 //
