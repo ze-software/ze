@@ -115,7 +115,7 @@ type recordingHandler struct {
 
 func (*recordingHandler) Enabled(context.Context, slog.Level) bool { return true }
 
-func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *recordingHandler) Handle(_ context.Context, r slog.Record) error { //nolint:gocritic // the slog.Handler interface takes the Record by value
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.records = append(h.records, loggedRecord{level: r.Level, message: r.Message})
