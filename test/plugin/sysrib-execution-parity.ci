@@ -1,0 +1,61 @@
+# Test: does an internal system RIB carry permitted static controls from the
+# operator configuration through authoritative commands into the kernel FIB?
+# A unit test cannot boot the configured daemon, authenticate its observer, or
+# inspect the Linux routes that the real fib-kernel consumer installs.
+# The forked sibling changes only the system RIB placement and observer mode.
+# Both candidates and selected controls must arrive before kernel assertions.
+# Blackhole controls need no neighbor or fixture-owned interface.
+# VALIDATES: spec-route-policy-1-gate-proof-and-forked-sysrib AC-1 baseline.
+option=needs-linux:caps=net-admin
+# A private unaddressed link declares per-test network isolation.
+option=netns-link:name=zesrproof
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external sysrib-execution-test {
+		run "le test fixture plugin/sysrib-execution-parity internal kernel"
+		encoder json
+	}
+	internal sysrib-owner {
+		use rib
+	}
+	internal fib-kernel {
+		use fib-kernel
+	}
+}
+rib {
+	distance { static 7; }
+}
+fib {
+	kernel { flush-on-stop true; }
+}
+static {
+	table default {
+		route 198.18.211.0/24 {
+			blackhole { }
+			distance 7
+			tag 0
+		}
+		route 198.18.212.0/24 {
+			blackhole { }
+			distance 7
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/sysrib-execution-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement internal, running owner and child count 0
+expect=stderr:contains=OK: static controls reached candidates and system output
+expect=stderr:contains=OK: static controls reached the kernel as blackhole proto 250
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/sysrib-execution-kernel-empty:exit=0
+expect=stderr:contains=OK: system RIB fixture prefixes are absent from every kernel table
+# Keep the existing quick-exit validation last: the file exit then asserts
+# the foreground daemon, while this command checks its own exit independently.
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ze-conf:exit=0

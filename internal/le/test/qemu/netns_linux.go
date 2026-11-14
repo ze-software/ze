@@ -25,7 +25,14 @@ import (
 // netnsSuiteTimeout is the wall-clock cap one selected subset runs under. The
 // paths, the capability set and the environment keys this launcher shares with
 // the whole-suite run are netns.go.
-const netnsSuiteTimeout = 15 * time.Minute
+//
+// One cap serves every subset, so the longest one sets it. runNetnsSuite runs a
+// subset with -p 1, so its worst case is the sum of its tests' declared
+// timeouts plus the runner's teardown grace for each. The plugin subset is the
+// longest: its thirty route-policy and system-RIB daemon cases alone declare
+// 4500 s, and its forty tests together come to about 86 minutes with the
+// grace. A cap under that sum kills a slow but passing run as a failure.
+const netnsSuiteTimeout = 90 * time.Minute
 
 var netnsSelections = map[string][]string{
 	netnsFirewall: {
@@ -62,6 +69,28 @@ var netnsSelections = map[string][]string{
 		// option=netns-link: the namespace is the only box that receives
 		// nothing, so the zero-traffic finding forms only here.
 		"ddos-detect-internal-blind",
+		// Route policy and system-RIB placement. A -forked case runs the
+		// system RIB as an external `ze plugin rib` process beside the
+		// internal base case; the rib-import-tag four cross the static and
+		// system-RIB placements. All declare option=netns-link, so the runner
+		// skips them outside this launcher, and each fresh namespace keeps one
+		// daemon's FIB flush from sweeping another's routes.
+		"connected-import-filter-hides", "connected-import-filter-hides-forked",
+		"rib-import-central-bogons", "rib-import-central-bogons-forked",
+		"rib-import-tag-internal-internal", "rib-import-tag-internal-forked",
+		"rib-import-tag-forked-internal", "rib-import-tag-forked-forked",
+		"static-import-filter-distance", "static-import-filter-distance-forked",
+		"sysrib-bgp-metric-callers", "sysrib-bgp-metric-callers-forked",
+		"sysrib-distance-reload", "sysrib-distance-reload-forked",
+		"sysrib-distance-reload-configured", "sysrib-distance-reload-configured-forked",
+		"sysrib-ecmp-replay", "sysrib-ecmp-replay-forked",
+		"sysrib-execution-health", "sysrib-execution-health-forked",
+		"sysrib-execution-parity", "sysrib-execution-parity-forked",
+		"sysrib-feed-restart", "sysrib-feed-restart-forked",
+		"sysrib-forked-producer-kernel",
+		"sysrib-nonwinner-explicit-ecmp", "sysrib-nonwinner-explicit-ecmp-forked",
+		"sysrib-recursive-nexthop", "sysrib-recursive-nexthop-forked",
+		"sysrib-slow-reader-reset",
 	},
 }
 

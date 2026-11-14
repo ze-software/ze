@@ -716,10 +716,13 @@ permitted installed control and before/after cleanup checks.
 
 The companion system-RIB drivers cover runtime health, recursive next hops,
 multipath/replay, distance apply/rollback and process restart. A source or
-fixture test does not replace a daemon/kernel run. Drafts remain outside the
-tracked functional inventory until they pass discrimination and load proof and
-are promoted through the normal draft workflow. Feature run records remain
-the authority for completed real-path evidence.
+fixture test does not replace a daemon/kernel run. These drivers' `.ci`
+carriers, and the import-chain ones above, live in `test/plugin/`. Each declares `option=needs-linux:caps=net-admin` and a private
+`netns-link`, so the runner skips it outside the per-test namespace launcher,
+and it runs in `./le test qemu netns suites plugin`, which names every one in
+`netnsSelections`. Feature run records remain the authority for completed
+real-path evidence.
+<!-- source: internal/le/test/qemu/netns_linux.go -- netnsSelections -->
 <!-- source: internal/test/fixture/sysrib_health_daemon_fixture.go -- sysribHealthDriver -->
 <!-- source: internal/test/fixture/sysrib_recursive_daemon_fixture.go -- sysribRecursiveDriver -->
 <!-- source: internal/test/fixture/sysrib_ecmp_daemon_fixture.go -- sysribECMPDriver -->
@@ -727,9 +730,8 @@ the authority for completed real-path evidence.
 <!-- source: internal/test/fixture/sysrib_restart_daemon_fixture.go -- sysribRestartDriver -->
 <!-- source: internal/le/feature/runrecord.go -- RunRecord -->
 
-The following additional carriers are drafted. Their source defines the
-assertion targets below. Successful live runs, controlled breaks and promotion
-remain required before they count as retained evidence.
+The following additional carriers run in the same subset. Their fixture
+source defines the assertion targets below.
 
 | Carrier | Assertion target |
 |---------|------------------|

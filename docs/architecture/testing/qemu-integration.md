@@ -88,7 +88,7 @@ commands execute inside that guest; `test qemu all` runs as root.
 
 | Command | Population |
 |---------|------------|
-| `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case, the static-into-OSPF redistribution chain case and the blind ddos-detect case |
+| `./le test qemu netns suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects the seven ASPA cases, the RFC 2545 next-hop replay case, the static-into-OSPF redistribution chain case, the blind ddos-detect case and the thirty route-policy and system-RIB placement cases |
 | `le test qemu all` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Six suites run in a per-test network namespace, requiring full `ip`, `setcap` and `getcap` tools |
 | `le test qemu all only needs-linux` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 | `le test qemu all test test/<dir>/<name>.ci` | That one `.ci`, run from inside the guest; the host command that boots a guest for it is `./le test qemu ci test test/<dir>/<name>.ci` ([below](#running-one-ci-test-in-a-ze-guest)). It runs through the suite that walks its directory (`vmSuiteFor`); a draft, `test/draft/<dir>/<name>.ci`, runs through the same suite with `--draft`. Either takes the same shim, environment and network-namespace preparation. No other suite or phase runs. `./le feature run` and `./le rfc record` reach a capability-gated test this way, through `testqemu.OneCICommand` under `docker-lab harness` |
@@ -530,6 +530,15 @@ It also includes `ddos-detect-internal-blind`, whose detector must see no
 received traffic for one baseline window: only a fresh namespace holding lo
 and a dummy `eth1` receives nothing, so it too is skipped in the root
 namespace during whole-suite runs.
+It also includes the thirty route-policy and system-RIB placement cases
+(`connected-import-filter-hides`, `rib-import-central-bogons`,
+`rib-import-tag-*`, `static-import-filter-distance` and the `sysrib-*` cases,
+most with a `-forked` twin that runs the system RIB as an external
+`ze plugin rib`). Each declares `option=needs-linux:caps=net-admin` and a
+private unaddressed `netns-link`, so the runner skips it everywhere but this
+launcher, `test qemu all` included. Each programs the kernel FIB through
+`fib-kernel` and checks that a daemon stop flushes only Ze's routes, which a
+shared namespace would let one daemon do to another's.
 <!-- source: internal/le/test/qemu/netns_linux.go -- netnsSelections -->
 The selector does not move the whole plugin suite into namespaces.
 
@@ -544,7 +553,11 @@ block runs `le test fixture ...` makes it exec `le` by name: a link into the
 checkout failed with `le: Permission denied`, because the 9p root keeps the
 host owner's 0700 mode, and such a fixture also needs the capabilities for its
 AF_PACKET socket, which a dropped user receives only from the file.
-<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries, runNetnsSuite -->
+It runs a subset one test at a time (`-p 1`) under one wall-clock cap for
+every subset, `netnsSuiteTimeout`, 90 minutes. The longest subset sets it:
+the plugin subset's declared per-test timeouts and teardown grace come to
+about 86 minutes, 4500 s of them from the route-policy and system-RIB cases.
+<!-- source: internal/le/test/qemu/netns_linux.go -- prepareNetnsBinaries, runNetnsSuite, netnsSuiteTimeout -->
 <!-- source: internal/le/test/qemu/netns.go -- netnsHarnessSource -->
 
 The plugin subset is scheduled in `qemu-nightly.yml`'s
@@ -553,8 +566,11 @@ the runtime-kernel guest:
 
 ```bash
 ./le test qemu docker-lab kernel tmp/kernel/build/vmlinuz harness \
-  timeout 1200s command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu netns suites plugin'
+  timeout 5700s command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu netns suites plugin'
 ```
+
+The `docker-lab` timeout sits above `netnsSuiteTimeout` so the launcher's own
+cap, which names the subset that ran out, fires first.
 
 This uses the architecture-qualified guest binaries selected by the existing
 `ZE_QEMU_BIN` and `ZE_QEMU_STRIPPED_BIN` overrides or their defaults. The
@@ -567,7 +583,7 @@ variable names the harness. A native prerequisite skip is not evidence for this 
 <!-- source: internal/le/test/qemu/netns.go -- the namespace table's producer and the capability preparation -->
 <!-- source: internal/le/test/qemu/alltests.go -- vmSuites, the Namespace of each row -->
 <!-- source: internal/le/test/qemu/netns_linux.go -- netnsSelections, runNetnsSuite -->
-<!-- source: .github/workflows/qemu-nightly.yml -- runtime-kernel-labs ASPA plugin namespace subset -->
+<!-- source: .github/workflows/qemu-nightly.yml -- runtime-kernel-labs plugin namespace subset -->
 
 ### A run says what it planned, what it reached, and how many tests ran
 

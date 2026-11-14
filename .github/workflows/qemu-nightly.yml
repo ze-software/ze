@@ -168,7 +168,9 @@ jobs:
 
   runtime-kernel-labs:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    # 135 minutes of capped lab commands (600+1200+5700+600 s) plus the 90
+    # minutes the uncapped boot, build and appliance steps had before.
+    timeout-minutes: 225
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -254,7 +256,10 @@ jobs:
           harness
           timeout 1200s
           command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu pppoe'
-      - name: ASPA plugin namespace subset
+      # The subset runs one test at a time under netnsSuiteTimeout, 90 minutes
+      # (internal/le/test/qemu/netns_linux.go); this cap leaves it the guest
+      # preparation on top.
+      - name: Plugin namespace subset
         if: ${{ !cancelled() }}
         env:
           ZE_QEMU_MEMORY: "8192"
@@ -264,7 +269,7 @@ jobs:
           ./le test qemu docker-lab
           kernel tmp/kernel/build/vmlinuz
           harness
-          timeout 1200s
+          timeout 5700s
           command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 tmp/qemu/linux-amd64/le test qemu netns suites plugin'
       - name: Traffic-usage eBPF proof
         if: ${{ !cancelled() }}

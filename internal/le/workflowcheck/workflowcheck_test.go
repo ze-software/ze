@@ -942,7 +942,7 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 	requireScheduledOnly(t, name)
 	requireEveryJobStatesItsOwnVerdict(t, name)
 	source := workflowSource(t, name)
-	for _, budget := range []string{"timeout-minutes: 180", "timeout-minutes: 120", "timeout-minutes: 150"} {
+	for _, budget := range []string{"timeout-minutes: 180", "timeout-minutes: 120", "timeout-minutes: 225"} {
 		if !strings.Contains(source, budget) {
 			t.Errorf("%s lacks %s", name, budget)
 		}
