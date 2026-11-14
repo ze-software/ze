@@ -13,7 +13,9 @@ package leroot
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -406,6 +408,7 @@ func writeActionPage(program, name string, list leaction.List, verb string) int 
 		tb.Str("try one of: ").Join(verbs, " | ").Byte('\n').StdErr() //nolint:errcheck // CLI output
 		return 2
 	}
+	withNoSlot(&page, noSlotEntries(program, name, verb, list.Verbless()))
 	page.Width = leaction.PageWidth(os.Stdout)
 	page.WriteOut()
 	return 0
@@ -541,10 +544,72 @@ func areaPage(program, name string) helpfmt.Page {
 	if declared && list.PassesWords {
 		page.Sections = append(page.Sections, list.Section())
 	}
+	withNoSlot(&page, noSlotEntries(program, name, "", declared && list.Verbless()))
 	if held := childEntries(name); len(held) != 0 {
 		page.Sections = append(page.Sections, helpfmt.HelpSection{Title: "Commands", Entries: held})
 	}
 	return page
+}
+
+// noSlotEntries answers one help entry, sorted by name, for each name
+// registered as taking no job slot (RegisterNoSlot) that covers the action
+// verb of the area name: the area's own name, the action's, and a selection
+// of the action. An empty verb asks for the area's page: the area's own name
+// alone, or every name under the area when verbless says the area word names
+// its sole action. Each entry is the command the name spells under program,
+// with its reason.
+func noSlotEntries(program, area, verb string, verbless bool) []helpfmt.HelpEntry {
+	held := noSlotNamesOf(area)
+	if len(held) == 0 {
+		return nil
+	}
+	action := actionName(area, verb)
+	var tb textbuf.Buffer
+	prefix := tb.Str(action).Byte(' ').String()
+
+	entries := make([]helpfmt.HelpEntry, 0, len(held))
+	for _, name := range slices.Sorted(maps.Keys(held)) {
+		if !noSlotCovers(name, area, action, prefix, verb, verbless) {
+			continue
+		}
+		tb.Reset()
+		entries = append(entries, helpfmt.HelpEntry{Name: tb.Str(program).Byte(' ').Str(name).String(), Desc: held[name]})
+	}
+	return entries
+}
+
+// noSlotCovers reports whether the registered name covers the action named
+// action of the area: the area's whole name always does, and for the area's
+// own page (an empty verb) every other name does only when the area is
+// verbless. Otherwise the name is the action's, or one selection of it,
+// spelled from prefix on.
+func noSlotCovers(name, area, action, prefix, verb string, verbless bool) bool {
+	if name == area {
+		return true
+	}
+	if verb == "" {
+		return verbless
+	}
+	if name == action {
+		return true
+	}
+	return strings.HasPrefix(name, prefix)
+}
+
+// withNoSlot adds entries to the page's job slot section, the one a row's
+// own declaration made (leaction.NoSlotSection), or as that section when the
+// page holds none, so a page states every reason in one place.
+func withNoSlot(page *helpfmt.Page, entries []helpfmt.HelpEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	for index := range page.Sections {
+		if page.Sections[index].Title == leaction.NoSlotTitle {
+			page.Sections[index].Entries = append(page.Sections[index].Entries, entries...)
+			return
+		}
+	}
+	page.Sections = append(page.Sections, leaction.NoSlotSection(entries))
 }
 
 // childEntries answers the commands registered under a name, each with its

@@ -84,6 +84,11 @@ type Command struct {
 	// types it, so help pages and completion leave it out; this reference is
 	// the one listing that names it.
 	Hidden bool `json:"hidden,omitempty"`
+	// NoSlot holds, for a program that admits heavy work to job slots, each
+	// name under this command declared to take none beside its action table
+	// (the command's own name, an action or a selection of one), with the
+	// reason. An action's own declaration is Action.NoSlot. Absent when none.
+	NoSlot map[string]string `json:"no-slot,omitempty"`
 }
 
 // VerblessColumn is what the text rendering prints where a verb goes for a
@@ -106,6 +111,10 @@ type Action struct {
 	Description string      `json:"description"`
 	Writes      bool        `json:"writes"`
 	Parameters  []Parameter `json:"parameters,omitempty"`
+	// NoSlot is why this heavy action takes no job slot, for a program that
+	// admits heavy work to slots, and is absent for every action that takes
+	// one or is light.
+	NoSlot string `json:"no-slot,omitempty"`
 }
 
 // Parameter is one keyword, or the positional value, an action takes.

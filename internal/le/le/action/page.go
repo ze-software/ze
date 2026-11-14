@@ -257,7 +257,30 @@ func (l List) ActionPage(program, verb string) (helpfmt.Page, bool) {
 	if keywords := keywordSection(row.Parameters); len(keywords.Entries) != 0 {
 		page.Sections = []helpfmt.HelpSection{keywords}
 	}
+	if row.NoSlot != "" {
+		entry := helpfmt.HelpEntry{Name: l.commandOf(program, row), Desc: row.NoSlot}
+		page.Sections = append(page.Sections, NoSlotSection([]helpfmt.HelpEntry{entry}))
+	}
 	return page, true
+}
+
+// NoSlotTitle heads the section of a page whose work is declared to take no
+// job slot. The dispatcher finds the section by it, to add the names
+// registered beside the action table (leroot.RegisterNoSlot) to the entries
+// the row declared, so a page carries one such section.
+const NoSlotTitle = "Job slot"
+
+// NoSlotSection answers the section a page carries for heavy work declared
+// to take no job slot: one entry per declaration, the command it names and
+// the reason it gives (Action.NoSlot, leroot.RegisterNoSlot). Its summary
+// says the work runs at once even while every slot is held, so a reader who
+// sees it start past a full `le job report` reads a decision, and its reason.
+func NoSlotSection(entries []helpfmt.HelpEntry) helpfmt.HelpSection {
+	return helpfmt.HelpSection{
+		Title:   NoSlotTitle,
+		Summary: "takes none, so it runs at once even while every slot is held; why:",
+		Entries: entries,
+	}
 }
 
 // UsagePage answers what a refusal of one action prints: its usage line as the

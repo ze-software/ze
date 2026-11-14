@@ -1974,9 +1974,14 @@ direct file editing.
 
 Parallel verify runs share the build cache, the ports, and the test binaries. An
 admitted job runs now, queues behind the jobs already in flight, or attaches to an
-equivalent run. The actions that admit themselves today are `./le go lint run`,
-`./le job run`, and every harness RUNNER under `le test`: the 24 suites plus
-`bgp`, `editor`, `exabgp`, `vpp` and `web`. A runner takes the slot, then runs
+equivalent run. Every heavy `./le` line is admitted, typed bare: it waits while
+no slot is free and shows in `./le job report` while it waits and runs. The
+dispatcher takes its one slot before the body runs, unless the action's own
+declaration says otherwise (`SlotOfLine`). A few actions admit themselves, to
+keep a label, a shared verdict or a progress log of their own: the census pins
+them (`censusSelfAdmitting`), and every harness RUNNER under `le test` is one
+by its registration. A few take no slot at all, and the action's help page and
+`./le help ai commands | json` (its `no-slot` field) print why. A runner takes the slot, then runs
 itself again as a child inside it, so the slot's log grows with the run's output
 (`RunnerAnswer`, `internal/le/test/harnesstool/harnesstool.go`). A harness HELPER
 tool (`peer`, `rpki`, a mock, `fixture`) never admits, because the suite that
@@ -1997,11 +2002,15 @@ that admitted itself instead would also fingerprint the whole checkout over
 tracked file, past the 60-second git limit (`gitTimeout`,
 `internal/le/job/treehash.go`). The
 pretool hook reads a runner as heavy for the lossy-pipe refusal, and a helper as
-light, from the same registration (`leroot.Admits`). Anything else is admitted by
-typing it after `./le job run label <label> command`. The rest of the heavy
-population joins in
-`plan/post-release/engineering/spec-native-action-job-admission.md`, so a second `./le verify current
-fast` that Thomas starts does NOT block on the first: only its lint stage does.
+light, from the same registration (`leroot.Admits`). A raw command (`go test`,
+a linter) is admitted by typing it after `./le job run label <label> command`.
+A second `./le verify current fast` that Thomas starts attaches to an
+equivalent run's verdict or waits for a slot, as every admitted job does.
+<!-- source: internal/le/le/root/heavy.go -- SlotOfLine, RegisterNoSlot -->
+<!-- source: internal/le/heavy_census_test.go -- censusSelfAdmitting, censusNoSlot -->
+<!-- source: internal/le/verify/current.go -- runFast -->
+<!-- source: internal/le/le/action/page.go -- NoSlotSection -->
+<!-- source: internal/le/le/root/helpai.go -- actionOf, fillCommands -->
 
 `ZE_RUN_SLOTS` (`SlotsKey`) sets the slot count. It defaults to one slot per core
 share this machine holds (`defaultSlots`, `internal/le/job/job.go`), which is four
@@ -2086,7 +2095,9 @@ is the route for a package run the short action does not express: `-v`,
 `-count`, `-bench`, `-cover`, `-json`, `-args`, a run without `-race`, or a
 test behind a tag the feature set lacks (`integration`). It takes the admission
 slot, so one heavy job runs while the peers queue, and it tees the child's
-merged output to the job log.
+merged output to the job log. A heavy `./le` line needs no `job run` around
+it: typed bare, it takes its own slot ("One verify at a time"). It is typed
+after `command` only to take `quiet`, and then runs inside that job's slot.
 
 Everything after the `command` keyword is the child's argv, and `job` passes it
 through unchanged (its kind is `argv`, `KindArgv` in

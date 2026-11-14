@@ -13,6 +13,7 @@
 package leroot
 
 import (
+	"maps"
 	"strings"
 	"sync"
 
@@ -463,6 +464,35 @@ func NoSlotReason(name string) (string, bool) {
 	defer noSlotNames.RUnlock()
 	reason, registered := noSlotNames.byName[name]
 	return reason, registered
+}
+
+// noSlotNamesOf answers every name registered as taking no job slot
+// (RegisterNoSlot) whose line resolves to the area name, with its reason:
+// the area's own name, an action of it, or one selection of an action. Each
+// name is resolved as dispatch resolves a typed line (resolveLine), so a name
+// under a longer area that shares this one's leading words is that area's,
+// never this one's. It answers nil for an area that registered none. The help
+// page and the manifest read it, so they publish the reason slotOf reads.
+func noSlotNamesOf(area string) map[string]string {
+	noSlotNames.RLock()
+	registered := maps.Clone(noSlotNames.byName)
+	noSlotNames.RUnlock()
+
+	var held map[string]string
+	for name, reason := range registered {
+		line, runs := resolveLine(strings.Fields(name))
+		if !runs {
+			continue
+		}
+		if line.area != area {
+			continue
+		}
+		if held == nil {
+			held = make(map[string]string, len(registered))
+		}
+		held[name] = reason
+	}
+	return held
 }
 
 // noSlotNames holds every name that registered as taking no slot, with its

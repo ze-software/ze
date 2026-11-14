@@ -202,7 +202,7 @@ func fillCommands(ref *reference.Reference, program string) {
 		})
 	}
 	for _, area := range areas {
-		entry := reference.Command{Name: area.Name, Group: string(area.Group), ShortHelp: area.ShortHelp, Description: area.Description, PassesTo: area.PassesTo, Hidden: area.Hidden}
+		entry := reference.Command{Name: area.Name, Group: string(area.Group), ShortHelp: area.ShortHelp, Description: area.Description, PassesTo: area.PassesTo, Hidden: area.Hidden, NoSlot: area.NoSlot}
 		if area.Group == "" {
 			entry.Group = ungroupedTag
 		}
@@ -217,7 +217,7 @@ func fillCommands(ref *reference.Reference, program string) {
 // performs, and its live parameters. A retired keyword is refused, never
 // offered, so it is not part of the grammar a reader learns.
 func actionOf(row leaction.Row) reference.Action {
-	action := reference.Action{Verb: row.Verb, Does: row.Does, ShortHelp: row.Summary, Description: row.Why, Writes: row.Writes}
+	action := reference.Action{Verb: row.Verb, Does: row.Does, ShortHelp: row.Summary, Description: row.Why, Writes: row.Writes, NoSlot: row.NoSlot}
 	for _, parameter := range row.Parameters {
 		if parameter.Retired != "" {
 			continue

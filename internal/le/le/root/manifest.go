@@ -65,6 +65,12 @@ type ManifestArea struct {
 	// Hidden says Ze starts the command itself (RegisterHidden), so the page
 	// leaves it out and the payload carries it marked.
 	Hidden bool `json:"hidden,omitempty"`
+	// NoSlot holds every name registered beside the table as taking no job
+	// slot (RegisterNoSlot) that resolves to this area, the area's own name or
+	// one of its actions or selections, with the reason it gives. A row's own
+	// declaration is published on the row (leaction.Row.NoSlot). Absent for
+	// an area that registered none.
+	NoSlot map[string]string `json:"no-slot,omitempty"`
 }
 
 // manifestOf answers the surface as it stands in the shared registry. It is
@@ -84,7 +90,7 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 		Areas:   make([]ManifestArea, 0, len(roots)),
 	}
 	for _, root := range roots {
-		area := ManifestArea{Name: root.Name, ShortHelp: root.Meta.ShortHelp, Description: root.Meta.Description, Hidden: Hidden(root.Name)}
+		area := ManifestArea{Name: root.Name, ShortHelp: root.Meta.ShortHelp, Description: root.Meta.Description, Hidden: Hidden(root.Name), NoSlot: noSlotNamesOf(root.Name)}
 		if group, declared := GroupOf(root.Name); declared {
 			area.Group = group
 		}

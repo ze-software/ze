@@ -154,6 +154,32 @@ are the dispatch's alone.
 <!-- source: internal/le/le/root/beforedispatch.go -- RegisterBeforeDispatch, RunBeforeDispatch -->
 <!-- source: internal/le/register.go -- run -->
 
+**A heavy line takes one job slot, and the dispatcher takes it.** Many
+sessions share one machine, so every le line declared heavy holds one slot of
+the job registry while its body runs. The dispatcher reads the line's slot
+declaration from memory (`SlotOfLine`) and, for a central line, asks the
+registered admitter for the slot before the body and releases it with the
+body's exit code. The admitter is a seam (`leroot.RegisterAdmitter`) that the
+job package fills from its own `init()`, because that package imports the
+dispatcher and the dispatcher cannot name it. A line declares one of three
+things where its action registers. Central is the default, so an action whose
+author declared nothing is admitted. An action that admits itself
+(`leaction.Action.AdmitsItself`, `leroot.RegisterAdmitted`) takes its own slot
+to keep its own label, shared verdict or progress log. An action that takes no
+slot (`leaction.Action.NoSlot`, `leroot.RegisterNoSlot`) must give a reason,
+which its help page and the manifest print, and le refuses to start on an
+empty reason or on a slot declaration made on light work. A carrier such as
+`le exec` is judged by the program it carries, through a judge it registers
+(`leroot.RegisterCarrierJudge`), and the Bash hook reads the same judge. Work
+started inside a slot runs in it: the holder names its entry as the parent of
+every process it starts (`ZE_RUN_JOB`), and a nested line claims nothing. The
+dispatcher names no feature and holds no list of heavy actions; each action's
+declaration is read from the registry, so a new heavy action is admitted with
+no edit outside its own package.
+<!-- source: internal/le/le/root/heavy.go -- SlotOfLine, RegisterNoSlot, RegisterCarrierJudge, requireSlotDeclarationsAreHeavy -->
+<!-- source: internal/le/le/root/admitter.go -- RegisterAdmitter, centralSlot -->
+<!-- source: internal/le/job/central.go -- admitCentral, Admission.Hold, NameParent -->
+
 **The package sits at the path its command name predicts.** A space in the name
 is a directory level, and a hyphen inside a level joins words naming one thing:
 `le spec journal` lives at `internal/le/spec/journal`, and

@@ -430,3 +430,68 @@ func TestRegisterAdmitterRefusesNilAndASecond(t *testing.T) {
 		t.Error("RegisterAdmitter accepted a second admitter")
 	}
 }
+
+// TestHelpAndManifestStateWhyWorkTakesNoSlot asks whether a slot-free
+// declaration reaches its readers through the real help entry and the
+// manifest, for both routes: a row's own NoSlot, and a name registered with
+// RegisterNoSlot beside the table. Its method: the probes registered, `le
+// help <area> [<verb>]` dispatched and its stdout read, then `le help ai
+// commands` answered and its commands searched by name.
+//
+// VALIDATES: spec-native-action-job-admission AC-9: the help page of a heavy
+// action declared to take no slot, and the manifest, state the reason.
+// PREVENTS: a slot-free action that starts past a full `le job report` with
+// no word anywhere a reader looks saying that is a decision, or why.
+func TestHelpAndManifestStateWhyWorkTakesNoSlot(t *testing.T) {
+	holdSlotRegistrations(t)
+
+	pages := []struct {
+		words []string
+		entry string
+	}{
+		{[]string{"help", "probe-slot", "clean"}, "le probe-slot clean"},
+		{[]string{"help", "probe-slot-quiet"}, "le probe-slot-quiet"},
+	}
+	for _, page := range pages {
+		code := -1
+		got := captureStdout(t, func() { code = Dispatch("le", page.words) })
+		if code != 0 {
+			t.Errorf("le %s = exit %d, want 0", strings.Join(page.words, " "), code)
+		}
+		for _, want := range []string{leaction.NoSlotTitle, page.entry, probeNoSlotReason} {
+			if !strings.Contains(got, want) {
+				t.Errorf("le %s does not state %q:\n%s", strings.Join(page.words, " "), want, got)
+			}
+		}
+	}
+	central := []string{"help", "probe-slot", "build"}
+	if got := captureStdout(t, func() { Dispatch("le", central) }); strings.Contains(got, leaction.NoSlotTitle) {
+		t.Errorf("le %s says a centrally admitted action takes no slot:\n%s", strings.Join(central, " "), got)
+	}
+
+	ref := helpAIOf(t, "le", sectionCommands)
+	met := 0
+	for _, command := range ref.Commands {
+		if command.Name == "probe-slot" {
+			met++
+			for _, action := range command.Actions {
+				want := ""
+				if action.Verb == "clean" {
+					want = probeNoSlotReason
+				}
+				if action.NoSlot != want {
+					t.Errorf("help ai commands: probe-slot %s no-slot = %q, want %q", action.Verb, action.NoSlot, want)
+				}
+			}
+		}
+		if command.Name == "probe-slot-quiet" {
+			met++
+			if got := command.NoSlot["probe-slot-quiet"]; got != probeNoSlotReason {
+				t.Errorf("help ai commands: probe-slot-quiet no-slot = %q, want %q", got, probeNoSlotReason)
+			}
+		}
+	}
+	if met != 2 {
+		t.Fatalf("help ai commands holds %d of the two slot probes", met)
+	}
+}
