@@ -145,7 +145,7 @@ precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish
 | Precondition | What its absence looks like |
 |--------------|-----------------------------|
 | `packages iproute2` | `ZE-OBSERVER-FAIL: ... ip: invalid argument 'replace' to 'ip'`. BusyBox `ip` has no `neigh replace`, so an observer that programs a neighbour dies in test setup, before any assertion |
-| The three daemon binaries, under canonical names | `qemu: bin/ze-stripped-flow is missing or not executable -- cross-compile it on the host first`. `./le test qemu guest-binaries` builds the whole set on the host into `tmp/qemu/linux-<arch>/bin` through `testfunctional.PrepareGuest`, the one list of what a guest needs, and answers the `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` assignments the guest command passes (`GuestBinaryEnvironment`, `guestbin.go`). `shim()` copies them into the guest-local `/tmp/ze-qemu-bin` as `ze`, `ze-stripped` and `ze-stripped-flow`, copies `ze-fakefilter` from beside `ZE_BIN` (or links its path when it was not built), and links `le` to the running guest le (`guestLeLink`), because the tools dispatch on basename. The daemons are copied, not linked into the 9p share: the guest keeps no page cache for a 9p file nothing maps, so a linked `ze` paged its own text in over the share at every start, about 7300 major faults each, and on a loaded host that outlasted a 20s `.ci` budget before ze wrote anything (`copyIntoShim`, `alltests_shim.go`). Every shim copies again rather than reusing an earlier copy: size and modification time miss a daemon replaced through `cp -p` or `rsync -t`, and a content check would read the whole source over the share, which is what the copy costs. A hand-written build list in the nightly once left `ze-stripped-flow` out, and every run refused here before its first test |
+| The three daemon binaries, under canonical names | `qemu: bin/ze-stripped-flow is missing or not executable -- cross-compile it on the host first`. `./le test qemu guest-binaries` builds the whole set on the host into `tmp/qemu/linux-<arch>/bin` through `testfunctional.PrepareGuest`, the one list of what a guest needs, and answers the `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_STRIPPED_FLOW_BIN` assignments the guest command passes (`GuestBinaryEnvironment`, `guestbin.go`). `shim()` copies them into the guest-local `/tmp/ze-qemu-bin` as `ze`, `ze-stripped` and `ze-stripped-flow`, copies `ze-fakefilter` and `ze-upgrade` from beside `ZE_BIN` (or links the path of one that was not built), and links `le` to the running guest le (`guestLeLink`), because the tools dispatch on basename. The daemons are copied, not linked into the 9p share: the guest keeps no page cache for a 9p file nothing maps, so a linked `ze` paged its own text in over the share at every start, about 7300 major faults each, and on a loaded host that outlasted a 20s `.ci` budget before ze wrote anything (`copyIntoShim`, `alltests_shim.go`). Every shim copies again rather than reusing an earlier copy: size and modification time miss a daemon replaced through `cp -p` or `rsync -t`, and a content check would read the whole source over the share, which is what the copy costs. A hand-written build list in the nightly once left `ze-stripped-flow` out, and every run refused here before its first test |
 | The three binaries, STATICALLY linked | `qemu: bin/ze: is dynamically linked against /lib64/ld-linux-x86-64.so.2, which the musl guest does not have`, and nothing runs. `runnableInGuest` (`alltests.go`) reads each binary's PT_INTERP header before the first child. Until 2026-09-05 `verify()` only stat'd the file, and the same cause surfaced as 326 identical per-test failures (`start ze: fork/exec ... : no such file or directory`), because the kernel answers ENOENT for the LOADER while naming the BINARY. Build with `CGO_ENABLED=0`, which is what the native toolchain sets (`internal/le/go/toolchain`) |
 | `packages libcap` | `qemu: setcap is not on the guest PATH, so the per-test network namespace suites cannot hold their capabilities`. The five routed suites run ze as an ordinary user inside a fresh namespace, and `setcap` is what gives that user CAP_NET_ADMIN |
 | The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `le test plugin <name>` names no suite; the suite form is `le test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
@@ -1219,6 +1219,18 @@ store for diagnosis. A skipped action is not storage-import evidence.
 
 ## Appliance image update and recovery
 
+The action has passed on both architectures, each run building its own images:
+update, reboot, live health, persistent configuration and previous-slot
+recovery.
+
+| Host | Accelerator | QEMU | Source |
+|------|-------------|------|--------|
+| amd64 Linux | KVM | not recorded | the extended health-bearing run of the deployment work |
+| arm64 macOS | HVF | 11.1.3 | commit `6b8656ae9f` on 2026-11-13, with other sessions' uncommitted files in the tree |
+
+Neither run is release-artifact evidence, and neither proves routing or VPN
+traffic. A run from the release commit belongs with the preview artifacts.
+
 `./le test qemu appliance-ota` is a manual deployment proof. It builds two named
 images for the host's architecture, boots the first disk, and publishes a host
 name through Ze's authenticated HTTPS configuration upload API. The upload
@@ -1257,6 +1269,11 @@ watcher before returning. The image's configured Ze username is set from
 ZE_INSTALL_QEMU_ACCEL=kvm ZE_INSTALL_IMAGE_SIZE=1610612736 \
 ZE_INSTALL_KEEP=1 ./le --name appliance-ota test qemu appliance-ota
 ```
+
+The example is a Linux host. On macOS set `ZE_INSTALL_QEMU_ACCEL=hvf`, or leave
+it unset: the action selects HVF on darwin, then KVM when `/dev/kvm` is
+readable and writable, then TCG.
+<!-- source: internal/le/test/qemu/install.go -- Installer.accelerator -->
 
 The proof boots the images' own runtime kernel and needs no separate installer
 kernel. It needs the named appliance build prerequisites, QEMU and native KVM

@@ -126,23 +126,40 @@ depend on default-route ordering after the DHCP fallback re-leases every NIC.
 <!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 
-## What is not proven here
+## What is proven and what is not
 
 The QEMU install gates self-skip without an operator-supplied installer kernel
-(`ZE_INSTALL_KERNEL`) and without `grub-mkstandalone`, `xorriso`, and `mtools`.
-The initrd is statically verified: build, vet, unit tests, and lint. Treat the
-QEMU acceptance path as unproven until these run green on a machine that has a
-kernel and those tools:
+(`ZE_INSTALL_KERNEL`). The ISO and Ventoy gates also skip without
+`grub-mkstandalone` (or `grub2-mkstandalone`) and `xorriso`, and the Ventoy
+gate without `mformat` and `mcopy` from mtools. A skip is not a pass.
+<!-- source: internal/le/test/qemu/install.go -- Installer.Execute, Installer.kernelSkipReason, Installer.toolSkip -->
+
+`./le test qemu installer-iso` has passed on both architectures, each on its
+native accelerator: amd64 under KVM, and arm64 under HVF on macOS on
+2026-11-13. Each pass boots the ISO, checks that the image it carries hashes
+the same as the source image, installs to the explicit `ze.target`, requires a
+safe poweroff, leaves an untargeted disk unchanged byte for byte, matches the
+installed GPT layout, then boots the installed disk and logs in over SSH as the
+embedded-ZeFS power user and runs `show version`.
+<!-- source: internal/le/test/qemu/install_iso.go -- Installer.executeISO -->
+<!-- source: internal/le/test/qemu/install_boot.go -- Installer.sshLoginOK -->
+
+The arm64 run needed an installer kernel with virtio-scsi built in, because
+arm64 `virt` attaches the ISO as a SCSI CD-ROM. It also needed a GRUB with
+`arm64-efi` modules, which macOS does not package: that ISO was assembled by
+a Linux GRUB.
+
+These have no recorded pass yet:
 
 ```
 ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le test qemu installer-scenarios
 ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le test qemu installer-ventoy
-ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image ./le test qemu installer-iso
+ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image ./le test qemu installer-ventoy
 ```
 
-The first-run risks, most likely first: `nclient4` DHCP behavior under QEMU
-slirp, the `mon:stdio` keystroke path in the rescue driver, `mformat` flags and
-`vdb` device ordering for Ventoy, then arm64 GRUB `arm64-efi` availability.
+The likely first-run risks, most likely first: `nclient4` DHCP behavior under
+QEMU slirp, the `mon:stdio` keystroke path in the rescue driver, then `mformat`
+flags and `vdb` device ordering for Ventoy.
 
 ## Related
 

@@ -70,9 +70,12 @@ directories, and `PATH`.
 <!-- source: internal/appliance/diskverify.go -- verifyE2fsck -->
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
-plus `xorriso`.
-`./ze-host appliance iso` checks those tools before it stages an ISO.
-<!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
+with the GRUB EFI modules for the target (`x86_64-efi` or `arm64-efi`), plus
+`xorriso`. `./ze-host appliance iso` checks those tools and modules before it
+stages an ISO. On macOS, build the ISO on a Linux host: see
+[ISO prerequisites](#iso-prerequisites).
+<!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder, checkISOPrerequisites -->
+<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
 
 The vendored gokrazy command (`github.com/gokrazy/tools/gok`) runs in process.
 `./ze-host appliance build` calls it directly. A developer runs it with
@@ -848,7 +851,19 @@ EFI modules for the target architecture, and `xorriso`. Use
 `./ze-host appliance iso --check lab` to check the named appliance's target; omitting
 the name checks the host architecture. An installed GRUB executable alone is
 insufficient. Debian and Ubuntu supply the modules in `grub-efi-amd64-bin`
-or `grub-efi-arm64-bin`, according to the target. The `kernel` and `initrd`
+or `grub-efi-arm64-bin`, according to the target.
+
+`./ze-host appliance iso` cannot build an ISO on a stock macOS host. Homebrew
+has no GRUB package with `arm64-efi` modules. Its `x86_64-elf-grub` builds the
+`x86_64-efi` platform, but installs the modules under `lib/x86_64-elf/grub`,
+which the ISO build does not search: it looks for `<target>/modinfo.sh` under
+`lib/grub`, `lib/grub2`, `lib64/grub`, `lib64/grub2` or `share/grub`, below the
+prefix of the builder, `/usr`, `/usr/local` and `/opt/homebrew`. Build the ISO
+on a Linux host, or pass `--builder` a `grub-mkstandalone` from a GRUB
+installation that has the target's modules in one of those places.
+<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
+
+The `kernel` and `initrd`
 commands handle downloading or building these
 artifacts automatically:
 
