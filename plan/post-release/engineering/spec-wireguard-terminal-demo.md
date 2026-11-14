@@ -36,6 +36,15 @@ This ownership split preserves the original obligations and evidence. Migration 
 |---|---|
 | Original Task 1,2,4; kernel/config/interop proof and evidence-based feature documentation. | `plan/release/validation/spec-wireguard-runtime-proof.md` |
 
+## Owned journal rows
+
+This spec renders a new demo and a new showcase chapter, so it runs the
+artifact check the row is about and fixes its answer in the same package.
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| error-names-no-fix-command.md | 2026-11-14 | `./le site terminal-demo check artifacts` stops at the first stale demo and names no render command |
+
 ## Provenance and retained evidence
 
 Split from `plan/release/validation/spec-wireguard-runtime-proof.md` during the approved release-organization migration. The complete original planning record, requirements, decisions, risks, implementation narrative and evidence are retained under Historical planning record in `plan/release/validation/spec-wireguard-runtime-proof.md`. This child claims no new test result or completion.

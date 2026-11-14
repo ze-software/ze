@@ -30,15 +30,15 @@ This ownership split preserves the original obligations and evidence. Migration 
 
 | Scope | Current owner |
 |---|---|
-| Recordings, publication, shared fragments/validators and demonstration AC-2 presentation plus AC-3..17; preserve existing moved-out13/14 owners. | `plan/post-release/engineering/spec-terminal-demo-showcase.md` |
+| Recordings, publication, shared fragments/validators and demonstration AC-2 presentation plus AC-3..17; preserve existing moved-out13/14 owners. | `spec-terminal-demo-showcase` (bare stem: that spec leaves the tree at its closure and its text stays in git history; the recordings are listed in `docs/guide/terminal-demonstrations.md`) |
 | Original AC-1 and AC-2 supported-product behavior; release evidence reconciliation for diagnosis findings, not recording production. | `plan/release/validation/spec-showcase-live-config-proof.md` |
 
 ## Work Not Done
 
 | Scope | Current owner |
 |---|---|
-| Recordings, publication, shared fragments/validators and demonstration AC-2 presentation plus AC-3..17; preserve existing moved-out13/14 owners. | `plan/post-release/engineering/spec-terminal-demo-showcase.md` |
+| Recordings, publication, shared fragments/validators and demonstration AC-2 presentation plus AC-3..17; preserve existing moved-out13/14 owners. | `spec-terminal-demo-showcase` (bare stem: that spec leaves the tree at its closure and its text stays in git history; the recordings are listed in `docs/guide/terminal-demonstrations.md`) |
 
 ## Provenance and retained evidence
 
-Split from `plan/post-release/engineering/spec-terminal-demo-showcase.md` during the approved release-organization migration. The complete original planning record, requirements, decisions, risks, implementation narrative and evidence are retained under Historical planning record in `plan/post-release/engineering/spec-terminal-demo-showcase.md`. This child claims no new test result or completion.
+Split from `spec-terminal-demo-showcase` during the approved release-organization migration. The complete original planning record, requirements, decisions, risks, implementation narrative and evidence are retained under Historical planning record in that spec's text. The stem is written bare because the spec leaves the tree at its closure: read the record from git history (`git log --all --oneline -- '*spec-terminal-demo-showcase.md'` names the commits that hold it). This child claims no new test result or completion.

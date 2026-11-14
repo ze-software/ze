@@ -135,7 +135,7 @@ at the named symbol on that date.
 | Demo dispatch | `internal/le/site/terminaldemo/scenarios.go` `runScenario`, `registry.go` `scenarioRegistry.add` and `lookup` | Was a switch over demo ids beside a literal validator map | Replaces: both lists are gone, and each scenario registers its runner and validator from a `register_*.go` file |
 | Recording digests | `internal/le/site/terminaldemo/manifest.go` `Engine.sourceDigest`, `Engine.definitionDigest` | Decide whether a published recording is stale | Extends: both follow the Source closure, so an edited shared fragment stales every recording that sources it |
 | Session-mode load and commit confirmed | `internal/component/cli/editor_load.go`, `docs/guide/config-editor.md` | Load-merge a section into a running daemon's candidate over SSH, and commit with a rollback window | Does not change it: the recordings consume it, and `spec-session-editor-file-mode-parity` (closed) built it |
-| Config transaction callbacks | `pkg/plugin/sdk/sdk_callbacks.go` `OnConfigVerify`, `OnConfigApply` | Deliver a live commit to a running plugin | Extends by use: `bgp-filter-irr` gained the pair (`internal/component/bgp/plugins/filter_irr/config_tx.go` `irrConfigTx`), so a live IRR edit applies |
+| Config transaction callbacks | `pkg/plugin/sdk/sdk_callbacks.go` `OnConfigVerify`, `OnConfigApply` | Deliver a live commit to a running plugin | Extends by use: `bgp-filter-irr` gained the pair (`internal/component/bgp/plugins/filter_irr/config_tx.go` `newIRRConfigTx`), so a live IRR edit applies |
 | Homepage hero mount | `internal/le/site/home.go` `homeHeroSlots` | Mounts the hero recording on the home page | Extends: the hero is `siteterminaldemo.HeroDemo` plus its manifest entry, and `homebody.go` names no demo |
 | Feature-page placement | `internal/le/site/terminaldemo/types.go` `Demo` (`page`, `anchor`) | Places a recording on a guide page | Does not change it: each topic recording uses it as it is |
 
@@ -258,7 +258,7 @@ commands (`ze-debug`), `show capture` (`ze-diag`), `show config history` (editor
 | D-7 | Routes held pending validation are invisible: `show bgp adj-rib-in` and `show bgp adj-rib-in status` read only the installed map (`AdjRIBInManager.show`, `.status`, `adj_rib_in/rib_commands.go`), while a suspended or unvalidated route lives in `r.pending`. With the RTR cache down and a route waiting on `validation-timeout`, or during a revalidation, routes vanish with no count of what is held | read at the producer 2026-10-10; seen as an empty Adj-RIB-In in the red run of `bgp-rpki-added-live` | beat 5 of the RPKI topic cannot show "N routes held pending" with an existing command: a finding, not invented in the tape |
 | D-8 | Enabling BFD on an ESTABLISHED BGP peer restarts its BGP session. Measured 2026-10-10: `bgp-bfd-added-live` (a `bfd` root plus the peer's `connection bfd` opt-in, load-merged and committed) leaves `show bfd sessions` empty with one allowed TCP connection and passes with two. The opt-in is a `PeerSettings` field outside `hotSwappableSettings`, so the reload removes and re-adds the peer (`docs/architecture/core-design.md` section 18a), and a non-strict peer opens its BFD session on entry to Established | `test/reload/bgp-bfd-added-live.ci` (two connections when measured; one connection since the keep-session spec) | DECIDED 2026-10-11, owner verbatim: "yes like them". A non-strict BFD opt-in is swapped onto the running session without a restart, as FRR and BIRD do; no card explains a restart. The Ze change is `spec-bgp-live-receive-binding-and-bfd-keep-session` (closed 2026-10-13, with `bgp-bfd-added-live` on one connection; this row closes when that spec closes), and the BFD topic is recorded after it lands, when `test/reload/bgp-bfd-added-live.ci` passes on one connection |
 | D-9 | Decision 1 asks for each section to be explained as it is loaded, but the sections load inside the SSH editor, and a card is printed by `ze-demo card` from the outer shell (`printCard`, `runtime.go`: clears the screen and writes the card). While `sshpass -e ssh ze-demo` holds the terminal, no card can be printed, and the editor has no verb that shows a note or a file. Leaving the editor between sections loses the session's candidate | `demos/terminal/topics/irr/configure.tape` (sections load back to back today) | DECIDED 2026-10-11, owner verbatim: "both". Each topic recording opens with ONE overview card (`ze-demo card topic-<topic> overview`, outer shell, before the editor) naming every section, AND each section gets its own card over the editor: the `Card <demo> <phase>` tape directive (`internal/le/site/terminaldemo/tapecard.go`) writes the card into the cast only, holds it 2 s plus 300 ms a word, then replays the output since the editor's last screen erase (bubbletea erases on alt-screen entry: `enterAltScreen`, then `clearScreen` in the vendored renderer), so the repaint keeps the colors. The recorder refuses a section `load ... merge` with no Card since the previous load (`requireSectionCards`) and a Card inside Hide; `TestTopicOverviewCardNamesEverySection` refuses an overview missing a section's title. The IRR and commit-confirmed fragments carry the cards (`cards.json` keys `topic-irr:*`, `topic-commit-confirmed:*`). RENDER OWED: no renderer image, so no card has been seen in a player |
-| D-5 | IRR live edits were not applied (AC-1). Fixed 2026-10-10: `irrConfigTx` (`filter_irr/config_tx.go`) adds the verify/apply/rollback pair, and a changed as-set no longer inherits the old set's list (`handleConfigure`, `loadFromStore`) | `filter_irr.go`; `test/reload/bgp-filter-irr-added-live.ci`, `bgp-filter-irr-first-add-live.ci` | none now |
+| D-5 | IRR live edits were not applied (AC-1). Fixed 2026-10-10: `newIRRConfigTx` (`filter_irr/config_tx.go`) adds the verify/apply/rollback pair, and a changed as-set no longer inherits the old set's list (`handleConfigure`, `loadFromStore`) | `filter_irr.go`; `test/reload/bgp-filter-irr-added-live.ci`, `bgp-filter-irr-first-add-live.ci` | none now |
 
 `ze config import` (the command catalogue's `load merge` equivalent) stores a file as a
 new version in the store; no path from it to a running daemon's reload was read, and it
@@ -443,7 +443,7 @@ below are kept as asked.
      Mistake Log row and a Deviations entry. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Adding `plugin internal bgp-filter-irr` plus the IRR policy in ONE live commit starts the filter with its config (Stage 2 delivery to a new process) | the existing `irr-filter` tape declares the plugin explicitly; reload path for a newly declared plugin not read | the first-add IRR topic also fails, and AC-1's fix must cover the start path as well as edits | Work Plan step 1 probe; then AC-1's `.ci` | confirmed (2026-10-10), with a correction: no `plugin` line is needed. `getConfigPathPlugins` (`startup_autoload.go`) starts every plugin whose ConfigRoots is present at boot, so `bgp-filter-irr` runs in any base lab with a `bgp` block, and a first IRR block is a `bgp` edit reaching `irrConfigTx.apply`. `test/reload/bgp-filter-irr-first-add-live.ci` is red with the apply handler removed and green with it |
+| A-1 | Adding `plugin internal bgp-filter-irr` plus the IRR policy in ONE live commit starts the filter with its config (Stage 2 delivery to a new process) | the existing `irr-filter` tape declares the plugin explicitly; reload path for a newly declared plugin not read | the first-add IRR topic also fails, and AC-1's fix must cover the start path as well as edits | Work Plan step 1 probe; then AC-1's `.ci` | confirmed (2026-10-10), with a correction: no `plugin` line is needed. `getConfigPathPlugins` (`startup_autoload.go`) starts every plugin whose ConfigRoots is present at boot, so `bgp-filter-irr` runs in any base lab with a `bgp` block, and a first IRR block is a `bgp` edit reaching `newIRRConfigTx.apply`. `test/reload/bgp-filter-irr-first-add-live.ci` is red with the apply handler removed and green with it |
 | A-2 | The `vrrp` plugin is running when the base config holds `interface` but no `vrrp` block, so a live VRRP commit reaches its `OnConfigApply` | `ConfigRoots` is `interface` (`internal/plugins/vrrp/groups.go`), which the base config carries | the VRRP topic commit is accepted and does nothing: a defect fixed under AC-2 | Work Plan step 1 probe | confirmed at the producer (2026-10-10): `getConfigPathPlugins` starts `vrrp` at boot whenever `interface` is present, and `internal/plugins/vrrp/register.go` registers `OnConfigVerify` and `OnConfigApply` ("OnConfigure does not fire on reload; OnConfigApply is the commit step"). The runtime proof needs VRRP raw sockets on Linux, so it is the VRRP topic validator's absence-then-proof check (AC-2), run in the renderer container |
 | A-3 | `commit confirmed <n>` and its automatic rollback behave in the SSH editor as in the file editor | the `commit-confirmed` demo proves the file editor only | the safety-net topic needs a fix or a different editor path; the owner decision rules out the latter | Work Plan step 1 probe | confirmed (2026-10-10): `spec-session-editor-file-mode-parity` landed it; `test/plugin/session-editor-commit-confirmed-accept.ci` (a window accepted, then an unaccepted window reverting, over SSH on a running daemon) and its siblings |
 | A-4 | Two Ze daemons can run in one container (the shown one, and the hidden IKE far end in its own netns) with separate `ZE_CONFIG_DIR`, SSH port and instance name | `demoInstance` is the container hostname `ze`; the scenario code runs one daemon per demo | the IPsec topic needs a second container or a different instance naming | Work Plan step 2, lab bring-up | confirmed at the producer (2026-11-14): the lab starts the far-end Ze with `ip netns exec` in its own namespace under its own `ZE_CONFIG_DIR` (`showcaseVPNEnv` and the far-end fixture, `scenarios_showcase_network.go`). The run-time proof is the `ipsec` validator, whose closure re-run is owed |
@@ -988,7 +988,7 @@ needs a context that did not write it.
 - Gallery and feature-page markers for every topic recording and the showcase.
 
 ### Bugs Found/Fixed
-- IRR live edits were accepted and not applied (D-5): `irrConfigTx`, covered by `test/reload/bgp-filter-irr-added-live.ci` and `TestFilterIRRAppliesAReloadedAsSet`.
+- IRR live edits were accepted and not applied (D-5): `newIRRConfigTx`, covered by `test/reload/bgp-filter-irr-added-live.ci` and `TestFilterIRRAppliesAReloadedAsSet`.
 - A new nested config root reached no plugin section (d789fb00d2): `test/reload/traffic-usage-added-live.ci`, `TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot`.
 - `load ... merge` refused bracket leaf-lists (bebb94bb48) and the member-state defects nine review rounds found after it: the tests of the Functional Tests table.
 
@@ -1010,6 +1010,8 @@ needs a context that did not write it.
 | assumption | A-5 assumed a seven-minute showcase | The complete recording measures 1,307 seconds | The artifact's measured duration | The owner selected the complete 22-minute showcase |
 | approach | The Wiring Test and TDD tables named three tests as if they existed | Two were never written and one (AC-7) was absent until closure | A closure audit against the package's test files | Rows corrected; the AC-7 test written; a spec row names a test only once the file holds it |
 | approach | The spec said the public site was not updated | `dead7450b3` and `65b28095fa` are on the pushed branches | `git branch -r --contains` at closure | Wording corrected to what git shows |
+| approach | The spec named the IRR reload producer `irrConfigTx` | The function is `newIRRConfigTx` (`filter_irr/config_tx.go`), which returns an `sdk.ConfigTx` | Reading the file while writing the news fragment | Every mention corrected |
+| assumption | The owed-runs row expected `check artifacts` to name the stale ids | `Engine.verifyAssets` returns at the first stale demo, and every demo is stale once any recorder source changes | Run 4 and a read of `sourceDigest` | Journal row in `error-names-no-fix-command.md`; the staleness is recorded under Pre-Commit Verification |
 
 ## Implementation Audit
 
@@ -1025,9 +1027,9 @@ needs a context that did not write it.
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-3, AC-4, AC-11, AC-15, AC-16 | Recorded, re-run owed | topic and showcase validators in the renderer container | The recorded validation predates tape and lab edits of 2026-10-28 to 2026-11-04 |
-| AC-5 | Done, run owed | `TestSourceDigestFollowsSourcedTapes` (`terminaldemo_test.go`) | |
+| AC-5 | Done | `TestSourceDigestFollowsSourcedTapes` (`terminaldemo_test.go`) | PASS in run 1 of Run results |
 | AC-6 | Done | `registry.go`, `scenarios.go` `runScenario`, `TestEveryManifestDemoHasARegisteredScenario`, `TestScenarioRegistrationRefusesADuplicateId` | No `demoValidators` symbol remains |
-| AC-7 | Done, first run owed | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`); `registerLiveTopic` | |
+| AC-7 | Done | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`); `registerLiveTopic` | PASS in run 1 of Run results; the test file is uncommitted until commit A |
 | AC-8 | Done, run owed | `home.go` `homeHeroSlots`; `TestHomeHeroDerivesFromTheManifest` | |
 | AC-9 | Done | `README.md` hero block: `docs/demos/showcase.webp` linked to `#continuous-live-configuration-showcase` | The image sits two lines below the line the criterion names; 10,788 bytes as recorded |
 | AC-10 | Done | markers in `terminal-demonstrations.md` and each feature page, `ipsec.md` included | |
@@ -1109,7 +1111,7 @@ artifact with `./le spec review record`.
 |-------------|----------|----------|
 | SSH editor `commit` adding IRR config | `test/reload/bgp-filter-irr-added-live.ci` | File present; run recorded in the Functional Tests table, not re-run |
 | Manifest id to registered scenario | `TestEveryManifestDemoHasARegisteredScenario` | Read: it looks every manifest `validate` id up in the registry |
-| Topic fragment to both tapes | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | Written; first run owed |
+| Topic fragment to both tapes | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | PASS, run 1 of Run results |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -1139,7 +1141,83 @@ the row above waits on.
 | `./le test functional plugin` selecting `ddos-parent-config-removed`, on Linux with net-admin and bpf | the expectations changed with d789fb00d2 | pass |
 | `./le doc check all` | the Documentation checklist | clean |
 
-Citations to repoint in commit A, before commit B removes this file:
-`plan/release/validation/spec-wireguard-runtime-proof.md`,
-`plan/release/validation/spec-showcase-live-config-proof.md`,
-`plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md`.
+### Run results (main thread, 2026-11-14, macOS)
+
+| # | Command | Result | What it settles |
+|---|---------|--------|-----------------|
+| 1 | `go test -count=1 -v -run 'TestTopicFragmentIsSourcedByItsTopicAndTheShowcase\|TestEveryManifestDemoHasARegisteredScenario\|TestScenarioRegistrationRefusesADuplicateId\|TestSourceDigestFollowsSourcedTapes\|TestWebConfigJourneyOwnsStartup' ./internal/le/site/terminaldemo/` | all five PASS, `ok` in 6.928s | AC-5, AC-6 and AC-7 have their run; the AC-7 test's first run is green |
+| 2 | `./le test unit pkg path ./internal/le/site/terminaldemo/` | red on one test: `TestWebConfigJourneyOwnsStartup/run-web-config-record/readiness`, `child never rendezvoused at stalled` (`webJourneyChildPID`, `web_config_ownership_test.go`) | Not this spec's test, and it passed in run 1. Machine load was near 6 a core in this run and near 4 in run 1: an observation, not a shown cause. Journal row: `plan/journal/startup-wait-expires-under-load.md`, 2026-11-14, owned by `spec-test-verdicts-independent-of-load` |
+| 3 | `./le go lint run scope "./internal/le/site/terminaldemo/"` | no verdict: refused with "lint inputs changed during planning after linux-integration: internal/component/config/storage/yang/ze-data-cmd.yang changed" | Another session was editing that file. Still owed. The refusal for an edit outside the scope is AC-12 of `spec-test-verdicts-independent-of-load` |
+| 4 | `./le site terminal-demo check artifacts` | exit 1, whole output `error: cli-dashboard: source changed since the last render` | The check stops at the first stale demo (`Engine.verifyAssets`, `manifest.go`), so this answer is silent about the other nineteen. Read below |
+
+### Published recordings against the sources (read 2026-11-14)
+
+`Engine.sourceDigest` (`manifest.go`) digests, for every demo, `common.tape`,
+the Dockerfile, the resolved peer pins, the demo's own directory, its Source
+closure, and every non-test `.go` and `.json` file of
+`internal/le/site/terminaldemo` plus `cmd/ze/dispatch.go` and
+`demos/terminal/cmd/ze-demo/main.go` (`nativeRecorderSources`). The published
+manifest (`../gh-pages/assets/demos/manifest.json`) was last written by
+gh-pages `a3e417a32d` on 2026-10-28T18:35Z. Ten commits changed that recorder
+set after it, the first `6e7b607553` (2026-10-29) and the last `6ec0050f8d`
+(2026-11-13), and `553f9543af` changed the Dockerfile. So the source digest of
+all twenty demos differs from the published one: this spec's nine (`showcase`,
+`rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `ipsec`,
+`vrrp-tracking`, `traffic-anomaly`, `commit-confirmed`) and the eleven others,
+`cli-dashboard` included. A replica of the digest run over the working tree
+gave the same answer for each id; it is a reading aid, and the check itself,
+once it names every id, is the evidence.
+
+Two tape-side inputs of this spec's demos also changed after the render:
+`demos/terminal/topics/irr/1-server.conf` (`84c0fc6cea`, sourced by
+`irr-filter` and `showcase`) and `demos/terminal/showcase-lab/ze.conf`
+(`d9a3f94bc5`).
+
+What the criteria owe. No acceptance criterion asks for `check artifacts` to
+be green at closure. AC-5 asks for the mechanism: "Both the topic recording's
+and the showcase recording's source digests change, and the check mode reports
+both stale". The staleness above is that mechanism working. `cli-dashboard`
+appears in no criterion of this spec: AC-8 took the hero away from it, and
+AC-12 covers only "The replaced single-feature demos". Its re-render is
+gallery upkeep that this spec does not own. A re-render of this spec's nine
+would produce recordings the owner has not watched, which AC-17 ("Reviewed by
+watching the recording") speaks to, and the Task says of the accepted
+showcase "do not shorten, retime or replace its explanations". Whether the
+nine are re-recorded before the close is therefore not decided by a criterion
+and is put to the owner by the main thread.
+
+What the criteria do owe is the validator re-run of AC-3, AC-4, AC-11, AC-15
+and AC-16, because lab and tape inputs changed after the recorded validation.
+`./le site terminal-demo check validation` runs every validator in manifest
+order and stops at the first failure (`Engine.validationCheckAll`,
+`render.go`); it publishes nothing and rewrites no tracked or gh-pages file.
+It needs Docker on a kernel that passes the kernel check
+(`Engine.preflightContainers`), the renderer image
+(`./le site terminal-demo build image`, owed again when the image on the
+host predates the Dockerfile change of `553f9543af`; the fresh image took
+1,446 seconds when last built)
+and the staged binaries (`./le site terminal-demo build binaries`, written to
+`tmp/terminal-demos/bin`). A render, if the owner orders one, is
+`./le site terminal-demo render name <id>` or `render all`; it validates,
+records, and rewrites `../gh-pages/assets/demos/manifest.json` and the demo's
+cast and transcript there. The showcase alone plays for 21 minutes 47 seconds.
+Nothing is pushed or deployed by any of these.
+
+### Journal rows written at closure
+
+| Class file | Date | Owner |
+|------------|------|-------|
+| `startup-wait-expires-under-load.md` | 2026-11-14 | `spec-test-verdicts-independent-of-load` |
+| `error-names-no-fix-command.md` | 2026-11-14 | `spec-wireguard-terminal-demo` |
+
+### Citations and the news fragment
+
+Repointed to the bare stem on 2026-11-14:
+`plan/release/validation/spec-wireguard-runtime-proof.md` and
+`plan/release/validation/spec-showcase-live-config-proof.md`. Still to
+repoint in commit A: `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md`
+(its "Who else touches this path?" row), which another agent was editing.
+
+The closure carries a news fragment,
+`website/changes/fragments/terminal-demo-showcase.md`, in commit A, so commit
+B takes no `no-news`.

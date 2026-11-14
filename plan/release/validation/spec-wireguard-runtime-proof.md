@@ -57,7 +57,8 @@ only: no `.ci` runtime test, no interop scenario, no demo. Goal:
 2. An interop scenario against another WireGuard implementation (wireguard-tools
    or a second kernel peer) proving a handshake and traffic through the tunnel.
 3. A terminal demo (its own demo id), and then a WireGuard chapter in the
-   showcase (`plan/post-release/engineering/spec-terminal-demo-showcase.md`). The demo image needs
+   showcase (`spec-terminal-demo-showcase`, whose recordings are listed in
+   `docs/guide/terminal-demonstrations.md`). The demo image needs
    wireguard-tools if the far end uses it.
 4. Correct the feature level and docs to what the evidence then supports.
 

@@ -215,6 +215,7 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| startup-wait-expires-under-load.md | 2026-11-14 | TestWebConfigJourneyOwnsStartup readiness case polls 3s of wall clock for its start child |
 | gate-verdict-depends-on-the-machine.md | 2026-10-30 | TestRefreshPeerLinkScopesSkipsAnUnchangedTable reads the host neighbor table |
 | field-carries-two-meanings.md | 2026-10-27 | .ci cmd timeout= replaces option=timeout as the test budget |
 | gate-verdict-depends-on-the-machine.md | 2026-10-27 | verify changed load reds at e6474aa200 |
