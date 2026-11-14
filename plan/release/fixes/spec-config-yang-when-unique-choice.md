@@ -56,6 +56,7 @@ The `ValidationError` type and the CLI commit path that reports it.
   - RFC7950-8.1-2 ("The running configuration datastore MUST always be valid."): no tagged test drives the daemon reload (`cmd/ze/hub/main_reload.go`) or the editor commit (`internal/component/cli/editor_commit.go`).
   - RFC7950-8.3-1 (three enforcement windows): the `<edit-config>` window, the editor set and commit path, is untested.
   - RFC7950-9.1-1 ("Implementations MUST support all lexical representations specified in this document."): hexadecimal and octal integer forms in a module default (§9.2.1) are refused, and bits, binary, empty and identityref have no lexical check.
+- AC-3: RFC7950-7.9.4-1 (`partial`; named here from spec-rfc-verdict-test-fix-pass, 2026-11-14), RFC 7950 Section 7.9.4: "If "mandatory" is "true", at least one node from exactly one of the choice's case branches MUST exist." Today only "at least one node from" is tested: `mandatoryPresent` (`internal/component/config/yang/validator_mandatory.go`) answers present at the first case holding a data node and never looks at the other cases, so data holding nodes from two cases of one mandatory choice is accepted. Met when a tagged test proves "exactly one of the choice's case branches" in both polarities (nodes of one case accepted, nodes of two cases refused), with a discrimination record, and a non-author re-judges the verdict.
 
 ## Risks & Assumptions
 
