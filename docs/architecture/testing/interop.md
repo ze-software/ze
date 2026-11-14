@@ -3649,8 +3649,34 @@ Linux receive timestamps distinguish timeout recovery from an immediate
 duplicate that sat unread in a socket queue; missing timestamps or an ACK replay
 outside the fault window refuse the run. The relay neither constructs client
 requests nor generates acknowledgments.
-The new carrier still owes green and forced-red execution evidence.
+Results on 2026-11-14 (arm64, Ze's kernel 7.3.0-ze in the QEMU docker-lab
+guest, curl 8.23.0 aarch64 pinned by digest): the real build passes, the relay
+reporting "replayed native ACK 1 once; dropped first DATA 2; kernel arrival
+interval 5.007927169s; forwarded final ACK 3; curl matched all 1500 bytes
+(8 relay datagrams)". With `windowSender.awaitACK` returning on an ACK that is
+not for the outstanding block, where it now keeps waiting (the behavior before
+519d9f4f2a), FAIL: the relay reports "DATA in answer to duplicate ACK after
+36.333µs, before five-second timeout", and curl exits 28 at its 35-second limit
+with 512 bytes received. The real build run again right after passes (interval
+5.004289378s).
 <!-- source: internal/plugins/tftpserver/tftp_curl_docker_test.go -- TestTFTPCurlDuplicateACKInterop, curlTFTPRelay.transfer -->
+<!-- source: internal/plugins/tftpserver/window_send.go -- windowSender.awaitACK -->
+
+On a Mac that run used the Docker daemon of Ze's own docker-host image. The
+test binary is cross-built for linux/arm64 with `go test -c` under the feature
+tags plus `docker`. `./le test qemu docker-lab` with `lab` words boots the
+image under HVF, forwards the guest's Docker socket to the host, and runs the
+host `le` with those words and `DOCKER_HOST` naming the forwarded socket. The
+words run the binary in a `docker:cli` container on the guest's host network
+with the guest's Docker socket mounted, because the relay, Ze's server and the
+curl container must share the guest's loopback, and the test needs Linux
+receive timestamps. The guest mounts the checkout at its host path, so the
+container bind-mounts the binary from the path it was built at. The docker-lab
+`command` mode cannot run the test, because that mode starts no Docker daemon.
+No `./le` action selects one docker-tagged package test for this route yet:
+`./le test integration docker-peers` runs every docker-tagged package, against
+the Docker daemon the host reaches.
+<!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab, dockerLabEnviron, Run.dockerLabShares -->
 
 ### Ze's TFTP server against tftp-hpa and curl options
 
