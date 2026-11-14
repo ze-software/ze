@@ -203,7 +203,7 @@ gate asks for that pass in full.
 | Spec | What is stale in it | What replaces the check |
 |------|---------------------|-------------------------|
 | `plan/release/fixes/spec-single-owner-reload-reconcile.md` | Its Depends row names this spec for "the ownership check", and its design annotates the owner record | The owner record's fields live in a type with unexported fields in a package of its own, so the apply function is the only writer and the compiler enforces it |
-| `plan/release/fixes/spec-typed-identity-keys.md` | Its Depends row names this spec for the same check, and its wiring test expects the check to refuse a composite literal of an identity type | Each identity type has unexported fields in a package of its own, so its constructor is the only way to build one |
+| `plan/release/fixes/spec-typed-identity-keys.md` | Its Depends row named this spec for the same check, and its wiring test expected the check to refuse a composite literal of an identity type. Corrected by its design pass of 2026-11-14 | Each identity type has unexported fields in a package of its own, so its constructor is the only way to build one |
 | `plan/release/fixes/spec-one-owner-per-domain-fact.md` | It plans an analyzer under `internal/le/lint/factowner/`, a directory that does not exist; the Go-source gates live under `internal/le/arch` | Its design pass reads D1 first: a property a type can give is given by a type, and a source gate is the second choice |
 
 Until its design pass runs, the Depends row of the first two is stale: it

@@ -133,6 +133,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | AC-27 | CLI grammar R1 x2 | `explain`, `generate wireguard keypair`, `skills`, `support` and `validate config` follow R1 or carry a documented exemption; `TestTheRealCheckoutPassesAndWasRead` passes |
 | AC-28 | `ze init` value flags, editor list keys, `TestValidateSyntaxMissingSemicolon` | `--web-cert` and `--web-cert-name` complete as value flags; `SetValue` refuses a key the editor cannot read back; the syntax test and the parser agree on a missing semicolon |
 | AC-29 | web goldens x3, `ze-reference-mcp.ci` oracle | The goldens are regenerated from the page that holds the `bgp` subtree; the MCP test expects what `aihelp.Build` derives |
+| AC-30 | cli `computeDiff` (moved from `spec-typed-identity-keys`, 2026-11-14) | SSH `show` piped to `compare`, with two siblings whose lines read the same and one of them changed, shows the change with its path; the SSH diff is rendered from the session's pending changes as path-qualified lines, by the one renderer the web `EditorManager.Diff` uses |
 
 ## 🧪 TDD Test Plan
 
@@ -221,6 +222,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 | `test-against-broken-path` | 2026-08-17 | `TestValidateSyntaxMissingSemicolon` |
 | `test-against-broken-path` | 2026-09-04 | web goldens `get-fragment-detail*.txt`, `get-show-bgp-finder.txt` |
 | `test-against-broken-path` | 2026-10-09 | `test/plugin/ze-reference-mcp.ci` stale oracle |
+| `key-omits-a-fact-the-builder-uses` | 2026-10-11 | AC-30: cli `computeDiff` compares path-less lines as sets |
 
 ## Rows found already fixed
 

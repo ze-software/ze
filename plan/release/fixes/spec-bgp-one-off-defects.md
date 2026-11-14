@@ -105,9 +105,15 @@ Reproduce and attribute the failure without weakening the packing assertion.
 
 ## Existing Mechanisms (MANDATORY)
 
+This spec builds no new mechanism: each AC repairs one producer inside a
+mechanism that already exists. The ones the owned rows reach so far:
+
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|-------------------------------------------|--------------------|---------------------------------------------------------------------|
 | Recovery admission and packing | `internal/component/bgp/reactor/recovery_owed.go` `recoveryWorker.decide`; `forward_bucket.go` `recoveryBucketMerge` | Creates one admission per lookup chunk and packs compatible updates within that admission | Extends: AC-5 investigates the packing recurrence through this path while preserving route delivery and the existing assertion |
+| Journal row ownership | `plan/journal/README.md`, "Owned rows"; `UnownedOpenRows` (`internal/le/spec/journal/owner.go`) | Every `open:` row is listed in one spec's `## Owned journal rows` table, and the commit gate refuses an unowned one | Extends: each AC closes its row with a `fixed:` marker naming the commit and test, or moves it to "Rows found already fixed" |
+| Operator warnings on the report bus | `report.RaiseWarning` and `report.ClearWarning`, called from the reactor (`Peer.raiseOpQueueFull`, `peer.go`; `clearPrefixHold` in `Peer.cleanup`, `peer_run.go`) | A lasting peer condition is raised under the peer's address and listed by `show warnings`; `Peer.cleanup` clears the prefix-hold warning unconditionally, a no-op on an unraised subject | Extends: the `op-queue-full` row adds the missing clear half (queue drained below its cap, and `Peer.cleanup`); no second warning store |
+| The plugin process boundary | `ai/doors/system.md`, "A plugin can run in another process"; `ai/doors/bgp-plugins.md`, "Boundaries" | The reactor reaches plugins, and plugins the reactor, through the EventBus, DirectBridge or a text command, never a plain Go call | Does not apply as a change: every fix in a plugin (rib, rr, bmp, filter_community, mrt) stays on those rails, so it works when the plugin runs external |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -214,6 +220,9 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | AC-56 | prefix-list multi-entry test | The multi-entry test is fed the shape `ParseBGPSubtree` produces from config |
 | AC-57 | ROUTE-REFRESH subtype | RFC 7313 Section 5: a ROUTE-REFRESH with an unknown Message Subtype "MUST be ignored"; a test sends subtype 3 and sees no reply and no error |
 | AC-58 | MRT abbreviated MP_REACH_NLRI | RFC 6396 Section 4.3.4: a TABLE_DUMP_V2 RIB entry's MP_REACH_NLRI holds only Next Hop Address Length and Next Hop Address, its length adjusted (cut at `reconstructWireAttrs` or `appendOtherAttrsWire`); a test reads the written attribute bytes of an IPv6 route and carries the RFC6396-4.3.4-2 tags |
+| AC-59 | adj-rib-in JSON ingest `handleReceived` (moved from `spec-typed-identity-keys`, 2026-11-14) | A VPN route received through the JSON event path is stored per NLRI under its RD and prefix, as the raw path stores it through `installComplexNLRIs`; a unit sends two VPN NLRIs in one section and reads both back. A test change it needs goes to the `ze-test-judge` |
+| AC-60 | `countPeerUpBarrier` by process name (moved from `spec-typed-identity-keys`, 2026-11-14) | A process started under an alias of a registration that requires the peer-up barrier counts toward the barrier, resolved through `plugin.RegistryNames` as `declaresSessionReady` does; a unit starts an aliased process and asserts the count |
+| AC-61 | `recordCreatedPeerLocked` name collision (moved from `spec-typed-identity-keys`, 2026-11-14) | `create bgp peer` whose name from `peerConfigNameFor` is already an operator's peer at another address is refused with what, why and the fix, and the operator's peer in the running tree is unchanged; a unit creates the collision and reads the tree |
 
 ## 🧪 TDD Test Plan
 
@@ -379,7 +388,11 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `zero-value-as-valid-answer` | 2026-09-01 | mvpn `parseBody` reads a Leaf A-D Route Key as an RD (zero-RD face fixed by `rdPresent`) |
 | `expected-message-never-sent` | 2026-10-31 | `test/plugin/rpki-aspa-*` time out waiting for Ze's EOR |
 | `bound-too-small-for-its-own-burst` | 2026-11-13 | AC-5: recovery departure packing, all routes received but UPDATE count exceeds fit |
+| `guard-added-to-one-half-of-a-pair` | 2026-11-09 | `op-queue-full` report warning raised, never cleared |
 | `parked-work-returns-out-of-order` | 2026-11-13 | forward pool `takeOverflowReleased`: a hold lowered mid-scan releases a later parked live batch ahead of an earlier one |
+| `declared-format-contradicts-payload` | 2026-10-20 | AC-59: adj-rib-in `handleReceived` keys a VPN NLRI without its RD, stores one NLRI per section |
+| `gate-excludes-part-of-its-population` | 2026-09-02 | AC-60: `countPeerUpBarrier` asks the registry by process name, not registration name |
+| `two-owners-share-one-name` | 2026-10-10 | AC-61: `recordCreatedPeerLocked` overwrites an operator's peer of the same name |
 
 ## Rows found already fixed
 

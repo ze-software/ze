@@ -60,6 +60,21 @@ the 2026-08-11 row is present.
 - [ ] `internal/component/sysrib/sysrib.go` - `recomputeBest`
 - [ ] `internal/plugins/flowexport/enrichbgp.go` - `bgpEnrichBuilder.Start`
 - [ ] `internal/component/ping/cmd/` - `handleResolvePing`
+- [ ] `internal/plugins/iface/dhcp/dhcp_v4_linux.go` - `removeV4Route` (AC-28)
+- [ ] `internal/plugins/iface/vpp/tunnel.go`, `vxlan.go`, `wireguard.go` - `createGRETunnel`, `createIPIPTunnel`, `createVxlanTunnel`, `ensureWireguardInterface` (AC-29)
+- [ ] `internal/component/iface/cmd/monitor_netlink_linux.go` - `ifName`, `linkUpdateToEvent` (AC-30)
+
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-14 when three rows moved here from
+`spec-typed-identity-keys.md`; the section covers those rows. Each fix extends
+the producer its AC names; none adds a parallel path.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| DHCP route metric state | `internal/component/iface/register.go` `handleLinkDown`, `routeMetricState`; `handleRouterLost` and `restoreAcceptRaDefrtr` remove at `effectiveMetric` | The iface component moves a learned default route to metric + 1024 on link down and tracks where it is | Extends: AC-28 carries the effective metric to the DHCP client's teardown, as the RA half already does |
+| VPP name map existence check | `internal/plugins/iface/vpp/naming.go` `nameMap.lookupIndex`; `ensureWireguardInterface` and the loopback create use it | WireGuard and loopback creates return the existing index instead of creating again | Extends: AC-29 applies the same check to the GRE, IPIP and VXLAN creates |
+| Link-message name cache | `internal/component/iface/cmd/monitor_netlink_linux.go` `ifNameCache`, written only by `linkUpdateToEvent` (58ce054f7e) | A reused index is never cached under the old link | Extends: AC-30 binds a route or address event's name to the link it belongs to, not a lookup by index after the fact |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -127,6 +142,9 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | AC-25 | `TestDoHIgnoresEDNSUDPSize` | The DoH test drives the production handler, not its own `dns.HandlerFunc` |
 | AC-26 | DHCPv6-PD from config | A test starts from config and asserts `pdRequested`/`pdLength` and the IAID `identify` derives reach the request |
 | AC-27 | flowspec-firewall events | `handleEvent` decodes the ze-bgp envelope the daemon emits; a test feeds a real `update` event and a rule is installed |
+| AC-28 | DHCP route removal metric (moved from `spec-typed-identity-keys`, 2026-11-14) | A lease that ends while the carrier is down removes its default route at the metric `handleLinkDown` moved it to; no `rtproto.Iface` default route of that lease is left in the kernel (QEMU integration) |
+| AC-29 | vpp tunnel creates (moved from `spec-typed-identity-keys`, 2026-11-14) | Repeated applies of a config with GRE, IPIP and VXLAN interfaces create each VPP interface once; deleting one releases the index its ze name holds, and the name map holds no stale reverse entry |
+| AC-30 | netlink monitor late event (moved from `spec-typed-identity-keys`, 2026-11-14) | After `RTM_DELLINK` and a new link on the same index, a route or address event still in flight for the old link carries no name of the new link |
 
 ## 🧪 TDD Test Plan
 
@@ -198,6 +216,9 @@ The iface owned-device and owned-address registries, the RIB event bus, the fire
 | `key-omits-a-fact-the-builder-uses` | 2026-10-28 | geodns and as112 `listener_up` gauges labelled by IP without port |
 | `rfc-extension-not-implemented` | 2026-10-28 | dnsserver `Authoritative` answers no OPT and no BADVERS (RFC 6891 Section 6.1.3) |
 | `rfc-extension-not-implemented` | 2026-10-28 | dnsserver `Authoritative` answers a query with more than one OPT RR, no FORMERR (RFC 6891 Section 6.1.1) |
+| `index-key-derived-from-mutable-field` | 2026-08-11 | AC-28: DHCPv4 teardown removes its default route at the configured metric after `handleLinkDown` moved it |
+| `identifier-reused-after-its-owner-is-gone` | 2026-08-19 | AC-29: vpp `createGRETunnel`, `createIPIPTunnel`, `createVxlanTunnel` create on every apply |
+| `identifier-reused-after-its-owner-is-gone` | 2026-08-18 | AC-30: netlink monitor names a late event for a deleted index after the index's new link |
 
 ## Rows found already fixed
 

@@ -125,6 +125,7 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | AC-14 | OSPF AuType 2 sequence | The cryptographic sequence never regresses across a restart after any number of packets; a test restarts after N > 2 sends |
 | AC-15 | OSPFv3 extended LSAs x2 | RFC 8362 Sections 4.8 and 4.3: E-Intra-Area-Prefix references 0xA021 or 0xA022 and each E-Inter-Area-Prefix-LSA carries one Inter-Area-Prefix TLV (hex tests) |
 | AC-16 | OSPF reload race | `TestOSPFReloadCreatedInstanceInitializesState` and its AF sibling pass under `-race -count=20` |
+| AC-17 | `show bfd session address` first map hit (moved from `spec-typed-identity-keys`, 2026-11-14) | With two sessions to one peer address (different local address, interface, VRF or mode), `(*Loop).SessionDetail` and `(*pluginService).SessionDetail` answer every match, or refuse as ambiguous naming the fields that tell them apart; never the first map hit. A unit holds two sessions to one address |
 
 ## 🧪 TDD Test Plan
 
@@ -181,6 +182,7 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | `declared-format-contradicts-payload` | 2026-10-20 | `v6EInterAreaPrefixBody` has no Inter-Area-Prefix TLV |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | OSPF reload-created instance tests race in `reconcile` |
 | `field-derived-from-the-message-not-the-sender` | 2026-10-31 | IS-IS `lspTypeBlock` L1L2 IS Type in L1 LSPs |
+| `key-omits-a-fact-the-builder-uses` | 2026-10-13 | AC-17: `show bfd session address` answers the first map hit of two sessions to one address |
 
 ## Rows found already fixed
 

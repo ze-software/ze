@@ -207,6 +207,7 @@ AC-20. The design pass confirms or rewrites each one.
 | AC-2 | Two sessions on two tunnels hold the same session id | The route observer and the CQM observer keep one record for each: an address assigned to one leaves the other's route injected, and the end of one leaves the other's record and route in place | None: the two are different subscribers |
 | AC-3 | Two sessions on two tunnels hold the same session id, and the operator clears one, or a Disconnect-Request names one, or one reaches its session timeout or idle timeout | The session that was named ends, with its CDN and its Accounting-Stop, and the other stays established and keeps its route | None: the two are different subscribers. What the operator types is question 4 |
 | AC-4 | A RADIUS accounting server answers nothing, and a session on one tunnel ends | The reactor keeps handling the control packets of every tunnel: a hello on another tunnel is answered inside its retransmission interval, and no healthy tunnel is torn down. The Stop for the ended session is still sent, and retried as the design states | A Stop that no server acknowledged before its bound: the log names it |
+| AC-5 | A tunnel's peer source address changes mid-life (the dispatch path overwrites `peerAddr` with `pkt.from`), then the tunnel is discarded or closed | `discardTunnelLocked` removes the `tunnelsByPeer` entry inserted for that tunnel, by the key stored at insert; the index holds no entry for it afterwards (moved from `spec-typed-identity-keys`, 2026-11-14) | none: every tunnel's index entry is removed with it |
 
 ## End-to-End User Stories
 
@@ -350,6 +351,7 @@ The first three names came from
 | `plan/journal/slow-reader-stalls-a-shared-goroutine.md` | 2026-11-11 | L2TP reactor goroutine waits on a synchronous Accounting-Stop |
 | `plan/journal/retry-forgets-consumed-input.md` | 2026-11-13 | L2TP `handleTick` drops the kernel setup events it collects |
 | `plan/journal/callback-reenters-held-lock.md` | 2026-11-13 | L2TP tunnel events emitted while the tunnel's session-order ticket is undelivered |
+| `plan/journal/index-key-derived-from-mutable-field.md` | 2026-08-10 | AC-5: L2TP `discardTunnelLocked` deletes from `tunnelsByPeer` by a key rebuilt from the overwritten `peerAddr` |
 
 ## Related specs
 
