@@ -412,6 +412,12 @@ N-A: tooling with no protocol peer. The goal validation is AC-6: the VPP proofs 
 | `CONFIG_VHOST_NET` as a lab record, not a `kernelcap` enrolment | enrol it in `kernelcap` so the Docker kernel check refuses | the check's probe container cannot see the device; the appliance build already enforces the option through `runtime.require` |
 | The VPP preflight asks the Docker daemon (a one-shot with the registered devices), never the local `/dev` | `os.Stat("/dev/vhost-net")` | the daemon can be remote (`DOCKER_HOST`, the QEMU guest) |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `guard-enumerates-instead-of-subtracting.md` | 2026-11-14 | `netfilterModulePrefixes` (`internal/le/setup/docker/kernel/hostdeps.go`) examines no `nft_*` module, and `CONFIG_NFT_COMPAT` is unpinned (review round 6 note of `spec-docker-hosts-run-the-ze-kernel`); G-2's install refusal is the mechanism that fixes it |
+
 ## Known Limitations
 - The QEMU guest scripts (`internal/le/test/qemu/run.go` and its `*_linux.go` helpers) load modules inside the guest they boot. They do not run on the Docker host, so no setup step reaches them, and they are outside this spec.
 - AC-6 needs the owner's kernel rebuild, reinstall and reboot. The agent prepares the commands and runs AC-6 after the owner reports the reboot.
