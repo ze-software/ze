@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // repairArgs answers tokens judged against the leaf ze-data-cmd.yang declares
@@ -95,4 +98,34 @@ func TestRepairRPCPathRules(t *testing.T) {
 	live, err := store.ReadKey("meta/test/state")
 	require.NoError(t, err)
 	assert.Equal(t, "runtime state", string(live))
+}
+
+// TestRepairShowsKeysRemovedDuringTheWalk verifies that a key a writer removed
+// from the source while the salvage walked (zefs RepairReport.Vanished) is
+// listed by `ze data repair` and counted on its summary line, and answered by
+// `request data repair` as a count and a row per key, without changing the
+// exit code or the status: the store no longer holds the key. Method: a real
+// salvage of a one-key store, whose report gains a removed file key and a
+// removed directory key, is printed and answered.
+// PREVENTS: a salvage that leaves keys out without saying which.
+func TestRepairShowsKeysRemovedDuringTheWalk(t *testing.T) {
+	source := checkStore(t, map[string]string{"meta/test/state": "runtime state"})
+	output := filepath.Join(t.TempDir(), "salvage")
+	report, err := zefs.RepairPath(source, output)
+	require.NoError(t, err)
+	require.Empty(t, report.Vanished, "nothing writes the source")
+	report.Vanished = append(report.Vanished, "meta/test/gone", "meta/test/dir/")
+
+	code, stdout, stderr := captureCatStdio(t, func() int { return printRepair(report, output) })
+	assert.Zero(t, code, stderr)
+	assert.Contains(t, stdout, "removed: meta/test/gone\nremoved: meta/test/dir/\n")
+	assert.True(t, strings.HasSuffix(stdout,
+		strconv.Itoa(report.RecoveredCount)+" recovered, 0 skipped, 2 removed while the repair ran -> "+output+"\n"), stdout)
+
+	response := repairAnswer(output, report, nil)
+	assert.Equal(t, zePlugin.StatusDone, response.Status, response.Warnings)
+	data, ok := response.Data.(zePlugin.Map)
+	require.True(t, ok, "answer %T is not a map", response.Data)
+	assert.Equal(t, 2, data[repairVanished])
+	assert.Equal(t, []map[string]any{{keywordKey: "meta/test/gone"}, {keywordKey: "meta/test/dir/"}}, data[repairVanishedKeys])
 }

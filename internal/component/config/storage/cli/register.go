@@ -63,7 +63,7 @@ func init() {
 	// validation verdict is, so the row operators are refused over it by name.
 	command.RegisterShape([]string{"show data check"}, command.ShapeDoc)
 	command.RegisterColumns([]string{"show data check"},
-		command.ColumnOrder{"path", "entries", "corrupt-entries", "history-checked", "findings"},
+		command.ColumnOrder{"path", "entries", "corrupt-entries", "vanished-entries", "history-checked", "findings"},
 		command.ColumnOrder{findingSeverity, findingCheck, findingKind, keywordKey, findingDetail})
 	command.RegisterShape([]string{"show data cat"}, command.ShapeBlob)
 	command.RegisterColumns([]string{"show data list"}, command.ColumnOrder{keywordKey})

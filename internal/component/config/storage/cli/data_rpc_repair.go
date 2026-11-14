@@ -15,6 +15,14 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// repairVanished and repairVanishedKeys are the `request data repair` answer
+// keys for the keys a writer removed from the source while the walk ran: their
+// count, and one row per key.
+const (
+	repairVanished     = "vanished"
+	repairVanishedKeys = "vanished-keys"
+)
+
 // handleDataRepair answers `request data repair path <absolute-output>`: the
 // salvage `ze data repair --output <path>` writes, taken from the store the
 // daemon owns while it runs. The output path is judged by the rules of a
@@ -44,6 +52,10 @@ func handleDataRepair(_ *pluginserver.CommandContext, validated command.Validate
 			"the salvage is written on the daemon's host, so the path must be absolute, hold no '..' element and not be a symlink",
 			"request data repair path <absolute-output>")), nil
 	}
+	// Salvage walks under storage.HoldWrites: no writer of this daemon changes
+	// the tree, and no other process opens it as a writer while the daemon
+	// owns it, so no key vanishes from this walk. repairAnswer still shows any
+	// report.Vanished names, as `ze data repair` does, rather than assume none.
 	report, err := storage.Salvage(target.Store, output)
 	if err != nil {
 		return zePlugin.OperatorErrorResponse(opererr.Wrap(err,
@@ -61,14 +73,22 @@ func handleDataRepair(_ *pluginserver.CommandContext, validated command.Validate
 	return repairAnswer(output, report, findings), nil
 }
 
-// repairAnswer is the answer of a written salvage: the path, the recovered and
-// skipped counts, a row per skipped entry and per history finding. A skipped
-// entry or a history key the repair dropped is not in the salvage, so either
-// makes the answer a warning that says so, as the offline command exits 1.
+// repairAnswer is the answer of a written salvage: the path, the recovered,
+// skipped and vanished counts, a row per skipped entry, per key a writer
+// removed from the source while the walk ran, and per history finding. A
+// skipped entry or a history key the repair dropped is not in the salvage, so
+// either makes the answer a warning that says so, as the offline command
+// exits 1. A vanished key is not in the salvage either, but the store no
+// longer holds it, so it is listed and changes neither the status nor, offline,
+// the exit code.
 func repairAnswer(output string, report *zefs.RepairReport, findings []storage.HistoryFinding) *zePlugin.Response {
 	skipped := make([]map[string]any, 0, len(report.Skipped))
 	for _, entry := range report.Skipped {
 		skipped = append(skipped, map[string]any{keywordKey: entry.Key, "status": entry.Status, "error": entry.Error})
+	}
+	vanished := make([]map[string]any, 0, len(report.Vanished))
+	for _, key := range report.Vanished {
+		vanished = append(vanished, map[string]any{keywordKey: key})
 	}
 	history := make([]map[string]any, 0, len(findings))
 	dropped := 0
@@ -85,11 +105,13 @@ func repairAnswer(output string, report *zefs.RepairReport, findings []storage.H
 	response := &zePlugin.Response{
 		Status: zePlugin.StatusDone,
 		Data: zePlugin.Map{
-			keywordPath:    output,
-			"recovered":    report.RecoveredCount,
-			"skipped":      report.SkippedCount,
-			"skipped-keys": skipped,
-			"history":      history,
+			keywordPath:        output,
+			"recovered":        report.RecoveredCount,
+			"skipped":          report.SkippedCount,
+			"skipped-keys":     skipped,
+			repairVanished:     len(report.Vanished),
+			repairVanishedKeys: vanished,
+			"history":          history,
 		},
 	}
 	if report.SkippedCount > 0 {

@@ -16,10 +16,8 @@ import (
 )
 
 // cmdCheck prints the integrity verdict `show data check` answers, from the
-// same rows: a container fault (FAIL) and each corrupt frame (CORRUPT) on
-// stderr, each history finding (warnings on stdout, errors on stderr), then
-// the line that closes the verdict. It exits 0 clean, 1 when any row is an
-// error, 2 when the check could not run.
+// same rows (printVerdict). It exits 0 when no row is an error, 1 when any row
+// is, 2 when the check could not run.
 func cmdCheck(storePath string, _ []string) int {
 	verdict, err := integrityVerdict(storePath)
 	if err != nil {
@@ -28,8 +26,34 @@ func cmdCheck(storePath string, _ []string) int {
 		tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
 		return 2
 	}
+	return printVerdict(verdict)
+}
+
+// printVerdict prints verdict and answers its exit code: a container fault
+// (FAIL) and each corrupt frame (CORRUPT) on stderr, each history finding
+// (warnings on stdout, errors on stderr), one line on stdout naming the keys a
+// writer removed while the check ran, then the line that closes the verdict.
+// A removed key is not an error, since a live store removes keys, but it was
+// not read, so the closing line counts it apart from the entries read.
+func printVerdict(verdict storeVerdict) int {
 	for _, finding := range verdict.findings {
+		if finding.kind == kindRemoved {
+			continue // one line for every removed key, below
+		}
 		printIntegrityFinding(finding)
+	}
+	removed := verdict.removedKeys()
+	if len(removed) > 0 {
+		var tb textbuf.Buffer
+		tb.Str("removed while the check ran, not read (").Int(int64(len(removed))).Str("): ")
+		for i, key := range removed {
+			if i > 0 {
+				tb.Str(", ")
+			}
+			tb.Str(key)
+		}
+		tb.Byte('\n')
+		tb.StdOut() //nolint:errcheck // CLI output
 	}
 	if verdict.containerFault {
 		return 1
@@ -45,7 +69,11 @@ func cmdCheck(storePath string, _ []string) int {
 		tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
 		return 1
 	}
-	tb.Str("ok: ").Int(int64(verdict.entries)).Str(" entries, magic ok, container ok\n")
+	tb.Str("ok: ").Int(int64(verdict.entries)).Str(" entries")
+	if len(removed) > 0 {
+		tb.Str(" read, ").Int(int64(len(removed))).Str(" removed during the check not read")
+	}
+	tb.Str(", magic ok, container ok\n")
 	tb.StdOut() //nolint:errcheck // CLI output
 	return 0
 }
@@ -59,6 +87,14 @@ const (
 	severityError   = "error"
 	severityWarning = "warning"
 )
+
+// kindRemoved is the kind of a row naming a key a writer removed while a walk
+// ran, so the walk did not read it. The frame rows take the history walk's
+// kind, so one `| match removed-during-check` selects the rows of both walks.
+const kindRemoved = storage.HistoryRemovedDuringCheck
+
+// frameRemovedDetail is the detail of a frame row whose key was removed.
+const frameRemovedDetail = "removed while the frame check ran, not read"
 
 // integrityFinding is one row of a store's integrity verdict: the container
 // fault of a blob, a frame that does not decode, or one finding of the history
@@ -79,7 +115,7 @@ type storeVerdict struct {
 	corrupt        int  // frames that do not
 	containerFault bool // a blob whose container does not parse
 	historyChecked bool
-	findings       []integrityFinding // the container fault, the frames, then history
+	findings       []integrityFinding // the container fault, the frames (corrupt, then removed), then history
 }
 
 // integrityVerdict runs the frame check and, over a store whose frames all
@@ -93,6 +129,15 @@ func integrityVerdict(storePath string) (storeVerdict, error) {
 	if err != nil {
 		return storeVerdict{}, err
 	}
+	return reportVerdict(storePath, report, storeHistory)
+}
+
+// reportVerdict turns the frame report of the store at storePath into rows,
+// one per container fault, corrupt frame and key the frame walk lists in
+// Vanished, and adds the findings of history, the history walk
+// (storeHistory), when every frame decodes. history is a parameter so a test
+// can answer the walk a writer raced.
+func reportVerdict(storePath string, report *zefs.CheckReport, history func(string) ([]storage.HistoryFinding, error)) (storeVerdict, error) {
 	verdict := storeVerdict{path: storePath, entries: report.TotalEntries, corrupt: report.CorruptEntries}
 	if report.ContainerError != "" {
 		verdict.containerFault = true
@@ -108,18 +153,23 @@ func integrityVerdict(storePath string) (storeVerdict, error) {
 			check: checkFrame, severity: severityError, kind: entry.Status, key: entry.Key, detail: entry.Error,
 		})
 	}
+	for _, key := range report.Vanished {
+		verdict.findings = append(verdict.findings, integrityFinding{
+			check: checkFrame, severity: severityWarning, kind: kindRemoved, key: key, detail: frameRemovedDetail,
+		})
+	}
 	if verdict.containerFault {
 		return verdict, nil
 	}
 	if verdict.corrupt > 0 {
 		return verdict, nil
 	}
-	history, err := storeHistory(storePath)
+	findings, err := history(storePath)
 	if err != nil {
 		return storeVerdict{}, err
 	}
 	verdict.historyChecked = true
-	for _, finding := range history {
+	for _, finding := range findings {
 		severity := severityError
 		if finding.Severity == storage.HistorySeverityWarning {
 			severity = severityWarning
@@ -151,6 +201,18 @@ func (v storeVerdict) errorCount() int {
 		}
 	}
 	return count
+}
+
+// removedKeys answers, in row order, the keys a writer removed while the frame
+// or the history walk ran, which that walk did not read.
+func (v storeVerdict) removedKeys() []string {
+	var keys []string
+	for _, finding := range v.findings {
+		if finding.kind == kindRemoved {
+			keys = append(keys, finding.key)
+		}
+	}
+	return keys
 }
 
 // corruptLine is the line that closes a verdict with corrupt frames.
@@ -218,23 +280,45 @@ func cmdRepair(storePath string, args []string) int {
 
 	report, err := zefs.RepairPath(storePath, outputPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(err).Byte('\n')
+		tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
 		return 2
 	}
+	return printRepair(report, outputPath)
+}
 
+// printRepair prints the salvage report, repairs the history of the output
+// (repairStoreHistory), prints the summary line and answers the exit code: a
+// `recovered:` line per key on stdout, a `skipped:` line per entry that did
+// not read on stderr, a `removed:` line on stdout per key a writer removed
+// from the source while the walk ran, which is not in the output, then the
+// history rows and the counts. A removed key does not change the exit code:
+// the store no longer holds it, so the salvage lost nothing the store holds.
+func printRepair(report *zefs.RepairReport, outputPath string) int {
+	var tb textbuf.Buffer
 	for _, key := range report.Recovered {
-		fmt.Fprintf(os.Stdout, "recovered: %s\n", key) //nolint:errcheck // CLI output
+		tb.Reset().Str("recovered: ").Str(key).Byte('\n')
+		tb.StdOut() //nolint:errcheck // CLI output
 	}
-	for _, e := range report.Skipped {
-		fmt.Fprintf(os.Stderr, "skipped: %s: %s\n", e.Key, e.Error) //nolint:errcheck // CLI output
+	for _, entry := range report.Skipped {
+		tb.Reset().Str("skipped: ").Str(entry.Key).Str(": ").Str(entry.Error).Byte('\n')
+		tb.StdErr() //nolint:errcheck // CLI output
+	}
+	for _, key := range report.Vanished {
+		tb.Reset().Str("removed: ").Str(key).Byte('\n')
+		tb.StdOut() //nolint:errcheck // CLI output
 	}
 	historyIssues, err := repairStoreHistory(outputPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		tb.Reset().Str("error: ").Err(err).Byte('\n')
+		tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
 		return 2
 	}
 
-	fmt.Fprintf(os.Stdout, "%d recovered, %d skipped -> %s\n", report.RecoveredCount, report.SkippedCount, outputPath) //nolint:errcheck // CLI output
+	tb.Reset().Int(int64(report.RecoveredCount)).Str(" recovered, ").Int(int64(report.SkippedCount)).
+		Str(" skipped, ").Int(int64(len(report.Vanished))).Str(" removed while the repair ran -> ").Str(outputPath).Byte('\n')
+	tb.StdOut() //nolint:errcheck // CLI output
 	if report.SkippedCount > 0 {
 		return 1
 	}

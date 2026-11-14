@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // checkStore writes keys into a new live tree store, closes it, and answers
@@ -92,6 +94,93 @@ func TestDataCheckAnswersRows(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, false, payload["history-checked"])
 		assert.Equal(t, 1, cmdCheck(tree, nil), "ze data check grades the same rows")
+	})
+}
+
+// TestCheckShowsKeysRemovedDuringTheCheck verifies that a key a writer removed
+// while the check walked (zefs CheckReport.Vanished, and a history finding of
+// kind removed-during-check) is shown by both outputs, never dropped and never
+// graded an error. Method: the frame report of a real store gains two removed
+// keys, a file and a directory, and the history walk answers one removed
+// object; the verdict's rows, the `show data check` answer and the lines and
+// exit code `ze data check` prints are read. A store with a corrupt frame and
+// a removed key still exits 1 and still names the removed key.
+// PREVENTS: a check beside a busy daemon calling a store clean over keys it
+// did not read, and a removed key turning a clean store into exit 1.
+func TestCheckShowsKeysRemovedDuringTheCheck(t *testing.T) {
+	const object = "object/0000000000000000000000000000000000000000000000000000000000000000"
+	removedHistory := func(string) ([]storage.HistoryFinding, error) {
+		return []storage.HistoryFinding{{
+			Kind: storage.HistoryRemovedDuringCheck, Key: object,
+			Severity: storage.HistorySeverityWarning, Detail: "removed while the history check ran, not read",
+		}}, nil
+	}
+
+	t.Run("clean", func(t *testing.T) {
+		tree := checkStore(t, map[string]string{"meta/test/kept": "kept"})
+		report, err := zefs.CheckPath(tree)
+		require.NoError(t, err)
+		report.Vanished = append(report.Vanished, "meta/test/gone", "meta/test/dir/")
+		verdict, err := reportVerdict(tree, report, removedHistory)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"meta/test/gone", "meta/test/dir/", object}, verdict.removedKeys())
+		assert.Zero(t, verdict.errorCount())
+
+		answer := verdict.answer()
+		assert.Zero(t, answer.Code, answer.Diagnostic)
+		assert.Empty(t, answer.Diagnostic)
+		payload, ok := answer.Payload.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, 3, payload[answerVanishedEntries])
+		rows := checkFindings(t, answer)
+		require.Len(t, rows, 3)
+		for i, check := range []string{checkFrame, checkFrame, checkHistory} {
+			assert.Equal(t, check, rows[i][findingCheck], i)
+			assert.Equal(t, kindRemoved, rows[i][findingKind], i)
+			assert.Equal(t, severityWarning, rows[i][findingSeverity], i)
+		}
+		assert.Equal(t, "meta/test/gone", rows[0][keywordKey])
+		assert.Equal(t, frameRemovedDetail, rows[0][findingDetail])
+
+		code, stdout, stderr := captureCatStdio(t, func() int { return printVerdict(verdict) })
+		assert.Zero(t, code)
+		assert.Empty(t, stderr)
+		assert.Equal(t,
+			"removed while the check ran, not read (3): meta/test/gone, meta/test/dir/, "+object+"\n"+
+				"ok: "+strconv.Itoa(verdict.entries)+" entries read, 3 removed during the check not read, magic ok, container ok\n",
+			stdout)
+	})
+
+	t.Run("nothing removed keeps the line", func(t *testing.T) {
+		tree := checkStore(t, map[string]string{"meta/test/kept": "kept"})
+		verdict, err := integrityVerdict(tree)
+		require.NoError(t, err)
+		payload, ok := verdict.answer().Payload.(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, 0, payload[answerVanishedEntries])
+		code, stdout, _ := captureCatStdio(t, func() int { return printVerdict(verdict) })
+		assert.Zero(t, code)
+		assert.Equal(t, "ok: "+strconv.Itoa(verdict.entries)+" entries, magic ok, container ok\n", stdout)
+	})
+
+	t.Run("corrupt", func(t *testing.T) {
+		tree := checkStore(t, map[string]string{"meta/test/kept": "kept"})
+		report, err := zefs.CheckPath(tree)
+		require.NoError(t, err)
+		report.Entries = append(report.Entries, zefs.EntryStatus{Key: "meta/test/bad", Status: "crc-mismatch", Error: "crc mismatch"})
+		report.CorruptEntries = 1
+		report.Vanished = append(report.Vanished, "meta/test/gone")
+		verdict, err := reportVerdict(tree, report, func(string) ([]storage.HistoryFinding, error) {
+			t.Fatal("history is not walked over a corrupt frame")
+			return nil, nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, verdict.answer().Code)
+		code, stdout, stderr := captureCatStdio(t, func() int { return printVerdict(verdict) })
+		assert.Equal(t, 1, code)
+		assert.Equal(t, "removed while the check ran, not read (1): meta/test/gone\n", stdout)
+		assert.Contains(t, stderr, "CORRUPT: meta/test/bad: crc mismatch\n")
+		assert.Contains(t, stderr, " entries corrupt; history not checked")
 	})
 }
 

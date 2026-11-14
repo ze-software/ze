@@ -4,7 +4,9 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"strings"
 
 	"github.com/ze-software/ze/pkg/zefs"
@@ -28,7 +30,17 @@ const (
 	HistoryMalformedEntry  = "malformed-entry"
 	HistoryWrongHashObject = "wrong-hash-object"
 	HistoryDanglingPointer = "dangling-pointer"
+
+	// HistoryRemovedDuringCheck names a listed key that was gone when the
+	// walk read it: a writer beside the walk (the daemon, beside a local
+	// `ze data check`) removed it after the listing. It is a warning, because
+	// a live store removes keys and the store is not damaged by it, and it is
+	// named, because the walk did not read the key.
+	HistoryRemovedDuringCheck = "removed-during-check"
 )
+
+// historyRemovedDetail is the detail of a HistoryRemovedDuringCheck finding.
+const historyRemovedDetail = "removed while the history check ran, not read"
 
 // HistoryFinding is one reachability defect of content-addressed history.
 type HistoryFinding struct {
@@ -46,7 +58,9 @@ type HistoryFinding struct {
 // MEANING of a key is this walk's question. A listed key that fails to read
 // stops the walk with an error naming it, because reporting it absent would
 // call its entries dangling; `ze data check` therefore walks history only
-// when the frame check found no corrupt frame.
+// when the frame check found no corrupt frame. A listed key that is gone at
+// its read was removed while the walk ran: it is a HistoryRemovedDuringCheck
+// finding, and no error finding is drawn from it (inspectHistory).
 func CheckHistory(s Storage) ([]HistoryFinding, error) {
 	return inspectHistory(s.ListKeys, s.ReadKey)
 }
@@ -80,6 +94,16 @@ func RepairHistory(s Storage) (findings []HistoryFinding, err error) {
 
 // inspectHistory is the walk CheckHistory and RepairHistory share. list and
 // read are the raw-key pair of the caller's context.
+//
+// A listed key whose read answers fs.ErrNotExist was removed after the
+// listing, by a writer beside the walk. It is reported as
+// HistoryRemovedDuringCheck, and no error finding is drawn from it: an entry
+// naming an object removed during the walk is not judged dangling, and a
+// pointer naming an entry removed or not judged is not judged dangling,
+// because the same writer may be removing or moving them too, and an error
+// finding makes the check exit 1 and the repair drop the key. An orphan
+// warning is still drawn: the object is present and no entry that remains
+// names it.
 func inspectHistory(list func(string) ([]string, error), read func(string) ([]byte, error)) ([]HistoryFinding, error) {
 	keys, err := list("")
 	if err != nil {
@@ -87,12 +111,18 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 	}
 	var findings []HistoryFinding
 	objects := make(map[string]bool)
+	removedObjects := make(map[string]bool)
 	for _, key := range keys {
 		digest, ok := strings.CutPrefix(key, zefs.KeyObject.Prefix())
 		if !ok {
 			continue
 		}
 		data, err := read(key)
+		if errors.Is(err, fs.ErrNotExist) {
+			findings = append(findings, removedDuringCheck(key))
+			removedObjects[digest] = true
+			continue
+		}
 		if err != nil {
 			// A listed key that does not read is not evidence of absence:
 			// skipping it would report its entries dangling, and repair
@@ -110,11 +140,17 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 
 	referenced := make(map[string]bool)
 	resolved := make(map[string]bool)
+	unjudged := make(map[string]bool) // entries removed during the walk, or naming an object that was
 	for _, key := range keys {
 		if _, _, ok := historyEntry(key); !ok {
 			continue
 		}
 		value, err := read(key)
+		if errors.Is(err, fs.ErrNotExist) {
+			findings = append(findings, removedDuringCheck(key))
+			unjudged[key] = true
+			continue
+		}
 		if err != nil {
 			// A listed entry that does not read is not evidence of absence:
 			// skipping it would report its object orphaned and every pointer
@@ -127,6 +163,12 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 			continue
 		}
 		referenced[digest] = true
+		if removedObjects[digest] {
+			// Its object was removed during the walk; the removal is the
+			// finding, and whether this entry dangles is not known.
+			unjudged[key] = true
+			continue
+		}
 		if !objects[digest] {
 			findings = append(findings, HistoryFinding{Kind: HistoryDanglingEntry, Key: key, Severity: HistorySeverityError,
 				Detail: "names " + entryDigestPrefix + digest + ", " + objectKey(digest) + " is absent or does not hash to its name"})
@@ -152,6 +194,10 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 			continue
 		}
 		value, err := read(key)
+		if errors.Is(err, fs.ErrNotExist) {
+			findings = append(findings, removedDuringCheck(key))
+			continue
+		}
 		if err != nil {
 			// A pointer that does not read is not a pointer that resolves:
 			// skipping it would pass a store whose pointer nobody checked.
@@ -164,12 +210,23 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 			continue
 		}
 		entry := zefs.KeyFileVersion.Key(stamp, name)
-		if !resolved[entry] {
-			findings = append(findings, HistoryFinding{Kind: HistoryDanglingPointer, Key: key, Severity: HistorySeverityError,
-				Detail: "names " + stamp + ", " + entry + " does not resolve"})
+		if resolved[entry] {
+			continue
 		}
+		if unjudged[entry] {
+			// The entry, or its object, was removed during the walk and
+			// is reported; whether the pointer dangles is not known.
+			continue
+		}
+		findings = append(findings, HistoryFinding{Kind: HistoryDanglingPointer, Key: key, Severity: HistorySeverityError,
+			Detail: "names " + stamp + ", " + entry + " does not resolve"})
 	}
 	return findings, nil
+}
+
+// removedDuringCheck is the finding of a listed key gone at its read.
+func removedDuringCheck(key string) HistoryFinding {
+	return HistoryFinding{Kind: HistoryRemovedDuringCheck, Key: key, Severity: HistorySeverityWarning, Detail: historyRemovedDetail}
 }
 
 // configPointerKey reports whether key is meta/config/<name>/<pointer> for

@@ -85,8 +85,10 @@ func checkStoreIntegrity(configDir string) []diagnostic.Diagnostic {
 // checkStoreHistory raises the findings `ze data check` prints for
 // content-addressed history: a dangling or malformed entry, a wrong-hash
 // object and a pointer naming an unresolvable stamp as errors, an orphan
-// object as a warning. A store that cannot be opened is an error, never the
-// healthy empty answer.
+// object as a warning, and a history key removed while the check ran as a
+// warning: the key was listed and gone at its read, which a live store does,
+// so it is reported as not read and never as a failed check. A store that
+// cannot be opened is an error, never the healthy empty answer.
 func checkStoreHistory(storePath string) []diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	store, err := storage.OpenTree(storePath, false)

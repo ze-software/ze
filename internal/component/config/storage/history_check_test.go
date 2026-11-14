@@ -3,6 +3,7 @@ package storage
 
 import (
 	"errors"
+	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -217,5 +218,61 @@ func TestInspectHistoryRefusesUnreadableKey(t *testing.T) {
 		require.Error(t, err, unreadable)
 		assert.Contains(t, err.Error(), unreadable)
 		assert.Nil(t, findings, unreadable)
+	}
+}
+
+// TestInspectHistoryReportsKeyRemovedDuringCheck verifies that a listed key a
+// writer removed before the walk read it (a daemon beside a local `ze data
+// check`) is reported as removed during the check, a warning, and is neither
+// an unreadable store nor skipped, and that no error finding is drawn from
+// it. Method: drive the shared walk with a reader that answers fs.ErrNotExist,
+// as the live tree's ReadKey does for a removed key (proven first on a real
+// tree store), for the object, the entry and the pointer in turn. Without the
+// fix the walk stops with an error; with a fix that only skips, the object
+// case reports the entry dangling and the pointer dangling, both errors.
+func TestInspectHistoryReportsKeyRemovedDuringCheck(t *testing.T) {
+	dir := t.TempDir()
+	live, err := Create(dir)
+	require.NoError(t, err)
+	_, missing := live.ReadKey(objectKey(contentDigest([]byte("never written\n"))))
+	require.NoError(t, live.Close())
+	require.ErrorIs(t, missing, fs.ErrNotExist, "the live tree answers a removed key with fs.ErrNotExist")
+
+	data := []byte("config\n")
+	digest := contentDigest(data)
+	object := objectKey(digest)
+	const entry = "file/20260926-100000.000/ze.conf"
+	const pointer = "meta/config/ze.conf/active"
+	store := map[string][]byte{
+		object:  data,
+		entry:   []byte(entryDigestPrefix + digest),
+		pointer: []byte("20260926-100000.000"),
+	}
+	list := func(string) ([]string, error) { return []string{entry, pointer, object}, nil }
+
+	for _, tc := range []struct {
+		removed string
+		warning map[string]string // every finding expected, key to kind; all are warnings
+	}{
+		{object, map[string]string{object: HistoryRemovedDuringCheck}},
+		{entry, map[string]string{entry: HistoryRemovedDuringCheck, object: HistoryOrphanObject}},
+		{pointer, map[string]string{pointer: HistoryRemovedDuringCheck}},
+	} {
+		read := func(key string) ([]byte, error) {
+			if key == tc.removed {
+				return nil, &fs.PathError{Op: "open", Path: key, Err: fs.ErrNotExist}
+			}
+			return store[key], nil
+		}
+		findings, err := inspectHistory(list, read)
+		require.NoError(t, err, "a removed key is not an unreadable store: %s", tc.removed)
+		assert.Equal(t, tc.warning, findingKinds(findings), tc.removed)
+		assert.Len(t, findings, len(tc.warning), tc.removed)
+		for _, finding := range findings {
+			assert.Equal(t, HistorySeverityWarning, finding.Severity, finding.Key)
+			if finding.Kind == HistoryRemovedDuringCheck {
+				assert.Equal(t, historyRemovedDetail, finding.Detail)
+			}
+		}
 	}
 }

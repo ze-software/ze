@@ -21,6 +21,10 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// answerVanishedEntries is the `show data check` answer key counting the keys
+// a writer removed while the check ran (storeVerdict.removedKeys).
+const answerVanishedEntries = "vanished-entries"
+
 // storageRefusal is the answer when the store could not be opened or read. It
 // carries the line the printers write for the same failure, so both spellings
 // of the failure agree. The handler writes nothing itself
@@ -60,8 +64,9 @@ func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 // resolves to, as `ze data check` does. On the daemon it checks the tree the
 // daemon commits to with the daemon's writers held (storage.HoldWrites): the
 // walk opens one directory entry after another, so a key the daemon removed
-// between the listing and the open failed it, where under the guard the
-// removal waits. A daemon that has not published its store (starting or
+// between the listing and the open would be a key the check did not read
+// (a removed-during-check row, as on the local route), where under the guard
+// the removal waits. A daemon that has not published its store (starting or
 // stopping) has no writers to hold, and checks the resolved path unguarded.
 func dataCheck(validated command.ValidatedArgs) command.LocalAnswer {
 	storePath, _ := extractPathFlag(validated.Tokens())
@@ -73,6 +78,10 @@ func dataCheck(validated command.ValidatedArgs) command.LocalAnswer {
 		}
 		return verdict.answer()
 	}
+	// Under HoldWrites no writer of this daemon changes the tree, and while
+	// the daemon owns the store no other process opens it as a writer, so
+	// no key vanishes from this walk. The verdict still shows any the
+	// reports name, as on the local route, rather than assume none.
 	var verdict storeVerdict
 	err := storage.HoldWrites(target.Store, func(tree string) error {
 		var walkErr error
@@ -85,8 +94,11 @@ func dataCheck(validated command.ValidatedArgs) command.LocalAnswer {
 	return verdict.answer()
 }
 
-// answer is the verdict as `show data check` answers it: the entry counts and
-// one row per finding, exit 1 with the closing line when any row is an error.
+// answer is the verdict as `show data check` answers it: the entry counts, the
+// count of keys a writer removed while the check ran (vanished-entries), and
+// one row per finding, a removed key included as a warning row of kind
+// removed-during-check, exit 1 with the closing line when any row is an error.
+// A removed key is not an error: it was not read, and the count says so.
 func (v storeVerdict) answer() command.LocalAnswer {
 	rows := make([]map[string]any, 0, len(v.findings))
 	for _, finding := range v.findings {
@@ -97,7 +109,8 @@ func (v storeVerdict) answer() command.LocalAnswer {
 	}
 	payload := map[string]any{
 		"path": v.path, "entries": v.entries, "corrupt-entries": v.corrupt,
-		"history-checked": v.historyChecked, "findings": rows,
+		answerVanishedEntries: len(v.removedKeys()),
+		"history-checked":     v.historyChecked, "findings": rows,
 	}
 	errorCount := v.errorCount()
 	if errorCount == 0 {
