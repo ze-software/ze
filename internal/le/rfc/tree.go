@@ -53,7 +53,7 @@ type TreeRow struct {
 	Sections *Sections `json:"-"`
 	// intent is the stem's private intent counts (StemFigures.intents), set
 	// beside Sections from the figures the row was computed from, and printed
-	// after them in the tree's text. It is never marshalled, so a row read
+	// after them in the tree's text. It is never marshaled, so a row read
 	// back from JSON holds nil and prints no intent clause rather than a
 	// false zero.
 	intent *intentCounts

@@ -97,7 +97,7 @@ func TestAPublishedRollupWhoseProvenCountLacksItsOSRowsIsRefused(t *testing.T) {
 // required tier's, is encoded and decoded; the key must read true both ways,
 // beside the rollup's own `rfcs` and `not-walked`.
 func TestAPublishedScopeRollupKeepsItsOwnFields(t *testing.T) {
-	live := &ScopeRollup{Rollup: Rollup{RFCs: 3, NotWalked: 1}, MandatoryComplete: true}
+	live := &ScopeRollup{RFCs: 3, NotWalked: 1, MandatoryComplete: true}
 	encoded, err := json.Marshal(&TreeReport{Profile: "edge", Rollup: live})
 	if err != nil {
 		t.Fatal(err)

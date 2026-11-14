@@ -691,7 +691,7 @@ type Rollup struct {
 	// the two bars `./le rfc tree` and `./le rfc next` print.
 	Sections Sections
 	// intent is the walked members' intent counts summed, private and never
-	// marshalled: String prints it after the sections. nil for a rollup
+	// marshaled: String prints it after the sections. nil for a rollup
 	// decoded from JSON, which holds no intent.
 	intent *intentCounts
 }
