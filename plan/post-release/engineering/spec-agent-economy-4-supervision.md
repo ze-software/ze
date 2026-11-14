@@ -235,9 +235,15 @@ Unverified, to probe before designing on it:
 - Whether AC-7's measure is a new action or an extension of the existing token report.
 - How a closed child is known. The child's file is gone, and the umbrella's Children table is a hand-written copy, so it cannot be the source. The candidates are the commit that removed the spec together with the `Spec-work:` trailer, or the closure record the detector already reads. The answer must come from what git holds.
 - How "something committed says where the work stands" is recognised for AC-11. A hook judges what a file is, never its wording, so the candidates are a tracked file under `plan/handover/` whose name carries the spec's stem, or the spec's own Status moved to `blocked`, either one committed after the session's last commit for the spec.
-- For the owner: the two numbers. The open limit takes over today's cap and its value. The active limit has no value yet; the machine runs one heavy job per session, so it is a bound on sessions and agents working at once.
-- For the owner: how a set counts in the open limit. The proposal is that each started, unclosed child counts as itself, and a live set with no such child, as the agent-economy set is today, counts once.
-- For the owner, to confirm at design: no acknowledgement route past AC-11. The refusal binds an agent ending its own turn, and its two ways out are cheap.
+- The value of the active limit. The design proposes one and shows it at approval: it bounds the sessions and agents working at once, on a machine that runs one heavy job per session.
+
+Owner decisions (2026-11-14), no longer open:
+
+| Decision | What it settles |
+|----------|-----------------|
+| The open limit takes over today's cap and its value | No new number is invented for it, and `ZE_SPEC_WIP_CAP` keeps its meaning |
+| Each started, unclosed child counts as itself in the open limit, and a live set with no such child counts once | The agent-economy set, between children, costs one |
+| No acknowledgement route past AC-11 | The refusal binds an agent ending its own turn, and its two ways out are cheap |
 
 ## Checklist
 
