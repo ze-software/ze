@@ -3,91 +3,69 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
+| Scope | protocol |
 | Priority | P0 |
-| Release reason | Implement the owner-selected repair for ignored remote-access authentication and pool configuration. |
-| Depends | - (was `spec-ike-virtual-ip-assignment`, the owner of all Configuration-payload work since 2026-10-26, closed 2026-10-26: `plan/learned/035-ike-virtual-ip-assignment.md`; before it `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03) |
+| Release reason | Implement the owner-selected repair for ignored remote-access authentication: road-warrior admission and per-user credentials. |
+| Depends | `plan/release/fixes/spec-eap-tls-identity-authorization.md` (skeleton; owns `RFC5216-5.3-2`, the authorization of the identity an EAP-TLS certificate carries. The `eap-tls` mode of this spec needs its export of the verified client identity. The `eap-mschapv2` and `eap-md5` modes do not depend on it). Closed prerequisites: `spec-ike-virtual-ip-assignment` (2026-10-26, `plan/learned/035-ike-virtual-ip-assignment.md`), `spec-fixit-ipsec-verify-siblings` (2026-08-03) |
 | Phase | - |
-| Updated | 2026-07-31 |
+| Handoff | - |
+| Updated | 2026-11-14 |
 
-## Post-Compaction Recovery
-
-**Re-read these after context compaction:**
-1. This spec file (you're reading it now)
-2. `.claude/rules/planning.md` - workflow rules
-3. `rfc/short/rfc7296.md` Section 2.19 + 3.15 (Configuration payload), `rfc/short/rfc5216.md`
-4. `internal/component/ike/engine/register.go` (dispatch + admission), `reconcile.go` (PeerSession),
-   `responder_eap.go`, `internal/core/eap/{eap.go,pool.go}`,
-   `internal/component/ike/wire/payload_cp.go`
+Recovery after compaction: `.claude/rules/post-compaction.md`. Then read
+`internal/component/ike/engine/register.go` `tryResponderSAInit`,
+`internal/component/ike/engine/cp.go` `assignVirtualIP`,
+`internal/core/eap/pool.go` `Registry.Acquire` and
+`internal/core/eap/eap_mschapv2.go` `handleResponse`.
 
 ## Task
 
-`vpn ipsec remote-access` is a complete, documented, YANG-validated config surface that the
-daemon **silently ignores**. Traced 2026-07-23 (recorded in
-the `fixit-ipsec-verify-siblings` record and in the correction appended to the
-`fixit-codeql-security-triage` record, both retired with the learned corpus):
+`vpn ipsec remote-access` declares a road-warrior service. Two of its three
+parts still have no behavior. Re-read against the code on 2026-11-14:
 
-| Field | Consumer today | Effect |
-|-------|----------------|--------|
-| `ra.Pool.*` | `engine/register.go` builds `eap.NewPool(...)` into `ipPool` | **discarded**: ~~`register.go`~~ **`register.go`** is `_ = ipPool`. Line re-verified 2026-07-31, because the file moved under concurrent edits |
-| `ra.Auth.*` | none | none |
-| `ra.Users` (`eap-user`) | none | none |
+| Config | Consumer today | Effect |
+|--------|----------------|--------|
+| `remote-access pool` | `virtualIPState.reload` (`engine/virtual_ip.go`), called from the apply path (`engine/apply.go`) | **live since 2026-10-26.** A pool serves every `site-to-site` respond peer whose `virtual-ip-pool` leaf names it |
+| `remote-access ike-group`, `esp-group` | none | none. The YANG descriptions say so |
+| `remote-access authentication` | `warnKeylessEAPModes` (`engine/eap_auth.go`) writes one warning for `eap-md5` | no handshake reads the mode or the `x509` leaves |
+| `remote-access eap-user` | `parseEAPUser`, `ValidateRemoteAccess`, `remoteAccessEqual` only | authenticates nobody. `EAPUser.Password` and `EAPUser.Certificate` have no reader outside parse, validation and config equality (`gopls references`, 2026-11-14) |
 
-The IKE responder admits only sources that `matchResponderPeer` (`engine/register.go`)
-resolves to a configured **site-to-site** peer with a literal `remote-address` match; everything
-else is logged "unsolicited IKE_SA_INIT from unconfigured source" and dropped
-(`register.go`). `PeerSession.peerCfg` is populated exclusively from `cfg.Peers`
-(`reconcile.go`). A road-warrior client, whose address is by definition not preconfigured,
-can never establish.
+The responder admits an unsolicited IKE_SA_INIT only from a source that
+`matchResponderPeer` (`engine/register.go`) resolves to a configured respond
+peer by source address, or that `matchReauthenticatingPeer`
+(`engine/reauth_receive.go`) resolves to an established initiate peer.
+Everything else is logged "unsolicited IKE_SA_INIT from unconfigured source"
+and dropped in `tryResponderSAInit`. A road warrior, whose address is not
+configured, cannot establish. An operator who wants one today writes it as a
+respond peer with a fixed `remote-address` and one shared password
+(`eapMethodConfig`, `engine/responder_eap.go`, reads `sa.PeerCfg.Auth.PSK`).
 
-Owner decision 2026-07-23: implement the feature rather than reject or warn about the
-inert config.
+What this spec delivers:
 
-**What already works and is reused, not rebuilt.** EAP-MSCHAPv2 and EAP-TLS authentication
-against a *responder* are implemented and interop-proven today
-(`test/interop-ipsec/scenarios/responder-eap-mschapv2`, `eap-tls`), expressed as a
-site-to-site peer with `connection-type respond` and a fixed `remote-address`. The Configuration
-payload codec (`wire/payload_cp.go`) and the virtual IP pool (`eap/pool.go`, with
-`Allocate`/`Release`/`Available`) ~~are both complete and~~ both have zero callers.
+1. **Admission.** An IKE_SA_INIT from an unconfigured source is served when
+   `remote-access` is configured, with no state committed before the source
+   proved it receives packets at its address, and with a stated bound.
+2. **Per-user credentials.** The EAP method authenticates against one
+   `eap-user` entry. An unknown user fails closed.
+3. **Identity binding.** Every policy decision uses the user the EAP method
+   authenticated: the lease owner, the session index, the log, the show output.
+4. **Policy for an admitted user.** A road warrior is always pool-bound, so
+   its inner address is a lease and never its own choice.
+5. **Lifecycle.** A session ends when its SA dies, and when a reload removes
+   or changes its user.
+6. **Config correctness.** Commit refuses a remote-access block that cannot
+   authenticate the gateway.
 
-> **Superseded 2026-07-31 (WP-9 design pass).** "Both complete" is wrong, and the
-> correction is load-bearing. The codec folds the RESERVED bit into the attribute type
-> (`wire/payload_cp.go` reads 16 bits where RFC 7296 Section 3.15.1 defines 1 reserved
-> bit plus a 15-bit type), it omits four attribute constants, and the pool hands out
-> addresses outside the configured range for an IPv6 prefix longer than `/64`
-> (`eap/pool.go`). Both halves need repair before they can be joined. Detail is in
-> "RFC 7296 Rows Homed Here" below.
+### Recorded owner rulings
 
-So the missing pieces are admission, per-user credentials, and address assignment:
+Each ruling stays in force. None is reopened here.
 
-1. **Admission**: accept an IKE_SA_INIT from an unconfigured source when `remote-access` is
-   configured, and give each client its own session.
-2. **Per-user credentials**: resolve the EAP identity to an `eap-user` entry, instead of the
-   single `pre-shared-secret` a site-to-site peer carries. Unknown user must fail closed.
-3. **Address assignment**: honour the client's CFG_REQUEST, allocate from the pool, answer
-   CFG_REPLY (RFC 7296 Section 2.19), narrow the responder traffic selector to the assigned
-   address, and release the address when the SA goes away.
-4. **Config correctness** (inherited from the retired deferral shard "fixit-ipsec-verify-siblings"):
-   resolve `ra.Auth` certificate references against the candidate PKI and require a
-   `ca-certificate` for `mode eap-tls` (RFC 5216 Section 5.3), now that the config is live.
-
-### Configuration-payload ownership pause
-
-The 2026-07-31 split below remains the recorded implementation ownership until
-Thomas answers OI-1 in `spec-ike-virtual-ip-assignment` (closed 2026-10-26).
-That sibling is the proposed address-assignment slice for configured responder
-peers; it is not a second CP implementation to schedule beside this one.
-Admission from unconfigured sources, per-user credentials, and `remote-access`
-authentication remain here under either option.
-
-CP implementation must wait for that decision. Either the sibling becomes the
-single owner and the overlapping phases here become prerequisites, or its scope
-is folded into this spec. A transfer must account for the complete union:
-codec hardening, pool selection and DNS, identity-bound leases and quotas,
-expiry and teardown release, all CP receive sites and reply ordering, selector
-narrowing, both refusal notifications, optional-attribute decisions, operational
-visibility, and tagged/functional/strongSwan evidence. None of AC-1..AC-28 is
-dropped by consolidation, and address assignment alone does not deliver
-road-warrior admission.
+| Date | Ruling |
+|------|--------|
+| 2026-07-23 | Implement the feature. Do not reject or warn about the inert config |
+| 2026-07-31 | The RFC 7296 Configuration-payload rows of work package WP-9 that need the address-assignment feature moved to this spec; the rows already conformant stayed in the rfcgate-1b RFC 7296 pilot |
+| 2026-08-02 | The Section 3.15.4 `INTERNAL_ADDRESS_FAILURE` obligation is spec work, not the extraction sign-off's (owner item OI-4) |
+| 2026-08-31 | Ze is an IRAS and not an IRAC: it answers CFG_REQUEST and never sends one (owner item OI-1) |
+| 2026-10-26 | Ownership, below |
 
 **Ownership decided 2026-10-26 (design pass of the sibling).** The sibling
 `spec-ike-virtual-ip-assignment` (closed 2026-10-26, `plan/learned/035-ike-virtual-ip-assignment.md`) became the SINGLE owner of
@@ -108,813 +86,547 @@ OI-2 by RFC 7296 Section 3.15.1 ("An implementation of this specification MAY
 ignore CFG_SET payloads."), OI-3 by answering SUPPORTED_ATTRIBUTES. Admission
 must reuse the sibling's lease registry, passing the EAP identity as the owner key.
 
-## RFC 7296 Rows Homed Here (owner split, 2026-07-31)
-
-**Provenance.** These rows arrived from the rfcgate-1b RFC 7296 pilot spec. Item 15
-of that spec's phase list held 17 RFC 7296 rows as work package WP-9, "Configuration
-payload and remote access" (the rfcgate-1b RFC 7296 pilot spec). On 2026-07-31
-the owner split WP-9. The rows that need the address-assignment FEATURE move here. The
-rows that are already conformant stay in the pilot, together with two live defects.
-
-The split follows `ai/rules/planning.md`, which prefers an existing spec that
-owns the topic over a new one. This spec owns the surface, and
-`internal/component/ike/engine/config.go` names it as the owner in the source. The
-deferral rows are in the retired deferral shard "rfcgate-1b-rfc7296-pilot".
-
-**Work-package numbering.** A re-triage on 2026-07-30 renumbered the pilot's work
-packages. "WP-9" names a different package in some of the pilot's tables, and these 17
-rows also appear there as WP-11. The row ids are the stable handle. A commit message must
-say which numbering it uses.
-
-**Evidence base.** The design pass that produced this section is `tmp/design-wp9.md`, a
-read-only pass over all 17 rows written 2026-07-31. Every claim restated below was
-re-verified against the working tree on the same day, because a concurrent session is
-editing `internal/component/ike/engine/`. Cite by function name, then re-locate the line.
-
-### The concrete gap this spec closes
-
-`internal/component/ike/engine/register.go` is `_ = ipPool`. Verified 2026-07-31.
-
-An operator can configure a virtual IP pool today. The daemon parses it (FUNCTION
-`parseVirtualIPPool`, `ipsec/config.go`), validates its prefix bounds
-(`ipsec/validate.go` for IPv4 and `:202` for IPv6, reached from
-`engine/config.go`), builds a live `eap.Pool` and logs a creation message. Then it
-discards the object four lines before the engine shuts down. No client receives an
-address.
-
-This is a shipped config surface with no behavior. `ai/rules/completion.md` gives three
-permitted answers: wire it, delete it, or reject the config. This spec wires it.
-
-### Roster: the rows homed here
-
-Ten of the 17 rows need production code. Seven are conformant today, five of them by an
-RFC-sanctioned choice rather than by accident.
-
-**Count discrepancy, stated rather than resolved silently.** The design's prose says
-"nine rows need production code" while its own verdict table marks ten. The difference is
-`RFC7296-3.15.1-3`.
-
-That row's send-side obligation binds the requester, which Ze is not, so Ze is conformant
-there. Only the optional responder half needs code. Owner item OI-3 below holds the open
-question of whether Ze answers a `SUPPORTED_ATTRIBUTES` query. The row is therefore
-conditional. Nine rows need code unconditionally, and `3.15.1-3` makes ten.
-
-| Row | Lands as | Handle | Why it needs code |
-|-----|----------|--------|-------------------|
-| `RFC7296-2.19-2` | `2.19-2` | CP before SA | Ze builds no CP payload. The responder chain is IDr, CERT, AUTH, SAr2, TSi, TSr |
-| `RFC7296-2.19-3` | `2.19-3` | CP in the SA-bearing message | EAP is exactly the multiple-IKE_AUTH variation, and Ze implements it. Three drop sites, and the third serves real clients |
-| `RFC7296-2.19-5` | `2.19-5` | No CFG_REPLY without a CFG_REQUEST | Vacuously true today. Becomes the primary authorization guard when the feature lands |
-| `RFC7296-2.19-6` | `2.19-6` | FAILED_CP_REQUIRED | No config leaf expresses the policy, and notify 37 has zero referents |
-| `RFC7296-3.15.1-1` | `3.15.1-1` | One netmask, only with an address | The codec enforces no cardinality of any kind, and no consumer applies the rule |
-| `RFC7296-3.15.1-3` | `3.15.1-3` | SUPPORTED_ATTRIBUTES zero-length | **Conditional on OI-3.** Attribute type 14 is not a declared constant |
-| `RFC7296-3.15.1-4` | `3.15.1-4` | Ignore unrecognized attributes | Nothing ignores and nothing acts. Blocked on the RESERVED-bit codec fix |
-| `RFC7296-4-2` | `4-2` | Parse CFG_REQUEST, recognize the address attribute | The antecedent becomes true when this spec lands |
-| `RFC7296-4-3` | `4-3` | Reply with an address of the requested type | Same. Type fidelity is a real constraint, not a formality |
-| `RFC7296-1.7-1` | **`RFC7296-1.7-3`** | Ignore attribute type 5 | Forced renumber, see "Id allocation". The constant is not declared |
-
-**Landed 2026-10-26 (spec-ike-virtual-ip-assignment).** All ten rows are now in
-`rfc/short/rfc7296.md`, and their `rfc/extraction/rfc7296.json` sites are mapped rather
-than relocated. Every reserved id at or below its section's high-water mark took a higher
-ordinal: `2.19-2` is `RFC7296-2.19-7`, `2.19-3` is `RFC7296-2.19-8`, `3.15.1-1` is
-`RFC7296-3.15.1-8`, `3.15.1-3` is `RFC7296-3.15.1-9`, `3.15.1-4` is `RFC7296-3.15.1-10`,
-`4-2` is `RFC7296-4-6` and `4-3` is `RFC7296-4-7`. `RFC7296-2.19-5`, `RFC7296-2.19-6` and
-`RFC7296-1.7-3` kept their reserved ids. The Section 3.15.4 obligation is
-`RFC7296-3.15.4-1`. The column above is history; the ids here are the live ones.
-
-### Verbatim obligations
-
-Quoted from `rfc/full/rfc7296.txt` and re-verified 2026-07-31. The quoted text is the
-requirement. Do not paraphrase it into a checklist row.
-
-Each quotation below is external text and stays exactly as the RFC writes it.
-
-**`RFC7296-2.19-2`** (Section 2.19):
-
-> In all cases, the CP payload MUST be inserted before the SA payload.
-
-**`RFC7296-2.19-3`** (Section 2.19):
-
-> In variations of the protocol where there are multiple IKE_AUTH exchanges, the CP
-> payloads MUST be inserted in the messages containing the SA payloads.
-
-**`RFC7296-2.19-5`** (Section 2.19):
-
-> The responder MUST NOT send a CFG_REPLY without having first received a
-> CP(CFG_REQUEST) from the initiator, because we do not want the IRAS to perform an
-> unnecessary configuration lookup if the IRAC cannot process the REPLY.
-
-**`RFC7296-2.19-6`** (Section 2.19). The sentences after the MUST bind the behavior, so
-read them with it:
-
-> In the case where the IRAS's configuration requires that CP be used for a given
-> identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request,
-> and terminate the Child SA creation with a FAILED_CP_REQUIRED error. The
-> FAILED_CP_REQUIRED is not fatal to the IKE SA; it simply causes the Child SA creation to
-> fail. The initiator can fix this by later starting a new Configuration payload request.
-> There is no associated data in the FAILED_CP_REQUIRED error.
-
-**`RFC7296-3.15.1-1`** (Section 3.15.1):
-
-> INTERNAL_IP4_NETMASK - The internal network's netmask. Only one netmask is allowed in
-> the request and response messages (e.g., 255.255.255.0), and it MUST be used only with
-> an INTERNAL_IP4_ADDRESS attribute.
-
-**`RFC7296-3.15.1-3`** (Section 3.15.1):
-
-> SUPPORTED_ATTRIBUTES - When used within a Request, this attribute MUST be zero-length
-> and specifies a query to the responder to reply back with all of the attributes that it
-> supports. The response contains an attribute that contains a set of attribute
-> identifiers each in 2 octets. The length divided by 2 (octets) would state the number of
-> supported attributes contained in the response.
-
-**`RFC7296-3.15.1-4`** (Section 3.15.1):
-
-> Unrecognized or unsupported attributes MUST be ignored in both requests and responses.
-
-**`RFC7296-4-2`** (Section 4):
-
-> If an implementation supports responding to such requests, it MUST parse the CP payload
-> of type CFG_REQUEST in the first message in the IKE_AUTH exchange and recognize a field
-> of type INTERNAL_IP4_ADDRESS or INTERNAL_IP6_ADDRESS.
-
-**`RFC7296-4-3`** (Section 4):
-
-> If it supports leasing an address of the appropriate type, it MUST return a CP payload
-> of type CFG_REPLY containing an address of the requested type. The responder may include
-> any other related attributes.
-
-**`RFC7296-1.7-1`**, landing as `RFC7296-1.7-3` (Section 1.7):
-
-> Implementations that conform to this document MUST ignore proposals that have
-> configuration attribute type 5, the old value for INTERNAL_ADDRESS_EXPIRY.
-
-**Erratum 5056 governs `1.7-1`.** The word "proposals" is wrong: a configuration attribute
-belongs to a Configuration payload, not to an SA proposal. The row keeps the verbatim text
-and the code implements the corrected semantics. Ze ignores the ATTRIBUTE, never the
-proposal. The literal reading would discard an SA proposal because a Configuration payload
-elsewhere in the same message carried attribute 5.
-
-**`1.7-1` does not duplicate `3.15.1-4`.** The pilot asked this spec to settle the
-question (the rfcgate-1b RFC 7296 pilot spec). They are separate obligations.
-
-`3.15.1-4` scopes attributes Ze does not recognize. `1.7-1` names type 5 and binds even an
-implementation that DOES recognize it, because RFC 4306 defined type 5. An implementation
-with RFC 4306 heritage gets no instruction from `3.15.1-4` at all. Keep both sites, and
-drop type 5 before the unknown-attribute default arm.
-
-### What stays in the pilot
-
-**Seven conformant rows.** Each is discharged by a property the code has, not by an absent
-guard. They belong with the pilot's other evidence work.
-
-| Row | Why it stays | Owner item |
-|-----|--------------|------------|
-| `RFC7296-2.19-1` | Conformant by non-participation. Ze is not an IRAC, and Section 4 makes that role optional | OI-1 |
-| `RFC7296-2.19-4` | Sender obligation on the IRAC. Tied to `2.19-1` | OI-1 |
-| `RFC7296-2.20-1` | Conformant. Ze sends no CP payload, which is one of the two permitted answers | - |
-| `RFC7296-3.15.1-2` | Sender obligation on the requester. Receive-side tolerance only | - |
-| `RFC7296-3.15.1-5` | Conformant by the RFC's own MAY at `rfc/full/rfc7296.txt:6477` | OI-2 |
-| `RFC7296-3.15.1-6` | Same MAY | OI-2 |
-| `RFC7296-3.15.1-7` | Same MAY, and satisfied by name: Ze returns a response without a CFG_ACK payload | OI-2 |
-
-**Two live defects.** Both are live today, both are independent of the CP feature, and
-both are landable on their own merits.
-
-| Defect | Site | What is wrong | Row it violates |
-|--------|------|---------------|-----------------|
-| RESERVED-bit fold | `wire/payload_cp.go` reads, `:49` writes | The attribute type is read and written as 16 bits. RFC 7296 Section 3.15.1 defines "Reserved (1 bit) - This bit MUST be set to zero and MUST be ignored on receipt" plus "Attribute Type (15 bits)". A peer that sets the bit on `INTERNAL_IP4_ADDRESS` yields `0x8001` | `RFC7296-2.5-7` on read, `2.5-6` on write. Both are already gated |
-| IPv6 out-of-range lease | `eap/pool.go` | `allocateV6` writes the host ID into `ip6[8:]`, which assumes a prefix no longer than `/64`. `validatePoolPrefix` permits `/48../126` (`ipsec/validate.go`). A `/96` pool leases addresses outside the configured range | none. It is a correctness bug with no row |
-
-**Cross-spec dependency.** `RFC7296-3.15.1-4` is homed here but cannot be proven until the
-RESERVED-bit fix lands. The negative half of its tagged pair IS the reserved-bit case. If
-the pilot keeps that fix, this spec depends on it. If the fix is easier to land here,
-move it and say so in both specs.
-
-### Id allocation (cross-spec hazard, BLOCKING)
-
-`check_id_allocation` (`internal/le/rfc/rfc.go`) refuses a new id whose
-ordinal is at or below its section's high-water mark. The mark comes from the committed
-HEAD summaries. A section with no mark is skipped entirely
-(`internal/le/rfc/rfc.go`). Refusal is permanent for that ordinal: the
-row must take a higher one and leaves document order.
-
-**Marks measured 2026-07-31**, against `git show HEAD:rfc/short/rfc7296.md` and against
-the working tree, which agree for every section below.
-
-| Section | Ids present | Mark | Consequence |
-|---------|-------------|------|-------------|
-| `RFC7296-1.7` | `1.7-2` only | **2** | **`1.7-1` is REFUSED.** It lands as `RFC7296-1.7-3` |
-| `RFC7296-2.19` | none | none | `-1` through `-6` accepted as written. This spec is the sole claimant |
-| `RFC7296-2.20` | none | none | `-1` accepted as written. Sole claimant |
-| `RFC7296-3.15.1` | none | none | `-1` through `-7` accepted as written. Sole claimant |
-| `RFC7296-4` | none | none | Accepted **only if the landing order is right**. Three claimants |
-
-**Section 4 has three claimants and no mark. Whichever package lands first sets it.**
-
-| Appendix A id | Owner | Pilot phase item |
-|---------------|-------|------------------|
-| `4-1` | pilot WP-12 (notify shape, expired SA, INITIAL_CONTACT, NO_ADDITIONAL_SAS) | 7 |
-| `4-2` | **this spec** | 15 |
-| `4-3` | **this spec** | 15 |
-| `4-4` | pilot WP-10 (certificates, identities, management interface) | 14 |
-
-**Correction to the briefing that opened this work.** The briefing stated that `4-1` had
-already landed and set the mark to 1. It has not. No `RFC7296-4-*` id exists at HEAD or in
-the working tree, and all four rows are still `NOT IMPL` in the pilot's Appendix A
-(the rfcgate-1b RFC 7296 pilot spec). The hazard is real, and its mechanism
-is "first to land sets the mark", not "the mark is already 1".
-
-**The rule: Section 4 must land in ascending ordinal order across specs.** `4-1` first,
-then this spec's `4-2` and `4-3`, then `4-4`.
-
-| Landing order | Result |
-|---------------|--------|
-| `4-1`, then `4-2`/`4-3`, then `4-4` | Mark goes 1, then 3, then 4. All four land at their document ordinals. Correct |
-| `4-4` first (the pilot schedules WP-10 at item 14, before item 15) | Mark jumps to 4. `4-1`, `4-2` and `4-3` are all REFUSED and renumber out of document order |
-| `4-2`/`4-3` first | Mark goes to 3. `4-1` is REFUSED and must become `-5` or higher |
-
-**This spec's `4-2` and `4-3` MUST land before the pilot's `4-4`.** The pilot's own phase
-list schedules WP-10 (item 14) before WP-9 (item 15), which strands these rows. Three ways
-to honor the rule, in preference order:
-
-1. The pilot defers `4-4` until this spec's Section 4 pair lands. `4-4` is a
-   configuration-capability row with no dependency on the other three.
-2. All four Section 4 rows land in one commit.
-3. This spec lands its Section 4 pair early, in a small separate commit.
-
-**Recompute every mark at the moment of landing. Never copy a number from this section.**
-One command per section:
-
-    git show HEAD:rfc/short/rfc7296.md | grep -oE 'RFC7296-4-[0-9]+' | sort -V | tail -1
-
-After the rows land, run `./le rfc update` and commit `ai/RFC-REQUIREMENTS.md` in the
-SAME commit. The ledger records each tagged test's `file:line`, and both verify modes of
-`./le rfc check` fail on a stale ledger.
-
-**Tag carriers.** A tag can live in a `_test.go` or in a `.ci` under `test/ipsec/`, which
-`./le test functional` runs. `test/interop-ipsec/` is REFUSED as a carrier, because nothing
-runs that suite automatically. The strongSwan scenarios in this spec are goal-validation
-evidence, and they earn no row a polarity.
-
-### Security requirements (BLOCKING)
-
-`RFC7296-2.19-5` and `RFC7296-2.19-6` are AUTHORIZATION checks.
-`ai/rules/evidence.md` requires each to deny on a miss, on an empty set, on an
-unmapped input and on an error.
-
-**`2.19-5`: a nil test is NOT sufficient.** The idiomatic Go shape is a `*wire.PayloadCP`
-variable set inside a type switch, then `if cpReq != nil`. That shape fails open twice. It
-checks neither the CFG type nor a present-but-empty attribute set. A peer that sends
-`CP(CFG_SET)`, which the RFC permits Ze to ignore, would receive a CFG_REPLY carrying a
-leased address it never requested.
-
-The decision is ONE function that returns an explicit `ok`. Every condition must hold.
-
-| # | Condition | The miss it closes |
-|---|-----------|--------------------|
-| 1 | Exactly one CP payload in the decrypted inner chain of this request | Two payloads is ambiguous attacker-supplied input. "Take the first" is a silent choice |
-| 2 | The CFG type is `CFGTypeRequest` | The unmapped-input case. `Reply`, `Set`, `ACK` and all 251 undefined values deny |
-| 3 | At least one `INTERNAL_IP4_ADDRESS` or `INTERNAL_IP6_ADDRESS` attribute is present | The empty-set case. A CP with zero attributes is present but empty |
-| 4 | The peer's profile enables the configuration payload | Policy, resolved explicitly |
-
-**If the call site can express `if cpReq != nil`, the design has already failed.**
-
-**`2.19-6`: the permissive branch is not where instinct puts it.** The permissive branch
-is "proceed without CP". The restrictive branch is "fail the Child SA". A policy lookup
-written as a bare map read returns `false` on a miss, and `false` means "not required",
-which is permissive. The lookup returns an explicit `resolved` flag beside the answer.
-
-| Profile state | Resolved | Behavior |
-|---------------|----------|----------|
-| A remote-access profile | true | Read the configured policy leaf |
-| A site-to-site peer | true | Not required, structurally. The leaf does not exist on that branch |
-| Nil or unresolvable | **false** | **DENY.** A session that reached response build with no bound profile is a bug state |
-
-Two behaviors the RFC pins, and an implementer will get both wrong:
-
-1. **The IKE SA survives.** The response carries the notify with no SA payload and no TS
-   payload, and the IKE SA stays established. A teardown violates the RFC.
-2. **No Child SA is installed.** The refusal must short-circuit BEFORE
-   `createFirstChildSA` runs in FUNCTION `buildAuthResponse`. A refusal after it leaks an
-   installed Child SA and derived keys.
-
-**Pool exhaustion is the default failure mode, not an attack.** Verified 2026-07-31:
-
-- `Pool.Release` (`eap/pool.go`) has **no non-test caller**. The only callers are
-  `eap/pool_test.go` and `:128`.
-- **No address lease or expiry concept exists anywhere in `internal/component/ike/`.** The
-  only "expiry" matches are SA rekey lifetimes and PKI certificate expiry, and
-  `releaseRequestWindow` is a message-ID window, not an address.
-
-So every client that connects consumes an address permanently. A `/24` pool serving a
-50-user site exhausts after 254 connections, which is a few days of normal laptop churn.
-Then every later client is refused. No attacker is needed. **Release wiring plus lease
-expiry is not a hardening extra. It is the difference between a feature that works for a
-week and one that works.**
-
-The authenticated attack is second. `Allocate` (`eap/pool.go`) takes no identity, so
-one valid credential can open many IKE SAs and drain the pool. A per-identity lease
-maximum bounds it, and address reuse for the same identity is what the RFC already asks
-for.
-
-**Mitigating fact, stated plainly.** The CFG_REQUEST arrives inside the encrypted inner
-chain of an IKE_AUTH message. An attacker must hold valid credentials to reach the
-allocator. That removes the unauthenticated denial of service and leaves an authenticated
-one.
-
-**Further bounds required:**
-
-- Cap the attribute count per CP payload in `ReadFrom`.
-- Make `NewPool` reject a range it cannot represent, rather than trust its caller.
-- Give `allocateV4` a rotating cursor.
-- Add a `doctor-ipsec-virtual-ip-pool` check that reports pool size and utilization, so
-  exhaustion becomes visible before it is total.
-
-**One correctness obligation with no row.** Section 3.15.4 requires an
-`INTERNAL_ADDRESS_FAILURE` notification when address assignment fails. The IKE SA is still
-created. Appendix A extracted no Section 3.15.4 row.
-
-`NotifyInternalAddressFailure` (`wire/payload_notify.go`) has zero referents, as does
-`NotifyFailedCPRequired`. An unextracted obligation is still an obligation
-(`ai/rules/rfc-compliance.md`). Implement it. Owner item OI-4 asks whether Section 3.15.4
-gains rows.
-
-### Owner items (RFC compliance escalations)
-
-`ai/rules/rfc-compliance.md` forbids choosing anything narrower than full compliance plus
-full proof. Each item below is a place where something narrower is on the table. None is a
-request to skip a row. In every case the tagged pair gets written and the row stays gated.
-The question is which way the obligation is discharged. **The main thread raises these.**
-
-| Id | Question | Cost of the wider answer |
-|----|----------|--------------------------|
-| OI-1 | Does Ze become an IRAC as well as an IRAS, or is declining the client role the recorded answer? Section 4 says implementations are not required to support requests for temporary IP addresses | A CP producer in the initiator build path, an initiator-side CFG_REPLY consumer, and an operator leaf. About 1.5 days |
-| OI-2 | Confirm that ignoring CFG_SET is the recorded answer, so `3.15.1-5`, `-6` and `-7` are discharged by that choice rather than by absence | An attribute-acceptance model Ze has no use for, plus a CFG_ACK builder. About 0.5 day, for an exchange with no defined use |
-| OI-3 | Does Ze answer a `SUPPORTED_ATTRIBUTES` query as responder? Answering is strictly more compliance and needs no permission. Ask only to decline | About 0.5 day. Attribute type 14 is not a declared constant |
-| OI-4 | Does Section 3.15.4 gain checklist rows, or is that the extraction sign-off's business? | **Answered 2026-08-02: this spec's business.** Extraction cannot take it |
-
-**OI-4 is answered, and the answer moves the work here.** The RFC 7296 extraction
-sign-off walked Section 3.15.4 on 2026-08-02 and found that it states the
-`INTERNAL_ADDRESS_FAILURE` obligation in indicative prose, with no capitalised
-RFC 2119 keyword. The extractor derives no site there, so the sign-off has nothing to
-map. `unsourced-ids` cannot carry it either: that field may only name a requirement id
-that already exists in `rfc/short/rfc7296.md`, and none does.
-
-So the obligation is real, is unextracted, and is invisible to every gate. Only a
-checklist row makes it visible, and the row cannot be written before the behavior it
-gates exists. This spec owns both.
+**What the ruling means for this file.** The AC numbers in the paragraph
+above are those of the spec as it stood on 2026-10-26. The criteria the
+sibling took are closed work and are not listed below, and the criteria this
+spec kept are restated, with new numbers, in "Acceptance Criteria". The older
+pause that waited on OI-1, the CP phases A to G, the id-allocation hazard and
+the verbatim CP obligations were removed on 2026-11-14: the ruling above
+ended them and the rows landed. The ten RFC 7296 rows live in
+`rfc/short/rfc7296.md` under these ids: `RFC7296-2.19-5`, `RFC7296-2.19-6`,
+`RFC7296-2.19-7`, `RFC7296-2.19-8`, `RFC7296-3.15.1-8`, `RFC7296-3.15.1-9`,
+`RFC7296-3.15.1-10`, `RFC7296-4-6`, `RFC7296-4-7`, `RFC7296-1.7-3`, and the
+Section 3.15.4 obligation is `RFC7296-3.15.4-1`.
+
+"Passing the EAP identity as the owner key" is made exact in "Design",
+row D-2: the key is the user the method authenticated, not the string the
+client typed.
+
+## Owner decisions open
+
+Only what no RFC text, agreed design or correctness argument decides. The
+spec stays `design` until each row has an answer.
+
+| Id | Decision | Evidence | Options | What each changes |
+|----|----------|----------|---------|-------------------|
+| OD-1 | May one `eap-user` hold several sessions at once (laptop and phone)? | `Registry.Acquire` (`eap/pool.go`) gives one address per owner, pool and family, and a second holder of the slot gets the SAME lease. Two live sessions of one user would both name one inner address. RFC 7296 is silent. For a configured peer a newly authenticated SA supersedes the old one (`finishResponderEstablish`, `engine/responder.go`) | (a) one session per user, the new one supersedes. (b) one session per user, the new one is refused. (c) several per user | (a) is the design written below, because it extends the existing supersede. (b) changes AC-9 to a refusal. (c) needs an owner key of user plus a device discriminator, a per-user maximum leaf, and a new AC for the drain it reopens |
+| OD-2 | The two admission bounds: half-open road-warrior handshakes in total, and per source address | `responderBusy` (`engine/reconcile.go`) bounds a configured peer to ONE half-open handshake. A road warrior has no configured peer, so nothing bounds it. A cookie proves only that the source receives packets. Clients behind one NAT share a source address | Leaf names are fixed in D-4. Open: the two default values, and whether zero may mean unlimited | The defaults decide how many clients may dial at one instant and how many of them one NAT may hold. AC-4 and the boundary table take the numbers |
+| OD-3 | Does a road warrior get the specific address it asks for? | `Registry.requestedLocked` (`eap/pool.go`) grants any requested address that is in the pool and free. `grantLocked` then forgets that it was another owner's last address. An authenticated user can therefore pick any free address, including one another user just released | (a) keep. (b) honor a request only when it equals that user's own last address. (c) add a per-user static address leaf and ignore requests otherwise | (a) lets a reconnecting client keep its address, and lets any user take an address a firewall rule may trust. (b) keeps reconnect and removes the choice. (c) adds a leaf and a commit check that the address is in the bound pool |
+| OD-4 | Does Ze stop sending the EAP Identity request? | RFC 7296 Section 3.16: "Note that since IKE passes an indication of initiator identity in the first message in the IKE_AUTH exchange, the responder SHOULD NOT send EAP Identity requests (type 1)." `Session.Begin` (`eap/eap.go`) sends one on every exchange, site-to-site included. It is a SHOULD NOT, and `ai/META-DECISIONS.md` schedules optional requirements after mandatory coverage. D-1 selects the `eap-md5` user by the Identity response, so that mode keeps the request under either option | (a) leave it, record the gap. (b) drop it for `eap-mschapv2` and `eap-tls` in this spec | (a) changes nothing on the wire. (b) changes the first EAP round of every existing EAP scenario and needs each re-proved |
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/ike/ipsec-14-responder.md` - the IKE responder role
-- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
-- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
-- [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP authentication and NAT traversal, for site-to-site and road-warrior peers
-- [ ] `ai/rules/plugins.md` - registration and proximity
-  -> Constraint: no new communication mechanism; the engine already owns its dispatch loop.
+- [ ] `docs/architecture/ike/ipsec-14-responder.md` - the responder role, and the pool-bound peer paragraph
+  -> Constraint: a lease is granted after authentication and before the selectors are narrowed; every Child SA of that IKE SA names it.
+- [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP and NAT traversal
+  -> Constraint: the page names the road warrior as the EAP use case; its `parseEAPUser` row is the only eap-user reader it lists.
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - declared by `remote_id.go`; remote identity policy
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between YANG and the engine
+- [ ] `ai/doors/access-security.md`, `ai/doors/forwarding.md`, `ai/doors/core.md`, `ai/doors/system.md`
+  -> Constraint: readers of IKE state use `ipsecinventory.Tunnels()` and `ikeprobe.Probe()`, never `ike/engine`.
+  -> Constraint: a datagram that fails to decrypt changes no SA state; every handler opens a protected message through `openProtected`.
+  -> Constraint: EAP-TLS builds only through `./le` (patched `crypto/tls`).
+  -> Constraint: `internal/core/eap` is core and imports no component, so the credential lookup is a value the engine hands in.
 - [ ] `ai/rules/goroutine-lifecycle.md`
-  -> Constraint: a per-client session is a goroutine per *lifecycle* (allowed), never a
-     goroutine per event. It MUST be reaped when its SA dies, or a road-warrior gateway leaks
-     one goroutine and one pool address per connection attempt.
+  -> Constraint: a per-client session is one goroutine per lifecycle, reaped when its SA dies.
 - [ ] `ai/rules/protocol.md`
-  -> Constraint: pool exhaustion must refuse the client with a clear reason, never assign a
-     duplicate or silently omit the address.
+  -> Constraint: a config the backend cannot apply exactly is refused at verify.
 
-### RFC Summaries (MUST for protocol work)
-- [ ] `rfc/short/rfc7296.md` - IKEv2
-  -> Constraint: Section 2.19 the initiator requests an internal address with CP(CFG_REQUEST)
-     in IKE_AUTH; the responder answers CP(CFG_REPLY) in the same exchange that carries SAr2/TSr.
-  -> Constraint: Section 3.15 CFG_REQUEST attribute values MAY be zero-length (a request);
-     the reply carries the assigned value.
-  -> Constraint: Section 2.16 EAP: the responder authenticates with its own long-term credential
-     in the first IKE_AUTH response, before the EAP exchange.
-- [ ] `rfc/short/rfc5216.md` - EAP-TLS
-  -> Constraint: Section 5.3 both sides MUST path-validate. The gateway validates the client
-     chain against `ra.Auth.ca-certificate`.
-- [ ] `rfc/short/rfc3748.md` - EAP
-  -> Constraint: Section 5.1 the authenticator begins with an Identity request; the identity is
-     therefore known before the method starts, which is what makes per-user lookup possible.
+### RFC Summaries (Scope: protocol)
+The authority is `rfc/full/`. Every sentence below was read there on 2026-11-14.
+- [ ] `rfc/short/rfc7296.md`
+  -> Constraint (Section 2.16): "For this reason, these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator."
+  -> Constraint (Section 2.16): "It is important that policy lookups and access control decisions use the actual authenticated identity."
+  -> Constraint (Section 2.6, descriptive, no keyword): "These attacks can be made less effective if a responder uses minimal CPU and commits no state to an SA until it knows the initiator can receive packets at the address from which it claims to be sending them."
+  -> Constraint (Section 2.6): "When a responder detects a large number of half-open IKE SAs, it SHOULD reply to IKE_SA_INIT requests with a response containing the COOKIE notification."
+  -> Constraint (Section 2.19): "In the case where the IRAS's configuration requires that CP be used for a given identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request, and terminate the Child SA creation with a FAILED_CP_REQUIRED error."
+- [ ] `rfc/short/rfc5216.md`
+  -> Constraint (Section 5.3, MUST): "Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS."
+  -> Constraint (Section 5.3, SHOULD, not MUST): "Since the EAP-TLS server is typically connected to the Internet, it SHOULD support validating the peer certificate using RFC 3280 [RFC3280] compliant path validation, including the ability to retrieve intermediate certificates that may be necessary to validate the peer certificate." Ze makes the validation mandatory by its own choice (`eapTLSServerConfig`), because an authenticator with no trust anchor authenticates nobody.
+- [ ] `rfc/short/rfc3748.md`
+  -> Constraint (Section 5.1): "It is RECOMMENDED that the Identity Response be used primarily for routing purposes and selecting which EAP method to use."
+  -> Constraint (Section 5.1): "EAP Methods SHOULD include a method-specific mechanism for obtaining the identity, so that they do not have to rely on the Identity Response."
+- [ ] `rfc/short/rfc4301.md`
+  -> Constraint (Section 4.4.3.4): "It is necessary to impose these constraints on creation of child SAs to prevent an authenticated peer from spoofing IDs associated with other, legitimate peers."
 
 **Key insights:**
-- `Session.handleIdentity` (`eap/eap.go`) sets `s.identity` and only then calls
-  `s.method.Start(...)`. That ordering is the hook for per-user credential resolution: the
-  method can be handed the right password after the identity is known and before it is used.
-- `MethodConfig.Password` (`eap/eap.go`) is a single value captured at
-  `newMSCHAPv2Method` (`eap/eap_mschapv2.go`), so it cannot express a user table as-is.
-- `PeerSession.responderBusy` gates ONE in-flight half-open handshake **per session**
-  (`reconcile.go`). Sharing one session across all road warriors would serialize them
-  and let one client's handshake block every other's; a per-client session avoids this and
-  reuses the established/DPD/rekey machinery unchanged.
+- The cookie gate needs a session today: `cookieRequired(ps)` and
+  `halfOpenResponderCount` read `activePeersMap`. Admission that creates the
+  session first puts state ahead of the gate.
+- MSCHAPv2 never compares the Identity response with anything.
+  `handleResponse` hashes the Name field of the Response, after `stripDomain`,
+  with the one configured password. `Session.Identity()` has no non-test caller.
+- `reconcilePeersWith` stops every running session whose name is not in
+  `newCfg.Peers`. A dynamic session kept in `activePeersMap` is stopped at the
+  next reload.
+- A `.ci` under `test/ipsec/` drives two `ze` daemons. Ze sends no CFG_REQUEST
+  (ruling of 2026-08-31), so a `.ci` road warrior reaches authentication and is
+  then refused its Child SA with FAILED_CP_REQUIRED. The proofs that carry an
+  address are the strongSwan scenarios and engine tests that feed wire messages
+  to `tryResponderSAInit`.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `internal/component/ike/engine/register.go` - `OnConfigure` (:250), pool built + discarded
-  (:313-320, :372), `matchResponderPeer` (:536), `tryResponderSAInit` (:557), dispatch
-- [ ] `internal/component/ike/engine/reconcile.go` - `PeerSession` (:18), `startPeerSession`
-  (:353), `run`/`runOnce` reconnect loop
-- [ ] `internal/component/ike/engine/responder.go` - `newResponderSA` (:25), `isEAPMode` (:49)
-- [ ] `internal/component/ike/engine/responder_eap.go` - `eapMethodConfig` (:22),
-  `startResponderEAP` (:88), `handleResponderEAP` (:164)
-- [ ] `internal/core/eap/eap.go` - `Session`, `MethodConfig` (:156), `Begin` (:163),
-  `handleIdentity` (:205), `Identity()` (:192)
-- [ ] `internal/core/eap/eap_mschapv2.go` - `newMSCHAPv2Method` (:38), `Start` (:48)
-- [ ] `internal/core/eap/pool.go` - `NewPool` (:35), `Allocate` (:89), `Release` (:126)
-- [ ] `internal/component/ike/wire/payload_cp.go` - complete CP codec, zero callers
-- [ ] `internal/component/ike/ipsec/types.go` - `RemoteAccessConfig` (:420), `EAPUser` (:399)
-- [ ] `test/interop-ipsec/scenarios/responder-eap-mschapv2/` - the shape that works today
+**Source files read:** (2026-11-14, each by its producing function)
+- [ ] `internal/component/ike/engine/register.go` - `tryResponderSAInit`: peer match, then `cookieRequired(ps)`, then the `responderBusy` compare-and-swap, then `newResponderSA`. `matchResponderPeer` compares the source address only, never the port
+- [ ] `internal/component/ike/engine/cookie.go` - `cookieRequired` reads true for a nil session and otherwise compares `halfOpenResponderCount` with `cookieThreshold`, default zero, which challenges every initiation
+- [ ] `internal/component/ike/engine/reauth_receive.go` - `matchReauthenticatingPeer` serves initiate peers only and refuses an EAP peer
+- [ ] `internal/component/ike/engine/cp.go` - `decideCPRequest` (one CP, type request, an address attribute), `assignVirtualIP` (returns nil for a peer with no pool; `errCPRequired` for a bound peer with no request; leases with `sa.PeerName` as owner), `substituteVirtualIP`, `releaseVirtualIP`, `moveVirtualIP`
+- [ ] `internal/component/ike/engine/responder.go` - `selectAuthChildSA` calls `assignVirtualIP` after authentication and before the selectors are narrowed; `finishResponderEstablish` supersedes an established SA only on the authenticated message
+- [ ] `internal/core/eap/pool.go` - `Registry.Acquire`, `requestedLocked`, `grantLocked`, `Release`
+- [ ] `internal/component/ike/engine/virtual_ip.go` - `virtualIPState.reload` rebuilds pools from `RemoteAccessConfig.Pools`; the registry is never replaced
+- [ ] `internal/component/ike/engine/sa.go` - `forgetKeys` calls `releaseVirtualIP`, the one release point
+- [ ] `internal/component/ike/engine/responder_eap.go` - `eapMethodConfig`, `eapTLSServerConfig` (certificate, OCSP staple, CA, CRLs and intermediates all read from `sa.PeerCfg.Auth`), `computeServerAuth` (no PSK fallback), `startResponderEAP`, `handleResponderEAP`
+- [ ] `internal/core/eap/eap.go` - `Session.Begin` sends the Identity request; `handleIdentity` stores the Identity response and starts the method; `MethodConfig.Password` is one value
+- [ ] `internal/core/eap/eap_mschapv2.go` - `handleResponse`; `internal/core/eap/mschapv2.go` - `stripDomain`
+- [ ] `internal/core/eap/eap_md5challenge.go` - `md5ChallengeMethod.Process` checks the Value against the one secret and reads no Name
+- [ ] `internal/core/eap/eap_tls.go` - `eapTLSPeerName` returns the certificate subject and is called only to build error text
+- [ ] `internal/component/ike/engine/remote_id.go` - `checkRemoteIdentity` runs no comparison when `remote-id` is empty; `remoteIDMatches` already carries the class gate and sub-tree matching
+- [ ] `internal/component/ike/engine/reconcile.go` - `reconcilePeersWith`, `PeerSession.responderBusy`, `PeerSession.resumption`
+- [ ] `internal/component/ike/engine/resumption.go` - `resumptionFor` keeps one ticket-key store per peer name, replaced when the authentication config changes
+- [ ] `internal/component/ike/engine/child.go` - `appendChildPolicies` builds one XFRM policy per pair of `ChildSA.Selectors`, the negotiated set
+- [ ] `internal/component/ike/ipsec/types.go` - `RemoteAccessConfig` (IKEGroup, ESPGroup, Auth, Pools, Users); no selectors, no pool choice
+- [ ] `internal/component/ike/ipsec/config.go` - `parseRemoteAccess` reads the authentication block with `parseAuthConfig`, the peer's parser
+- [ ] `internal/component/ike/ipsec/validate.go` - `ValidateRemoteAccess` (pools, a password or a certificate name per user), `ValidatePKIRefs` (iterates `c.Peers` only), `ValidateVirtualIPPoolBindings`
+- [ ] `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - `container remote-access`. No `configuration-payload`, `lease-lifetime` or `maximum-leases` leaf exists
+
+**What is true today, by claim:**
+
+| Fact | Producer |
+|------|----------|
+| An unconfigured source is dropped | `tryResponderSAInit`, after both matchers return nil |
+| The cookie check runs after a session is found and before any SA exists | `tryResponderSAInit`, the block above the `responderBusy` compare-and-swap |
+| A pool-bound respond peer is leased an address, owner key the peer name | `assignVirtualIP` |
+| A peer with no pool proposes its own selectors and gets them, limited by its configured selectors and the engine-wide inner-selector registry | `assignVirtualIP` returns nil; `narrowChildSelectorsIn` (`engine/ts_narrow.go`) |
+| A second holder of one owner slot gets the same lease | `Registry.Acquire` |
+| The lease is released when the IKE SA closes, and an IKE rekey moves it | `forgetKeys`, `moveVirtualIP` |
+| The kernel receives the narrowed selectors | `appendChildPolicies` reads `ChildSA.Selectors` |
+| The EAP credential is the peer's one password, or its certificate pair | `eapMethodConfig` |
+| The user name MSCHAPv2 hashes comes from the client and selects nothing | `handleResponse` |
+| The EAP-TLS client certificate is validated for chain and revocation; its name is used in error text only | `eapTLSServerConfig`, `eapTLSPeerName` |
+| A commit accepts a remote-access block with no gateway certificate | `ValidatePKIRefs` and `ValidateRemoteAccess` contain no such check |
+| A commit refuses a remote-access certificate name the candidate PKI lacks | the `ze:reference` statements on the two `x509` leaves and on `eap-user certificate`, enforced by `config.ValidateCustomSections` (comment on `ValidatePKIRefs`) |
+| A reload reads the remote-access block only to rebuild pools | `virtualIPState.reload`. `IPsecConfig.Changed` has no non-test caller |
 
 **Behavior to preserve:**
-- Site-to-site peers keep exact-match admission and priority. A configured peer address must
-  never be diverted into the remote-access path.
-- `responderBusy` semantics per session (RFC 7296 Section 2.4 accept-in-parallel) unchanged.
-- Every existing interop scenario unchanged and green.
-- A config with no `remote-access` block behaves exactly as today.
+- A source that matches a configured peer is served by that peer and is never diverted.
+- One half-open handshake per configured peer, accept-in-parallel for an established SA (RFC 7296 Section 2.4).
+- The pool-bound respond peer: its owner key stays the peer name, its leases, refusals and selectors unchanged.
+- The site-to-site EAP path: one password in `MethodConfig.Password`.
+- A config with no `remote-access` block behaves as today.
+- Every existing interop scenario and `.ci`.
 
 **Behavior to change:**
-- An unsolicited IKE_SA_INIT from an unconfigured source is admitted when `remote-access` is
-  configured (today: dropped).
-- `eap-user` entries become live credentials.
-- The virtual IP pool is assigned rather than discarded.
+- An unsolicited IKE_SA_INIT from an unconfigured source is served when `remote-access` is configured.
+- `eap-user` entries become the credentials of that service.
+- A commit refuses a remote-access block that cannot authenticate the gateway or names no pool.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| The lease registry | `internal/core/eap/pool.go` `Registry`, `Acquire`, `Release` | One engine-wide authority: one address per owner, pool and family; the owner's last address preferred; never re-issues a live lease after a pool edit | Extends: a road-warrior SA passes the authenticated user as owner in place of `sa.PeerName`. No second allocator |
+| The Configuration-payload decision | `engine/cp.go` `decideCPRequest`, `assignVirtualIP`, `substituteVirtualIP` | Answers a pool-bound peer's CFG_REQUEST, refuses a bound peer that sent none with FAILED_CP_REQUIRED, narrows TSi to the lease | Extends: a road warrior is always pool-bound, so "CP required" is the existing bound-peer rule and needs no new leaf |
+| The cookie gate | `engine/cookie.go` `cookieRequired`, `verifyCookie`, `mintCookie`; `engine/register.go` `tryResponderSAInit` | Challenges an initiation before the half-open slot is taken, for a matched session | Extends: the same gate runs for a source with no session, before any session exists, and is unconditional there |
+| The half-open slot | `engine/reconcile.go` `PeerSession.responderBusy`; `engine/cookie.go` `halfOpenResponderCount` | One half-open handshake per configured peer; the count is derived from the sessions | Extends: each road-warrior session holds the same slot, so a derived count covers them. Adds the two bounds of D-4, which a per-peer slot cannot express |
+| The peer session and its supersede | `engine/reconcile.go` `PeerSession`, `startPeerSession`, `stopPeerSession`; `engine/responder.go` `finishResponderEstablish` | Owns one peer's SA, DPD, rekey and teardown; a newly authenticated SA supersedes the established one | Extends: one session per road-warrior handshake, built from the remote-access block. A parallel road-warrior FSM is refused |
+| The EAP session and its methods | `internal/core/eap/eap.go` `Session`, `MethodConfig`; `eap_mschapv2.go`, `eap_md5challenge.go`, `eap_tls.go` | Authenticates against one credential | Extends: `MethodConfig` gains a credential lookup the method calls with the name it authenticates, and the session reports the authenticated user. `Password` keeps working for a site-to-site peer |
+| PAD matching | `engine/remote_id.go` `checkRemoteIdentity`, `remoteIDMatches` | Compares IDi with `remote-id`; no check when `remote-id` is empty; sub-tree and range matching landed | Does not apply as the authorization: RFC 7296 Section 2.16 puts access control on the EAP-authenticated identity, not on IDi. The terminator refusal in `checkRemoteIdentity` still runs |
+| The reconcile path | `engine/reconcile.go` `reconcilePeersWith`, `peerConfigChanged` | Stops a session whose peer is gone or changed, keeps the rest | Extends: road-warrior sessions are reconciled against the remote-access block and their user entry (D-6). The removal loop over `newCfg.Peers` must not see them as removed peers |
+| Certificate, CRL and OCSP wiring | `engine/responder_eap.go` `eapTLSServerConfig` | Reads the certificate, its OCSP staple, the CA, its CRLs and the intermediates by the names in `sa.PeerCfg.Auth` | Extends by reuse: a session built from the remote-access `authentication` block reads the same function, so it inherits all of it. `parseRemoteAccess` reads the block with the peer's parser |
+| EAP-TLS resumption store | `engine/resumption.go` `resumptionFor`, `forgetResumption`; `PeerSession.resumption` | One ticket-key store per peering, by peer name | Extends: one store for the remote-access block, shared by its sessions, because a store per client dies with the client and its tickets could never be redeemed |
+| PKI reference check | `ze:reference` in `ze-ipsec-conf.yang`; `config.ValidateCustomSections` | Refuses a name the candidate PKI does not hold | Does not change: the former "unknown reference" criterion is already met. This spec adds the presence checks only |
+| Pool doctor check | `engine/doctor_virtual_ip.go` `checkIPsecVirtualIPPool`, code `doctor-ipsec-virtual-ip-pool` | Warns on pool utilization | Does not change. This spec adds its own checks beside it (Integration Checklist) |
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-Inbound UDP IKE_SA_INIT from an arbitrary source address, on the IKE (500) or NAT-T (4500) port.
+Inbound UDP IKE_SA_INIT from an arbitrary source, on the IKE or the NAT-T socket.
 
 ### Transformation Path
-1. `dispatchInbound` -> no SATable entry, `ExchangeIKESAInit`, not a response.
-2. `matchResponderPeer(src)` -> nil (no configured peer).
-3. **NEW** `matchRemoteAccess(src)` -> if `remote-access` is configured, create (or find) a
-   per-client `PeerSession` from a `SiteToSitePeer` synthesized from `RemoteAccessConfig`.
-4. `newResponderSA` -> IKE_SA_INIT exchange -> IKE_AUTH.
-5. IKE_AUTH carries IDi, no AUTH (EAP) plus **CP(CFG_REQUEST)**: stash the request on the SA.
-6. `startResponderEAP` -> gateway AUTH from `ra.Auth` -> EAP-Request/Identity.
-7. EAP rounds; **NEW** identity resolves to an `eap-user` before the method starts.
-8. On EAP success + AUTH-from-MSK: **NEW** allocate from the pool, build CP(CFG_REPLY),
-   narrow TSr to the assigned address, send with SAr2.
-9. SA teardown (`StateDead`, DPD, delete, reap): **NEW** release the address, reap the session.
+1. `deliverDatagram` finds no SATable entry; `tryResponderSAInit` checks the header.
+2. `matchResponderPeer`, then `matchReauthenticatingPeer`. A match is served as today and the steps below do not run.
+3. **New.** No match and `remote-access` is configured: the cookie is verified from the datagram alone (initiator SPI, nonce, source address). A missing or wrong cookie is answered with a fresh one. Nothing is stored.
+4. **New.** With a verified cookie, the two admission bounds are checked. Over a bound, the initiation is dropped and counted.
+5. **New.** One session is created for this initiator SPI from the remote-access block, with its half-open slot taken. `newResponderSA` and the IKE_SA_INIT exchange run unchanged.
+6. IKE_AUTH carries IDi and no AUTH. `startResponderEAP` signs with the gateway certificate named in the remote-access block and starts EAP. A CFG_REQUEST is kept on the SA (`decideCPRequest`).
+7. **New.** The method asks the credential lookup for the name it authenticates. An unknown name gets the same EAP-Failure as a wrong credential.
+8. **New.** On success the session records the authenticated user. A live session of the same user is superseded (OD-1).
+9. The final IKE_AUTH runs `assignVirtualIP` with that user as owner, then `substituteVirtualIP`, then the Child SA install, all unchanged.
+10. SA end (`forgetKeys`) releases the lease. **New:** the session is removed from the road-warrior set and its goroutine ends.
+11. **New.** A config apply ends the sessions whose user or block changed (D-6).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| UDP transport <-> engine dispatch | `transport.Packet` | [ ] |
-| engine <-> EAP session | `eap.MethodConfig`, `eap.Session` | [ ] |
-| engine <-> pool | `eap.Pool.Allocate`/`Release` | [ ] |
-| engine <-> wire | `wire.PayloadCP` | [ ] |
+| UDP transport to engine dispatch | `transport.Packet` | No |
+| engine to EAP session | `eap.MethodConfig` with the credential lookup; the session's authenticated user | No |
+| engine to lease registry | `Registry.Acquire` owner argument | No |
+| config tree to engine | `parseRemoteAccess` (`ipsec/config.go`) | No |
+| engine to readers of IKE state | `PeerSession.Info`, `ipsecinventory.Tunnels()` | No |
+
+### Changed-Wire Census
+
+**Search evidence:** scope `internal/component/ike`, `internal/core/eap`,
+`cmd/ze`; terms `RemoteAccess`, `EAPUser`, `.Users`, `NewPool(`,
+`eapTLSPeerName`; positive control: `virtualIPState.reload` was found as the
+one engine reader of `RemoteAccessConfig.Pools`. `gopls references` on
+`IPsecConfig.RemoteAccess`, `EAPUser.Password`, `EAPUser.Certificate` and
+`Session.Identity`. No IKE payload format changes: the exchange uses the
+payloads `wire` already encodes. The wires that change are the config tree
+and the session inventory.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| `vpn ipsec remote-access` config tree | writer | `ipsec/yang/ze-ipsec-conf.yang` `container remote-access`; the config editor and every config file in the repository | grep of the YANG for `remote-access`; `test/parse/ipsec-remote-access.ci` is a repository config | Change: new leaves (D-3, D-4). Every repository config with the block is converted in the same work (`ai/META-DECISIONS.md`, config syntax) |
+| `vpn ipsec remote-access` config tree | reader | `ipsec/config.go` `parseRemoteAccess`, `parseEAPUser`; `ipsec/validate.go` `ValidateRemoteAccess`; `engine/virtual_ip.go` `reload` | grep `RemoteAccess` over the scope, nine non-test sites | Change: parse and validate the new leaves; `reload` unchanged |
+| Peer and SA inventory | writer | `engine/reconcile.go` `PeerSession.Info`; `engine/register.go` `PeerInfoMap`, `ActivePeers` | `gopls symbols` on both files | Change: road-warrior sessions appear, named by user |
+| Peer and SA inventory | reader | `show vpn ipsec` handlers; `internal/core/ipsecinventory` `Tunnels()`; an operator's scripts over the JSON | `ai/doors/access-security.md`, "Two core leaves" | Preserve the existing fields; the user is an added field |
+| IKEv2 and EAP messages | writer | Ze's responder: `startResponderEAP`, `handleResponderEAP`, `sendResponderEAP` | read of `engine/responder_eap.go` | Preserve: no format change. OD-4 would change the first EAP round |
+| IKEv2 and EAP messages | reader | the road-warrior client outside the repository (strongSwan, an operating system's client) | scenario `virtual-ip-assignment` runs strongSwan as that client | Preserve |
 
 ### Integration Points
-- **Superseded 2026-07-31:**
-
-  > ~~`eap.Pool` gains no API; `Allocate`/`Release` are already the right shape.~~
-
-  `Allocate` takes no identity (`eap/pool.go`), so it can express neither a
-  per-identity quota nor address reuse across a rekey. The signature changes.
-- **Superseded 2026-07-31:**
-
-  > ~~`wire.PayloadCP` gains no API; the codec is complete.~~
-
-  The codec needs the RESERVED-bit mask on both sides, an attribute-count bound, and four
-  missing constants (types 5, 13, 14 and 15).
-- `eap.MethodConfig` gains a per-user credential resolver (the one genuinely new SDK-ish surface).
+- `tryResponderSAInit` - gains the road-warrior arm after both matchers.
+- `cookieRequired` and `halfOpenResponderCount` - must answer for a source with no session, and count road-warrior sessions.
+- `lookupPeerSession`, `TerminatePeerSA`, `TerminateAllSAs`, `PeerInfoMap` - must find a road-warrior session.
+- `assignVirtualIP` - the owner argument.
+- `eapMethodConfig` - builds the lookup for a remote-access session.
 
 ### Architectural Verification
-- [ ] No bypassed layers - admission stays in dispatch, auth stays in the EAP session
-- [ ] No unintended coupling - the pool is owned by the engine, not reached from `eap` internals
-- [ ] No duplicated functionality - reuses `PeerSession`, `newResponderSA`, the EAP session, the
-      CP codec and the pool; builds no parallel FSM
-- [ ] Registration over hardcoding - no new per-feature switch in a shared package
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding, outbound | No | |
+| Registration over hardcoding, inbound | No | |
+
+## Design
+
+One row per hole. "Decided by" names the text or the argument, so no row is a
+question.
+
+| Id | Hole | Design | Decided by |
+|----|------|--------|------------|
+| D-1 | Which name is the user | The user is the `eap-user` entry whose credential the method verified. `eap-mschapv2`: the entry named by the Response's Name field after `stripDomain`. `eap-md5`: the entry named by the Identity response, which is the name `md5ChallengeMethod.Process` says the exchange authenticates. `eap-tls`: the entry whose `certificate` leaf names the PKI entry equal, byte for byte, to the client's validated leaf certificate. IDi, and the Identity response under `eap-mschapv2` and `eap-tls`, select nothing and authorize nothing | RFC 7296 Section 2.16 ("actual authenticated identity"); RFC 3748 Section 5.1 (both sentences quoted above); RFC 5216 Section 5.3 MUST for `eap-tls` |
+| D-2 | The owner key | The lease owner, the session index and every log and show field carry the `eap-user` list key of D-1, never a string the client sent. `CORP\alice` and `alice` are one owner because both resolve to the entry `alice`. A name that resolves to no entry has no owner and no lease | Correctness: one credential must not yield several owners, or one user drains the pool that `Registry.Acquire` bounds per owner |
+| D-3 | Pool binding, and CP mandatory | The remote-access block gains a `virtual-ip-pool` leaf naming one of its pools, read exactly as a peer's leaf is. Commit refuses a block with `eap-user` entries and no pool. Every road-warrior SA is therefore pool-bound: no CFG_REQUEST is FAILED_CP_REQUIRED, TSi is the lease, and the kernel gets the lease (`appendChildPolicies`). The block also gains the peer's `traffic-selector` list with the same grammar and the same meaning, checked by `selectorsCoverPool`; an empty list accepts any TSr the client proposes, as it does for a peer | RFC 4301 Section 4.4.3.4 (quoted above): a user who picks its own inner address can take another user's. RFC 7296 Section 2.19 FAILED_CP_REQUIRED |
+| D-4 | No state before the cookie check, with a bound | For a source with no session the cookie is always demanded, whatever `cookie-threshold` says, and it is verified from the datagram alone. Only then are the bounds checked and a session created. Two leaves under `remote-access` state the bounds: `half-open-limit` (all road-warrior handshakes not yet authenticated) and `half-open-limit-per-address` (those from one source address). A handshake that does not authenticate within `responderHandshakeTimeout` is reaped and its session removed. Established sessions are bounded by the pool, because each needs a lease | Correctness: without the cookie a forged-source flood fills the bound and denies every real client. The RFC 7296 Section 2.6 sentence is advice, and its SHOULD is conditional on "a large number"; neither is cited as a MUST. Default values: OD-2 |
+| D-5 | The session key behind a NAT | A session is created per verified initiator SPI and is found afterward only through the SATable, as a retransmit is today. It is never found by source address, so two clients behind one NAT are two sessions. After authentication the session is indexed by user | Correctness: `matchResponderPeer` keys on the source address, which two clients behind one NAT share |
+| D-6 | A user removed or changed | On every apply, each road-warrior session is compared with the new block. A session whose user entry is gone, or whose password or certificate changed, is ended with an IKE Delete and its lease released. A change to the block's groups, authentication, pool binding or selectors ends every session, the same answer `peerConfigChanged` gives a peer. A pool range edit follows the registry's existing rule. An IKE SA rekey does not re-run EAP and needs no check, because the removal already ended the session. A new IKE_AUTH, reauthentication included, runs EAP against the table in force. An EAP-TLS resumption re-checks that the user entry still exists and still names the certificate | Correctness: a removed credential must stop working. `ai/doors/access-security.md` states the same rule for logins |
+| D-7 | Commit refusal without a gateway certificate | `validateIPsecSections` refuses a remote-access block with `eap-user` entries whose `authentication x509 certificate` is empty, for every mode, since every remote-access mode is EAP. It refuses `mode eap-tls` with no `ca-certificate`, as Ze's own rule. Each refusal names the leaf to set | RFC 7296 Section 2.16 MUST (quoted above). The runtime backstop exists: `computeServerAuth` |
+| D-8 | Unknown user | The method answers an unknown name exactly as it answers a wrong credential: same packets, same EAP-Failure. The operator's log names the attempted name once | Correctness: a different answer tells an attacker which names exist |
 
 ## Risks & Assumptions
 
 ### Assumptions
-| ID | Assumption | Basis | If wrong | Validated by | Status |
-|----|-----------|-------|----------|--------------|--------|
-| A-1 | A `SiteToSitePeer` synthesized from `RemoteAccessConfig` drives the existing responder FSM unchanged | scenario `responder-eap-mschapv2` proves the same FSM works for EAP with a peer struct | a parallel responder path would be needed, much larger | interop scenario `remote-access-eap-mschapv2` | unvalidated |
-| A-2 | `wire.PayloadCP` round-trips the attributes strongSwan sends | codec reads/writes per RFC 7296 3.15 but has never run against a real peer | CP codec fixes needed first | unit round-trip + interop | **broken** (2026-07-31). `ReadFrom` reads a 16-bit attribute type at `wire/payload_cp.go`, but RFC 7296 Section 3.15.1 defines 1 reserved bit plus a 15-bit type. A peer that sets the reserved bit on `INTERNAL_IP4_ADDRESS` yields type `0x8001`, and Ze reads it as an unknown attribute. The "if wrong" column called this correctly: codec fixes come first |
-| A-3 | `eap.Pool.Allocate` is safe under concurrent road-warrior handshakes | `pool.go` takes a lock in `allocateV4`/`allocateV6` | duplicate address assignment | `-race` test with concurrent Allocate | unvalidated |
-| A-4 | A per-client `PeerSession` can be reaped without disturbing configured peers | `activePeersMap` is name-keyed and reconcile iterates config peers | reconcile would delete or resurrect dynamic sessions | reconcile test with both kinds present | unvalidated |
-| A-5 | strongSwan can be driven as a road-warrior client in the existing lab | the lab already runs strongSwan as initiator (every non-responder scenario) | interop proof needs another client | scenario `remote-access-eap-mschapv2` | unvalidated |
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | A session built from the remote-access block drives the responder FSM unchanged | `newResponderSA`, `startResponderEAP` and `eapTLSServerConfig` read only `sa.PeerCfg` and the two groups; scenario `responder-eap-mschapv2` runs the same FSM | a parallel responder path, much larger | scenario `remote-access-eap-mschapv2` | unvalidated |
+| A-2 | Road-warrior sessions can live outside the removal loop of `reconcilePeersWith` and still be found by `lookupPeerSession`, `halfOpenResponderCount`, `PeerInfoMap` and the terminate functions | each reads `activePeersMap` under `peersMu` today | either reload stops every road warrior, or show, clear and the cookie count miss them | `TestRemoteAccessSessionSurvivesUnrelatedReload`, `TestRemoteAccessSessionsVisible` | unvalidated. The earlier form of this assumption ("reconcile iterates config peers") was wrong: the removal loop iterates the running sessions |
+| A-3 | A PKI certificate entry can hold a client certificate with no private key, so `eap-user certificate` can name one | `eapTLSServerConfig` checks `entry.PrivateKey == nil` itself, which implies the store allows it | the `eap-tls` pin of D-1 needs another carrier | a parse test of such an entry | unvalidated |
+| A-4 | strongSwan as a client sends the MSCHAPv2 Name it is configured with, and a CFG_REQUEST in IKE_AUTH | scenario `virtual-ip-assignment` passes with `vips = 0.0.0.0` | the interop scenarios need another client setting | scenario `remote-access-eap-mschapv2` | unvalidated |
+| A-5 | strongSwan reports a refused road warrior in a form a check can read | not read: no strongSwan source is in this checkout | the negative scenarios assert on Ze's side only | read the strongSwan function before each negative scenario is written (`ai/rules/interop-and-goal-validation.md`) | unvalidated |
+| A-6 | A resumed EAP-TLS session exposes the client certificate the full handshake validated | the comment on `resumptionFor`: crypto/tls carries the chain in the ticket | D-6 cannot re-check a resumed user and must refuse resumption for remote access | a resumption test over a removed user | unvalidated |
+| A-7 | An `eap-md5` client sends the user name in its Identity response | the comment in `md5ChallengeMethod.Process` | D-1 for `eap-md5` must read the Response's Name field | scenario or `.ci` with an `eap-md5` user | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Admitting unconfigured sources is a DoS surface: each attempt costs a goroutine, an SA and a pool address | memory/goroutine growth under a flood | cap concurrent half-open remote-access sessions; release the address only on success, never on half-open; reuse the existing `responderBusy` per-client gate |
-| R-2 | A dynamic session leaks when its SA dies in an unusual state | goroutine count grows across connect/disconnect cycles | explicit reap path plus a test that cycles N clients and asserts the session map returns to its base size |
-| R-3 | Pool exhaustion silently assigns nothing and the client establishes with no address | client connects but cannot route | refuse the exchange with a clear log and a NOTIFY; never send an empty CFG_REPLY |
-| R-4 | Per-user lookup changes `eap.Session` shape and breaks the site-to-site EAP path | scenario `responder-eap-mschapv2` goes red | keep `MethodConfig.Password` working as-is; the resolver is additive and only consulted when set |
-| R-5 | The reaper races the dispatch goroutine, which may be mid-handshake for that client | `-race` failures in the ike suite | reuse the existing atomic/ownedSA discipline; run `-race` on the engine package |
-| R-6 | **The `2.19-5` guard fails open on the CFG type.** The idiomatic `if cpReq != nil` hands a leased address to a peer that sent `CP(CFG_SET)` | none. The happy path passes, and an ordinary client never exercises the CFG_SET case | The four conditions in ONE function returning an explicit `ok`. Run the CFG-type mutation and the attribute-presence mutation SEPARATELY |
-| R-7 | **Leases are never released, and the pool exhausts under normal churn.** `Release` has no non-test caller and no lease concept exists | `Available()` decreases monotonically. The first report is a user who cannot connect | Phase B. A lease table plus expiry, and a doctor check that surfaces utilization before exhaustion is total |
-| R-8 | **Only the direct IKE_AUTH drop site is wired, and the feature silently fails against real clients.** Road warriors send the CFG_REQUEST in the final EAP IKE_AUTH | Unit tests pass, and the strongSwan scenario fails or hangs | AC-22's negative drives the EAP path specifically. Its mutation must redden ONLY the negative |
-| R-9 | **The leased address never reaches the traffic selectors.** Allocation placed after the child response payloads are built leaves the client's proposal in place | The client gets an address and cannot route. Interop fails at the traffic stage, not the negotiation stage | Ordering constraint 1 in "Configuration Payload Phases". The interop scenario asserts traffic flows, not merely that a CFG_REPLY arrived |
-| R-10 | **Section 4 ids are stranded because the pilot lands `4-4` first.** The pilot's own phase list schedules WP-10 before WP-9 | `check_id_allocation` fails naming `4-2` | "Id allocation" above. Recompute at landing, and prefer deferring `4-4` |
-| R-11 | **The RESERVED-bit defect is not fixed, and `3.15.1-4` goes green under a test that never sets the bit.** A conforming peer stays misparsed | none. A peer that never sets the bit interoperates | AC-21's second clause IS the reserved-bit case, and its mutation reverts the mask |
-| R-12 | **`2.19-6` stops the IKE SA.** "Fail the request" reads as "end the session" | The client retries in a loop | AC-20 asserts the SA is still established after the refusal |
-| R-13 | **Engine line numbers move under a concurrent session.** A second agent edits `internal/component/ike/engine/` now | A tag cites a line holding different code | Every citation in this spec names its function. Re-locate by function name before you quote a line in a tag |
+| R-1 | Admission is a denial-of-service surface | goroutine or session count grows under a flood | D-4: cookie first, two bounds, reap at the handshake timeout; AC-3, AC-4 |
+| R-2 | A session leaks when its SA dies in an unusual state | session count grows across connect and disconnect cycles | one removal point beside `forgetKeys`; AC-10 |
+| R-3 | The credential lookup breaks the site-to-site EAP path | scenario `responder-eap-mschapv2` goes red | `MethodConfig.Password` is untouched when no lookup is set |
+| R-4 | The lookup resolves from the Identity response under MSCHAPv2 | none on the happy path: an honest client sends one name twice | AC-6 sends two different names and asserts which one owns the lease |
+| R-5 | Reload stops every road warrior | every client reconnects after an unrelated commit | A-2; AC-12 |
+| R-6 | The reaper races the dispatch goroutine | race reports in the engine tests | reuse the `ownedSA` discipline; the engine tests run under the race detector |
+| R-7 | A road-warrior source later becomes a configured peer's address | the client is served by the wrong block | matching order is fixed: configured peers first (AC-2) |
+| R-8 | Two specs build two EAP-TLS allow-lists | `spec-eap-tls-identity-authorization` designs a list of its own | the Depends row; its design pass must take `eap-user` as the server-role list |
 
-## Wiring Test (MANDATORY)
+## Blast Radius
 
-| Entry Point | -> | Feature Code | Test |
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | An unauthorized client gets a tunnel, or one user takes another's inner address, or a flood denies the IKE service to configured peers. Nothing changes for a config with no `remote-access` block |
+| How is it reverted? | A commit revert. The new leaves are additive; a config that uses them stops parsing after a revert |
+| Who else touches this path? | `spec-eap-tls-identity-authorization` (EAP-TLS identity), `spec-rfc4301-architecture-gaps` (`remote_id.go`; its PAD matching phase has landed and this spec does not change that file, so there is no dependency), `spec-yang-single-source-of-truth` (owns the journal row on the inert subtree) |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| IKE_SA_INIT from an unconfigured source, remote-access configured | -> | `matchRemoteAccess` -> dynamic `PeerSession` | `TestRemoteAccessAdmitsUnconfiguredSource` |
-| EAP identity of a configured `eap-user` | -> | per-user credential resolver | `TestRemoteAccessResolvesEAPUserPassword` |
-| CP(CFG_REQUEST) in IKE_AUTH | -> | pool allocate + CFG_REPLY | `TestRemoteAccessAssignsVirtualIP` |
-| SA teardown | -> | pool release + session reap | `TestRemoteAccessReleasesAddressOnTeardown` |
-| strongSwan road-warrior client | -> | the whole path | `test/interop-ipsec/scenarios/remote-access-eap-mschapv2` |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+| IKE_SA_INIT from an unconfigured source, `remote-access` configured | → | the road-warrior arm of `tryResponderSAInit` | `test/ipsec/ipsec-remote-access-admits-unconfigured-source.ci` |
+| MSCHAPv2 Response naming an `eap-user` | → | the credential lookup | `TestRemoteAccessAuthenticatesTheNamedUser` |
+| final IKE_AUTH of an authenticated user | → | `assignVirtualIP` with the user as owner | `TestRemoteAccessLeaseOwnerIsTheAuthenticatedUser` |
+| commit that removes an `eap-user` | → | the road-warrior reconcile | `test/ipsec/ipsec-remote-access-user-removed-ends-session.ci` |
+| strongSwan road-warrior client | → | the whole path | interop scenario `remote-access-eap-mschapv2` |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | IKE_SA_INIT from an unconfigured source, `remote-access` configured | admitted; a per-client session is created |
-| AC-2 | IKE_SA_INIT from an unconfigured source, NO `remote-access` configured | dropped exactly as today |
-| AC-3 | IKE_SA_INIT from a source matching a configured site-to-site peer, `remote-access` also configured | handled by the site-to-site peer, never diverted |
-| AC-4 | EAP identity matching an `eap-user` with a password | authenticates with that user's password |
-| AC-5 | EAP identity matching no `eap-user` | EAP-Failure; no fallback credential is tried |
-| AC-6 | two road warriors with different identities | each authenticates with its own credential |
-| AC-7 | CP(CFG_REQUEST) asking for INTERNAL_IP4_ADDRESS | CFG_REPLY carries an address from the pool, plus netmask and any configured DNS/domain. ~~(netmask unconditional)~~ **Amended 2026-07-31:** `RFC7296-3.15.1-1` permits at most one netmask, and only beside an `INTERNAL_IP4_ADDRESS`. An IPv6-only lease carries no netmask. See AC-19 |
-| AC-8 | responder TSr after assignment | narrowed to the assigned address |
-| AC-9 | pool exhausted | client refused with a clear reason; no duplicate address; no empty CFG_REPLY |
-| AC-10 | SA teardown | the address returns to the pool (`Available()` restored) and the session is reaped |
-| AC-11 | N connect/disconnect cycles | goroutine count and session map return to base |
-| AC-12 | `remote-access mode eap-tls` with no `ca-certificate` | config verify rejects (RFC 5216 Section 5.3) |
-| AC-13 | `ra.Auth` certificate/ca-certificate absent from candidate PKI | config verify rejects naming the reference |
-| AC-14 | strongSwan road-warrior client, EAP-MSCHAPv2 | establishes, receives a virtual IP, passes traffic |
-| AC-15 | concurrent `Allocate` under `-race` | no duplicate address, no race report |
+Numbering restarts here. The criteria the sibling took on 2026-10-26 are not
+renumbered into this table.
 
-**Added 2026-07-31 (owner split).** One criterion per homed RFC row, plus two for the
-lease lifecycle the rows depend on. Each needs a tagged test pair, and each mutation must
-redden the half named.
-
-| AC ID | Row | Input / Condition | Expected Behavior |
-|-------|-----|-------------------|-------------------|
-| AC-16 | `2.19-2` | any IKE_AUTH response carrying both CP and SA | the CP payload index is strictly less than the SA payload index |
-| AC-17 | `2.19-3` | an EAP session | the CFG_REPLY appears in the response carrying SAr2, which is the final IKE_AUTH, not the first. A non-EAP session puts it in the only response. Both flows are asserted in one test |
-| AC-18 | `2.19-5` | a request with no CP, or a CP whose type is Reply, Set or ACK, or a CP with zero attributes | the response carries no CP payload. A well-formed request DOES get a CFG_REPLY, so the guard is not refusing everything |
-| AC-19 | `3.15.1-1` | a CFG_REPLY | at most one netmask, and one only when the reply also carries `INTERNAL_IP4_ADDRESS`. An IPv6-only lease carries no netmask |
-| AC-20 | `2.19-6` | the policy requires CP and the client sent none | the response carries `FAILED_CP_REQUIRED`, no SA payload and no TS payload. The IKE SA stays established, and no Child SA was installed |
-| AC-21 | `3.15.1-4` | a CFG_REQUEST carrying unknown attribute types beside `INTERNAL_IP4_ADDRESS` | a correct CFG_REPLY. The unknown types appear in neither the reply nor any state. `INTERNAL_IP4_ADDRESS` carrying the RESERVED bit is recognized as type 1 and answered |
-| AC-22 | `4-2` | a CFG_REQUEST in the first IKE_AUTH request, in both the direct and the EAP flow | parsed, and its address attribute recognized. A CFG_REQUEST arriving only in the final EAP IKE_AUTH is also recognized |
-| AC-23 | `4-3` | a client requesting only IPv6 against an IPv4-only pool | no address of the wrong family. The session still completes, per RFC 7296 Section 3.15.4 |
-| AC-24 | `1.7-1` | attribute type 5 in a CFG_REQUEST | ignored. It appears in no reply and changes no state. The rest of the payload, and the SA proposal in the same message, are processed as usual |
-| AC-25 | `3.15.1-3` | conditional on OI-3. A zero-length `SUPPORTED_ATTRIBUTES` request | if answered: a reply whose value length is a multiple of 2, derived from the handler set rather than a hardcoded list. If declined: no `SUPPORTED_ATTRIBUTES` is emitted |
-| AC-26 | lease expiry | a lease whose configured lifetime passes after its IKE SA ends | the address returns to the pool. `Available()` recovers without a new connection |
-| AC-27 | lease quota | one identity opening more sessions than the configured maximum | the excess is refused. The pool does not drain from a single credential |
-| AC-28 | IPv6 pool longer than `/64` | a `/96` pool | every leased address falls inside the configured prefix |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | IKE_SA_INIT with a valid cookie from an unconfigured source; `remote-access` configured | Ze answers IKE_SA_INIT and the handshake reaches IKE_AUTH; `show vpn ipsec` lists one road-warrior session | The same datagram with no `remote-access` block is still dropped and logged as unconfigured, because no service was configured |
+| AC-2 | A source that matches a configured respond peer; `remote-access` also configured | The configured peer's session serves it, with that peer's credentials and selectors | None: a configured address is never served by the remote-access block |
+| AC-3 | IKE_SA_INIT from an unconfigured source with no cookie, or a wrong one, at any `cookie-threshold` | Ze answers with a COOKIE notification, and the session count, SATable size and goroutine count are what they were | A wrong cookie is answered with a fresh one and is not rejected (`RFC7296-2.6-5`) |
+| AC-4 | Verified initiations past `half-open-limit`, and past `half-open-limit-per-address` from one address | Each one past a bound is dropped and counted, and the doctor check of AC-15 reports the bound; those within the bounds proceed | A handshake already admitted finishes; a configured peer's handshake is outside both bounds |
+| AC-5 | `eap-mschapv2`; the Response names a configured `eap-user` and proves its password | EAP-Success, and the session reports that user | A site-to-site EAP peer keeps authenticating with its one password |
+| AC-6 | `eap-mschapv2`; Identity response `alice`, Response Name `bob`, proof of bob's password | The session's user and the lease owner are `bob` | The Identity response may be any string: it selects nothing |
+| AC-7 | The Response names no `eap-user`, or names one and proves a wrong password | Both get the same EAP-Failure sequence and no session survives; the operator's log names the attempt | None: no fallback credential is tried |
+| AC-8 | Response Name `CORP\alice`, then a second session with Name `alice` | Both resolve to the entry `alice` and one owner slot; the pool holds one lease for them | A name with a realm suffix resolves to no entry and is refused, because the `eap-user name` leaf admits no `@` |
+| AC-9 | A user authenticates while holding a live session | The new session is established and the old one is ended with an IKE Delete; the user holds one lease | Subject to OD-1 |
+| AC-10 | N connect and disconnect cycles, and N handshakes abandoned before authentication | The session count, the goroutine count and the pool's held count return to their base values | Sessions of configured peers are untouched |
+| AC-11 | An authenticated road warrior sends no CFG_REQUEST | The final IKE_AUTH carries FAILED_CP_REQUIRED and no SA or TS payload; the IKE SA stays; no XFRM state or policy exists for it | A client that then sends a CFG_REQUEST in a new exchange is served |
+| AC-12 | A commit removes one `eap-user`, or changes its password | That user's session ends with an IKE Delete and its lease is free; every other session stays up with its Child SAs | A commit that changes the block's groups, authentication, pool binding or selectors ends every road-warrior session, as it does for a changed peer |
+| AC-13 | A commit of a remote-access block with `eap-user` entries and no `authentication x509 certificate`, or with `mode eap-tls` and no `ca-certificate`, or with no `virtual-ip-pool` | Each is refused with the leaf to set and, for the first, RFC 7296 Section 2.16 | A block with pools only and no `eap-user` still commits: it serves pool-bound peers |
+| AC-14 | Two clients behind one NAT, each with its own user | Two sessions, two leases, two Child SAs, traffic on both | None |
+| AC-15 | The gateway certificate or CA of the block is missing or has no key in the live store; an admission bound is reached | `ze doctor` reports each under its own code with the command that fixes it | A healthy block reports nothing |
+| AC-16 | strongSwan road warrior, `eap-mschapv2`, from an address Ze has no peer for | It establishes, holds an address of the bound pool, and traffic passes; Ze's XFRM policy names the lease as the remote selector | None |
+| AC-17 | `eap-tls`; a client whose chain validates and whose leaf certificate no `eap-user` names | EAP-Failure and no session; a client whose leaf is named is served as that user | Waits on the Depends spec for the exported identity |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | road warrior dials in with EAP-MSCHAPv2 and gets a virtual IP | UDP -> admission -> responder SA -> EAP -> user lookup -> pool -> CFG_REPLY -> child SA | interop scenario `remote-access-eap-mschapv2` |
-| 2 | road warrior dials in with EAP-TLS | same, with client-chain validation against `ra.Auth.ca-certificate` | interop scenario `remote-access-eap-tls` |
-| 3 | operator commits a remote-access block with a bad certificate reference | commit -> tx bridge -> `OnConfigVerify` -> rejection | `test/reload/test-tx-ipsec-remote-access-pki.ci` |
-| 4 | operator inspects who is connected | `show vpn ipsec ...` reflects dynamic sessions | `TestRemoteAccessSessionsVisible` |
+| 1 | A road warrior dials in with EAP-MSCHAPv2 and gets its address | UDP, cookie, admission, EAP, user lookup, lease, CFG_REPLY, Child SA | interop scenario `remote-access-eap-mschapv2` |
+| 2 | A road warrior dials in with EAP-TLS | the same, with the certificate pin | interop scenario `remote-access-eap-tls` |
+| 3 | An operator removes a user and that user's tunnel drops | commit, apply, road-warrior reconcile, IKE Delete | `test/ipsec/ipsec-remote-access-user-removed-ends-session.ci` |
+| 4 | An operator commits a block that cannot authenticate the gateway | commit, `validateIPsecSections`, refusal | `test/reload/tx-ipsec-remote-access-requires-certificate.ci` |
+| 5 | An operator asks who is connected | `show vpn ipsec` lists road-warrior sessions by user | `test/ipsec/ipsec-remote-access-admits-unconfigured-source.ci` |
+| 6 | An operator asks why clients cannot connect | `ze doctor` | `test/ipsec/ipsec-remote-access-doctor.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
+Engine tests feed wire messages to `tryResponderSAInit` and the handlers it
+reaches, so each one runs the real exchange.
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRemoteAccessAdmitsUnconfiguredSource` | `engine/remote_access_test.go` | AC-1 | |
-| `TestRemoteAccessDropsWhenNotConfigured` | `engine/remote_access_test.go` | AC-2 | |
-| `TestRemoteAccessNeverDivertsConfiguredPeer` | `engine/remote_access_test.go` | AC-3 | |
-| `TestRemoteAccessResolvesEAPUserPassword` | `eap/eap_user_test.go` | AC-4 | |
-| `TestRemoteAccessUnknownUserFailsClosed` | `eap/eap_user_test.go` | AC-5 | |
-| `TestRemoteAccessDistinctUsers` | `eap/eap_user_test.go` | AC-6 | |
-| `TestConfigPayloadRoundTrip` | `wire/payload_cp_test.go` | AC-7 codec | |
-| `TestRemoteAccessAssignsVirtualIP` | `engine/remote_access_test.go` | AC-7 | |
-| `TestRemoteAccessNarrowsTrafficSelector` | `engine/remote_access_test.go` | AC-8 | |
-| `TestRemoteAccessPoolExhaustionRefuses` | `engine/remote_access_test.go` | AC-9 | |
-| `TestRemoteAccessReleasesAddressOnTeardown` | `engine/remote_access_test.go` | AC-10 | |
-| `TestRemoteAccessNoSessionLeak` | `engine/remote_access_test.go` | AC-11 | |
-| `TestValidateRemoteAccessRequiresCAForEAPTLS` | `ipsec/validate_test.go` | AC-12 | |
-| `TestValidateRemoteAccessRejectsUnknownPKIRefs` | `ipsec/validate_test.go` | AC-13 | |
-| `TestPoolAllocateConcurrent` | `eap/pool_test.go` | AC-15 (`-race`) | |
+| `TestRemoteAccessAdmitsAfterCookie` | `engine/remote_access_test.go` | AC-1 | |
+| `TestRemoteAccessNeverDivertsConfiguredPeer` | `engine/remote_access_test.go` | AC-2 | |
+| `TestRemoteAccessCommitsNoStateBeforeCookie` | `engine/remote_access_test.go` | AC-3 | |
+| `TestRemoteAccessHalfOpenBounds` | `engine/remote_access_test.go` | AC-4 | |
+| `TestRemoteAccessAuthenticatesTheNamedUser` | `eap/eap_user_test.go` | AC-5 | |
+| `TestRemoteAccessIdentityResponseSelectsNothing` | `eap/eap_user_test.go` | AC-6 | |
+| `TestRemoteAccessUnknownUserAnswersAsWrongPassword` | `eap/eap_user_test.go` | AC-7 | |
+| `TestRemoteAccessDomainPrefixIsOneOwner` | `engine/remote_access_test.go` | AC-8 | |
+| `TestRemoteAccessLeaseOwnerIsTheAuthenticatedUser` | `engine/remote_access_test.go` | AC-6, AC-8 | |
+| `TestRemoteAccessNewSessionSupersedes` | `engine/remote_access_test.go` | AC-9 | |
+| `TestRemoteAccessNoSessionLeak` | `engine/remote_access_test.go` | AC-10 | |
+| `TestRemoteAccessRequiresConfigurationPayload` | `engine/remote_access_test.go` | AC-11 | |
+| `TestRemoteAccessUserRemovedEndsSession` | `engine/remote_access_test.go` | AC-12 | |
+| `TestRemoteAccessSessionSurvivesUnrelatedReload` | `engine/remote_access_test.go` | AC-12, A-2 | |
+| `TestValidateRemoteAccessGateway` | `ipsec/validate_test.go` | AC-13 | |
+| `TestRemoteAccessTwoClientsOneAddress` | `engine/remote_access_test.go` | AC-14 | |
+| `TestRemoteAccessSessionsVisible` | `engine/remote_access_test.go` | story 5, A-2 | |
+| `TestRemoteAccessDoctor` | `engine/doctor_remote_access_test.go` | AC-15 | |
+| `TestRemoteAccessEAPTLSUnlistedCertificateRefused` | `engine/remote_access_test.go` | AC-17 | |
 
-### Boundary Tests (MANDATORY for numeric inputs)
+### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| pool `/N` IPv4 | /8../30 (existing `validatePoolPrefix`) | /30 | /7 | /31 |
-| pool `/N` IPv6 | /48../126 (existing) | /126 | /47 | /127 |
-| addresses issued from a /30 pool | usable hosts | last usable | N/A | one past the pool -> AC-9 refusal |
+| `half-open-limit` | OD-2 | OD-2 | OD-2 | OD-2 |
+| `half-open-limit-per-address` | OD-2 | OD-2 | OD-2 | OD-2 |
 
 ### Functional Tests
+Each drives a second `ze` as the client. That client sends no CFG_REQUEST, so
+these prove admission, authentication, refusal and teardown, and the address
+proofs are the interop scenarios.
+
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-tx-ipsec-remote-access-pki` | `test/reload/test-tx-ipsec-remote-access-pki.ci` | commit of a remote-access block with an unresolvable certificate reference is refused | |
+| `ipsec-remote-access-admits-unconfigured-source` | `test/ipsec/` | a client Ze has no peer for authenticates as a user and is listed by `show vpn ipsec`; with the block removed the same client is dropped | |
+| `ipsec-remote-access-unknown-user-refused` | `test/ipsec/` | a client naming no `eap-user`, and one with a wrong password, get no IKE SA | |
+| `ipsec-remote-access-cp-required` | `test/ipsec/` | an authenticated client with no CFG_REQUEST keeps its IKE SA and gets no Child SA (AC-11) | |
+| `ipsec-remote-access-user-removed-ends-session` | `test/ipsec/` | a commit that removes the user ends its IKE SA; a second user's stays | |
+| `ipsec-remote-access-doctor` | `test/ipsec/` | `ze doctor` names the missing gateway certificate and its fix | |
+| `tx-ipsec-remote-access-requires-certificate` | `test/reload/` | a commit of a block with no gateway certificate is refused | |
+| `tx-ipsec-remote-access-requires-pool` | `test/reload/` | a commit of a block with users and no `virtual-ip-pool` is refused | |
 
-### Interop Tests (MANDATORY for protocol features)
+### Interop Tests (Scope: protocol)
+Named scenarios, no numeric prefix. Each negative is proved red first by
+removing the refusal it tests. Before a check expects strongSwan to print or
+send something, the strongSwan function is read and named (A-5).
+
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `remote-access-eap-mschapv2` | `test/interop-ipsec/scenarios/` | strongSwan (road-warrior client) | AC-14: unconfigured source establishes, gets a virtual IP, passes traffic | |
-| `remote-access-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | EAP-TLS road warrior, client chain validated | |
+| `remote-access-eap-mschapv2` | `test/interop-ipsec/scenarios/` | strongSwan client | AC-16: an unconfigured source establishes, holds a pool address, passes traffic, and Ze's XFRM policy names the lease | |
+| `remote-access-eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan client | story 2 | |
+| `remote-access-wrong-password-refused` | `test/interop-ipsec/scenarios/` | strongSwan client | AC-7: no IKE SA, no lease, no XFRM state on Ze | |
+| `remote-access-unknown-user-refused` | `test/interop-ipsec/scenarios/` | strongSwan client | AC-7: the same outcome for a name no `eap-user` carries | |
+| `remote-access-eap-tls-unlisted-certificate-refused` | `test/interop-ipsec/scenarios/` | strongSwan client | AC-17: a certificate the CA issued and no user names is refused | |
+| `remote-access-eap-tls-revoked-client-refused` | `test/interop-ipsec/scenarios/` | strongSwan client | a listed and revoked client is refused: the block inherits the CRL wiring of `eapTLSServerConfig` | |
+| `remote-access-two-clients-one-nat` | `test/interop-ipsec/scenarios/` | two strongSwan clients behind one NAT | AC-14 | |
 
 ## Files to Modify
-- `internal/component/ike/engine/register.go` - admission fallback; stop discarding the pool
-- `internal/component/ike/engine/reconcile.go` - dynamic session creation and reaping
-- `internal/component/ike/engine/responder_eap.go` - per-user credential resolution
-- `internal/component/ike/engine/responder.go` / `fsm.go` - CP request stash, CFG_REPLY, TS narrowing
-- `internal/core/eap/eap.go` - `MethodConfig` per-user resolver (additive)
-- `internal/core/eap/eap_mschapv2.go` - accept the resolved credential
-- `internal/component/ike/ipsec/validate.go` - `ValidateRemoteAccess` PKI-aware (inherited item 4)
-- `internal/component/ike/engine/config.go` - pass the candidate PKI closures through
+- `internal/component/ike/engine/register.go` - `tryResponderSAInit` road-warrior arm; the session lookups
+- `internal/component/ike/engine/cookie.go` - the gate for a source with no session; the count
+- `internal/component/ike/engine/reconcile.go` - road-warrior sessions outside the peer removal loop; their reconcile
+- `internal/component/ike/engine/apply.go` - the road-warrior reconcile on apply
+- `internal/component/ike/engine/cp.go` - `assignVirtualIP` owner argument
+- `internal/component/ike/engine/responder_eap.go` - `eapMethodConfig` builds the lookup
+- `internal/component/ike/engine/resumption.go` - the block's shared store
+- `internal/component/ike/engine/config.go` - `validateIPsecSections`
+- `internal/core/eap/eap.go` - `MethodConfig` lookup; the session's authenticated user
+- `internal/core/eap/eap_mschapv2.go`, `eap_md5challenge.go`, `eap_tls.go` - each method resolves its credential by D-1
+- `internal/component/ike/ipsec/types.go`, `config.go`, `validate.go` - the new leaves, `remoteAccessEqual`, the D-7 refusals
+- `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - the new leaves; the descriptions of `container remote-access`, its `ike-group`, `esp-group`, `authentication`, `x509` and `eap-user` nodes, which today say that nothing reads them
+- `internal/core/diagnostic/codes.go` - the doctor codes
+- `docs/architecture/ike/ipsec-14-responder.md`, `ipsec-9-ikev2-eap-nat.md` - declared by the `// Design:` headers of `cp.go`, `register.go`, `pool.go`
+- `docs/guide/ipsec.md` - the sentence that says an `eap-user` authenticates nobody and cites this spec
+- `docs/features/ai-first.md` - declared by the `// Design:` header of `internal/core/diagnostic/codes.go`. Unaffected unless it lists the doctor codes one by one; the implementing agent checks that when the two codes are added
+
+## Files to Create
+- `internal/component/ike/engine/remote_access.go` and `remote_access_test.go`
+- `internal/component/ike/engine/doctor_remote_access.go` and `doctor_remote_access_test.go`
+- `internal/core/eap/eap_user_test.go` <!-- doc-links: ignore (a file this spec plans and has not written) -->
+- the `.ci` files and scenario directories named in the test plan <!-- doc-links: ignore (tests this spec will create; the spec is `design`) -->
 
 ### Integration Checklist
-| Integration Point | Needed? | File |
-|-------------------|---------|------|
-| YANG schema | ~~No~~ **Yes** | ~~the surface already exists in `ipsec/yang/ze-ipsec-conf.yang`~~ **Amended 2026-07-31:** the pool surface exists, but `RFC7296-2.19-6` and `2.20-1` need leaves that do not. Add `container configuration-payload` (`enabled`, `required`, `application-version`, `lease-lifetime`, `maximum-leases-per-identity`) to `ipsec/yang/ze-ipsec-conf.yang`, and widen `leaf dns` to `leaf-list dns` |
-| CLI commands | Yes | dynamic sessions must appear in the existing `show vpn ipsec` views |
-| Functional test | Yes | `test/reload/test-tx-ipsec-remote-access-pki.ci` |
-| Doctor check | Yes | pool sanity (a pool that cannot serve one client) reuses the `ike` `DoctorChecks` added by the sibling spec |
-| Prometheus counters | Yes | connected remote-access clients, pool utilisation, auth failures |
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | `ze-ipsec-conf.yang`: `remote-access virtual-ip-pool`, `traffic-selector`, `half-open-limit`, `half-open-limit-per-address` |
+| YANG validation constraints | Yes | ranges on both limits (OD-2); `virtual-ip-pool` as the peer leaf is typed |
+| YANG custom validators | No | the pool and selector checks are plugin verify, as for a peer |
+| CLI commands/flags | No | no new command; `show vpn ipsec` gains rows and a user field |
+| CLI grammar (keyword before value) | N-A | no command added |
+| Editor autocomplete | Yes | automatic for the typed leaves |
+| Functional test for new RPC/API | N-A | no RPC |
+| Pipe completeness | N-A | no new output path |
+| Env var registration | No | |
+| Doctor check for runtime dependencies | Yes | the gateway certificate, its key and the CA in the live store |
+| Doctor code per problem class | Yes | `doctor-ipsec-remote-access-credential` (gateway certificate, key or CA unusable; runtime phase), `doctor-ipsec-remote-access-admission` (a bound reached, initiations dropped; runtime phase). Pool exhaustion stays `doctor-ipsec-virtual-ip-pool` |
+| Prometheus counters/metrics | Yes | road-warrior sessions (gauge), half-open road-warrior handshakes (gauge), admissions dropped by bound (counter, label: bound), EAP refusals (counter, label: unknown-user or wrong-credential) |
+| BGP family surface | N-A | |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | [ ] | `docs/features.md` |
-| 2 | Config syntax changed? | [ ] | remote-access becomes live, not new syntax; check the guide |
-| 3 | CLI command added/changed? | [ ] | `docs/guide/command-reference.md` if session views change |
-| 4 | API/RPC added/changed? | [ ] | |
-| 5 | Plugin added/changed? | [ ] | |
-| 6 | Has a user guide page? | [ ] | `docs/guide/vpn/*` remote-access section |
-| 7 | Wire format changed? | [ ] | CP payload now emitted: `docs/architecture/wire/*` |
-| 8 | Plugin SDK/protocol changed? | [ ] | |
-| 9 | RFC behavior implemented? | [ ] | `docs/features/rfc-status.md` RFC 7296 Section 2.19 row |
-| 10 | Test infrastructure changed? | [ ] | new interop scenarios |
-| 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` remote-access VPN row |
-| 12 | Internal architecture changed? | [ ] | IKE subsystem doc |
-| 13 | Route metadata keys? | [ ] | |
-| 14 | Prometheus counters? | [ ] | telemetry doc |
-| 15 | Registered inventory changed? | [ ] | doctor check inventory |
-| 16 | Doc source anchors on changed files? | [ ] | grep `docs/` per changed file |
-| 17 | Existing docs show examples? | [ ] | verify remote-access examples now describe live behavior |
-
-## Files to Create
-- `internal/component/ike/engine/remote_access.go` + `_test.go`
-- `internal/core/eap/eap_user.go` + `_test.go` (or additive in `eap.go`) <!-- doc-links: ignore (a file this spec plans and has not written; the 2026-09-03 move of the package to internal/core/eap renamed the citation, and the citation baseline is shrink-only) -->
-- `test/reload/test-tx-ipsec-remote-access-pki.ci`
-- `test/interop-ipsec/scenarios/remote-access-eap-mschapv2/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
-- `test/interop-ipsec/scenarios/remote-access-eap-tls/{ze.conf,swanctl.conf,check.py}`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+| 1 | New user-facing feature? | Yes | `features/ipsec-eap-authentication.md` |
+| 2 | Config syntax changed? | Yes | `docs/guide/ipsec.md`, the remote-access section |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, the `show vpn ipsec` fields |
+| 4 | API/RPC added/changed? | No | |
+| 5 | Plugin added/changed? | No | |
+| 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md` |
+| 7 | Wire format changed? | No | no payload format changes |
+| 8 | Plugin SDK/protocol changed? | No | |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc7296.md` (Section 2.16 rows), `rfc/short/rfc5216.md` (`RFC5216-5.3-2`, with the Depends spec), `docs/features/rfc-status.md` |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/interop.md`, the new scenarios |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`, the remote-access VPN row |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-14-responder.md`, `ipsec-9-ikev2-eap-nat.md` |
+| 13 | Route metadata keys? | No | |
+| 14 | Prometheus counters? | Yes | the IKE telemetry page |
+| 15 | Registered inventory changed? | Yes | the doctor check inventory |
+| 16 | Doc source anchors on changed files? | Yes | derived at implementation with `./le spec citation anchors spec plan/release/fixes/spec-ipsec-remote-access.md` |
+| 17 | Existing docs show examples? | Yes | every remote-access example in `docs/guide/ipsec.md` |
 
 ## Implementation Steps
 
-### Implementation Phases
-
-1. **Phase: Wiring (MANDATORY FIRST)** - admission fallback + dynamic session, failing wiring test
-   - Tests: `TestRemoteAccessAdmitsUnconfiguredSource`, `TestRemoteAccessDropsWhenNotConfigured`,
-     `TestRemoteAccessNeverDivertsConfiguredPeer`
-   - Files: `engine/remote_access.go`, `engine/register.go`, `engine/reconcile.go`
-   - Verify: an unconfigured source reaches a session; no site-to-site behavior changes
-2. **Phase: Per-user credentials** - AC-4..AC-6
-   - Tests: the three `eap/eap_user_test.go` tests
-   - Files: `eap/eap.go`, `eap/eap_mschapv2.go`, `engine/responder_eap.go`
-   - Verify: unknown identity fails closed; scenario `responder-eap-mschapv2` still green
-3. **Phase: Configuration payload + pool**: AC-7..AC-9. This is one shared
-   implementation package, refined by phases A to G below and paused on the
-   ownership decision above. The virtual-IP sibling must not implement it in parallel.
-4. **Phase: Lifecycle** - AC-10, AC-11, AC-15
-   - Tests: `TestRemoteAccessReleasesAddressOnTeardown`, `TestRemoteAccessNoSessionLeak`,
-     `TestPoolAllocateConcurrent`
-   - Verify: `go test -race` on the engine and eap packages
-5. **Phase: Config validation** - AC-12, AC-13 (inherited deferral)
-   - Files: `ipsec/validate.go`, `engine/config.go`, `test/reload/*.ci`
-6. **Phase: Interop** - AC-14
-   - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2`, `remote-access-eap-tls`; `./le test integration interop-ipsec`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
-7. **Observability + docs** - counters, `show` views, documentation checklist
-8. **Full verification, review gate, closure**
-
-### Configuration Payload Phases (added 2026-07-31, from the WP-9 design pass)
-
-The eight phases above predate the RFC row split. Phases A to G refine phase 3
-("Configuration payload + pool") and replace its original wiring-only schedule.
-This table describes the current CP owner's work pending OI-1; it is not
-independent of the virtual-IP sibling. If ownership transfers, these rows become
-explicit prerequisites with their AC/evidence mapping retained. The CP parts of
-phase 4, and the CP config, tests and documentation in C, F and G, are included
-in that decision.
-
-| # | Phase | Work | Rows unblocked | Estimate |
-|---|-------|------|----------------|----------|
-| A | Codec correctness | The RESERVED-bit mask on read and write, the length-truncation guard, the trailing-remnant error, an attribute-count cap, and the four missing constants (types 5, 13, 14, 15). Plus codec tests | none directly. Unblocks `3.15.1-4`, `4-2`, `1.7-1` | 0.5 day |
-| B | Pool hardening | Identity-bound allocation, the lease table and expiry, `NewPool` self-bounding, a rotating IPv4 cursor, and the IPv6 prefix fix for lengths beyond `/64` | none directly. Unblocks `4-3` | 1 day |
-| C | Config surface | `container configuration-payload`, `leaf dns` widened to `leaf-list dns`, the multi-pool decision, parse, validate, doctor check, completion | `2.19-6`, `2.20-1` | 0.5 day |
-| D | The consumer | `engine/cp.go`. The CP case at all THREE drop sites. The EAP start signature. The reply insertion between AUTH and SAr2. Traffic-selector narrowing before the child response payloads are built. Real pool wiring in place of `_ = ipPool` | `2.19-2`, `2.19-3`, `4-2`, `4-3`, `3.15.1-1` | 1.5 days |
-| E | Authorization and error paths | The two fail-closed guards, `FAILED_CP_REQUIRED` emission with its short-circuit before the Child SA install, and `INTERNAL_ADDRESS_FAILURE` | `2.19-5`, `2.19-6` | 0.5 day |
-| F | Tests | The tagged pairs, every mutation run and reverted, the pool tests, a `test/ipsec/` functional test, and the strongSwan road-warrior scenario | all 17 proven | 1.5 days |
-| G | Discovery and closure | `docs/features.md`, the guide, the wire architecture page, `docs/features/rfc-status.md` rows, the summary rows, `./le rfc update`, and the Integration Checklist re-answer | - | 0.5 day |
-
-The original estimate was roughly 6 days. It does not authorize concurrent CP
-implementation under both specs. The earlier suggestion to land A and B alone
-is subject to the same ownership pause and to checking which repairs already
-exist; the sibling records later codec and IPv6-pool changes.
-
-**Ordering constraints that are not negotiable:**
-
-1. Address allocation happens BEFORE the responder builds its child traffic selectors.
-   Otherwise the responder echoes the selectors the client proposed, and the leased address
-   never reaches them. The client then negotiates an address and cannot route.
-2. The `2.19-6` refusal short-circuits BEFORE the Child SA is installed.
-3. Parse early, reply late. `4-2` requires parsing the CFG_REQUEST in the FIRST IKE_AUTH
-   request. `2.19-3` requires the reply in the message carrying the SA payload, which under
-   EAP is the FINAL response. A design that replies in the first response breaks EAP.
-
-### What this must NOT break
-
-| Invariant | Why it is at risk | The guard |
-|-----------|-------------------|-----------|
-| A message MUST NOT be rejected over payload order (`RFC7296-2.5-13`) | An implementer enforcing `2.19-2` adds a receive-side order check. `2.19-2` is a SEND obligation only | This spec adds no receive-side order check of any kind |
-| Unrecognized attributes are ignored, never rejected (`RFC7296-3.15.1-4`) | The same instinct adds "reject unknown attribute" | The positive drives a request carrying unknown types and asserts the session still completes |
-| The IKE SA survives a FAILED_CP_REQUIRED | "Fail the request" reads as "kill the session" | The positive asserts the SA is still established after the refusal |
-| No Child SA or key material is installed on a refusal | The child SA install runs before the payload list is built | The positive asserts no Child SA was installed |
-| EAP sessions still establish | Phase D changes the EAP start signature and the EAP response walk | `TestResponderEAPSessionWired` stays green |
-| Site-to-site peers are unaffected | The policy lookup must return a determined "not required", not a miss | The negative drives a site-to-site peer and asserts normal establishment |
+1. **Phase: Wiring (MANDATORY FIRST)** - the road-warrior arm, cookie first, one session per verified initiator SPI
+   - Tests: `ipsec-remote-access-admits-unconfigured-source.ci`, `TestRemoteAccessAdmitsAfterCookie`, `TestRemoteAccessCommitsNoStateBeforeCookie`, `TestRemoteAccessNeverDivertsConfiguredPeer`
+   - Files: `engine/remote_access.go`, `engine/register.go`, `engine/cookie.go`
+   - Verify: the wiring `.ci` is red because no user authenticates yet
+2. **Phase: Config** - the leaves, their parse, the D-7 and D-3 refusals, the conversion of repository configs
+   - Tests: `TestValidateRemoteAccessGateway`, the two `tx-` files
+3. **Phase: Credentials and identity** - D-1, D-2, D-8 for `eap-mschapv2` and `eap-md5`
+   - Tests: the `eap/eap_user_test.go` tests, `TestRemoteAccessLeaseOwnerIsTheAuthenticatedUser`, `TestRemoteAccessDomainPrefixIsOneOwner`
+   - Verify: scenario `responder-eap-mschapv2` unchanged
+4. **Phase: Bounds and lifecycle** - D-4 bounds, reaping, supersede, D-6
+   - Tests: `TestRemoteAccessHalfOpenBounds`, `TestRemoteAccessNoSessionLeak`, `TestRemoteAccessNewSessionSupersedes`, `TestRemoteAccessUserRemovedEndsSession`, `TestRemoteAccessSessionSurvivesUnrelatedReload`
+5. **Phase: EAP-TLS** - the certificate pin, after the Depends spec
+   - Tests: `TestRemoteAccessEAPTLSUnlistedCertificateRefused`
+6. **Phase: Visibility** - show fields, the two doctor checks, metrics
+7. **Phase: Interop** - the seven scenarios, each negative proved red first
+8. **Phase: Documentation** - the checklist rows, in the phase that makes each page wrong
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has implementation with file:line |
-| Fail-closed | Unknown identity, exhausted pool, and unparseable CP each DENY with a named reason |
-| Resource safety | No goroutine, SA, or pool address outlives its client (R-1, R-2) |
-| Site-to-site untouched | Every existing scenario green; admission precedence proven by AC-3 |
-| Concurrency | `-race` on engine + eap; concurrent Allocate has no duplicate |
-| Mutation-verify | Disable each new guard; its test must go red |
-| Rule: no-layering | The old `_ = ipPool` discard is deleted, not bypassed |
-| Rule: exact-or-reject | Pool exhaustion refuses; never a partial CFG_REPLY |
+| Completeness | Every AC has an implementation at a named function |
+| Fail-closed | An unknown user, a lookup error, an empty user table, a nil lookup and a session with no user each deny. A session with no user gets no lease |
+| No state before the cookie | Nothing is allocated, stored or logged at Warn for an unverified source |
+| Identity | No policy decision reads IDi, or the Identity response under `eap-mschapv2` or `eap-tls` |
+| Site-to-site untouched | Every existing scenario and `.ci` green; AC-2 |
+| Concurrency | The engine and eap tests run under the race detector |
+| Mutation | Each new guard removed in turn turns its test red |
+| Operator errors and doctor codes | Every refusal names the leaf and the fix; every Warn names its code |
+| Rule: no-layering | The YANG descriptions that say "no code reads this" are rewritten, not kept beside the new text |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| pool no longer discarded | `grep -n '_ = ipPool' internal/component/ike/engine/register.go` returns nothing |
-| CP payload emitted | interop capture or `TestRemoteAccessAssignsVirtualIP` |
-| eap-user live | `TestRemoteAccessResolvesEAPUserPassword` |
-| interop green | `./le test integration interop-ipsec` scenarios `remote-access-eap-mschapv2`, `remote-access-eap-tls` |
+| `eap-user` has a handshake reader | `gopls references` on `EAPUser.Password` and `EAPUser.Certificate` lists a site outside parse, validation and equality |
+| The lease owner is the user | `TestRemoteAccessLeaseOwnerIsTheAuthenticatedUser` |
+| No state before the cookie | `TestRemoteAccessCommitsNoStateBeforeCookie` |
+| A removed user is disconnected | `ipsec-remote-access-user-removed-ends-session.ci` |
+| Road warrior against strongSwan | `./le test integration interop-ipsec` on the seven scenarios, run by the main thread |
+| The YANG says what the code does | no `remote-access` description contains "no code reads", "not served yet" or "has no effect" |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
-| Unauthenticated resource consumption | admission happens before authentication by construction (RFC 7296); bound half-open sessions and do not allocate a pool address until EAP succeeds |
-| Credential handling | `eap-user` passwords never logged, never serialized (`json:"-"` as `MethodConfig.Password` already is) |
-| Identity spoofing | the EAP identity selects the credential but does not by itself authenticate; the method must still verify |
-| Address reuse | a released address must not be handed out while the old child SA still forwards |
-| Client chain validation | EAP-TLS gateway validates against `ra.Auth.ca-certificate`, never an empty pool (see the sibling spec's finding) |
+| Unauthenticated resource use | D-4. No lease before EAP success (`assignVirtualIP` runs after authentication) |
+| Credential handling | `eap-user` passwords never logged and never serialized |
+| User enumeration | D-8: identical answers for an unknown user and a wrong password |
+| Identity spoofing | D-1, D-2; AC-6, AC-8 |
+| Inner address choice | D-3; OD-3 |
+| Client chain validation | the block's `ca-certificate`, CRLs and intermediates are those `eapTLSServerConfig` reads |
+| Stale authorization | D-6, including EAP-TLS resumption |
 
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
-| CP codec mismatch with strongSwan | fix `wire/payload_cp.go`, add a round-trip case from the real capture |
-| Scenario `responder-eap-mschapv2` regresses | the per-user resolver was not additive; restore `MethodConfig.Password` precedence |
-| Goroutine leak | Phase 4 reap path |
-| 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
-
-## Mistake Log
-
-### Wrong Assumptions
-| What was assumed | What was true | How discovered | Impact |
-|------------------|---------------|----------------|--------|
-
-### Failed Approaches
-| Approach | Why abandoned | Replacement |
-|----------|---------------|-------------|
-
-### Escalation Candidates
-| Mistake | Frequency | Proposed rule | Action |
-|---------|-----------|---------------|--------|
+| Scenario `responder-eap-mschapv2` regresses | the lookup was not additive: phase 3 |
+| Reload stops road warriors | A-2: phase 4 |
+| A negative interop scenario cannot go red | the check reads the client and not Ze: rewrite the check on Ze's state |
+| 3 fix attempts fail | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
 
-- The feature is mostly *wiring already-built parts*: the CP codec, the IP pool, and the EAP
-  authenticator all exist and all have zero callers. That is worth stating plainly, because it
-  is also how the gap survived so long -- every individual piece looked done.
-- **Amended 2026-07-31.** The insight above is half right, and the missing half is why the
-  estimate moved from a phase to roughly six days. The parts exist, and two of them are
-  broken in ways only a consumer reveals. Zero callers is exactly why nobody found the
-  reserved-bit fold or the IPv6 out-of-range lease. **A component with no consumer has no
-  evidence of correctness, however finished it looks.** Treat "complete but unused" as
-  unverified, not as done.
-- The design pass and this spec disagreed in four places. Each disagreement was the spec
-  trusting existing code too far. The codec was called complete. The pool was called the
-  right shape. The YANG was called sufficient. AC-7 emitted a netmask unconditionally.
-  Every one is struck through above with its reason.
+- A component with no consumer has no evidence of correctness. The codec and
+  the pool both looked complete until the sibling spec gave them a caller and
+  found the reserved-bit fold and the IPv6 out-of-range lease.
+- An owner key is an authorization input. `sa.PeerName` is safe for a
+  configured peer because the operator wrote it. The same argument position
+  filled with a client's string is not.
+- A gate that needs a session cannot protect the creation of sessions.
+
+## Owned journal rows
+
+None. The open row on the inert `remote-access` subtree
+(`plan/journal/unwired-feature.md`, 2026-09-04) is owned by
+`plan/release/fixes/spec-yang-single-source-of-truth.md`. This spec's work
+ends its remote-access half.
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Per-client dynamic `PeerSession` synthesized from `RemoteAccessConfig` | one shared remote-access session; a parallel road-warrior FSM | reuses the established/DPD/rekey/teardown machinery unchanged, and gives each client its own `responderBusy` gate so one client cannot block another |
-| Per-user credential resolver on `MethodConfig`, consulted after the EAP identity | rebuild the session per identity; look the user up in the engine and recreate the method | `handleIdentity` already sequences identity before method start; additive so the site-to-site EAP path is untouched |
-| Allocate the pool address only after EAP success | allocate at admission | an unauthenticated source must not be able to drain the pool (R-1) |
+| One session per road-warrior handshake, built from the remote-access block | one shared session; a parallel road-warrior FSM | reuses the established, DPD, rekey and teardown machinery, and each client has its own half-open slot |
+| The method resolves the credential by the name it authenticates | resolve from the Identity response before the method starts (the 2026-07-31 design) | RFC 3748 Section 5.1 and RFC 7296 Section 2.16: the Identity response is a routing hint, sent in clear, and MSCHAPv2 hashes another field |
+| Pool binding makes CP mandatory | a `configuration-payload required` leaf | `assignVirtualIP` already refuses a bound peer with no request; a second switch could disagree with it |
+| Cookie always, for a source with no session | follow `cookie-threshold` | a tolerated spoofed initiation holds a slot of a shared bound |
+| Lease only after EAP success | lease at admission | an unauthenticated source must not hold an address |
 
 ## Known Limitations
-- (fill during implementation)
+- An `eap-user` name cannot carry a realm, because the leaf's character set admits no `@`. A client that sends `alice@example.com` is refused.
+- A `.ci` cannot prove address assignment, because Ze is not an IRAC (ruling of 2026-08-31).
 
 ## RFC Documentation
 
-`// RFC 7296 Section 2.19` above the CFG_REQUEST/CFG_REPLY handling,
-`// RFC 7296 Section 3.15.1` above the attribute encoding,
-`// RFC 5216 Section 5.3` above the client-chain validation,
-`// RFC 3748 Section 5.1` above the identity-then-method ordering the resolver depends on.
+`// RFC 7296 Section 2.16` with the "actual authenticated identity" sentence
+above the owner-key assignment, and with the public-key sentence above the
+commit refusal. `// RFC 3748 Section 5.1` with both sentences above the
+credential lookup. `// RFC 4301 Section 4.4.3.4` above the pool-binding
+refusal. `// RFC 5216 Section 5.3` with the MUST above the certificate pin.
+The RFC 7296 Section 2.6 sentence is quoted above the unconditional cookie as
+the reason, and is not called a requirement.
 
 ## Implementation Summary
 
@@ -939,11 +651,8 @@ exist; the sibling records later codec and IPv6-pool changes.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-6 | owed | phases 1 and 2: admission and per-user authentication tests | remote-access owner under either OI-1 outcome |
-| AC-7..AC-10, AC-15 | owed | CP phases A, B, D, E and F plus lifecycle phase 4 | shared assignment package; one implementation owner after OI-1 |
-| AC-11..AC-14 | owed | phases 4, 5 and 6: session lifecycle, PKI validation and road-warrior interop | remote-access integration remains required |
-| AC-16..AC-25 | owed | CP phases A, C, D, E and F: tagged pairs and discrimination records | AC-25 retains its OI-3 condition; OI-1 must map every row |
-| AC-26..AC-28 | owed | CP phases B and F: expiry, per-identity quota and IPv6 prefix tests | required even if the assignment slice owns the implementation |
+| AC-1..AC-16 | owed | phases 1 to 4, 6 and 7 | |
+| AC-17 | owed | phase 5 | waits on the Depends spec |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -964,11 +673,13 @@ exist; the sibling records later codec and IPv6-pool changes.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| a road warrior can establish against ze | interop test | scenario `remote-access-eap-mschapv2` vs strongSwan |
-| per-user credentials are live | unit + interop | |
-| virtual IP assignment works | interop (client holds the address) | |
-| no resource leak per connection | unit lifecycle test | |
-| remote-access config is validated | functional `.ci` | |
+| a road warrior can establish against ze | interop test | scenario `remote-access-eap-mschapv2` |
+| per-user credentials are live, and an unknown user fails closed | interop negative + functional | scenarios `remote-access-unknown-user-refused`, `remote-access-wrong-password-refused`; `ipsec-remote-access-unknown-user-refused.ci` |
+| policy uses the authenticated user | unit over the real exchange | `TestRemoteAccessIdentityResponseSelectsNothing`, `TestRemoteAccessLeaseOwnerIsTheAuthenticatedUser` |
+| a road warrior cannot choose its inner address | interop (Ze's XFRM policy) + functional | scenario `remote-access-eap-mschapv2`; `ipsec-remote-access-cp-required.ci` |
+| no resource leak, no state for an unverified source | unit lifecycle | `TestRemoteAccessNoSessionLeak`, `TestRemoteAccessCommitsNoStateBeforeCookie` |
+| a removed user is disconnected | functional | `ipsec-remote-access-user-removed-ends-session.ci` |
+| the config is validated | functional | the two `tx-` files |
 
 ## Review Gate
 
@@ -1011,11 +722,11 @@ exist; the sibling records later codec and IPv6-pool changes.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-28 all demonstrated, including the recorded outcome of conditional AC-25 and a single CP implementation owner under OI-1
+- [ ] AC-1..AC-17 all demonstrated, and OD-1..OD-4 answered and recorded
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify worktree` passes (lint + all ze tests)
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the `ike/engine`, `ike/ipsec` and `core/eap` package tests, `./le test functional ipsec`, the two reload `.ci` files, and `./le test integration interop-ipsec` on the scenarios named here. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
 - [ ] Feature code integrated
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken
@@ -1033,6 +744,6 @@ exist; the sibling records later codec and IPv6-pool changes.
 - [ ] Critical Review passes
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Write learned summary to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
+- [ ] **Commit A:** code + tests + docs + spec
+- [ ] **Commit B:** `remove plan/release/fixes/spec-ipsec-remote-access.md` only
