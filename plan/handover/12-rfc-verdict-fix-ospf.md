@@ -3,6 +3,10 @@
 Spec: `plan/release/validation/spec-rfc-verdict-fix-ospf.md` (in-progress). Written so the
 work survives a machine move. Delete this file in the spec's closing commit.
 
+## Update 2026-11-14 (read this first)
+
+Everything below this section is history. The spec now carries all the interop evidence: eleven greens observed on 2026-11-14 plus two from October, and three reds under their reverts, each followed by a green on the real build. Closure still needs the four page edits of review finding R4-3 in `docs/architecture/testing/interop.md`, then a verifying review round over `9703c868de`, `f95f78932f` and those page edits. Then run `ze-close`.
+
 ## Landed
 
 | Commit | What |
