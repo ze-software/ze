@@ -69,6 +69,24 @@ or stale, and the design starts from the corrected facts.
 | `initialSyncEOROwed` gates EOR suppression in `reactor_api_forward.go` beside `shouldQueue`, and the forwarding rail reads it | `announceEOR` reads it through `Peer.initialSyncMarkerOwed`. The forwarding rails read only `Peer.forwardOrderHold`, which does not read it | `reactor_api_forward.go`, `peer.go` |
 | "The remaining consumers of `apiSyncExpected` and `waitForAPISync` need assessment" | `waitForAPISync` was removed by 9c93f82bb4. `apiSyncExpected` is live: it is the population the replay fence is drawn from. Only the readiness channel beside it has no product reader | Existing Mechanisms |
 
+### Owner decision at the research gate (2026-11-14)
+
+Two questions were put to Thomas: which order Ze promises between its marker
+and a route forwarded from another peer, and whether the 2026-09-18 ruling
+covers the in-tree replay (the `rib`, `rs` and `rr` plugins).
+
+| Question | His words | What it decides |
+|----------|-----------|-----------------|
+| Marker against a forwarded route | "end of rib is a trick to not to have to recalculate the RIB/FIB with every update when the router starts, it has no bearing on what we forward" | Ze promises no order between its marker and a route that is not of its own table. Forwarding is never held for the marker. AC-2 as first written is withdrawn |
+| Does the ruling cover the replay | "That rule is right but should be considered in view of what i replied in the the previous question" | The ruling stands and covers the replay: the marker waits for nobody. Main thread's reading, restated to him in the same turn |
+
+The decision is written into `docs/architecture/behavior/peer-lifecycle.md`,
+"What the End-of-RIB marker orders, and what it does not". It describes the
+code as it already is, so this spec changes no ordering in the product. What
+remains is: the tests that assert an order the product does not promise, the
+API End-of-RIB that is dropped while answered as sent, the readiness channel
+with no reader, the stale pages and comments, and the two owned journal rows.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -171,8 +189,8 @@ research starts from; the design gate confirms or corrects each in place.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A process's routes arriving AFTER the marker is correct, because a peer's do | owner ruling, 2026-09-18 | the 2026-08-30 ruling still governs and only the window closes, by widening `forwardOrderHold` instead | owner confirmation at the gate | unvalidated |
-| A-2 | AC-2 (a forwarded route never precedes the marker) is the order the owner wants | the skeleton's AC table, written 2026-09-18; no owner sentence states it | FRR and BIRD both send a forwarded route before their marker and RFC 4724 is silent, so AC-2 makes Ze stricter than both with no RFC sentence behind it; the header of `test/plugin/ipv4-announce-withdraw.ci` already reads the ruling as "A peer's routes have no defined order against our marker either" | owner decision at the research gate | unvalidated |
+| A-1 | A process's routes arriving AFTER the marker is correct, because a peer's do | owner ruling, 2026-09-18 | the 2026-08-30 ruling still governs and only the window closes, by widening `forwardOrderHold` instead | owner confirmation at the gate | confirmed 2026-11-14: the ruling is right, and the marker has no bearing on what Ze forwards |
+| A-2 | AC-2 (a forwarded route never precedes the marker) is the order the owner wants | the skeleton's AC table, written 2026-09-18; no owner sentence states it | FRR and BIRD both send a forwarded route before their marker and RFC 4724 is silent, so AC-2 makes Ze stricter than both with no RFC sentence behind it; the header of `test/plugin/ipv4-announce-withdraw.ci` already reads the ruling as "A peer's routes have no defined order against our marker either" | owner decision at the research gate | broken 2026-11-14: Thomas ruled the marker has no bearing on what Ze forwards, so no order is promised and AC-2 is withdrawn |
 | A-3 | The roughly 77 functional tests that place the marker before a forwarded route are load-dependent on the race rather than proofs of an order | census by the research agent over `test/` (652 files with a marker expectation); `redistribute-export-reject` read by the main thread, the rest classified by pattern | some of them hold the order by another mechanism (a source that sends only after the destination's marker), and they are unaffected by the decision | reading each affected test at design, before any is changed | unvalidated |
 | A-4 | A route sent after the marker costs a graceful-restart helper a flush and relearn only when the helper held it as stale | derived by the research agent from FRR `bgp_update_receive_eor` and BIRD `bgp_rx_end_mark`; not re-read by the main thread | the cost is larger or absent, which changes the weight of the choice but not what the RFC permits | reading both receiver functions at design | unvalidated |
 
@@ -203,7 +221,7 @@ research starts from; the design gate confirms or corrects each in place.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | a session establishes while a process that pushes routes is configured | ze's End-of-RIB follows its own table with no wait for that process |
-| AC-2 | a route forwarded from another peer arrives during session start | it does not reach the wire before the marker |
+| AC-2 | a route forwarded from another peer arrives during session start | WITHDRAWN 2026-11-14 by owner decision (first written: "it does not reach the wire before the marker"). No order is promised between the marker and a route that is not of Ze's own table. The design phase restates the criteria that replace it |
 | AC-3 | the four tests named in the Task | each asserts what the product now promises, and none asserts an ordering it does not |
 
 ## End-to-End User Stories

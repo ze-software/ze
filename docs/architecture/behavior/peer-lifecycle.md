@@ -279,6 +279,36 @@ of the queue for the next session rather than sent to the session that ended
 <!-- source: internal/component/bgp/server/events.go — deliverPeerState -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes, queuedTeardownEnds, sessionRunReturned -->
 
+### What the End-of-RIB marker orders, and what it does not
+
+The End-of-RIB marker lets the receiver put off recomputing its routes until
+the first table has arrived, so that a starting router does not recalculate on
+every UPDATE. It has no bearing on what Ze forwards (owner decision,
+2026-11-14).
+
+The sync sends the marker once it has written Ze's own table for the session:
+the static routes, the default routes, the operations queued for the peer and
+the config-originated family routes. That is the one order Ze promises: its own
+table, then the marker.
+
+The marker waits for nobody else. A process that creates routes stands where a
+peer stands (owner ruling, 2026-09-18): Ze does not hold its marker for a
+peer's, so it does not hold it for a process's routes, for a route forwarded
+from another peer, or for a plugin's replay of existing routes. Each of those
+reaches the peer before or after the marker as timing decides, and forwarding
+is never held back for the marker. RFC 4724 Section 4 requires the marker
+"once it completes the initial routing update" and does not define that
+update or say what may precede the marker.
+
+What IS ordered around the sync is route correctness, not the marker. While
+the session's queueing gate is closed, a forwarded UPDATE is parked behind the
+peer's own queued operations (`forwardOrderHold`), and while a replay is owed,
+a live change is parked behind the replayed routes (the replay fence), so a
+withdrawal never overtakes the announcement it takes back. One End-of-RIB per
+family per session still holds across the sync and the API (`claimInitialSyncEOR`).
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go — sendInitialRoutes -->
+<!-- source: internal/component/bgp/reactor/peer.go — forwardOrderHold, raiseReplayFence -->
+
 Established peer events and API snapshots report the TCP connection's local
 address and both socket ports, including an automatically chosen local address
 or ephemeral source port. Sent message events read an immutable endpoint
