@@ -1080,10 +1080,22 @@ the command line through `config.DisplayCommand` as its detail, so a credential
 value and the value after `content` read as the placeholder. A refusal or a
 handler error records nothing, and a registration that declares no action is
 not audited: the dispatcher never picks the audited commands by their text.
-`request reload` declares `daemon-reload` and `delete data key` declares
-`data-key-change` (`docs/guide/audit.md`). A plugin command has no such
+`request reload` declares `daemon-reload`, and `delete data key` and
+`update data key` declare `data-key-change` (`docs/guide/audit.md`). A plugin command has no such
 declaration: `pkg/plugin/sdk` carries none, so the audit log records no plugin
 command.
+
+A command that needs bytes held on the caller's side takes them base64-encoded
+in an argument named `content`, as `update data key <key> content <base64>`
+does. No surface has a second input channel, so the argument is the same on
+SSH, REST, gRPC, MCP and the web. Its leaf declares the bound, 261,120 base64
+characters (195,840 bytes of content), which is what one SSH packet carries
+with the rest of the command: an SSH exec request is a single packet of at
+most 256 KiB, and the local `ze data write` reaches the daemon that way. The
+leaf's own error message says what to do with a larger value. The value after
+`content` is never recorded and never echoed in a refusal
+(`redact.Command`, `redact.IsCredentialKeyword`).
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, leaf content -->
 <!-- source: internal/component/plugin/server/handler.go -- RPCRegistration.AuditAction -->
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 
@@ -1098,6 +1110,7 @@ request plugin restart <name>   # Restart a configured plugin, stopping it first
 request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
 request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
 delete data key <key>    # Remove one runtime-state key (meta/ outside meta/config/) through the daemon's store
+update data key <key> content <base64>   # Write one runtime-state key from base64 bytes (at most 195,840 bytes) through the daemon's store
 show reload-status       # Show how many config reloads have been processed
 show config running      # Show the configuration the daemon applied
 ```

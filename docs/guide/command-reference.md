@@ -2784,20 +2784,35 @@ the bytes live once under `object/<hex>`. Each finding is one row,
 | `malformed-entry` | error | the entry value is not `sha256:` plus 64 lowercase hex |
 | `wrong-hash-object` | error | the object's bytes do not hash to its name, both hashes named |
 | `dangling-pointer` | error | `meta/config/<name>/<pointer>` names a stamp whose entry does not resolve |
+| `removed-during-check` | warning | a writer removed the key after the walk listed it, so it was not read |
+
+`check` reads a live store while ze writes it, so the daemon can remove a key
+after the walk lists it and before the walk reads it. That key is not an error
+and is not skipped in silence: it is named on one stdout line,
+`removed while the check ran, not read (<n>): <key>, <key>`, a directory key
+ending in `/`, and the closing line counts it apart from what was read,
+`ok: <n> entries read, <n> removed during the check not read, magic ok, container ok`.
+No error is drawn from a removed key: an entry whose object was removed, and a
+pointer whose entry was removed, are not judged dangling. The exit code is the
+one the other rows give.
 
 `repair` preserves the source and writes verified keys to a new tree or blob. It
 refuses an existing output. It then drops every dangling or malformed entry and
 every wrong-hash object from the output, one `dropped:` row each, keeps orphan
 objects, and reports every pointer left naming a dropped entry without moving
-it. Integrity exits are `0` for success, `1` for corruption, skipped or dropped
-keys, or a history error, and `2` for an I/O failure or unsafe path.
+it. A key the daemon removed from the source while the walk ran is not in the
+output: it gets one `removed: <key>` line, and the summary line counts it,
+`<n> recovered, <n> skipped, <n> removed while the repair ran -> <output>`.
+Integrity exits are `0` for success, `1` for corruption, skipped or dropped
+keys, or a history error, and `2` for an I/O failure or unsafe path. A removed
+key does not change the exit code.
 
 Both run while ze runs: neither opens the live store as its writer. A remote
 operator runs the same through the daemon, below: `show data check` answers
 the rows `check` prints, and `request data repair path <file>` writes the
 salvage on the daemon's host. Installing a repaired store in place of the live
 one needs ze stopped.
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, integrityVerdict, cmdRepair, salvageHistory, printHistoryFindings -->
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory, printHistoryFindings -->
 <!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 
 `backup` copies every key of the store, at any depth and in any namespace, to
@@ -2857,6 +2872,18 @@ command that fixes that, and exits `2`. With ze stopped, `rm` removes any key.
 <!-- source: internal/component/config/storage/cli/main.go -- cmdRm, removeKeys, removeKeysThroughDaemon -->
 <!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH, unansweredRefusal -->
 
+`write` writes the bytes of a file, or of stdin for `-`, into one key, creating
+it or replacing it, and prints `wrote <key> (<n> bytes) into <store>`. While a
+daemon owns the store, `write` sends the bytes to that daemon as
+`update data key <key> content <base64>`, by the route `rm` takes, and prints
+the same line with exit `0`. The daemon command writes runtime state only, and
+its refusals are the ones `update data key` gives below. A file over 195,840
+bytes is refused before anything connects, with the daemon's own refusal: one
+SSH packet carries the whole command, and 195,840 bytes is what it holds. Write
+a larger value with ze stopped. With ze stopped, `write` writes any key, of any
+size.
+<!-- source: internal/component/config/storage/cli/main.go -- cmdWrite, writeKey, writeKeyThroughDaemon -->
+
 The daemon answers these store commands on every surface (SSH, REST, gRPC,
 MCP, the web), acting on the store it owns. The `request data` commands read
 or write a file on the daemon's own host:
@@ -2866,6 +2893,7 @@ request data backup path <absolute-file> [spare <n>] [force]
 request data restore path <absolute-file> config [name <source-name>] [client <name>]
 request data repair path <absolute-output>
 delete data key <key>
+update data key <key> content <base64>
 show data check
 ```
 
@@ -2875,7 +2903,9 @@ daemon holds its own writes for the walk, so a key it would write or remove
 meanwhile waits, and the copy is one moment of the store. The history of the
 copy is then repaired as `ze data repair` repairs it. It answers `path`,
 `recovered`, `skipped`, a row per skipped entry and per history finding, and a
-warning when an entry did not read or a history key was dropped. A relative
+warning when an entry did not read or a history key was dropped. It also
+answers `vanished` and one `vanished-keys` row per key removed during the walk,
+which the held writes keep at zero on the daemon. A relative
 path, a `..` element, a symlink, an existing path, a name the store owns in
 its folder and a path inside the live tree are refused, each naming the rule.
 The live store is not changed; check the copy with
@@ -2884,9 +2914,11 @@ The live store is not changed; check the copy with
 <!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
 
 `show data check` answers the store's integrity verdict: `entries`,
-`corrupt-entries`, `history-checked` and one `findings` row (`severity`,
-`check`, `kind`, `key`, `detail`) per corrupt entry and per history finding,
-the rows `ze data check` prints. Any error row makes the answer an error.
+`corrupt-entries`, `vanished-entries`, `history-checked` and one `findings` row
+(`severity`, `check`, `kind`, `key`, `detail`) per corrupt entry, per key
+removed during the check (kind `removed-during-check`, a warning) and per
+history finding, the rows `ze data check` prints. Any error row makes the
+answer an error.
 `| json` and `| table` render the same rows. In `ze cli -c` it runs in your own
 process over the store `--path` or the configured directory names; every
 other surface asks the daemon, which checks its own store with its writes held
@@ -2911,6 +2943,24 @@ HTTPS credentials, so removing one of them can lock you out:
 SSH public keys, `meta/ssh/...` the SSH login the CLI uses, and `meta/web/cert`
 and `meta/web/key` the HTTPS certificate and private key.
 <!-- source: pkg/zefs/keys.go -- KeySSHUsername, KeySSHPassword, KeyLocalAdminUsername, KeyLocalAdminPassword, KeyLocalAdminAuthorizedKeys, KeyWebCert, KeyWebKey -->
+
+`update data key <key> content <base64>` writes one runtime-state key while ze
+runs, creating it or replacing it with the bytes `content` decodes to, and
+answers `key` and `bytes`. `content` is base64 (RFC 4648 Section 4, with `=`
+padding), 4 to 261,120 characters: 1 to 195,840 bytes, the most one SSH packet
+carries with the command around it. The bound is the same on every surface. A
+longer content, an empty one and one that is not base64 are refused before the
+command runs, naming the bound or the encoding and never the value; a larger
+value is written with `ze data write` while ze is stopped. A configuration key
+and a key whose granted plugin runs are refused as `delete data key` refuses
+them, before the store is touched. The audit log, the accounting record, the
+SSH exec log and the session transcript record the command with
+`<redacted>` in place of the content. The built-in read-only profile is denied
+the command. The credential keys named above can be restored this way from a
+copy, without stopping ze.
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyUpdate, configurationKeyError, runningOwnerError -->
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, the content leaf -->
+<!-- source: internal/component/command/argvalidate.go -- outsideEveryLength -->
 
 Both refuse a relative path, a `..` element and a symlink, each naming the
 rule. `backup` walks the daemon's own store under its write lock and answers

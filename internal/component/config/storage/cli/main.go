@@ -6,6 +6,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -145,33 +146,130 @@ func filePathToKey(path string) string {
 	return zefs.KeyFileActive.Key(filepath.Base(path))
 }
 
+// commandDataWrite is the local command the refusals of the write route name,
+// and errorLinePrefix opens every error line the write and removal routes
+// print.
+const (
+	commandDataWrite = "ze data write"
+	errorLinePrefix  = "error: "
+)
+
+// cmdWrite is `ze data write <key> <file>`. With the store free it writes the
+// key itself. While a daemon owns the store, the open answers storage.ErrBusy
+// and the bytes go to that daemon as `update data key <key> content <base64>`
+// (daemon_route.go). Both routes print `wrote <key> (<n> bytes) into <store>`
+// and exit 0; a file that cannot be read, a store that cannot be reached and a
+// refused write exit 2, a usage error 1.
 func cmdWrite(storePath string, args []string) int {
+	return writeKey(storePath, args, askDaemonOverSSH, os.Stdout, os.Stderr)
+}
+
+// writeKey is cmdWrite over one daemon ask and two writers, so a test stubs the
+// daemon and reads the lines.
+func writeKey(storePath string, args []string, ask daemonAsk, stdout, stderr io.Writer) int {
 	if len(args) != 2 {
-		fmt.Fprintf(os.Stderr, "usage: ze data write <key> <file>\n")
+		writeText(stderr, "usage: ze data write <key> <file>\n")
 		return 1
 	}
 	key, srcPath := args[0], args[1]
 
 	data, err := cliio.ReadFile(srcPath) // "-" reads stdin
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: read %s: %v\n", srcPath, err)
+		var line textbuf.Buffer
+		writeText(stderr, line.Str("error: read ").Str(srcPath).Str(": ").Err(err).Byte('\n').String())
 		return 2
 	}
 
 	s, openErr := openOrCreateStore(storePath)
+	if errors.Is(openErr, storage.ErrBusy) {
+		return writeKeyThroughDaemon(storePath, key, data, openErr, ask, stdout, stderr)
+	}
 	if openErr != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", openErr)
+		writeErrorLine(stderr, openErr)
 		return 2
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
 	if writeErr := s.WriteKey(key, data); writeErr != nil {
-		fmt.Fprintf(os.Stderr, "error: write %s: %v\n", key, writeErr)
+		var line textbuf.Buffer
+		writeText(stderr, line.Str("error: write ").Str(key).Str(": ").Err(writeErr).Byte('\n').String())
 		return 2
 	}
 
-	fmt.Printf("wrote %s (%d bytes) into %s\n", key, len(data), storePath)
+	writeWrote(stdout, key, len(data), storePath)
 	return 0
+}
+
+// writeKeyThroughDaemon sends the bytes to the daemon that owns the store, as
+// `update data key <key> content <base64>`. The line is first judged by the
+// model, as the daemon's validator judges it, so a content over the bound one
+// SSH packet carries is refused here, before anything connects, with the
+// daemon's own refusal: the bound and the route for a larger value. busy is
+// the store's refusal of the local open, which a refusal for no answer names
+// first. The decoded answer must name the key and the byte count written.
+func writeKeyThroughDaemon(storePath, key string, data []byte, busy error, ask daemonAsk, stdout, stderr io.Writer) int {
+	encoded := base64.StdEncoding.EncodeToString(data)
+	tokens := []string{keywordKey, key, keywordContent, encoded}
+	if _, err := command.ValidateModelArgs(pathUpdateDataKey, tokens, nil); err != nil {
+		var line textbuf.Buffer
+		writeText(stderr, line.Str(errorLinePrefix).Str(commandDataWrite).Str(": ").Err(err).Byte('\n').String())
+		return 2
+	}
+
+	var line textbuf.Buffer
+	line.Str(pathUpdateDataKey).Byte(' ').Str(configtext.QuoteCommandWord(key)).
+		Byte(' ').Str(keywordContent).Byte(' ').Str(encoded)
+	var answer writeAnswer
+	err := sendToDaemon(ask, storePath, line.String(), &answer)
+	if unanswered, ok := errors.AsType[*daemonUnanswered](err); ok {
+		writeErrorLine(stderr, unansweredRefusal(commandDataWrite, busy, unanswered))
+		return 2
+	}
+	if err != nil {
+		writeErrorLine(stderr, err)
+		return 2
+	}
+	if answer.Key != key {
+		writeErrorLine(stderr, writeMismatch(key, len(data), answer))
+		return 2
+	}
+	if answer.Bytes != len(data) {
+		writeErrorLine(stderr, writeMismatch(key, len(data), answer))
+		return 2
+	}
+	writeWrote(stdout, key, len(data), storePath)
+	return 0
+}
+
+// writeAnswer is the answer of `update data key`: the key it wrote and the
+// bytes it wrote into it.
+type writeAnswer struct {
+	Key   string `json:"key"`
+	Bytes int    `json:"bytes"`
+}
+
+// writeMismatch refuses an answer that names another key or another byte
+// count than the write sent: nothing then says the key holds the file.
+func writeMismatch(key string, octets int, answer writeAnswer) *opererr.Error {
+	var problem, fix textbuf.Buffer
+	problem.Str(commandDataWrite).Str(": the daemon answered the write of ").Str(strconv.Quote(answer.Key)).
+		Str(" (").Int(int64(answer.Bytes)).Str(" bytes), not of ").Str(key).
+		Str(" (").Int(int64(octets)).Str(" bytes)")
+	fix.Str("ze data cat ").Str(configtext.QuoteCommandWord(key))
+	return opererr.New(problem.String(), "whether "+key+" holds the file is not known", fix.String())
+}
+
+// writeWrote prints the line a written key gets, on both routes.
+func writeWrote(stdout io.Writer, key string, octets int, storePath string) {
+	var line textbuf.Buffer
+	writeText(stdout, line.Str("wrote ").Str(key).Str(" (").Int(int64(octets)).Str(" bytes) into ").
+		Str(storePath).Byte('\n').String())
+}
+
+// writeErrorLine prints err as one error of the write route.
+func writeErrorLine(stderr io.Writer, err error) {
+	var line textbuf.Buffer
+	writeText(stderr, line.Str(errorLinePrefix).Err(err).Byte('\n').String())
 }
 
 func cmdImport(storePath string, args []string) int {
@@ -248,7 +346,7 @@ func removeKeys(storePath string, keys []string, ask daemonAsk, stdout, stderr i
 	}
 	if err != nil {
 		var line textbuf.Buffer
-		writeText(stderr, line.Str("error: ").Err(err).Byte('\n').String())
+		writeText(stderr, line.Str(errorLinePrefix).Err(err).Byte('\n').String())
 		return 2
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
@@ -280,7 +378,7 @@ func removeKeysThroughDaemon(storePath string, keys []string, busy error, ask da
 		err := sendToDaemon(ask, storePath, line.String(), &answer)
 		if unanswered, ok := errors.AsType[*daemonUnanswered](err); ok {
 			var refusal textbuf.Buffer
-			writeText(stderr, refusal.Str("error: ").Err(unansweredRefusal("ze data rm", busy, unanswered)).Byte('\n').String())
+			writeText(stderr, refusal.Str(errorLinePrefix).Err(unansweredRefusal("ze data rm", busy, unanswered)).Byte('\n').String())
 			if removed == 0 {
 				return 2
 			}
@@ -288,7 +386,7 @@ func removeKeysThroughDaemon(storePath string, keys []string, busy error, ask da
 		}
 		if err != nil {
 			var refusal textbuf.Buffer
-			writeText(stderr, refusal.Str("error: ").Err(err).Byte('\n').String())
+			writeText(stderr, refusal.Str(errorLinePrefix).Err(err).Byte('\n').String())
 			continue
 		}
 		if answer.Key != key {
@@ -297,7 +395,7 @@ func removeKeysThroughDaemon(storePath string, keys []string, busy error, ask da
 				Str(", not of ").Str(key)
 			fix.Str("ze data cat ").Str(configtext.QuoteCommandWord(key))
 			mismatch := opererr.New(problem.String(), "whether "+key+" was removed is not known, so it is not counted", fix.String())
-			writeText(stderr, refusal.Str("error: ").Err(mismatch).Byte('\n').String())
+			writeText(stderr, refusal.Str(errorLinePrefix).Err(mismatch).Byte('\n').String())
 			continue
 		}
 		writeRemoved(stdout, key)
@@ -414,7 +512,7 @@ func usage() {
 				{Name: "backup <file> [spare <n>]", Desc: "Copy every key to one blob artifact, exact-fit unless spare names a percentage (0-100); offline only"},
 				{Name: "restore <file> config [name <source-name>]", Desc: "Commit the artifact's config as a new active version of this device's config; offline only"},
 				{Name: "restore <file> full", Desc: "Replace the whole tree with the artifact's keys, keeping the previous tree as database.replaced-<stamp>; offline only"},
-				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
+				{Name: "write <key> <file>", Desc: "Write a file to an explicit key; while ze runs, through the daemon, which writes runtime-state keys only, up to 195,840 bytes"},
 				{Name: "import <file>...", Desc: "Import files into the store"},
 				{Name: "rm <key>...", Desc: "Remove entries from the store; while ze runs, through the daemon, which removes runtime-state keys only"},
 				{Name: "list [prefix]", Desc: "List all matching keys recursively"},

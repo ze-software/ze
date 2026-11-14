@@ -28,6 +28,13 @@ func ValidateArgString(arg string, def *ArgDef) error {
 		return fmt.Errorf("%w: argument %q was not built by a constructor", ErrArgDef, def.name)
 	}
 	if limit := argLengthMax(def); len(arg) > limit {
+		// A token past the byte cap of a leaf that declares a length is
+		// outside that length too, so it gets the length's own refusal and
+		// the leaf's error-message: "shorten it to <cap> bytes" would name a
+		// size the declared length still refuses.
+		if outsideEveryLength(len(arg), def) {
+			return lengthFault(arg, def)
+		}
 		return fmt.Errorf("argument too long (max %d bytes): %s is %d bytes; shorten it to %d bytes or fewer", limit, def.name, len(arg), limit)
 	}
 
@@ -115,6 +122,23 @@ func argLengthMax(def *ArgDef) int {
 		}
 	}
 	return limit
+}
+
+// outsideEveryLength reports whether a token of octets bytes is longer than
+// every length def declares, judged without reading the token: it holds at
+// least octets/utf8.UTFMax characters, rounded up, since no character takes
+// more bytes. It answers false for a leaf that declares no length.
+func outsideEveryLength(octets int, def *ArgDef) bool {
+	if len(def.lengths) == 0 {
+		return false
+	}
+	charactersMin := uint64((octets + utf8.UTFMax - 1) / utf8.UTFMax)
+	for _, part := range def.lengths {
+		if charactersMin <= part.Max {
+			return false
+		}
+	}
+	return true
 }
 
 // echoValue answers arg as a refusal quotes it: whole when short, otherwise its

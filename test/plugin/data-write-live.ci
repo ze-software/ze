@@ -1,0 +1,48 @@
+# Test: data-write-live
+# VALIDATES: AC-7, AC-8, AC-12 -- the local `ze data write` on the daemon's host, while the daemon owns the store, sends the file to the daemon as `update data key <key> content <base64>`: the key is created, then replaced, each time with the local route's line (`wrote <key> (<n> bytes) into <store>`) and exit 0, and a fresh reader handle reads exactly the file's bytes; a file of 195,840 bytes travels and one byte more is refused naming the bound, exit 2; `update data key` over SSH exec with a content of 261,120 characters is written and one block more is refused naming the bound; a configuration key is refused; `show audit` holds the write under data-key-change with the placeholder; the daemon's SSH exec log line holds the placeholder; the base64 of the secret written first appears nowhere on the run's stderr.
+# PREVENTS: a `ze data write` that needs ze stopped, a daemon write that stores other bytes or prints other lines, a bound one SSH packet cannot carry, a credential written through the daemon landing in the audit log or the daemon log.
+# QUESTION: does a write reach the daemon's store over the real SSH route, at the bound one SSH packet carries, and leave no content in the audit log and the SSH exec log? The unit tests stub the daemon (TestDataWriteForwardsToDaemonWhenBusy) and judge the leaf alone (TestUpdateKeyContentBound); neither sees the owner lock, the login, the SSH packet cap, the dispatcher or the records.
+# SECRET: the first value written is "secret-credential"; its base64 is c2VjcmV0LWNyZWRlbnRpYWw=, rejected below without its padding.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=data-write-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+# The first start creates the store; the daemon then runs while the writes
+# go through it.
+cmd=background:seq=1:exec=ze start data-write-live.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=background:seq=3:exec=ze start data-write-live.conf:name=daemon:ready=Ze running.
+expect=stderr:pattern=SSH exec command.*update data key meta/test/data-write content <redacted>
+cmd=foreground:seq=4:exec=le test fixture storage/data-write-live $PORT2:exit=0
+expect=stdout:contains=OK: data-write-live
+reject=stderr:pattern=c2VjcmV0LWNyZWRlbnRpYWw
+cmd=stop:seq=5:name=daemon:signal=term

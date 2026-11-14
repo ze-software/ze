@@ -343,7 +343,7 @@ now)..." and "Shutting down (Ctrl+C again to force)...".
 <!-- source: internal/component/plugin/process/manager.go -- RefuseRespawns -->
 
 The hub also answers store commands beside `request reload`: the three
-`request data` RPCs, `delete data key` and `show data check`. The
+`request data` RPCs, `delete data key`, `update data key` and `show data check`. The
 storage component owns their YANG and registers their handlers
 (`internal/component/config/storage/cli/register_data_rpc.go`), so the command
 contract sees them wherever the component is linked. They act on the store the
@@ -355,7 +355,9 @@ promotion stays last. `delete data key <key>` removes one runtime-state key
 (`storage.RuntimeKey`: under `meta/` outside `meta/config/`) through the same
 handle, so the owner lock is never lifted and no second writer opens the
 store; it refuses a configuration key, and a key whose granted plugin runs,
-before the store is touched. `request data repair path <file>` writes a
+before the store is touched. `update data key <key> content <base64>` writes
+one runtime-state key through the same handle, with the same two refusals, from
+the bytes its base64 `content` decodes to. `request data repair path <file>` writes a
 salvage copy of that store to a new path on the hub's host: the walk over the
 live tree runs under one guard that holds the configuration and runtime-state
 locks (`storage.HoldWrites`), so a write or a removal the hub makes meanwhile

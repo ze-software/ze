@@ -3,10 +3,10 @@ module ze-data-cmd {
     prefix datacmd;
     import ze-extensions { prefix ze; }
     description "Live maintenance of the daemon's own store: backup, config restore, a salvage
-copy, and the removal of one runtime-state key, each through the store handle
-the daemon owns.";
+copy, and the removal or the write of one runtime-state key, each through the
+store handle the daemon owns.";
     revision 2026-09-26 { description "Initial revision"; }
-    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs, and request data repair, a salvage copy of the live store."; }
+    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs, request data repair, a salvage copy of the live store, and update data key, the write of one runtime-state key from base64 content."; }
 
     container delete {
         config false;
@@ -35,6 +35,60 @@ error.";
                     mandatory true;
                     description "The key to remove, as show data list prints it.";
                     ze:help "Store key, as show data list prints it";
+                }
+            }
+        }
+    }
+
+    container update {
+        config false;
+
+        container data {
+            config false;
+            description "This keyword runs nothing on its own. 'update data key <key> content <base64>'
+is the one command under it.";
+            ze:help "Write a runtime-state key into the running daemon's store.";
+
+            container key {
+                config false;
+                ze:command "ze-config:data-key-update";
+                description "Writes one runtime-state key (a key under meta/ outside meta/config/) through
+the store the daemon owns, so it works while ze runs. The key is created, or
+replaced when it exists, with the bytes content decodes to, and the answer
+carries the key and the byte count. A configuration key (under file/ or
+meta/config/, or outside both) is refused before the store is touched, because
+a raw write bypasses its versions, pointers and history. A key a plugin is
+granted is refused while that plugin runs, because the plugin manages the key
+while it runs; the refusal names the plugin and its restart. Until the daemon
+has started its plugins, such a key is refused, because the daemon cannot tell
+yet whether the plugin runs. The content is never recorded: the audit log, the
+accounting record, the SSH exec log and the session transcript hold a
+placeholder in its place.";
+                ze:help "Write one runtime-state key into the daemon's store.";
+                leaf key {
+                    type string { length "1..512"; }
+                    mandatory true;
+                    description "The key to write, as show data list prints it.";
+                    ze:help "Store key, as show data list prints it";
+                }
+                leaf content {
+                    // RFC 7950 Section 7.5.4.1: "If the constraint evaluates to "false", the
+                    // string is passed as <error-message> in the <rpc-error> in NETCONF."
+                    // An SSH exec command travels in one SSH packet, which carries at
+                    // most 256 KiB, so 261,120 characters is the bound on every surface:
+                    // it leaves room for the command around the value.
+                    type string {
+                        length "4..261120" {
+                            error-message "content is the key's bytes in base64: 4 to 261,120 characters, which is 1 to 195,840 bytes of content, the most one SSH packet carries with the command around it. A key is removed with delete data key, never emptied. Write a larger value with ze data write <key> <file> while ze is stopped.";
+                        }
+                        pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?" {
+                            error-message "content is base64 (RFC 4648 Section 4: the letters, the digits, + and /, with = padding), the encoding ze data write sends a file in. Encode the bytes as base64 and give the result.";
+                        }
+                    }
+                    mandatory true;
+                    description "The bytes to write, base64-encoded (RFC 4648 Section 4, with padding): 1 to
+195,840 bytes, at most 261,120 characters. The value is never recorded.";
+                    ze:help "Key bytes in base64, at most 195,840 bytes";
                 }
             }
         }

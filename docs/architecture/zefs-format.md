@@ -248,25 +248,32 @@ exposes raw-key operations for data commands. Its mapping, per-config pointers
 and recursive enumeration contract are described in
 [Storage backends](storage-backends.md). `ze data` accepts either an explicit
 blob artifact or the live tree root; its mutations require offline ownership,
-except `ze data rm`: when the store refuses it a writer (`storage.ErrBusy`), it
-sends each key to the daemon that owns the store as `delete data key <key>`,
-over SSH with that store's address and login and no prompt, as `ze doctor`
-reaches `show doctor`, and prints the lines of its local route. The lock is
-never lifted: the daemon removes the key through its own handle.
+except `ze data rm` and `ze data write`: when the store refuses either a writer
+(`storage.ErrBusy`), `rm` sends each key to the daemon that owns the store as
+`delete data key <key>` and `write` sends the file as
+`update data key <key> content <base64>`, over SSH with that store's address
+and login and no prompt, as `ze doctor` reaches `show doctor`, and each prints
+the lines of its local route. The lock is never lifted: the daemon removes or
+writes the key through its own handle. `write` judges its command against the
+model before it connects, so a file over the 195,840 bytes one SSH packet
+carries is refused there with the daemon's own refusal.
 A running daemon changes its own store only through the handle it owns, by the
 store commands it serves on every surface: `request data backup`,
 `request data restore ... config`, `request data repair path <file>`, which
 writes a salvage copy and changes nothing in the store, and
-`delete data key <key>`, which removes one runtime-state key. Runtime state is a key under `meta/` outside
+`delete data key <key>`, which removes one runtime-state key, and
+`update data key <key> content <base64>`, which writes one from base64 content
+of at most 195,840 bytes. Runtime state is a key under `meta/` outside
 `meta/config/` (`storage.RuntimeKey`), the same split that picks the lock a
-write takes; `delete data key` refuses every other key, because a raw removal
-of a configuration key bypasses its versions, pointers and history. It also
-refuses a runtime key while a plugin granted that key runs, reading the
+write takes; both key commands refuse every other key, because a raw change
+of a configuration key bypasses its versions, pointers and history. Both also
+refuse a runtime key while a plugin granted that key runs, reading the
 plugin's grants (`statestore.PluginKeyOwners`) and the daemon's plugin
 snapshot, and refuses such a key while the plugins have not started, since it
 cannot tell then whether the owner runs.
 <!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete, runningOwnerError -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete, handleDataKeyUpdate, runningOwnerError -->
+<!-- source: internal/component/config/storage/cli/main.go -- writeKeyThroughDaemon -->
 <!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH -->
 <!-- source: internal/core/statestore/permissions.go -- PluginKeyOwners -->
 
@@ -398,7 +405,14 @@ ending in `/`. A vanished entry was not read, so it is reported as neither
 clean nor corrupt, and a check that lists one claims only the entries it read.
 A repair leaves it out of the output. Any other open or read error still fails
 the walk, and a frame that opens and fails its decode is still corrupt.
+`ze data check` and `show data check` show each vanished key as a warning row
+of kind `removed-during-check` and count it apart from the entries read;
+`ze data repair` and `request data repair` list it and count it. The history
+walk (`storage.CheckHistory`) does the same for a key gone at its read, and
+draws no error finding from it.
 Installing a repaired tree needs the daemon stopped.
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- reportVerdict, printVerdict, printRepair -->
+<!-- source: internal/component/config/storage/history_check.go -- inspectHistory, HistoryRemovedDuringCheck -->
 <!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside, CheckReport, RepairReport, frameWalk, checkFrameTree -->
 <!-- source: pkg/zefs/check_tree_unix.go -- walkFrameDirectory, prunedDirectory, vanishedKey -->
 <!-- source: internal/component/config/storage/tree.go -- installBytes, treeEncoding.Remove -->

@@ -6,6 +6,7 @@ package cli
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -22,8 +23,10 @@ import (
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -58,12 +61,24 @@ func InstallDataRPC(target *DataRPCTarget) { dataRPC.Store(target) }
 // restore's client target, keywordName names the source config a config restore
 // reads, and keywordKey names the store key leaf of `delete data key` and the
 // answer key that echoes it, and the key column of every answer row that names
-// a store key.
+// a store key. keywordContent names the base64 content leaf of `update data
+// key`, and keywordBytes the answer key that counts the bytes a command wrote.
 const (
-	keywordPath   = "path"
-	keywordClient = "client"
-	keywordName   = "name"
-	keywordKey    = "key"
+	keywordPath    = "path"
+	keywordClient  = "client"
+	keywordName    = "name"
+	keywordKey     = "key"
+	keywordContent = "content"
+	keywordBytes   = "bytes"
+)
+
+// pathUpdateDataKey is the command `update data key` is typed as, which its
+// refusals name first and the local `ze data write` sends, and
+// usageUpdateDataKey the whole command, the fix of a refusal that says what to
+// type.
+const (
+	pathUpdateDataKey  = "update data key"
+	usageUpdateDataKey = "update data key <key> content <base64>"
 )
 
 // findingSeverity, findingCheck, findingKind and findingDetail are answer keys
@@ -106,10 +121,10 @@ func handleDataBackup(_ *pluginserver.CommandContext, validated command.Validate
 	return &zePlugin.Response{
 		Status: zePlugin.StatusDone,
 		Data: zePlugin.Map{
-			keywordPath: result.Path,
-			"keys":      result.Keys,
-			"bytes":     result.Bytes,
-			"warning":   "the file holds credentials and private keys; it is mode 0600",
+			keywordPath:  result.Path,
+			"keys":       result.Keys,
+			keywordBytes: result.Bytes,
+			"warning":    "the file holds credentials and private keys; it is mode 0600",
 		},
 	}, nil
 }
@@ -334,6 +349,70 @@ func handleDataKeyDelete(_ *pluginserver.CommandContext, validated command.Valid
 	return &zePlugin.Response{
 		Status: zePlugin.StatusDone,
 		Data:   zePlugin.Map{keywordKey: key},
+	}, nil
+}
+
+// handleDataKeyUpdate answers `update data key <key> content <base64>`. It
+// writes one runtime-state key, creating it or replacing it, through the store
+// handle the daemon owns, as handleDataKeyDelete removes one. The validator has
+// already judged content against its leaf (the length and the base64 pattern),
+// and the handler decodes it again rather than trust that: a decode it cannot
+// do is refused. The decoded bytes are the key's value and nothing else, never
+// a path. Every refusal runs before the store is touched, and none quotes the
+// content. The answer names the key and the bytes written.
+func handleDataKeyUpdate(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*zePlugin.Response, error) {
+	target := dataRPC.Load()
+	if target == nil {
+		return zePlugin.OperatorErrorResponse(opererr.New(
+			pathUpdateDataKey+": this daemon serves no store",
+			"the daemon publishes its store to this command only while the store is open, so it is starting, stopping, or runs with no store",
+			"ze data write <key> <file>")), nil
+	}
+	key, found := validated.Value(keywordKey)
+	if !found {
+		return zePlugin.OperatorErrorResponse(opererr.New(
+			pathUpdateDataKey+": no key was given",
+			"the command writes exactly one store key, the value typed after key",
+			usageUpdateDataKey)), nil
+	}
+	encoded, found := validated.Value(keywordContent)
+	if !found {
+		return zePlugin.OperatorErrorResponse(opererr.New(
+			pathUpdateDataKey+": no content was given",
+			"the command writes the bytes typed after content, base64-encoded",
+			usageUpdateDataKey)), nil
+	}
+	if !storage.RuntimeKey(key) {
+		return zePlugin.OperatorErrorResponse(configurationKeyError(pathUpdateDataKey, key)), nil
+	}
+	if refusal := runningOwnerError(pathUpdateDataKey, key); refusal != nil {
+		return zePlugin.OperatorErrorResponse(refusal), nil
+	}
+	content, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		// The decoder's error names a byte offset, never the input.
+		return zePlugin.OperatorErrorResponse(opererr.Wrap(err,
+			pathUpdateDataKey+": content is not base64",
+			"content carries the key's bytes in base64 (RFC 4648 Section 4, with = padding), the encoding ze data write sends a file in, so the key is unchanged",
+			usageUpdateDataKey)), nil
+	}
+	if len(content) == 0 {
+		var fix textbuf.Buffer
+		fix.Str("delete data key ").Str(configtext.QuoteCommandWord(key))
+		return zePlugin.OperatorErrorResponse(opererr.New(
+			pathUpdateDataKey+": the content is empty",
+			"a key is written with at least one byte; a key that should hold nothing is removed, so "+key+" is unchanged",
+			fix.String())), nil
+	}
+	if err := target.Store.WriteKey(key, content); err != nil {
+		return zePlugin.OperatorErrorResponse(opererr.Wrap(err,
+			pathUpdateDataKey+": the store refused to write "+key,
+			"the key holds what it held before the command",
+			"ze doctor")), nil
+	}
+	return &zePlugin.Response{
+		Status: zePlugin.StatusDone,
+		Data:   zePlugin.Map{keywordKey: key, keywordBytes: len(content)},
 	}, nil
 }
 

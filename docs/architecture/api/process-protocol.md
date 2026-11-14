@@ -1920,13 +1920,18 @@ The owning compiled plugin grants its registered key patterns with
 `statestore.RegisterPluginKeys`. Requests use the daemon's configured process
 name as identity. A request cannot choose another owner or grant itself access
 to credentials. Template parameters match one path segment, and a list returns
-only keys that the caller can read. The daemon's key command `delete data key`
-reads the same grants by the same process name (`statestore.PluginKeyOwners`)
-and refuses a key while a plugin granted it runs, so a plugin run under another
-name neither holds the grant nor trips that refusal.
+only keys that the caller can read. The daemon's key commands `delete data key`
+and `update data key` read the same grants by the same process name
+(`statestore.PluginKeyOwners`) and refuse a key while a plugin granted it runs,
+so a plugin run under another name neither holds the grant nor trips that
+refusal.
 
 `StateInput.key` is bounded to 512 bytes. Values carry at most one MiB and use
-base64 in JSON. Lists return at most 4096 keys; excess fails rather than
+base64 in JSON. That is more than an operator can write back through the
+daemon: `update data key` carries at most 195,840 bytes, because the command
+and its content travel in one SSH packet. A larger value a plugin wrote is
+rewritten with `ze data write <key> <file>` while ze is stopped, which the
+refusal names. Lists return at most 4096 keys; excess fails rather than
 returning a partial result. `ze-plugin-engine.yang` models the same bounds.
 `StateOutput.status` explicitly names `ok`, `absent`, `unavailable`, `corrupt`,
 `read-failed`, or `persist-failed`. Only a successful mutation returns `ok`.

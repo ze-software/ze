@@ -83,7 +83,7 @@ the plugin registration check derive their verb set from it.
 | `clear` | Action | Data that exists takes one fixed value, zero or empty | Counters and caches | Yes | 19 |
 | `request` | Action | The system changes, and the change is none of create, delete or update | The session, the wire, or the process | No | 33 |
 | `create` | Action | Something that did not exist exists after the command, today a live kernel resource | The kernel | Yes | 5 |
-| `update` | Action | Data held for something that exists is rewritten | The config draft, or a cached set | Yes | 13 |
+| `update` | Action | Data held for something that exists is rewritten | The config draft, a cached set, or a store key | Yes | 20 |
 | `debug` | Action | Live protocol state is perturbed on purpose | The wire | No | 4 |
 | `send` | Action | Bytes the operator supplies leave the router for a destination the operator names | The wire, and the peer that reads it | No | 9 |
 | `cache` | Action | Declared, and no command uses it at root | - | - | 0 |
@@ -208,6 +208,15 @@ configuration file up to date with the running peer set. It is not a `set`,
 because `set` mutates one tree node an operator names in path form, and this
 command names none: it takes no selector at all and writes the whole set.
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- delete bgp peer, update bgp peer prefix descriptions -->
+
+`update data key <key> content <base64>` writes a runtime-state key of the
+daemon's store whether or not the key existed. It takes `update` because the
+data a store key holds is rewritten: the key names a slot in a store that
+exists, as a config file names one in the draft, and `ze data write`, which it
+serves, does the same. A pair of `create data key` and `update data key`, each
+refusing the other's case, would make an operator learn which case holds
+before writing a value they hold either way.
+<!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key -->
 
 ### Where `clear` sits
 

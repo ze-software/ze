@@ -48,12 +48,21 @@ active warning until a successful read or explicit disable clears it.
 <!-- source: cmd/ze/hub/register_bootstrap_credentials.go -- init -->
 
 Keep console access or another working login while repairing credentials.
-Stop the daemon before restoring the affected `meta/auth/local/` frame from
-a known backup, then restart it. Select the device's database explicitly:
+Restore the affected `meta/auth/local/` frame from a known backup, then
+restart the daemon. Select the device's database explicitly:
 
 ```sh
 ze data --path <database> write <credential-key> <credential-backup-file>
 ```
+
+The daemon need not be stopped for the write. While it runs, `ze data write`
+sends the frame to it as `update data key <key> content <base64>`, which
+writes it through the daemon's own store and records `<redacted>` in place of
+the bytes in the audit log and the SSH exec log. That route needs a login the
+daemon still accepts, and carries at most 195,840 bytes, far more than a
+credential frame holds. With no working login, stop the daemon and run the
+same command: it then writes the store directly.
+<!-- source: internal/component/config/storage/cli/main.go -- writeKeyThroughDaemon -->
 
 The password frame contains a bcrypt hash, not a plaintext password. Restoring
 an unrelated frame does not repair the reported credential. A store that could
