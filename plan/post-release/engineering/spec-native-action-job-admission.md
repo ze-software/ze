@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Development tooling: job admission for `./le` actions on the shared machine. No shipped behavior changes, so it stays post-release engineering. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -844,3 +844,171 @@ lands as its own commit once its owed commands pass.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- The work was done directly on `main` under the owner's ruling that ordered work is done without a spec claim. It landed as: c380ead49d (the `internal/le/heavytool` leaf package), ca21327061 (the declarations, `SlotOfLine`, the `RegisterAdmitter` seam, the dispatcher call), d903972072 (`admitCentral`: unshared claim, no log, `Unknown` tree, `NameParent`), ad0972501b (`exec` by its program: `RegisterCarrierJudge`, `job.HoldTool`), a5e9f406e1 (`test/ui/le-job-admits-heavy-action.ci`), 5f063d8cd4 (review fixes), 1a6821e530 (eval, source, command, builtin and exec read by the hook), b1e6e2c970 (hook source seal), a21cc91261 (the no-slot reason on the help page and in the manifest, and the pages the first closure pass found missing).
+
+### Bugs Found/Fixed
+- A shell line holding `=` was not judged heavy, `env -S` hid its program, `exec`'s child did not get every signal, and a dead parent entry still read as a parent: 5f063d8cd4, covered by `heavytool/program_test.go`, `job/tool_child_test.go` and `TestADeadParentMeansAFreshAdmission`.
+- Heavy work behind `eval`, `source`, `command`, `builtin` and `exec` passed the subagent guard: 1a6821e530, covered in `hookruntime/subagent_heavy_test.go`.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`: "One verify at a time" states the criterion (d903972072, a21cc91261); "The long form" (a21cc91261); "Waiting for another session's job" and the `exec` paragraph (ad0972501b, 5f063d8cd4), with source anchors on `HoldTool`, `holdHeavy`, `carriesHeavy`, `RegisterCarrierJudge`.
+- `docs/architecture/core-design.md`: the admission seam paragraph, anchored on `SlotOfLine`, `RegisterNoSlot`, `RegisterCarrierJudge` (a21cc91261).
+- `docs/guide/developer-setup.md`: which shim's tool takes a slot (ad0972501b).
+- `ai/rules/commands.md` and two points under `ai/rules/points/commands/directives/` (a21cc91261).
+
+### Deviations from Plan
+- `RegisterExpensive` stays. It no longer means "takes no slot", which is `Action.NoSlot` and `RegisterNoSlot` with a reason. What it means now is the lossy-pipe mark, plus the heavy verdict, for `ai hooks unit`. That is a fact of its own, so "no slot" is still declared in one place only.
+- The census lives in `internal/le/heavy_census_test.go` (`TestCensusHeavyActionsAreAdmitted`) and `internal/le/exec_slot_census_test.go`, not in a new `admission_census_test.go`.
+- The `exec` tests are `exec/hold_test.go`, `job/tool_test.go`, `job/tool_child_test.go` and `exec/shimprogram_test.go`, in place of the four named `exec_test.go` tests.
+- The definition grew a shell-line reader (`heavytool/program.go`: `Started`, `Split`, `ShellCommand`), so `exec` can judge a carried `sh -c` line.
+- AC-5 asked for two trees run under one slot: `test functional gating` with a child suite, and `rfc record` with a functional child. What was run: `ZE_RUN_SLOTS=1 ./le test functional runner`, a heavy parent whose body starts the heavy child `le test runner --all`, the same path every gating suite takes. It completed twice in 42 seconds. Over 185 samples of `./le job report` during the second run, the tree held exactly one slot, labeled `test-functional-runner`, with never a second holder and never a waiter of the session. The suite's own result was 20 of 25: five commit-tool tests fail for reasons unrelated to admission ("owner authorization requires interactive stdin and stdout"). The full `test functional gating` was not run, because a whole-suite run is not started on an agent's initiative. `rfc record` was not run, because it writes a conformance proof record. In its place, `TestBinarySetKeepsTheJobParentInEverySpelling` (`internal/le/test/functional/parent_environment_test.go`) pins that `BinarySet.Environment`, the builder both trees use for their child (`Execute`, and `testoverlay.PrepareFunctional` for `rfc record`), keeps the parent entry under `ze.run.job` and `ZE_RUN_JOB`. It goes red if the builder drops either spelling. The main thread chose this replacement while the owner is away, and it is listed for his review.
+- AC-21: no other file under `internal/le` defines the heavy tools. Files that still name a formatter or a linter (`hookruntime/postwrite.go`, `go/module`, `setup/tools.go`, `verify/deps`) run or install it. They do not decide what is heavy.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation commits left the "One verify at a time" list, the core-design seam paragraph, the help-page reason of AC-9 and the rule points undone | Documentation checklist rows 10 and 12, and AC-9, each named them | The first closure pass read the producers and the live help | Fixed in a21cc91261 before closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Goal 1: every heavy line holds one slot unless declared | Done | `leroot.SlotOfLine`, `runInSlot` (`internal/le/le/root/admitter.go`), `job.admitCentral` | |
+| Goal 2: the report shows the holder | Done | `job.Overview`, `holderRow` | |
+| Goal 3: one slot per tree | Done | `job.NameParent`, `insideParent`, `parentRunning` | |
+| Goal 4: a new heavy action is admitted with no edit, a test fails otherwise | Done | `TestCensusHeavyActionsAreAdmitted` | |
+| Goal 5: the page sentence true | Done | `running-commands.md`, "Waiting for another session's job" | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCentralLabelIsTheCommandName`, `TestCentralLineAsksAdmitterBeforeBody` | |
+| AC-2 | Done | `TestReportShowsACentralHolder` | |
+| AC-3 | Done | `TestCensusHeavyActionsAreAdmitted` (pinned self-admitting list) | |
+| AC-4 | Done | `TestCentralHolderNamesItselfForItsBody` | |
+| AC-5 | Changed | `ZE_RUN_SLOTS=1 ./le test functional runner` (one slot, 185 report samples); `TestBinarySetKeepsTheJobParentInEverySpelling`; `.ci` step 3 | See Deviations |
+| AC-6 | Done | `TestHoldToolRunsTheToolInsideOneSlot`, `TestRunToolAnswersTheChildsOwnCode` | |
+| AC-7 | Done | `TestHoldHeavyAsksBySlotOnlyForAHeavyTool`, `TestCensusExecTakesASlotByItsProgram` | |
+| AC-8 | Done | `TestLightLineNeverReachesAdmitter` | |
+| AC-9 | Done | `TestStartupRefusesAnEmptyNoSlotReason`, `TestHelpAndManifestStateWhyWorkTakesNoSlot` | |
+| AC-10 | Done | `TestCentralLineWaitsForTheOnlySlotThenRuns`, `TestCentralWaitEndsOnSignal` | |
+| AC-11 | Done | `TestCentralLineAsksAdmitterBeforeBody`, `TestCentralReleaseOnPanic` | |
+| AC-12 | Done | `.ci` step 3 (`leHeavyTreeCountsOnce`) | |
+| AC-13 | Done | `TestCentralRunsUnadmittedWithNoCheckout` | |
+| AC-14 | Done | `TestWholeTreeRefusesBeforeAdmitter` | |
+| AC-15 | Changed | `TestCensusHeavyActionsAreAdmitted` in `heavy_census_test.go` | File name differs |
+| AC-16 | Done | `ZE_ADMIT_RAW` is read only by the hook (`rawHeavyWords`) and named in the report text | |
+| AC-17 | Done | `running-commands.md`, "Waiting for another session's job" | |
+| AC-18 | Done | `TestNothingAttachesToAnUnsharedHolder` | |
+| AC-19 | Done | `plan/journal/lifetime-ends-before-its-last-reader.md`, 2026-10-24 row closed | |
+| AC-20 | Done | `TestSubagentExecIsJudgedByItsProgram` | |
+| AC-21 | Changed | `internal/le/heavytool` (`goVerbs`, `tools`, `lintSubcommandsWithoutAnalysis`) | The other files that name the formatters run or install them; they do not define them |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the eight `slot_test.go` tests | Done | `internal/le/le/root/slot_test.go` | Plus `TestAdmitterRefusalSkipsTheBody`, `TestRegisterAdmitterRefusesNilAndASecond` |
+| the nine `central_test.go` tests | Done | `internal/le/job/central_test.go` | |
+| `TestReportShowsACentralHolder` | Done | `internal/le/job/overview_test.go` | |
+| `TestNameOfEachHeavyTool` | Done | `internal/le/heavytool/heavytool_test.go` | |
+| the four `exec_test.go` tests | Changed | `internal/le/exec/hold_test.go`, `internal/le/job/tool_test.go`, `internal/le/job/tool_child_test.go` | |
+| `TestCarrierLineIsHeavyByItsProgram` | Changed | `TestCarriesHeavyReadsTheCarriedProgram`, `TestCensusExecTakesASlotByItsProgram` | |
+| `TestSubagentExecIsJudgedByItsProgram` | Done | `internal/le/hookruntime/subagent_exec_test.go` | |
+| `le-job-admits-heavy-action` | Done | `test/ui/le-job-admits-heavy-action.ci` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/heavytool/heavytool.go` | Done | plus `program.go` |
+| `internal/le/le/root/slot_test.go`, `internal/le/job/central_test.go` | Done | |
+| `internal/le/admission_census_test.go` | Changed | in `heavy_census_test.go` |
+| the fixture `ui/le-job-admits-heavy-action` | Done | `internal/test/fixture/ui_fixture_le_job_admits_heavy_action.go` |
+
+### Audit Summary
+- **Total items:** 21 ACs, 5 goals
+- **Done:** 18 ACs, 5 goals
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 ACs (AC-5, AC-15, AC-21), recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Every heavy line holds one slot | functional | `test/ui/le-job-admits-heavy-action.ci`, green with five steps; red with the central branch disabled ("le job report never listed the running heavy action as a holder"); live: a heavy action waited behind a held slot and ran when it freed |
+| 2. The report shows the holder | functional, live | the same `.ci`; live `./le job report` showed `exec-go-vet` and other sessions' `test ui`, `site build` and a lab as holders |
+| 3. One slot per tree | functional | `.ci` step 3: a `job run` holder and its child heavy `le` count one occupied slot |
+| 4. Admitted by declaration, a test fails otherwise | unit | `TestCensusHeavyActionsAreAdmitted` drives the dispatcher with a fake admitter over every registered heavy line |
+| 5. The page sentence true | doc | `running-commands.md`, "Waiting for another session's job" |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Weighing a job by memory and disk | Out of this spec's scope by decision 2 | `plan/post-release/engineering/spec-test-verdicts-independent-of-load.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | the closure files' review is whatever the independent reviewer records with `./le spec review record`; nothing is recorded here in advance |
+| `./le spec review check` | run by the main thread before commit A |
+| Rounds | code: the admitter review 2 rounds and the final code review 3 rounds, each ending clean; closure files: as the reviewer records them |
+| Reviewer lenses used | logic and wiring, signal and process lifetime, hook false positives and negatives, test discrimination. The independent `ze-test-judge`'s 3 rounds on 3 expectation changes (two refusals fixed, then approved) are recorded in the body of ad0972501b and its `Weakening-approved:` lines, and nowhere else |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | A shell line holding `=` passed as light | `internal/le/heavytool/program.go` | 5f063d8cd4 |
+| 2 | ISSUE | `env -S` hid the carried program | `internal/le/heavytool/program.go` | 5f063d8cd4 |
+| 3 | ISSUE | `exec`'s child did not get every signal `le` received | `internal/le/job/job.go` `forwardSignals` | 5f063d8cd4 |
+| 4 | ISSUE | A dead parent entry still read as a parent | `internal/le/job/job.go` `parentRunning` | 5f063d8cd4 |
+| 5 | ISSUE | The functional test lacked the exec step, and the shim's linter went unrecorded | `test/ui/le-job-admits-heavy-action.ci`, its fixture | 5f063d8cd4 |
+| 6 | ISSUE | AC-9: the help page did not state the no-slot reason | `internal/le/le/action/page.go` `ActionPage` | a21cc91261 |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/heavytool/heavytool.go`, `internal/le/job/central.go`, `internal/le/le/root/admitter.go` | yes | `gopls symbols` and Read answered each at closure |
+| `test/ui/le-job-admits-heavy-action.ci` | yes | `git show --stat a5e9f406e1` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-9 | help page and manifest state the reason | `NoSlotSection` in `page.go`, `NoSlot` in `helpai.go` and `manifest.go` (a21cc91261); the main thread ran le/root and le/action green |
+| AC-19 | the 2026-10-24 row closed at the producer | `breakStalled` removed in ee1deac76a; `(*Admission).remove` removes only files its invocation created |
+| AC-1 to AC-21 | as in the audit | the main thread ran heavytool, exec, job, hookruntime, le/root, le/action, go/lint and ai/hooks green, and the `.ci` green |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| a heavy line typed at the built `le` while the only slot is held | `test/ui/le-job-admits-heavy-action.ci` | green, and red with the central branch disabled |
+| `le exec` of a heavy tool while the slot is held | the same `.ci`, exec step | green |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `Execute` (`internal/le/test/functional/run.go`) runs each suite under `BinarySet.Environment`, built on `Toolchain.EnvironmentContext`, which inherits `os.Environ()` and strips only the repo root, the build name and the verify scope, so `ze.run.job` reaches the suite; the RFC guest runner passes `os.Environ()` |
+| A-2 | confirmed | no central body ends the process; `exec` admits itself (`holdHeavy`, `HoldTool`) |
+| A-3 | confirmed | the census asserts it by name |
+| A-4 | confirmed | `runStart` returns the outcome of `start`, which runs `colima start` under the setup lock and returns, so it is admitted centrally; only `stop` declares no slot |
+| A-5 | confirmed | `test integration` rows carry `NoSlot` from its declared table (`table`, `internal/le/test/integration/actions.go`) |
+| A-6 | confirmed | `TestALoglessEntryIsReadByThePrunerAndTheHolderListing` |
+| A-7 | confirmed | the fake admitter is installed in the `chaos/run`, `repo/codeql`, `verify/dispatch` and `weekly` tests (d903972072) |
+| A-8 | confirmed | `Expensive` is read by `heavy.go` and the hook's pipe guard (`commandExpensive`, `bash.go`) |
+| A-9 | confirmed | `admitCentral` runs a body unadmitted with no checkout, so the renderer container's `pty` holds nothing |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "One verify at a time" criterion | `SlotOfLine`, `censusSelfAdmitting` | yes |
+| core-design admission seam | `RegisterAdmitter` (`job/register.go`), `SlotOfLine` | yes |
+| developer-setup shims | `job.HoldTool`, `exec.holdHeavy`, `shimScript` | yes |

@@ -46,7 +46,7 @@ whole-tree run proves.
 | The rule says the check judges every row of the corpus on every run | `ai/rules/rfc-compliance.md` |
 | `./le test weakened check` is already scoped to a diff; its 14-second mean is unexplained | `internal/le/test/weakened/audit.go`, `Audit` |
 | The reached-package selector exists | `internal/le/repo/changed/selector.go` |
-| `spec-native-action-job-admission` (skeleton) would admit these actions, which may add wait | `plan/post-release/engineering/spec-native-action-job-admission.md` |
+| spec-native-action-job-admission (closed) admits these actions now: each heavy line, `repo compiles` and `rfc check` included, takes one job slot from the dispatcher, which may add wait. The finding above that the compile gate takes no admission slot predates it | `plan/learned/047-native-action-job-admission.md` |
 
 Unverified, to measure before designing on it:
 

@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Test tooling: a red that measures host load hides real reds and costs the release evidence its trust, but no shipped behaviour changes |
-| Depends | `plan/post-release/engineering/spec-native-action-job-admission.md` (admission on every heavy action; this spec adds memory and disk to it) |
+| Depends | - (was `spec-native-action-job-admission`, closed: central admission of every heavy `./le` line landed in `d903972072`, `plan/learned/047-native-action-job-admission.md`; this spec adds memory and disk to it) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-23 |
@@ -53,7 +53,7 @@ admission holds a run until the memory and disk it needs are free.
   -> Decision: that spec keeps its ACs for the plugin suite and its per-case protocol-boundary classification. This spec supplies the mechanism (barriers, stall kill, admission) and owns every other suite and the unit packages. Neither re-proposes widening waits or lowering concurrency.
 - [ ] `plan/post-release/engineering/spec-fixit-sleeps-qemu-bulk.md` - blind holds in the Linux-gated tests
   -> Decision: its groups A and B become users of the barrier API this spec adds; that spec stays the owner of those fixtures.
-- [ ] `plan/post-release/engineering/spec-native-action-job-admission.md` - admission rollout to every native action
+- [ ] `plan/learned/047-native-action-job-admission.md` - admission rollout to every native action (`spec-native-action-job-admission`, closed; central admission landed in `d903972072`)
 - [ ] `plan/post-release/engineering/spec-le-build-cache-cap.md` - the Go build-cache size cap
   -> Decision: the cap bounds one writer; this spec adds the admission check that refuses to start a run into a full disk, for every writer.
 
@@ -68,6 +68,23 @@ Verified at the producer on 2026-10-23.
 - [ ] `internal/le/interoplab/zebuild.go` - `labBuildTimeout` is a fixed 5 minutes for the lab cross-compile.
 - [ ] `test/plugin/*.ci` - `option=timeout:value=<n>s` is an absolute wall deadline covering daemon start, session establishment and plugin startup.
 - [ ] `internal/test/fixture/register_drain_signal.go` - `drainSSHRestart` polls 75 x 200 ms; the readiness waits in the fixtures are sleep loops with a count.
+
+## Existing Mechanisms (MANDATORY)
+
+Read at the producer on 2026-11-14, after `spec-native-action-job-admission`
+closed. Where a row finds the design or Current Behavior above already met or
+overtaken, it says so here; the design sections are left as they stand.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Central admission of every heavy `./le` line | `admitCentral` and `(centralPoint).admit`, `internal/le/job/central.go`; the slot a line takes, `leroot.SlotOfLine` over `resolveLine`, `internal/le/le/root/heavy.go`; the exceptions `leroot.RegisterAdmitted` and `leroot.RegisterNoSlot`; `plan/learned/047-native-action-job-admission.md` | The dispatcher takes one unshared slot for every heavy line before its body runs, unless the line's own row declares that it admits itself or takes no slot, with a reason. The hook and the dispatcher read one declaration of what is heavy | Extends. Data Flow step 1 and the Integration Checklist item "every heavy action declares a resource class" attach the class to this one declaration and this one admission point, never a second path. Overlap: the half of AC-5 and of the checklist that says every heavy action goes through admission is already delivered by this default; what this spec still owes is the memory and disk half |
+| Slot count and the scan that claims a slot | `defaultSlots` and `NewIn`, `internal/le/job/job.go`; `(*Admission).scanAndClaim` and `(*Admission).take`, `internal/le/job/registry.go` | Slots are `runtime.NumCPU() / gotoolchain.CoresPerJob()` (override `ze.run.slots`), and a claim is granted while fewer live or unassessable entries than slots exist. No other resource is read | Extends: free memory and free disk become further conditions of the same claim, under the same registry lock and the same fail-closed reading |
+| `./le job report` machine readings | `Machine` (`MemoryAvailable`, `DiskFreeTmp`, `DiskFreeBuildCache`, load averages) and `volumeFree` over `diskspace.Free`, `internal/le/job/overview.go`; `internal/core/diskspace` | Measures available memory and free space on the tmp and Go build-cache volumes, and shows them beside the slots. It decides nothing: its header says no threshold is applied there | Extends: the admission check of AC-5 and AC-6 reads these same producers rather than new probes; the report stays a reader |
+| Quiet-window diagnostic and owner-only removal | `(*Admission).reportBusy` and `(*Admission).remove`, `internal/le/job/registry.go`; `StallDefault` and `stallEntry`, `internal/le/job/job.go` | A waiter never signals or removes a holder: log silence past `ze.job.stall.seconds` only words the waiting banner, and only the invocation that created a file removes it. The waiter-side `breakStalled` was removed by `ee1deac76a` | Does not apply as written. AC-9, the `breakStalled` line in Current Behavior and the owned row on `killGrace` in `breakStalled` describe a kill that no longer exists; the stall kill this spec designs is the runner's (Data Flow step 2), not admission's |
+| Functional-runner wall budget | `Timings.SuggestedTimeout`, `internal/test/runner/timing.go`; `ParallelTimeoutHeadroom`, `ParallelFactorEnv` and `TestBudgetEnv`, `internal/test/runner/parallel.go` | Each test gets `min(fallback, max(5s, 5 x average))`, tripled when concurrency is above one, and the contention-scaled budget is exported to the child | Replaces: the stall detector of Data Flow step 2 takes the place of the wall total and of the factor a child applies to its own deadlines |
+| Host-load snapshot in the runner | `HostLoad` and `snapshotHostLoad`, `internal/test/runner/hostload.go`; `(*parallelRunner).setHostLoad`, `internal/test/runner/parallel.go` | One load reading at run start; a contended run records no timing baseline and labels its failure groups with the load | Extends: AC-4's `capacity` verdict carries these load figures |
+| Lab cross-compile bound | `labBuildTimeout`, `internal/le/interoplab/zebuild.go` | A fixed wall bound on one lab cross-compile, now 15 minutes (Current Behavior above still says 5) | Replaces: a fixed wall total is what Data Flow step 2 removes |
+| Fixture readiness waits | `drainSSHRestart` and `signalDaemonAfterSSH` over `waitSSHCommandExtra3`, `internal/test/fixture/register_drain_signal.go` | Waits for SSH through `waitSSHCommandExtra3`, then sleeps `drainRequesterSettle` before acting | Replaces: the barrier API of Implementation Step 1 replaces the poll and the settle sleep |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

@@ -137,7 +137,7 @@ Existing specs this work meets:
 | Spec | Relation |
 |------|----------|
 | `plan/post-release/engineering/spec-rules-situation-index.md` (skeleton) | Proposes the per-point `applies` predicate. Child 3 lands its first slice (D-2) and names what stays there |
-| `plan/post-release/engineering/spec-native-action-job-admission.md` (skeleton) | Every heavy action admits. Child 2 lands the wait record first, so its cost is measurable |
+| spec-native-action-job-admission (closed, `plan/learned/047-native-action-job-admission.md`) | Every heavy action admits. Child 2 lands the wait record first, so its cost is measurable |
 | `plan/post-release/engineering/spec-docs-read-before-authoring.md` (design) | Adds forced whole-page reads. Its design adopts child 3's core-page acceptance before it is implemented |
 | `plan/post-release/engineering/spec-gates-report-cause-and-progress.md` (design) | Gate failure cause and progress. Does not cover hook refusals; no overlap |
 
