@@ -251,6 +251,13 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.Silent {
 		config.Silent = true
 	}
+	// option=stop-reading. Dropped here, the peer read connection 1 to the end
+	// of its script and closed it itself, so ze dialed again on its retry timer
+	// and test/plugin/session-peer-stops-reading.ci passed against a daemon that
+	// never dropped the session.
+	if fileConfig.StopReading != nil {
+		config.StopReading = fileConfig.StopReading
+	}
 	if fileConfig.EstablishedFile != "" {
 		config.EstablishedFile = fileConfig.EstablishedFile
 	}
