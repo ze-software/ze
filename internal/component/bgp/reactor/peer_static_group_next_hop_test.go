@@ -96,7 +96,7 @@ func TestStaticGroupedResolvedNextHopWire(t *testing.T) {
 
 			// RFC 8950 Section 3: IPv4 NLRI with IPv6 next hops uses MP_REACH;
 			// RFC 8277 Section 2 and RFC 4364 Section 4.3.4 retain labeled NLRI.
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 
 			remaining := conn.written()
 			for _, attrs := range tc.attrs {

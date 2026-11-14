@@ -1761,9 +1761,11 @@ processes report completion for the captured Session; reporters that declare
 `FencesLiveForwards` hold the destination's live-forward replay fence. They do
 not hold Ze's own marker (owner ruling, 2026-09-18).
 
-1. **Session establishment:** `setState` closes the queueing gate
-   (`sendingInitialRoutes`) and marks the marker owed (`initialSyncEOROwed`) in
-   the same call that publishes Established.
+1. **Session establishment:** `enterEstablished` closes the session's queueing
+   gate (`Session.sendingInitialRoutes`) and marks its marker owed
+   (`Session.initialSyncEOROwed`) before it publishes Established. Both facts
+   belong to the session, so a sync can only clear its own session's facts,
+   never those of the session that replaced it.
 2. **Engine names the processes that report:** `Peer.initialUpdateReporters`
    keeps an `attach process` binding when three facts hold together. The peer
    GRANTS it a route-push rail, which is `send [ update ]`, `send [ raw ]`, or
@@ -1788,7 +1790,10 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
    last `FencesLiveForwards` reporter lowers the separate replay fence.
    Explicit operator readiness remains a no-op and cannot credit a process.
 7. **sendInitialRoutes writes what it owns:** config static routes,
-   default-originate, the peer-up barrier, then the family routes.
+   default-originate, the peer-up barrier, then the family routes. It runs on
+   the session's one sync goroutine, started through the session's latch
+   (`spawnInitialSync`), and writes only to that session. The runOnce
+   session-end defer joins the goroutine before it clears `Peer.session`.
 8. **drainAndCloseQueueGate:** the opQueue is drained and new work no longer
    joins the engine's initial-sync queue. An announce or withdrawal that read
    `shouldQueue()` before this point and reaches `QueueAnnounce` or
@@ -1807,14 +1812,15 @@ not hold Ze's own marker (owner ruling, 2026-09-18).
    head of the opQueue for the next session, which it ends (logged at Info
    naming the peer). The routes queued behind it are cleared then, unsent.
 9. **End-of-RIB, then the marker fact clears:** one marker per negotiated
-   family, then `initialSyncEOROwed` goes false. The peer does NOT wait for the
+   family, then the session's `initialSyncEOROwed` goes false. The peer does NOT wait for the
    processes in step 5 first. A process that creates routes is treated like a
    peer when the marker is decided, and Ze does not hold its own marker for a
    peer's (owner ruling, 2026-09-18). The barrier the earlier steps build is
    still what orders a route against the marker while the sync runs; it no
    longer delays the marker once the sync has written what it owns.
 10. **AnnounceEOR guard:** a marker from another producer (a plugin, the route
-    server) is suppressed while `shouldQueue()` OR `initialSyncEOROwed` is true.
+    server) is suppressed while `shouldQueue()` is true OR the current session's
+    marker is owed (`initialSyncMarkerOwed`).
     The caller is told the marker was handled, the suppression is logged, and
     the peer's own `sendInitialRoutes` marker covers the family.
 11. **Route refresh markers queue with the routes:** a BoRR or EoRR sent while
@@ -1873,9 +1879,10 @@ about the `ze.` prefix: the barrier alone dropped it, so a peer attaching
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames, RegistryName -->
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- spawnInitialSync, sendInitialRoutes, drainAndCloseQueueGate -->
+<!-- source: internal/component/bgp/reactor/source_policy_reload.go -- enterEstablished -->
 <!-- source: internal/component/bgp/reactor/api_sync.go -- peerUpBarrierTimeout -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady, Peer.initialSyncEOROwed -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady, Peer.initialSyncMarkerOwed -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
 
 **The queueing gate and the owed marker are two facts, and steps 8 to 10 are
@@ -1887,11 +1894,11 @@ the marker also held the queueing window open: measured on 2026-08-08, a 500ms
 hold made `test/plugin/role-otc-rs-withdraw-eor.ci` deliver the same relayed
 route to the destination peer TWICE. Splitting the facts is what lets the
 barrier cover every route-pushing binding without widening that window.
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.sendingInitialRoutes, Peer.initialSyncEOROwed -->
+<!-- source: internal/component/bgp/reactor/session.go -- Session.sendingInitialRoutes, Session.initialSyncEOROwed -->
 
 ```go
-// In sendInitialRoutes(), once the routes this goroutine owns are on the wire.
-if p.drainAndCloseQueueGate(addr, opMaxMsgSize) { // Queueing gate closes HERE.
+// In sendInitialRoutes(session), once the routes this goroutine owns are on the wire.
+if p.drainAndCloseQueueGate(session, addr, opMaxMsgSize) { // Queueing gate opens HERE.
 	return // A queued teardown ended the session.
 }
 p.wakeForwardOverflow() // Parked forwarded UPDATEs go out.
@@ -1899,7 +1906,7 @@ p.wakeForwardOverflow() // Parked forwarded UPDATEs go out.
 // No wait for the reports of step 5. A route-creating process is a peer for
 // this decision, and Ze does not hold its own marker for a peer's.
 // Then one End-of-RIB per negotiated family, and finally:
-p.initialSyncEOROwed.Store(false)
+session.initialSyncEOROwed.Store(false)
 ```
 
 ---

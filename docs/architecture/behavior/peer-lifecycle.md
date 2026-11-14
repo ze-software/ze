@@ -168,9 +168,12 @@ down. Step-by-step:
    `setPluginFamiliesGetter`, `setOpenValidator`.
 3. **Publish the session on `p.session` under lock** so other API
    callers (`Teardown`, `acceptConnection`, metrics) can see it.
-4. **Deferred cleanup:** clear negotiated capabilities, clear encoding
-   contexts, clear prefix-threshold warnings, reset
-   `sendingInitialRoutes` flag, and null out `p.session`.
+4. **Deferred cleanup:** clear negotiated capabilities, join the
+   session's initial sync (`Session.endInitialSync`), clear encoding
+   contexts, clear prefix-threshold warnings, clear
+   `p.establishedSession`, reset the End-of-RIB claims, and null out
+   `p.session`. The initial-sync gate and owed marker are fields of the
+   session, so nothing resets them for the next one.
 5. **Set initial peer state** to `PeerStateConnecting` or
    `PeerStateActive` based on connection mode.
 5a. **Open the BFD session, for a strict peer only.** `startBFDClient`
@@ -229,19 +232,28 @@ take additional locks safely.
 1. Capture negotiated capabilities via `session.Negotiated()`.
 2. Store as `NewNegotiatedCapabilities` on the peer.
 3. Set per-peer encoding contexts via `setEncodingContexts(neg)`.
-4. `setState(PeerStateEstablished)`.
+4. `enterEstablished(session)`. It resets the API sync to the plugin
+   bindings that push routes, closes the session's initial-sync gate
+   (`Session.sendingInitialRoutes` to 1), marks its End-of-RIB owed
+   (`Session.initialSyncEOROwed`), publishes the session as
+   `p.establishedSession`, and only then calls
+   `setState(PeerStateEstablished)`. The order matters: an observer
+   that sees Established already sees the gate closed, so `shouldQueue()`
+   is true during event delivery and routes do not bypass the queue.
+   `setState` itself no longer touches the gate.
 5. `SetEstablishedNow()` records the establishment timestamp.
 6. Emit `session established` info log with local AS, peer AS.
-7. Reset API sync counter to the number of plugin bindings with
-   `SendUpdate` permission.
-8. Set `sendingInitialRoutes` to 1 (important: this happens **before**
-   notifying plugins, so `ShouldQueue()` returns true during event
-   delivery and routes do not bypass the queue).
-9. Notify the reactor via `reactor.notifyPeerEstablished(p)` and
+7. Reset the peer-up barrier for this session.
+8. Notify the reactor via `reactor.notifyPeerEstablished(p)` and
    `reactor.notifyPeerNegotiated(p, neg)`.
-10. Call `startInitialRoutes()`. It spawns `sendInitialRoutes()` in its
-    own goroutine (per-session lifecycle, not per-event), unless the
-    startup convergence hold owns this peer's initial routing update.
+9. Call `startInitialRoutes(session)`. Unless the startup convergence
+   hold owns this peer's initial routing update, it calls
+   `spawnInitialSync(session)`, which starts the session's one sync
+   goroutine (`runInitialSync`, per-session lifecycle, not per-event)
+   through the session's start latch. A second start of the same
+   session, or a start after it ended, spawns nothing. The runOnce
+   session-end defer joins that goroutine before it clears
+   `p.session`.
 
 Established peer events and API snapshots report the TCP connection's local
 address and both socket ports, including an automatically chosen local address
@@ -270,8 +282,10 @@ received UPDATE, arriving in Established, always has resolved.
 
 `bgp update-delay max-delay <seconds>` arms a hold when the daemon starts
 its peers. While the hold is armed, `startInitialRoutes` registers the
-peer with the hold and spawns nothing. The hold runs
-`sendInitialRoutes()` for every peer it registered when it releases.
+peer and its session with the hold and spawns nothing. When it releases,
+the hold calls `spawnInitialSync` with the session it recorded for every
+peer it registered; the latch starts nothing for a session that has
+ended.
 
 The hold releases on the first of three conditions: every EXPECTED peer
 finishes its initial routing update, the optional `establish-wait`
@@ -381,7 +395,7 @@ receiver sends Cease / Out of Resources.
 <!-- source: internal/component/bgp/reactor/peer_session_end.go — leaveSession, sessionDown, sessionLeave.close, failReceivePublication -->
 <!-- source: internal/component/bgp/reactor/peer_close.go — sessionCloseFor -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — SetCallback Established and leave-Established branches -->
-<!-- source: internal/component/bgp/reactor/peer_run.go — sendInitialRoutes spawn -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go — spawnInitialSync, runInitialSync -->
 
 ## Reconnect backoff
 
@@ -834,7 +848,7 @@ BGP `taskguard` (count, crash record, ERROR log), named by their task:
 | `safeRunOnce` (task `connect`) | The connection cycle outside `Run`: dial, OPEN setup, teardown | Return the panic as the cycle's error to `run()` for normal backoff |
 | Delivery worker goroutine (task `delivery`) | Async message delivery to the reactor's message receiver | Fail the receive publication: Cease / Unspecific, session down; close `deliveryDone`, exit worker (remaining buffered items are dropped intentionally) |
 | `Listener.safeHandle` (task `accept`) | The handler of one accepted connection | Close that connection; the accept loop keeps running |
-| Initial-sync goroutine | Static routes, queued operations, plugin routes and automatic End-of-RIB | Log panic with stack, clear the queueing and marker-owed flags, wake forwarded overflow, and return |
+| Initial-sync goroutine | Static routes, queued operations, plugin routes and automatic End-of-RIB | Log panic with stack, clear its session's queueing gate and marker-owed flag, wake forwarded overflow, and return |
 
 Recovery does not itself kill the peer goroutine. A session failure still follows
 the normal reconnect path unless the peer is stopped.
@@ -878,7 +892,7 @@ asserting `p.mu` is free at that boundary.
 | Outer run loop and backoff | `internal/component/bgp/reactor/peer_run.go` | `run`, `safeRunOnce` |
 | Per-attempt session lifecycle | `internal/component/bgp/reactor/peer_run.go` | `runOnce` |
 | FSM state-change callback | `internal/component/bgp/reactor/peer_run.go` | `SetCallback` closure inside `runOnce` |
-| Initial route synchronization and panic unwind | `internal/component/bgp/reactor/peer_initial_sync.go` | `sendInitialRoutes`, `drainAndCloseQueueGate` |
+| Initial route synchronization and panic unwind | `internal/component/bgp/reactor/peer_initial_sync.go` | `spawnInitialSync`, `runInitialSync`, `sendInitialRoutes`, `drainAndCloseQueueGate` |
 | Cleanup on peer stop | `internal/component/bgp/reactor/peer_run.go` | `cleanup` |
 | Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `setInboundConnection`, `takeInboundConnection` |
 | RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `storeInboundLocked` |

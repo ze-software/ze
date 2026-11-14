@@ -152,7 +152,7 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 	session := peer.currentSession()
 	session.adjOut = &peer.adjOut
 	session.egressFinalAccepts = func() bool { return peer.ExportPolicy().AcceptsAtEnd(peer.IsEBGP()) }
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 	assertHeld := func(want bool) {
 		t.Helper()
 		held := make(map[netip.Prefix]bool)
@@ -237,7 +237,7 @@ func TestPolicyFinalOnlyDecisionDoesNotAllocate(t *testing.T) {
 func TestPolicyFinalWriterRejectsOldPrefilteredAnnouncement(t *testing.T) {
 	r, _, destination, conn, _ := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	session := destination.currentSession()
 	session.egressFinalAccepts = func() bool { return destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP()) }
 	update, err := message.UnpackUpdate(syncOrderAnnounceBody)
@@ -278,7 +278,7 @@ func TestPolicyFinalRecoveryWithdrawsAfterDeniedSurvivor(t *testing.T) {
 		r, source, destination, conn, ctxID := newSyncOrderRail(t)
 		r.clock = clock.RealClock{}
 		source.recvCtxID = ctxID
-		destination.sendingInitialRoutes.Store(0)
+		destination.testInitialSync().sendingInitialRoutes.Store(0)
 		destination.session.setSendCtxID(ctxID)
 		destination.session.onMessageReceived = r.notifyMessageReceiver
 		destination.settings.NextHopMode = NextHopUnchanged

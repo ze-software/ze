@@ -159,7 +159,7 @@ func TestPolicyFinalAcceptRemovalWithdrawsRemovedStatic(t *testing.T) {
 		peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}}
 	peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 	peer.settings.StaticRoutes = []StaticRoute{staticRouteAt("10.17.2.0/24", "10.9.9.9")}
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 	initial := len(conn.written())
 	if initial == 0 {
 		t.Fatal("initial static advertisement did not reach the wire")
@@ -226,7 +226,7 @@ func TestPolicyFinalPureWithdrawalConsumerAllocations(t *testing.T) {
 func TestPolicyFinalPausedWriterCannotEscapeReject(t *testing.T) {
 	r, _, destination, conn, _ := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	session := destination.currentSession()
 	entered, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
@@ -309,7 +309,7 @@ func TestPolicyFinalPausedWriterCannotEscapeReject(t *testing.T) {
 // must not commit acceptance or discard its inverse operation.
 func TestPolicyFinalRestoreFailureRollsBack(t *testing.T) {
 	r, _, destination, _, _ := newSyncOrderRail(t)
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	api, _ := readyProducerServer(t, r, "bgp-rs")
 	r.api = api.server
 	destination.settings.ProcessBindings = []ProcessBinding{
@@ -517,7 +517,7 @@ func testPolicyFinalReplayWithdrawnAddPath(t *testing.T, gapEviction bool) {
 		})
 	})
 	r.recentUpdates.SetClock(fc)
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
 	ctxID, err := bgpctx.Registry.Register(ctx)
 	if err != nil {
@@ -650,7 +650,7 @@ func TestPolicyFinalReplayPreservesPreAdmittedBatchOrder(t *testing.T) {
 		}
 	})
 	t.Cleanup(unblock)
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	api := &reactorAPIAdapter{r: r}
 	session := destination.currentSession()
 	func() {

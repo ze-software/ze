@@ -451,36 +451,18 @@ type Peer struct {
 	opQueue    []peerOp
 	opQueueMax int
 
-	// sendingInitialRoutes gates route QUEUEING during session establishment.
-	// States: 0=idle, 1=gate closed (queuing enabled), 2=goroutine running.
-	// Set to 1 by setState, in the same call that publishes PeerStateEstablished
-	// and BEFORE it, so no goroutine can ever read an established peer whose
-	// route ops still bypass opQueue. Upgraded to 2 by sendInitialRoutes.
+	// establishedSession is the session whose initial-sync gate the forward
+	// worker reads (forwardOrderHold), published without p.mu because that
+	// worker runs under its overflow lock and MUST NOT take p.mu
+	// (forward_pool.go, takeOverflowReleased). p.session, under p.mu, stays the
+	// declaration of which session holds the peer; this pointer is a lock-free
+	// copy of it for one reader.
 	//
-	// It answers ONE question: is the initial-sync goroutine still writing the
-	// routes it owns. It used to answer a second one -- is the End-of-RIB still
-	// owed -- and initialSyncEOROwed below now answers that. The two spans are
-	// different, and folding them made the plugin barrier unwidenable: any hold
-	// taken before the marker also held this flag, and holding this flag parks
-	// the forwarding rails and queues every route op behind the wait.
-	sendingInitialRoutes atomic.Int32
-
-	// initialSyncEOROwed records that this session's initial-sync End-of-RIB has
-	// not reached the wire yet. Set by setState alongside sendingInitialRoutes,
-	// cleared by sendInitialRoutes once its marker loop has run, and cleared on
-	// every path that abandons the sync.
-	//
-	// It is the WIDER of the two facts: the marker is still owed while the
-	// initial-sync goroutine waits for the plugins that push routes into this
-	// peer's initial routing update (RFC 4724 Section 4), and by then the
-	// goroutine has already written everything it owns, so sendingInitialRoutes
-	// is clear. That is what lets the barrier cover every route-pushing binding
-	// without widening the queueing window (owner ruling, 2026-08-30).
-	//
-	// Read by pendingSync, so `request quiesce` still means "this peer's initial
-	// update AND its marker are on the wire", and by AnnounceEOR, so another
-	// producer's marker does not overtake the one this sync owes.
-	initialSyncEOROwed atomic.Bool
+	// Two writers: enterEstablished stores the session before it publishes
+	// PeerStateEstablished, and the runOnce session-end defer clears it after it
+	// joined that session's initial sync. The initial-sync facts themselves live
+	// on the session (Session.sendingInitialRoutes, Session.initialSyncEOROwed).
+	establishedSession atomic.Pointer[Session]
 
 	// sendingConfigStatic is true while sendInitialRoutes sends config-originated
 	// static routes. notifyMessageReceiver tags sent events with config-static meta
@@ -1355,11 +1337,11 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 // update is owed. The writer MUST match both the token and that live phase;
 // a delayed old UP event cannot authorize replay on another connection.
 func (p *Peer) initialReplayToken() uint64 {
-	if !p.initialSyncEOROwed.Load() && !p.initialUpdateOwed.Load() {
-		return 0
-	}
 	session := p.currentSession()
 	if session == nil {
+		return 0
+	}
+	if !session.initialSyncEOROwed.Load() && !p.initialUpdateOwed.Load() {
 		return 0
 	}
 	return session.initialReplay.Load()
@@ -1998,34 +1980,13 @@ func (p *Peer) advanceForwardGeneration() {
 
 // setState updates state and calls callback.
 //
-// Publishing PeerStateEstablished CLOSES the initial-sync gate first and marks
-// the End-of-RIB owed, and the order is the whole point: p.state is what every
-// other goroutine reads, so the instant Established becomes visible the peer
-// must already look busy to both gate readers. shouldQueue would otherwise send a plugin's route DIRECT to the
-// session, ahead of the End-of-RIB sendInitialRoutes has not started emitting
-// (RFC 4724 Section 2), and pendingSync would tell the bgp-peer-sync quiescer
-// (DrainPeerSync, reactor_api.go) that a peer whose initial sync has not begun
-// is settled -- so `request quiesce` returns and the caller sends its next route
-// into the same window.
-//
-// It lives HERE rather than at the one call site because the store used to sit
-// 39 lines after the publication in peer_run.go's FSM callback, and every line
-// between them (setEstablishedNow, the GR EoR timer, resolveDynamicPeerSettings,
-// a synchronous Info log, resetAPISync, ResetPeerUpBarrier) held the window open
-// -- wide enough that an oversubscribed CI host reordered test/plugin/mup-ipv4-announce.ci's
-// wire to announce, withdraw, EoR. Binding the store to the publication makes
-// the window unreachable rather than short, and a future publication site
-// inherits the guarantee instead of having to remember it.
-//
-// Store, not CompareAndSwap: a rapid reconnect can find a previous
-// sendInitialRoutes still running (flag 2), and forcing 1 is what lets the new
-// session's goroutine take the CAS(1,2) and run its own sync. That is the
-// pre-existing contract of the store this replaces.
+// Publishing PeerStateEstablished advances the forward generation first. The
+// initial-sync gate of the session is closed before this call, by its one
+// production caller for Established (enterEstablished), which holds the
+// session the gate belongs to.
 func (p *Peer) setState(s PeerState) {
 	if s == PeerStateEstablished {
 		p.advanceForwardGeneration()
-		p.sendingInitialRoutes.Store(1)
-		p.initialSyncEOROwed.Store(true)
 	}
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
@@ -2304,10 +2265,10 @@ func (p *Peer) teardownOf(target *Session, notice teardownNotice, automatic bool
 		return nil
 	}
 
-	// If sendInitialRoutes is pending (1) or running (2), queue the teardown
-	// so it can send EOR before executing the teardown. This ensures proper
-	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
-	if p.sendingInitialRoutes.Load() != 0 {
+	// If the session's initial sync is pending (1) or running (2), queue the
+	// teardown so it can send EOR before executing the teardown. This ensures
+	// proper BGP protocol sequencing: routes + EOR + NOTIFICATION.
+	if session != nil && session.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < p.opQueueMax {
 			p.opQueue = append(p.opQueue, peerOp{
 				Type: PeerOpTeardown, Notice: notice, Automatic: automatic, TeardownSession: target,
@@ -2379,7 +2340,9 @@ func (p *Peer) releaseInitialSyncEOR(fam family.Family) {
 }
 
 // resetInitialSyncEOR clears every claim, so the next session sends End-of-RIB
-// again. Called from the session teardown defer alongside sendingInitialRoutes.
+// again. Called from the session teardown defer, after it joined the session's
+// initial sync (Session.endInitialSync), so no claim of the ended session can
+// land after the reset.
 func (p *Peer) resetInitialSyncEOR() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -2389,16 +2352,18 @@ func (p *Peer) resetInitialSyncEOR() {
 // shouldQueue returns true if routes should be queued rather than sent directly.
 // Routes must be queued when:
 //   - Session is not established
-//   - The initial sync is pending or running (sendingInitialRoutes non-zero)
+//   - The session's initial sync is pending or running (its
+//     sendingInitialRoutes non-zero)
 //   - There are pending queued operations (preserves insertion order)
 //
 // This prevents a race where routes sent directly during sendInitialRoutes
 // processing arrive at the peer before older queued routes.
 //
 // The second condition covers the whole of establishment, not just the running
-// goroutine: setState closes the gate before it publishes PeerStateEstablished,
-// so an observer that sees Established already sees a non-zero flag. Reading the
-// state first and the flag second is therefore safe in either order.
+// goroutine: enterEstablished closes the session's gate before it publishes
+// PeerStateEstablished, so an observer that sees Established already sees a
+// non-zero gate. Reading the state first and the gate second is therefore safe
+// in either order.
 //
 // The answer is advisory: the gate can open between this read and a later
 // QueueAnnounce or QueueWithdraw, so those two re-ask under p.mu
@@ -2414,28 +2379,48 @@ func (p *Peer) shouldQueue() bool {
 }
 
 // queueGateClosedLocked is shouldQueue's answer for an Established peer, read
-// under p.mu. drainAndCloseQueueGate empties the opQueue and clears
-// sendingInitialRoutes under one p.mu hold, so a caller holding p.mu sees the
-// gate either closed with a drainer still owed or open with nothing to drain.
-// A peer that is not Established always queues: its next session's initial
-// sync drains the queue. MUST be called with p.mu held (read or write).
+// under p.mu. drainAndCloseQueueGate empties the opQueue and opens the session's
+// gate (Session.sendingInitialRoutes) under one p.mu hold, so a caller holding
+// p.mu sees the gate either closed with a drainer still owed or open with
+// nothing to drain. The gate read is p.session's, and a peer that holds no
+// session reads as an open gate. A peer that is not Established always queues:
+// its next session's initial sync drains the queue. MUST be called with p.mu
+// held (read or write).
 func (p *Peer) queueGateClosedLocked() bool {
 	if p.State() != PeerStateEstablished {
 		return true
 	}
-	if p.sendingInitialRoutes.Load() != 0 {
+	if p.session != nil && p.session.sendingInitialRoutes.Load() != 0 {
 		return true
 	}
 	return len(p.opQueue) > 0
 }
 
-// initialSyncInProgress reports whether sendInitialRoutes is currently running for
-// this peer. It distinguishes the three conditions shouldQueue folds together, so
-// a caller that suppresses work can say WHICH one applied (logEORSuppressed,
-// reactor_api_forward.go). Reads the atomic directly: sendingInitialRoutes is set
-// and cleared without p.mu, and shouldQueue reads it the same way.
+// initialSyncInProgress reports whether the initial sync of the peer's
+// established session still holds its queueing gate. It distinguishes the three
+// conditions shouldQueue folds together, so a caller that suppresses work can say
+// WHICH one applied (logEORSuppressed, reactor_api_forward.go).
+//
+// It reads the lock-free copy of the session (Peer.establishedSession), never
+// p.mu, because forwardOrderHold calls it under the forward worker's overflow
+// lock. A peer with no established session is not in its sync. Two atomic loads,
+// no allocation.
 func (p *Peer) initialSyncInProgress() bool {
-	return p.sendingInitialRoutes.Load() != 0
+	session := p.establishedSession.Load()
+	if session == nil {
+		return false
+	}
+	return session.sendingInitialRoutes.Load() != 0
+}
+
+// initialSyncMarkerOwed reports whether the current session's initial sync still
+// owes its End-of-RIB (Session.initialSyncEOROwed). A peer that holds no session
+// owes none. Reads p.session under p.mu: it is called once per End-of-RIB command
+// per peer (AnnounceEOR, logEORSuppressed), never per UPDATE.
+func (p *Peer) initialSyncMarkerOwed() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.session != nil && p.session.initialSyncEOROwed.Load()
 }
 
 // forwardOrderHold reports whether a forwarded UPDATE for this peer must be
@@ -2456,12 +2441,17 @@ func (p *Peer) initialSyncInProgress() bool {
 // rail already does for a destination that is not Established.
 //
 // A non-empty opQueue is excluded for the same reason by a different route.
-// setState stores the sync flag in the same call that publishes Established and
-// BEFORE it, so from establishment until sendInitialRoutes clears the flag,
-// every queued operation is covered by the flag alone. An opQueue that is still
-// non-empty with the flag CLEAR is one nothing will drain -- sendInitialRoutes
-// is the only drainer and it has returned -- so ordering a forwarded UPDATE
-// behind it would park that UPDATE for the life of the session.
+// enterEstablished closes the session's gate and publishes the session as the
+// established one BEFORE it publishes Established, so from establishment until
+// sendInitialRoutes opens the gate, every queued operation is covered by the
+// gate alone. An opQueue that is still non-empty with the gate OPEN is one
+// nothing will drain -- sendInitialRoutes is the only drainer and it has
+// finished draining -- so ordering a forwarded UPDATE behind it would park that
+// UPDATE for the life of the session.
+//
+// The gate is read through Peer.establishedSession (initialSyncInProgress),
+// never through p.session, because this runs under the forward worker's
+// overflow lock, where p.mu MUST NOT be taken. No lock, no allocation.
 //
 // It holds for a second reason, the replay fence (Peer.initialUpdateOwed): a
 // process that owes this session part of its initial routing update, a route
@@ -2550,8 +2540,9 @@ func (p *Peer) withdrawBehindForwards() bool {
 }
 
 // wakeForwardOverflow releases the forwarded UPDATEs parked behind this peer's
-// initial route sync or its replay fence. Call it after every store that clears
-// sendingInitialRoutes or initialUpdateOwed.
+// initial route sync or its replay fence. Call it after every store that opens
+// a session's sendingInitialRoutes gate or clears initialUpdateOwed, and after
+// the session-end defer clears Peer.establishedSession.
 //
 // The forwarding rails park an UPDATE for a peer that forwardOrderHold()s in the
 // destination worker's overflow buffer, and drainOverflow keeps it there while
@@ -2619,19 +2610,31 @@ func (p *Peer) handOffForwardFlush(session *Session) bool {
 // queue is not. Used by the DrainPeerSync barrier so a test can wait for
 // send()-during-establishment routes to reach the wire.
 //
-// It reads initialSyncEOROwed as well as the queueing flag, and that is what keeps
-// `request quiesce` meaning what it meant before the two facts were split: the
-// initial-sync goroutine now clears the queueing flag before it waits for the
-// plugins that push routes, so the flag alone would report a peer settled while
-// its marker was still owed.
+// It reads the session's initialSyncEOROwed as well as its queueing gate, and
+// that is what keeps `request quiesce` meaning what it meant before the two
+// facts were split: the initial-sync goroutine opens the gate before it writes
+// its End-of-RIB, so the gate alone would report a peer settled while its
+// marker was still owed.
+//
+// Both facts are read from p.session, the session that holds the peer now, so
+// a session's sync settles only that session: a sync of the session it
+// replaced cannot clear them (Session.sendingInitialRoutes).
 func (p *Peer) pendingSync() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if p.sendingInitialRoutes.Load() != 0 || p.initialSyncEOROwed.Load() || len(p.opQueue) > 0 {
+	if len(p.opQueue) > 0 {
 		return true
 	}
-	// The three facts above are all set by setState at Established, so a peer
-	// that has not got there yet has none of them and used to read as SETTLED.
+	if session := p.session; session != nil {
+		if session.sendingInitialRoutes.Load() != 0 {
+			return true
+		}
+		if session.initialSyncEOROwed.Load() {
+			return true
+		}
+	}
+	// The gate and the marker are set by enterEstablished at Established, so a
+	// peer that has not got there yet has neither and used to read as SETTLED.
 	// That is "no work pending" and "work not started" answering the same way
 	// (ai/rules/principles.md): a peer mid-handshake owes its whole initial
 	// routing update, and a caller told it was settled tore the daemon down

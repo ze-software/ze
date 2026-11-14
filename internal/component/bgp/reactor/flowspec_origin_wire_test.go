@@ -86,6 +86,10 @@ func TestFlowSpecOriginationOmitsConfiguredNextHop(t *testing.T) {
 						t.Fatal(err)
 					}
 					peer.session = session
+					// The initial-sync gate and End-of-RIB mark live on the
+					// session, so the replacement carries the closed gate the
+					// fixture set (newInitialSyncPeer) on the session it installed.
+					peer.setTestInitialSync(1, true)
 					rawNLRI := mustHex(t, tc.nlri)
 					if rail == "config" {
 						peer.settings.PluginRoutes = []PluginRoute{{
@@ -94,7 +98,7 @@ func TestFlowSpecOriginationOmitsConfiguredNextHop(t *testing.T) {
 							RawAttrs: [][]byte{mustHex(t, "c010088006000046160000")},
 						}}
 						// RFC 8955 Section 4: production initial sync calls BuildPlugin.
-						peer.sendInitialRoutes()
+						peer.runInitialSyncNow()
 					} else {
 						api := &reactorAPIAdapter{r: &Reactor{
 							config:          &Config{LocalAS: peer.settings.LocalAS},
@@ -113,8 +117,8 @@ func TestFlowSpecOriginationOmitsConfiguredNextHop(t *testing.T) {
 							Wire:    attribute.NewAttributesWire(attrs.Build(), bgpctx.APIContextID),
 						}
 						if rail == "batch" {
-							peer.sendingInitialRoutes.Store(0)
-							peer.initialSyncEOROwed.Store(false)
+							peer.testInitialSync().sendingInitialRoutes.Store(0)
+							peer.testInitialSync().initialSyncEOROwed.Store(false)
 						}
 						// RFC 8955 Section 4: admit via the real API, never a builder.
 						if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
@@ -126,9 +130,9 @@ func TestFlowSpecOriginationOmitsConfiguredNextHop(t *testing.T) {
 							}
 							// RFC 8955 Section 4: both production drains encode MP_REACH.
 							if rail == "queued-initial" {
-								peer.sendInitialRoutes()
+								peer.runInitialSyncNow()
 							} else {
-								peer.drainAndCloseQueueGate(peer.addrString, message.MaxMsgLen)
+								peer.drainAndCloseQueueGate(peer.testInitialSync(), peer.addrString, message.MaxMsgLen)
 							}
 							if len(peer.opQueue) != 0 {
 								t.Fatal("announcement remained queued instead of reaching the socket")

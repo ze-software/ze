@@ -125,7 +125,7 @@ func TestReloadDeliversStaticRouteDeltaOnTheRunningSession(t *testing.T) {
 		staticRouteAt("10.0.1.0/24", "10.9.9.9"),
 	}
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 	initial := len(conn.written())
 	require.Greater(t, initial, 0, "the fixture must put the first set on the wire")
 

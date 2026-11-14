@@ -371,8 +371,8 @@ func TestRSWithdrawalOwnershipInitialExpiryOrdering(t *testing.T) {
 	f.destination.session = next.session
 	f.destination.mu.Unlock()
 	f.destination.setState(PeerStateEstablished)
-	f.destination.sendingInitialRoutes.Store(0)
-	f.destination.initialSyncEOROwed.Store(true)
+	f.destination.testInitialSync().sendingInitialRoutes.Store(0)
+	f.destination.testInitialSync().initialSyncEOROwed.Store(true)
 	f.conn = conn
 	f.destination.resetAPISync([]string{"rib-history"})
 	raiseTestReplayFence(f.destination, "rib-history")

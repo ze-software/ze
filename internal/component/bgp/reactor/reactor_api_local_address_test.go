@@ -129,6 +129,9 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 			peer.settings.LocalAddress = netip.Addr{}
 			oldSession, oldClient := newConnectedLocalSession(t, peer.settings, "127.0.0.1")
 			peer.session = oldSession
+			// The gate and the owed marker live on the session: close them on
+			// the one just installed, as newInitialSyncPeer did on its own.
+			peer.setTestInitialSync(1, true)
 			api := &reactorAPIAdapter{r: &Reactor{
 				config:          &Config{LocalAS: 65000},
 				attrModHandlers: attrModHandlersWithDefaults(),
@@ -148,10 +151,13 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 			require.NoError(t, replacement.fsm.Event(fsm.EventBGPOpen))
 			require.NoError(t, replacement.fsm.Event(fsm.EventKeepaliveMsg))
 			peer.session = replacement
+			// The replacement's own sync is the one that drains: its gate is
+			// closed and its marker owed, as the peer-level gate still was.
+			peer.setTestInitialSync(1, true)
 			if finalDrain {
-				peer.drainAndCloseQueueGate(peer.addrString, message.MaxMsgLen)
+				peer.drainAndCloseQueueGate(peer.testInitialSync(), peer.addrString, message.MaxMsgLen)
 			} else {
-				peer.sendInitialRoutes()
+				peer.runInitialSyncNow()
 			}
 			packet, err := core4271ReadMessage(client)
 			require.NoError(t, err)
@@ -195,8 +201,6 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
 			peer.settings.GroupUpdates = tc.partial
-			peer.sendingInitialRoutes.Store(0)
-			peer.initialSyncEOROwed.Store(false)
 			oldSession, oldClient := newConnectedLocalSession(t, peer.settings, "127.0.0.1")
 			replacement, client := newConnectedLocalSession(t, peer.settings, "127.0.0.2")
 			for _, session := range []*Session{oldSession, replacement} {
@@ -204,6 +208,10 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 				require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
 			}
 			peer.session = oldSession
+			// Open the gate and clear the marker on the session just installed:
+			// they live on the session, so setting them earlier would land on
+			// newInitialSyncPeer's session, which this one replaces.
+			peer.setTestInitialSync(0, false)
 			api := &reactorAPIAdapter{r: &Reactor{
 				config:          &Config{LocalAS: 65000},
 				attrModHandlers: attrModHandlersWithDefaults(),

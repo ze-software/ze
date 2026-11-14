@@ -63,9 +63,9 @@ func TestForwardValidationOverflowRecoveryReachesSocket(t *testing.T) {
 	mux := newMixedBufMux()
 	mux.setByteBudget(1 << 20)
 	f.r.fwdPool.setOverflowMux(mux)
-	f.destination.sendingInitialRoutes.Store(1)
+	f.destination.testInitialSync().sendingInitialRoutes.Store(1)
 	release := func() {
-		f.destination.sendingInitialRoutes.Store(0)
+		f.destination.testInitialSync().sendingInitialRoutes.Store(0)
 		f.r.fwdPool.wakeOverflow(fwdKey{peerAddr: f.destination.Settings().PeerKey()})
 	}
 	t.Cleanup(release)

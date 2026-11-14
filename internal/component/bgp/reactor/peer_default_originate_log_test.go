@@ -40,7 +40,7 @@ func TestDefaultOriginateRefusalIsAWarnNamingPeerAndPrefix(t *testing.T) {
 	nc := peer.negotiated.Load()
 	require.NotNil(t, nc)
 
-	peer.sendDefaultOriginateRoutes(nc)
+	peer.sendDefaultOriginateRoutes(peer.testInitialSync(), nc)
 
 	assert.Empty(t, conn.written(), "a refused default route must not reach the wire")
 	lines := warnLines(sink.String())
@@ -51,11 +51,11 @@ func TestDefaultOriginateRefusalIsAWarnNamingPeerAndPrefix(t *testing.T) {
 	assert.Contains(t, lines[0], "family=ipv4/unicast")
 	assert.Contains(t, lines[0], "next-hop=2001:db8::1")
 
-	peer.sendDefaultOriginateRoutes(nc)
+	peer.sendDefaultOriginateRoutes(peer.testInitialSync(), nc)
 	assert.Len(t, warnLines(sink.String()), 1, "a second refusal inside the window is swallowed")
 
 	fc.Add(time.Second)
-	peer.sendDefaultOriginateRoutes(nc)
+	peer.sendDefaultOriginateRoutes(peer.testInitialSync(), nc)
 	lines = warnLines(sink.String())
 	require.Len(t, lines, 2, "the window has passed, so the refusal is said again")
 	assert.Contains(t, lines[1], "suppressed-since-last=1", "the swallowed refusal is reported")

@@ -154,12 +154,11 @@ func (a *reactorAPIAdapter) announceEOR(sel *selector.Selector, fam family.Famil
 		// socket". Operators and compiled functional observers read them as
 		// exactly that. A suppression must not touch them.
 		//
-		// initialSyncEOROwed is read beside shouldQueue because the two facts
-		// were split: the initial sync clears the queueing flag before it waits
-		// for the plugins whose routes belong to this speaker's initial update,
-		// and shouldQueue alone would let a caller's marker through in that
-		// window -- the one window where a plugin route is still arriving.
-		if peer.shouldQueue() || peer.initialSyncEOROwed.Load() {
+		// The current session's owed marker (initialSyncMarkerOwed) is read
+		// beside shouldQueue because the two facts were split: the initial sync
+		// opens the queueing gate before it writes its End-of-RIB, and
+		// shouldQueue alone would let a caller's marker through in that window.
+		if peer.shouldQueue() || peer.initialSyncMarkerOwed() {
 			logEORSuppressed(peer, fam)
 			sentCount++
 			continue
@@ -256,7 +255,7 @@ func logEORSuppressed(peer *Peer, fam family.Family) {
 			"peer", addr, "family", fam,
 			"reason", "initial-sync-in-progress",
 			"effect", "marker will be emitted by sendInitialRoutes when the drain completes")
-	case peer.initialSyncEOROwed.Load():
+	case peer.initialSyncMarkerOwed():
 		routesLogger().Warn("end-of-rib suppressed: peer is waiting for the plugins that push its initial routes",
 			"peer", addr, "family", fam,
 			"reason", "initial-sync-barrier-open",

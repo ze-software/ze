@@ -159,7 +159,22 @@ var importSwapGateHook func(*Peer)
 // so the peer received it twice. RFC 4271 Section 9.2: "All newly installed
 // routes and all newly unfeasible routes for which there is no replacement
 // route SHALL be advertised to its peers by means of an UPDATE message."
-func (p *Peer) enterEstablished() {
+//
+// The session's initial-sync gate is CLOSED and its End-of-RIB marked owed
+// before the publication too, and the order is the whole point: p.state is
+// what every other goroutine reads, so the instant Established becomes visible
+// the peer must already look busy to both gate readers. shouldQueue would
+// otherwise send a plugin's route DIRECT to the session, ahead of the
+// End-of-RIB the initial sync has not started emitting, and pendingSync would
+// tell the bgp-peer-sync quiescer (DrainPeerSync, reactor_api.go) that a peer
+// whose initial sync has not begun is settled. The store once sat 39 lines
+// after the publication in the FSM callback, and an oversubscribed CI host
+// reordered test/plugin/mup-ipv4-announce.ci's wire to announce, withdraw, EoR
+// in that window. The session is then published as the peer's established
+// session (Peer.establishedSession), so the forward worker's lock-free hold
+// reads the same gate. session MUST be the one p.session holds: this is the one
+// production publisher of PeerStateEstablished for it.
+func (p *Peer) enterEstablished(session *Session) {
 	// Reset per-session API sync: NAME the processes whose routes belong to
 	// this peer's INITIAL routing update. Each reports "plugin session ready"
 	// once its routes are out (RFC 4724 Section 4: the marker is sent once the
@@ -183,6 +198,9 @@ func (p *Peer) enterEstablished() {
 	// the peer-up event and forwards such an UPDATE itself when it is above
 	// its cut (Peer.replayOwns).
 	p.takeInitialReplayReceipt()
+	session.sendingInitialRoutes.Store(1)
+	session.initialSyncEOROwed.Store(true)
+	p.establishedSession.Store(session)
 	p.setState(PeerStateEstablished)
 	p.establishGate.Lock()
 	p.establishGate.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is the barrier

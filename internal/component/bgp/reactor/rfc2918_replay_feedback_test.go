@@ -34,7 +34,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 	for _, queued := range []bool{false, true} {
 		peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
 		if !queued {
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 		}
 		var origins []bool
 		peer.session.onMessageReceived = func(_ netip.Addr, typ msgtype.MessageType, body []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, meta map[string]any, _ string, _ uint64) bool {
@@ -50,7 +50,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 			t.Fatal(err)
 		}
 		if queued {
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 		}
 		batch.Replay = false
 		batch.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0, false)}
@@ -69,7 +69,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 // RFC requirement: RFC2918-4-3 negative -- the same refresh replay is not transmitted when the current outbound policy now rejects it.
 func TestRFC2918RefreshRunsCurrentExportPolicy(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 	peer.settings.ExportPolicy = answerPolicy(t, routepolicy.FinalAccept, "refresh-policy")
 	peer.refreshForwardFacts()
 	api := newSendPermissionReactor(peer)

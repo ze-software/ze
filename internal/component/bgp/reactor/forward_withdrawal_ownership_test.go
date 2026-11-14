@@ -179,7 +179,7 @@ func TestRSWithdrawalOwnershipDestinationGeneration(t *testing.T) {
 			f.destination.session = next.session
 			f.destination.mu.Unlock()
 			f.destination.setState(PeerStateEstablished)
-			f.destination.sendingInitialRoutes.Store(0)
+			f.destination.testInitialSync().sendingInitialRoutes.Store(0)
 			f.conn = conn
 			// RFC 4271 Section 4.3.
 			f.send(t, rail, f.other, f.ctxID, ownershipRailBody(family.IPv4Unicast, false, syncOrderPrefixWire, 2))
@@ -384,7 +384,7 @@ func ownershipRailNew(t *testing.T, gate *ownershipRailGate) *ownershipRailFixtu
 		gate.destination = fwdKey{peerAddr: destination.Settings().PeerKey()}
 		t.Cleanup(gate.release)
 	}
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	// Both sources are route-server clients like the destination: each grants
 	// the route server `send [ update ]`, so the fast path hands neither back
 	// on the skipped list when the other one sends (reactorForwardRSSection).

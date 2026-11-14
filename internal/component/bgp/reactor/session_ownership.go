@@ -1021,7 +1021,9 @@ func (s *Session) checkInitialWrite(item *fwdItem) error {
 	if item.peer == nil {
 		return errAdjOutProvenance
 	}
-	if !item.peer.initialSyncEOROwed.Load() && !item.peer.initialUpdateOwed.Load() {
+	// item.session is s (checked above), so the owed marker read is this
+	// session's own, the one its initial-replay receipt expires with.
+	if !s.initialSyncEOROwed.Load() && !item.peer.initialUpdateOwed.Load() {
 		return errAdjOutSession
 	}
 	if !item.initialUpdate {

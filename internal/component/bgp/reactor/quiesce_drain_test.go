@@ -13,7 +13,11 @@ func establishedPeer(syncing bool) *Peer {
 	p := &Peer{}
 	p.state.Store(int32(PeerStateEstablished))
 	if syncing {
-		p.sendingInitialRoutes.Store(1)
+		// The gate lives on the session. This Peer has no settings, so
+		// testInitialSync (NewSession(p.settings)) cannot build one: a bare
+		// session carries the gate, and nothing here starts a sync on it.
+		p.session = &Session{}
+		p.session.sendingInitialRoutes.Store(1)
 	}
 	return p
 }

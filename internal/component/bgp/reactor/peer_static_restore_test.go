@@ -31,7 +31,7 @@ func TestExitWithdrawRestoresConfiguredRoute(t *testing.T) {
 		staticRouteAt("10.0.0.0/24", "10.9.9.9"),
 		staticRouteAt("10.0.1.0/24", "10.9.9.9"),
 	}
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 	require.NotEmpty(t, conn.written(), "the fixture must put the configured set on the wire")
 
 	// The script's route replaces the configured one on the wire: the same
@@ -98,7 +98,7 @@ func TestExitWithdrawRestoresConfiguredVPNAndLabeledRoutes(t *testing.T) {
 	configuredLabeled := staticRouteAt("10.0.2.0/24", "10.9.9.9")
 	configuredLabeled.Labels = []uint32{200}
 	peer.settings.StaticRoutes = []StaticRoute{configuredVPN, configuredLabeled}
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 	require.NotEmpty(t, conn.written(), "the fixture must put the configured set on the wire")
 
 	// The script's routes replace the configured ones on the wire: the same

@@ -77,10 +77,10 @@ func newInitialSyncPeer(t *testing.T, established bool, families ...family.Famil
 	peer.upPhase = sessionUpDelivered
 	peer.mu.Unlock()
 
-	// What setState does when it publishes Established: close the queueing gate
-	// (1, which sendInitialRoutes upgrades to 2) and mark the End-of-RIB owed.
-	peer.sendingInitialRoutes.Store(1)
-	peer.initialSyncEOROwed.Store(true)
+	// What enterEstablished does on this session before it publishes
+	// Established: close the queueing gate (1, which sendInitialRoutes upgrades
+	// to 2) and mark the End-of-RIB owed.
+	peer.setTestInitialSync(1, true)
 	return peer, conn
 }
 
@@ -95,7 +95,7 @@ func newInitialSyncPeer(t *testing.T, established bool, families ...family.Famil
 func TestInitialSyncEORCountedOncePerFamilyOnTheWire(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	want := append(eorWire(family.IPv4Unicast), eorWire(family.IPv6Unicast)...)
 	assert.Equal(t, want, conn.written(),
@@ -128,7 +128,7 @@ func TestInitialSyncEORReachesTheSilentFamilyToo(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}}
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	markers := append(eorWire(family.IPv4Unicast), eorWire(family.IPv6Unicast)...)
 	written := conn.written()
@@ -190,9 +190,9 @@ func TestInitialSyncEORAlsoCountsAsAnUpdateSent(t *testing.T) {
 	peer.mu.Lock()
 	peer.session = session
 	peer.mu.Unlock()
-	peer.sendingInitialRoutes.Store(1)
+	peer.testInitialSync().sendingInitialRoutes.Store(1)
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	require.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"the initial sync must have put the End-of-RIB and nothing else on the wire, or the "+
@@ -258,7 +258,7 @@ func TestNoTestBuildsItsOwnFamiliesSentMap(t *testing.T) {
 func TestInitialSyncEORNotCountedWhenSessionLeftEstablished(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, false, family.IPv4Unicast, family.IPv6Unicast)
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	assert.Empty(t, conn.written(), "no EOR can reach a session that is not Established")
 	assert.Equal(t, uint32(0), peer.Stats().EORSent,
@@ -282,10 +282,13 @@ func TestInitialSyncEORStopsAtFirstSendFailure(t *testing.T) {
 		family.IPv6Unicast: true,
 	}}
 	peer.negotiated.Store(nc)
-	peer.sendingInitialRoutes.Store(1)
+	// The gate lives on the session, so the sync needs one: testInitialSync
+	// builds a session that never connected. Its first End-of-RIB write fails
+	// at session level (ErrInvalidState or ErrNotConnected), as the peer with no
+	// session used to.
+	peer.testInitialSync().sendingInitialRoutes.Store(1)
 
-	// No session at all: sendFn is p.sendUpdateDirect -> ErrNotConnected.
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	assert.Equal(t, uint32(0), peer.Stats().EORSent,
 		"no EOR is on the wire when the peer has no session")
@@ -319,7 +322,7 @@ func TestInitialSyncEORWaitsForPeerUpBarrier(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		close(done)
 	}()
 
@@ -369,7 +372,7 @@ func TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker(t *testing.T)
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
 	peer.resetAPISync([]string{"pusher"}) // named, and it never reports
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"the marker follows ze's own table and waits for no process")
@@ -407,7 +410,7 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 	// holds its own End-of-RIB for a process that creates routes (owner ruling,
 	// 2026-09-18). Reading the flag rather than a window also stops this test
 	// depending on how long anything takes.
-	peer.initialSyncEOROwed.Store(true)
+	peer.testInitialSync().initialSyncEOROwed.Store(true)
 
 	api := newSendPermissionReactor(peer)
 	require.NoError(t,
@@ -417,8 +420,8 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 	assert.Empty(t, conn.written(),
 		"another producer's end-of-rib must not overtake the one this initial sync still owes")
 
-	peer.initialSyncEOROwed.Store(false)
-	peer.sendInitialRoutes()
+	peer.testInitialSync().initialSyncEOROwed.Store(false)
+	peer.runInitialSyncNow()
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"the marker the initial sync owed is the one that reaches the wire")
 	assert.Equal(t, uint32(1), peer.Stats().EORSent, "exactly one marker per family per session")
@@ -595,7 +598,7 @@ func newDefaultOriginatePeer(t *testing.T, peerAddr string) (*Peer, *recordingCo
 
 	// setEncodingContexts (peer.go) refreshes the link scope at establishment.
 	peer.refreshLinkScope()
-	peer.sendingInitialRoutes.Store(1)
+	peer.testInitialSync().sendingInitialRoutes.Store(1)
 	return peer, conn
 }
 
@@ -652,7 +655,7 @@ func TestDefaultOriginateAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 		netip.MustParsePrefix("2001:db8:1::/64"),
 	})
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	assert.Contains(t, string(conn.written()), string(mpReachIPv6Attr(t, defaultRouteNLRI, "2001:db8:1::1", "fe80::1")),
 		"RFC 2545 Section 3: global address first, link-local second, length octet 0x20")
@@ -676,7 +679,7 @@ func TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
 		netip.MustParsePrefix("2001:db8:1::/64"),
 	})
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	written := string(conn.written())
 	assert.Contains(t, written, string(mpReachIPv6Attr(t, defaultRouteNLRI, "2001:db8:1::1")),
@@ -718,7 +721,7 @@ func TestDefaultOriginateRefusesUnusableIPv6NextHop(t *testing.T) {
 			peer.refreshLinkScopeFrom(nil)
 
 			// RFC 2545 Section 3 applies to default routes too.
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 
 			want := eorWire(family.IPv6Unicast)
 			if tc.announce {
@@ -777,7 +780,7 @@ func TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true)
 	peer.negotiated.Store(NewNegotiatedCapabilities(capability.Negotiate(nil, nil, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})))
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"a session that declared no Multiprotocol capability still exchanges IPv4 "+
@@ -813,7 +816,7 @@ func TestInitialSyncMarkerWaitsForNoProcess(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		close(done)
 	}()
 

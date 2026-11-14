@@ -179,7 +179,7 @@ func TestRFC8212RelaxUndoPrepareFailureHoldsEstablishment(t *testing.T) {
 		if restoring {
 			once.Do(func() {
 				go func() {
-					fx.peer.enterEstablished()
+					fx.peer.enterEstablished(fx.peer.testInitialSync())
 					afterRestore <- restored.Load()
 				}()
 				time.Sleep(200 * time.Millisecond)

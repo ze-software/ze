@@ -326,8 +326,9 @@ else writes it.
 The first cycle uses `Session.Start`; later cycles use `startDamped`.
 Before publishing each Session, `runOnce` checks the peer's stopping flag
 under the publication lock. Collision winners wait in a peer-owned inbound
-slot until the losing cycle has cleared its negotiated state and initial-sync
-facts; their OPEN is processed by the next Session, not the sealed loser.
+slot until the losing cycle has cleared its negotiated state and joined its
+initial sync (`Session.endInitialSync`); their OPEN is processed by the next
+Session, not the sealed loser.
 
 <!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
@@ -601,7 +602,7 @@ session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
         if reactor != nil {
             p.announceEstablished(reactor, session) // marks the up phase around notifyPeerEstablished
         }
-        p.startInitialRoutes()
+        p.startInitialRoutes(session) // spawnInitialSync: one sync goroutine per session, joined at session end
     } else if from == fsm.StateEstablished {
         // leaveSession: release BFD without waiting, record what the close
         // is derived from (event, NOTIFICATION, close cause), mark the

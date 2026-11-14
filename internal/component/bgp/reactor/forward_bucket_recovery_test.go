@@ -134,7 +134,7 @@ func TestRecoveryBucketMergePacksOneSourceMessage(t *testing.T) {
 // written, so the destination loses routes it was never sent.
 func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 	r, source, destination, conn, _ := newSyncOrderRail(t)
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	session := destination.currentSession()
 	// The table already belongs to this session, as after its first write:
 	// beginAdjOut would otherwise bind it on the withdrawal's write and clear

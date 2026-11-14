@@ -102,7 +102,7 @@ func TestRecoveryDepartureWithdrawsMultiLabelRouteWithCompatibility(t *testing.T
 			t.Run(fam.String()+"/source-addpath="+strconv.FormatBool(addPath), func(t *testing.T) {
 				r, _, destination, conn, ctxID := newSyncOrderRail(t)
 				r.clock = clock.RealClock{}
-				destination.sendingInitialRoutes.Store(0)
+				destination.testInitialSync().sendingInitialRoutes.Store(0)
 				destination.session.setSendCtxID(ctxID)
 				destination.negotiated.Load().families[fam] = true
 				destination.refreshForwardFacts()

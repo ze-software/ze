@@ -56,7 +56,7 @@ func (c *drainBetweenContext) Err() error {
 		return nil
 	}
 	c.drained = true
-	c.peer.drainAndCloseQueueGate(c.peer.addrString, message.MaxMsgLen)
+	c.peer.drainAndCloseQueueGate(c.peer.testInitialSync(), c.peer.addrString, message.MaxMsgLen)
 	return nil
 }
 
@@ -114,7 +114,7 @@ func TestAnnounceBatchSendsRefusedAfterGateOpens(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 			adapter := groupUpdatesReactor([]*Peer{peer}, groups)
-			peer.sendingInitialRoutes.Store(1)
+			peer.testInitialSync().sendingInitialRoutes.Store(1)
 			require.True(t, peer.shouldQueue(), "the rail reads the gate closed while the sync is owed")
 
 			ctx := &drainBetweenContext{Context: t.Context(), peer: peer}
@@ -151,7 +151,7 @@ func TestWithdrawBatchSendsRefusedAfterGateOpens(t *testing.T) {
 			announced := len(conn.written())
 			require.NotZero(t, announced, "the announce MUST reach the wire before the withdrawal")
 
-			peer.sendingInitialRoutes.Store(1)
+			peer.testInitialSync().sendingInitialRoutes.Store(1)
 			require.True(t, peer.shouldQueue(), "the rail reads the gate closed while the sync is owed")
 
 			ctx := &drainBetweenContext{Context: t.Context(), peer: peer}

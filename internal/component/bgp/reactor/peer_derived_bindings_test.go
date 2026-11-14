@@ -113,7 +113,7 @@ func TestDerivedFeedWithoutRoutesNeedsNoCatchUp(t *testing.T) {
 // Configuration Change" rather than leave the new consumer without that route.
 func TestDerivedFeedRouteArrivingBeforeApplyRestarts(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	peer.sendingInitialRoutes.Store(0)
+	peer.testInitialSync().sendingInitialRoutes.Store(0)
 	setSessionFacts(peer, false, false)
 
 	next := withDerivedRIBFeed(t, peer.settings)
@@ -770,6 +770,12 @@ func TestAttachWhileSessionClosingIsToldDown(t *testing.T) {
 				peer.upSession = nil
 				peer.upPhase = sessionUpUnspecified
 				peer.mu.Unlock()
+				if successor != nil {
+					// The initial-sync gate and End-of-RIB mark live on the
+					// session, so the successor carries the closed gate the
+					// fixture set (newInitialSyncPeer).
+					peer.setTestInitialSync(1, true)
+				}
 				if tc.nextUp {
 					// The next session's FSM up read the graph before the
 					// publish, without the attached process's edge.
@@ -851,7 +857,7 @@ func TestQueuedRestartDoesNotEndTheNextSession(t *testing.T) {
 				swap()
 			}
 
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 
 			notifications := 0
 			for _, frame := range bgpFrames(t, conn.written()) {

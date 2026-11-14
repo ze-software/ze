@@ -57,7 +57,7 @@ func newChannelOrderRail(t *testing.T) *channelOrderRail {
 	release := func() { releaseOnce.Do(func() { close(gate) }) }
 	t.Cleanup(release)
 
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 	require.False(t, dst.forwardOrderHold(false), "the destination must be out of its sync hold")
 
 	return &channelOrderRail{

@@ -116,7 +116,7 @@ func TestDefaultConditionSetsGateWithoutMutatingDefault(t *testing.T) {
 				peer.settings.ExportPolicy = answerPolicyAt(t, "bgp export", routepolicy.FinalAccept, "export")
 				peer.settings.DefaultOriginate = map[string]bool{"ipv4/unicast": true}
 				peer.settings.DefaultOriginateFilter = map[string]string{"ipv4/unicast": "test:condition"}
-				peer.sendDefaultOriginateRoutes(peer.negotiated.Load())
+				peer.sendDefaultOriginateRoutes(peer.testInitialSync(), peer.negotiated.Load())
 				callsMu.Lock()
 				defer callsMu.Unlock()
 				bodies := updateBodies(t, conn.written())
@@ -452,9 +452,9 @@ func TestStaleWriterQueuedOutput(t *testing.T) {
 					}
 				}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 				r.fwdPool = pool
-				peer.sendingInitialRoutes.Store(1)
+				peer.testInitialSync().sendingInitialRoutes.Store(1)
 				t.Cleanup(func() {
-					peer.sendingInitialRoutes.Store(0)
+					peer.testInitialSync().sendingInitialRoutes.Store(0)
 					peer.wakeForwardOverflow()
 					pool.Stop()
 				})
@@ -467,7 +467,7 @@ func TestStaleWriterQueuedOutput(t *testing.T) {
 				if len(conn.written()) != before {
 					t.Fatal("stale body bypassed the held forward order")
 				}
-				peer.sendingInitialRoutes.Store(0)
+				peer.testInitialSync().sendingInitialRoutes.Store(0)
 				peer.wakeForwardOverflow()
 				select {
 				case <-done:

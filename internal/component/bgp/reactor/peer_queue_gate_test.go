@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 )
 
@@ -20,11 +21,12 @@ import (
 // with errQueueGateOpen, leave the gate open, and let the rail send directly.
 func TestQueueRefusedAfterGateOpens(t *testing.T) {
 	peer := NewPeer(NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101))
+	peer.setTestInitialSync(1, true)
 	peer.setState(PeerStateEstablished)
 	require.True(t, peer.shouldQueue(), "the rail reads the gate closed while the sync is owed")
 
 	// The initial sync's final drain runs between the rail's read and its enqueue.
-	require.False(t, peer.drainAndCloseQueueGate("192.0.2.1", 4096), "an empty drain tears nothing down")
+	require.False(t, peer.drainAndCloseQueueGate(peer.testInitialSync(), "192.0.2.1", 4096), "an empty drain tears nothing down")
 
 	route := testRoute("203.0.113.0/24")
 	require.ErrorIs(t, peer.QueueAnnounce(route, bgptypes.NextHopExplicit, false), errQueueGateOpen)

@@ -154,7 +154,7 @@ func owedRailInitialReplay(t *testing.T, rail *owedRail, message uint64) {
 	session.writeMu.Lock()
 	session.initialReplay.Store(5)
 	session.writeMu.Unlock()
-	rail.destination.initialSyncEOROwed.Store(true)
+	rail.destination.testInitialSync().initialSyncEOROwed.Store(true)
 	batch := adjOutBatch(syncOrderPrefix, "10.0.0.1")
 	batch.Replay = true
 	batch.SentOwnerMessage = 91

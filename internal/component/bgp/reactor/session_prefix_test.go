@@ -343,20 +343,6 @@ func TestPrefixBackoffExponential(t *testing.T) {
 	}
 }
 
-// TestPrefixBackoffReset verifies backoff counter resets after stable session.
-//
-// VALIDATES: AC-26 "Backoff counter resets" on successful session.
-// PREVENTS: Permanent backoff penalty from a single burst of route leaks.
-func TestPrefixBackoffReset(t *testing.T) {
-	ps := newTestPeerSettingsWithPrefix(3, 2)
-	ps.PrefixIdleTimeout = map[string]uint16{"ipv4/unicast": 30}
-	p := NewPeer(ps)
-
-	p.prefixTeardownCount = 5
-	p.prefixTeardownCount = 0
-	assert.Equal(t, uint32(0), p.prefixTeardownCount)
-}
-
 // TestPrefixStalenessCheck verifies staleness detection for prefix updated timestamps.
 //
 // VALIDATES: AC-5 -- "Warning at startup" when updated timestamp is older than threshold.

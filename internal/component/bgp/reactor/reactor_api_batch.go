@@ -830,8 +830,8 @@ var errForwardPoolStopped = errors.New("forward pool stopped: update not queued"
 
 // queueBehindForwards returns the send for an announce-rail UPDATE that must take
 // its place in the destination's forward queue (Peer.withdrawBehindForwards). It
-// has the shape of Peer.sendUpdateWithSplit, so the caller swaps one for the
-// other.
+// has the shape of a split send (context, update, maximum size, ADD-PATH), so
+// the caller uses it where it would otherwise call Session.sendUpdateWithSplit.
 //
 // Each chunk the split emits becomes one overflow item, in order. The chunk
 // aliases the splitter's buffer and the caller's build buffers, and

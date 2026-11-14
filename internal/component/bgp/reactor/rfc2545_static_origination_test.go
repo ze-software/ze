@@ -127,7 +127,7 @@ func TestStaticOriginateIPv6NextHopAdmission(t *testing.T) {
 
 					// RFC 2545 Section 3; RFC 8950 Section 3; capability 77
 					// retains its negotiated standalone link-local form.
-					peer.sendInitialRoutes()
+					peer.runInitialSyncNow()
 
 					want := wire(t, fam, tc.attrs, tc.nlri)
 					if got := conn.written(); !bytes.Equal(got, want) {
@@ -146,7 +146,7 @@ func TestStaticOriginateIPv6NextHopAdmission(t *testing.T) {
 
 		// RFC 2545 Section 3: automatic local addressing must use the actual
 		// session endpoint, never invent ::1 from absent configuration.
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 
 		want := wire(t, family.IPv6Unicast, "800e1600020110"+global+"0000", "")
 		if got := conn.written(); !bytes.Equal(got, want) {
@@ -207,8 +207,8 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 				peer.negotiated.Store(initial.negotiated.Load())
 				peer.session = initial.session
 				peer.session.SetMessageCallback(peer.messageCallback)
-				peer.sendingInitialRoutes.Store(1)
-				peer.initialSyncEOROwed.Store(true)
+				peer.testInitialSync().sendingInitialRoutes.Store(1)
+				peer.testInitialSync().initialSyncEOROwed.Store(true)
 				peer.refreshLinkScopeFrom(nil)
 				peer.refreshForwardFacts()
 				invalid := mustHex(t, "0000002e4001010040020602010000fde8800e1e0002011000000000000000000000000000000001004020010db800070000")
@@ -240,7 +240,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 					}
 					return r.exportFilterForBody(peer, body)
 				}
-				peer.sendInitialRoutes()
+				peer.runInitialSyncNow()
 
 				var want []byte
 				wantRoutes, wantUpdates := len(routes), uint32(4)

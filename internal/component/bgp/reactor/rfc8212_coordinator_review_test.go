@@ -46,7 +46,7 @@ func TestRFC8212ImportSwapFencesEstablishment(t *testing.T) {
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			p.enterEstablished()
+			p.enterEstablished(p.testInitialSync())
 			s := p.settingsSnapshot()
 			seen <- s.ImportPolicy.AcceptsAtEnd(s.IsEBGP())
 		}()

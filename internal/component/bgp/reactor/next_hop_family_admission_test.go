@@ -96,7 +96,7 @@ func TestFamilyNextHopOriginationAdmission(t *testing.T) {
 						peer.session.negotiated = neg
 						peer.sendCtx.Store(bgpctx.NewEncodingContext(&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001}, neg.Encoding, bgpctx.DirectionSend))
 						peer.state.Store(int32(PeerStateEstablished))
-						peer.sendingInitialRoutes.Store(0)
+						peer.testInitialSync().sendingInitialRoutes.Store(0)
 						api := groupUpdatesReactor([]*Peer{peer}, false)
 						raw := mustHex(t, fc.raw)
 						routeNLRI, err := nlri.NewWireNLRI(fc.fam, raw, false)
@@ -118,8 +118,8 @@ func TestFamilyNextHopOriginationAdmission(t *testing.T) {
 						}
 						batch := bgptypes.NLRIBatch{Family: fc.fam, NLRIs: []nlri.NLRI{routeNLRI}, NextHop: bgptypes.NewNextHopExplicit(inputHop)}
 						if rail == "queued" {
-							peer.sendingInitialRoutes.Store(1)
-							peer.initialSyncEOROwed.Store(true)
+							peer.testInitialSync().sendingInitialRoutes.Store(1)
+							peer.testInitialSync().initialSyncEOROwed.Store(true)
 						}
 						if rail == "commit" {
 							result, commitErr := api.SendRoutes(selector.All(), []*rib.Route{rib.NewRouteWithASPath(routeNLRI, inputHop, nil, nil)}, nil, true, plugin.OperatorSender())
@@ -139,7 +139,7 @@ func TestFamilyNextHopOriginationAdmission(t *testing.T) {
 								t.Errorf("valid announcement refused: %v", err)
 							}
 							if rail == "queued" {
-								peer.sendInitialRoutes()
+								peer.runInitialSyncNow()
 							}
 						}
 						announcements := 0

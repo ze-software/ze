@@ -396,7 +396,13 @@ func automaticStartInitialEOR(t *testing.T, peer *Peer, conn net.Conn) {
 			// RFC 4724 Section 2: IPv4 End-of-RIB is a minimum-length UPDATE.
 			require.Equal(t, eorUpdate(), frame, "the initial UPDATE must be exactly IPv4 End-of-RIB")
 			require.Eventually(t, func() bool {
-				return peer.sendingInitialRoutes.Load() == 0
+				// A nil session is not there yet: keep polling, and never
+				// install one into this running peer.
+				session := peer.currentSession()
+				if session == nil {
+					return false
+				}
+				return session.sendingInitialRoutes.Load() == 0
 			}, 5*time.Second, time.Millisecond, "initial synchronization never released the teardown queue")
 			return
 		}

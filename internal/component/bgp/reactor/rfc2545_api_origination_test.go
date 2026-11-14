@@ -144,6 +144,9 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 			peer.negotiated.Store(initial.negotiated.Load())
 			peer.negotiated.Load().LinkLocalNextHop = tc.cap77
 			peer.session = initial.session
+			if rail != "queued" {
+				peer.setTestInitialSync(0, false)
+			}
 			caps := peerOffering(families...)
 			if tc.cap77 {
 				caps = append(caps, &capability.LinkLocalNextHop{})
@@ -154,8 +157,8 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 			peer.session.SetMessageCallback(peer.messageCallback)
 			peer.refreshLinkScopeFrom(nil)
 			if rail == "queued" {
-				peer.sendingInitialRoutes.Store(1)
-				peer.initialSyncEOROwed.Store(true)
+				peer.testInitialSync().sendingInitialRoutes.Store(1)
+				peer.testInitialSync().initialSyncEOROwed.Store(true)
 			}
 			api := &reactorAPIAdapter{r: r}
 			batch := bgptypes.NLRIBatch{
@@ -274,7 +277,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				}
 				// RFC 2545 Section 3 and RFC 4724 Section 4: the actual drain
 				// refuses the route while still completing End-of-RIB.
-				peer.sendInitialRoutes()
+				peer.runInitialSyncNow()
 				if len(peer.opQueue) != 0 {
 					t.Errorf("queued operations = %d after drain, want 0", len(peer.opQueue))
 				}
@@ -377,6 +380,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 			peer.state.Store(int32(PeerStateEstablished))
 			peer.negotiated.Store(initial.negotiated.Load())
 			peer.session = initial.session
+			peer.setTestInitialSync(0, false)
 			peer.session.SetMessageCallback(peer.messageCallback)
 			peer.refreshLinkScopeFrom(nil)
 			api := &reactorAPIAdapter{r: r}
@@ -449,9 +453,9 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 				fwdBatchHandler(key, items)
 			}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 			r.fwdPool = pool
-			peer.sendingInitialRoutes.Store(1)
+			peer.testInitialSync().sendingInitialRoutes.Store(1)
 			t.Cleanup(func() {
-				peer.sendingInitialRoutes.Store(0)
+				peer.testInitialSync().sendingInitialRoutes.Store(0)
 				// MUST release the worker before Stop waits for it, including
 				// timeout/fatal exits while the ordering hold is still closed.
 				releaseWorker()
@@ -474,7 +478,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 			if !bytes.Equal(conn.written(), before) {
 				t.Fatal("queued replacement escaped its ordering hold")
 			}
-			peer.sendingInitialRoutes.Store(0)
+			peer.testInitialSync().sendingInitialRoutes.Store(0)
 			// No drain can observe the hold transition: both real API items
 			// are queued and the worker is parked before its overflow scan.
 			releaseWorker()

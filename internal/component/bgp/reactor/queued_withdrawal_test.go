@@ -90,7 +90,7 @@ func TestQueuedWithdrawalIsTheDirectWithdrawal(t *testing.T) {
 		adapter := groupUpdatesReactor([]*Peer{peer}, false)
 		peer.reactor = adapter.r
 		if queued {
-			peer.sendingInitialRoutes.Store(1)
+			peer.testInitialSync().sendingInitialRoutes.Store(1)
 		}
 		n := queuedWithdrawalNLRI(t)
 		announce := bgptypes.NLRIBatch{Family: fam, NLRIs: []nlri.NLRI{n}, NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))}
@@ -102,7 +102,7 @@ func TestQueuedWithdrawalIsTheDirectWithdrawal(t *testing.T) {
 			t.Fatal(err)
 		}
 		if queued {
-			if peer.drainAndCloseQueueGate("192.0.2.12", message.MaxMsgLen) {
+			if peer.drainAndCloseQueueGate(peer.testInitialSync(), "192.0.2.12", message.MaxMsgLen) {
 				t.Fatal("the drain met a teardown nobody queued")
 			}
 		}

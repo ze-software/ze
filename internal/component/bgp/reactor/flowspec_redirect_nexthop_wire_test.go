@@ -95,6 +95,10 @@ func TestFlowSpecRedirectToNextHopCarriesTheNextHop(t *testing.T) {
 					t.Fatal(err)
 				}
 				peer.session = session
+				// The initial-sync gate and End-of-RIB mark live on the session,
+				// so the replacement carries the closed gate the fixture set
+				// (newInitialSyncPeer) on the session it installed.
+				peer.setTestInitialSync(1, true)
 				rawNLRI := mustHex(t, tc.nlri)
 				action := mustHex(t, tc.action)
 				if rail == "config" {
@@ -103,7 +107,7 @@ func TestFlowSpecRedirectToNextHopCarriesTheNextHop(t *testing.T) {
 						NLRI: rawNLRI, NextHop: tc.hop,
 						RawAttrs: [][]byte{append(mustHex(t, "c01008"), action...)},
 					}}
-					peer.sendInitialRoutes()
+					peer.runInitialSyncNow()
 				} else {
 					api := &reactorAPIAdapter{r: &Reactor{
 						config:          &Config{LocalAS: peer.settings.LocalAS},
@@ -122,8 +126,8 @@ func TestFlowSpecRedirectToNextHopCarriesTheNextHop(t *testing.T) {
 						Wire:    attribute.NewAttributesWire(attrs.Build(), bgpctx.APIContextID),
 					}
 					if rail == "batch" {
-						peer.sendingInitialRoutes.Store(0)
-						peer.initialSyncEOROwed.Store(false)
+						peer.testInitialSync().sendingInitialRoutes.Store(0)
+						peer.testInitialSync().initialSyncEOROwed.Store(false)
 					}
 					if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
 						t.Fatal(err)
@@ -133,9 +137,9 @@ func TestFlowSpecRedirectToNextHopCarriesTheNextHop(t *testing.T) {
 							t.Fatalf("queued %d operations, want one announcement", len(peer.opQueue))
 						}
 						if rail == "queued-initial" {
-							peer.sendInitialRoutes()
+							peer.runInitialSyncNow()
 						} else {
-							peer.drainAndCloseQueueGate(peer.addrString, message.MaxMsgLen)
+							peer.drainAndCloseQueueGate(peer.testInitialSync(), peer.addrString, message.MaxMsgLen)
 						}
 						if len(peer.opQueue) != 0 {
 							t.Fatal("announcement remained queued instead of reaching the socket")

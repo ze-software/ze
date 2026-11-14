@@ -34,8 +34,8 @@ func TestPeerReadyReceiptReleasesOnlyCapturedSession(t *testing.T) {
 			destination.mu.Lock()
 			destination.session = replacement.session
 			destination.mu.Unlock()
-			destination.sendingInitialRoutes.Store(0)
-			destination.initialSyncEOROwed.Store(false)
+			destination.testInitialSync().sendingInitialRoutes.Store(0)
+			destination.testInitialSync().initialSyncEOROwed.Store(false)
 			destination.resetAPISync([]string{replayFenceOwner})
 			raiseTestReplayFence(destination, replayFenceOwner)
 			captured := destination.initialReplayToken()
@@ -100,7 +100,7 @@ func TestPeerReadyReceiptReleasesOnlyCapturedSession(t *testing.T) {
 // though this Session is still installed while teardown finishes.
 func TestPeerReadyReceiptRefusesRetiredSession(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	destination.resetAPISync([]string{replayFenceOwner})
 	raiseTestReplayFence(destination, replayFenceOwner)
 	captured := destination.initialReplayToken()

@@ -471,7 +471,7 @@ func establishInsideApply(peer *Peer, copier settingsCopier) settingsCopier {
 			session.peerOpen = &message.Open{MyAS: dynamicPeerRemoteAS, BGPIdentifier: 0x0a0b0c0d}
 			session.mu.Unlock()
 			peer.state.Store(int32(PeerStateEstablished))
-			peer.sendingInitialRoutes.Store(1)
+			peer.testInitialSync().sendingInitialRoutes.Store(1)
 			peer.resolveDynamicPeerSettings(session)
 			setUpPhase(peer, sessionUpDelivered)
 		}

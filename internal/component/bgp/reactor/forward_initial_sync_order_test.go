@@ -99,8 +99,8 @@ func parseWireUpdates(t *testing.T, raw []byte) []wireUpdate {
 
 // newSyncOrderDest builds the destination peer of these tests: Established,
 // IBGP so the forwarded body stays zero-copy, backed by a Session writing into
-// the returned recordingConn, and holding the initial-sync gate setState closes
-// in the same call that publishes Established (peer.go).
+// the returned recordingConn, and holding the initial-sync gate enterEstablished
+// closes on the session before it publishes Established (source_policy_reload.go).
 func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) (*Peer, *recordingConn) {
 	t.Helper()
 	settings := &PeerSettings{
@@ -143,7 +143,9 @@ func newSyncOrderDest(t *testing.T, ctx *bgpctx.EncodingContext, ctxID bgpctx.Co
 	peer.session = session
 	peer.mu.Unlock()
 
-	peer.sendingInitialRoutes.Store(1)
+	// The gate enterEstablished closes, on the session it publishes as the
+	// peer's established one (setTestInitialSync).
+	peer.setTestInitialSync(1, false)
 	return peer, conn
 }
 
@@ -273,7 +275,7 @@ func assertAnnounceThenWithdraw(t *testing.T, dst *Peer, conn *recordingConn) {
 	}, 200*time.Millisecond, 5*time.Millisecond,
 		"no UPDATE may reach the peer before its initial sync runs")
 
-	dst.sendInitialRoutes()
+	dst.runInitialSyncNow()
 
 	var seen []wireUpdate
 	require.Eventually(t, func() bool {
@@ -372,7 +374,7 @@ func TestQueuedLocalAnnounceSurvivesRemoteWithdrawal(t *testing.T) {
 			marker := append([]byte(nil), syncOrderAnnounceBody...)
 			marker[len(marker)-1] = 3 // 192.0.3.0/24, distinct from the local route.
 			send(7251, marker)
-			dst.sendInitialRoutes()
+			dst.runInitialSyncNow()
 			require.Eventually(t, func() bool {
 				return bytes.HasSuffix(conn.written(), marker[len(marker)-4:])
 			}, 5*time.Second, time.Millisecond, "the later marker fences the remote withdrawal")
@@ -443,7 +445,7 @@ func TestForwardedUpdateWaitsForPendingOverflowRSRail(t *testing.T) {
 	// The sync ends. The store is made directly, without the wake that follows
 	// it in the daemon, so the announce is still parked here and the ONLY thing
 	// that can hold the withdraw back is the pending-overflow count.
-	dst.sendingInitialRoutes.Store(0)
+	dst.currentSession().sendingInitialRoutes.Store(0)
 	require.False(t, dst.forwardOrderHold(false), "the destination must be out of its sync hold")
 	require.True(t, dst.forwardOverflowPending(), "the announce must still be parked")
 
@@ -553,7 +555,7 @@ func TestForwardedUpdateWaitsForInFlightOverflowRSRail(t *testing.T) {
 	// End the sync and wake the worker, exactly as sendInitialRoutes does. The
 	// worker releases the announce from overflow onto its channel and then
 	// blocks in the handler, which is the window under test.
-	dst.sendingInitialRoutes.Store(0)
+	dst.currentSession().sendingInitialRoutes.Store(0)
 	dst.wakeForwardOverflow()
 	select {
 	case <-entered:
@@ -625,7 +627,7 @@ func TestForwardedAnnounceThenWithdrawKeepOrder(t *testing.T) {
 	}, 200*time.Millisecond, 5*time.Millisecond,
 		"no forwarded UPDATE may reach the peer before its initial sync runs")
 
-	dst.sendInitialRoutes()
+	dst.runInitialSyncNow()
 
 	var seen []wireUpdate
 	require.Eventually(t, func() bool {
@@ -649,4 +651,89 @@ func TestForwardedAnnounceThenWithdrawKeepOrder(t *testing.T) {
 		"the forwarded announce must reach the peer BEFORE the forwarded withdraw of the same prefix")
 	require.False(t, seen[len(seen)-1].announces,
 		"the peer must not end holding a prefix that was withdrawn")
+}
+
+// newForwardHoldPeer returns an Established peer with no replay fence and no
+// policy replay hold, so its forwardOrderHold answer is the initial-sync gate
+// of its established session alone.
+func newForwardHoldPeer() *Peer {
+	peer := NewPeer(NewPeerSettings(netip.MustParseAddr("192.0.2.9"), 65000, 65001, 0x01010109))
+	peer.state.Store(int32(PeerStateEstablished))
+	return peer
+}
+
+// TestForwardOrderHoldReadsCurrentSessionGate pins which gate the forward
+// worker's hold reads: the gate of the session published as the peer's
+// established one (Peer.establishedSession), never a gate of a session that
+// session replaced.
+//
+// VALIDATES: AC-6. The hold is on while the established session's gate is
+// closed and off once it opens. When a successor session is established with
+// its gate open, the predecessor's gate, still closed, holds nothing; when the
+// successor's gate is closed, the predecessor's open gate releases nothing.
+// PREVENTS: a forwarded UPDATE parked for good behind a gate no sync will open
+// (the predecessor's), or released ahead of the successor's own initial sync.
+func TestForwardOrderHoldReadsCurrentSessionGate(t *testing.T) {
+	peer := newForwardHoldPeer()
+	require.False(t, peer.forwardOrderHold(false),
+		"an Established peer with no established session is not in its initial sync")
+
+	predecessor := peer.setTestInitialSync(1, true)
+	require.True(t, peer.forwardOrderHold(false), "the established session's closed gate must hold")
+	predecessor.sendingInitialRoutes.Store(2)
+	require.True(t, peer.forwardOrderHold(false), "a running sync's gate must hold")
+	predecessor.sendingInitialRoutes.Store(0)
+	require.False(t, peer.forwardOrderHold(false), "the established session's open gate must release")
+
+	predecessor.sendingInitialRoutes.Store(1)
+	successor := NewSession(peer.settings)
+	peer.establishedSession.Store(successor)
+	require.False(t, peer.forwardOrderHold(false),
+		"the replaced session's closed gate held a forwarded UPDATE for its successor")
+
+	successor.sendingInitialRoutes.Store(1)
+	predecessor.sendingInitialRoutes.Store(0)
+	require.True(t, peer.forwardOrderHold(false),
+		"the replaced session's open gate released a forwarded UPDATE ahead of its successor's sync")
+}
+
+// TestForwardOrderHoldTakesNoPeerLock pins that the forward worker's hold reads
+// the gate without p.mu: it runs under the worker's overflow lock, where p.mu
+// MUST NOT be taken (forward_pool.go, takeOverflowReleased).
+//
+// VALIDATES: AC-6, "the predicate takes no lock". The hold answers while the
+// test holds p.mu for writing.
+// PREVENTS: a gate read through p.session under p.mu, which blocks here.
+func TestForwardOrderHoldTakesNoPeerLock(t *testing.T) {
+	peer := newForwardHoldPeer()
+	peer.setTestInitialSync(1, true)
+
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+	answered := make(chan bool, 1)
+	go func() { answered <- peer.forwardOrderHold(false) }()
+	select {
+	case hold := <-answered:
+		require.True(t, hold, "the closed gate must hold")
+	case <-time.After(5 * time.Second):
+		t.Fatal("forwardOrderHold blocked on p.mu")
+	}
+}
+
+// TestForwardOrderHoldAllocatesNothing pins the cost of the forward worker's
+// hold: it runs once per forwarded UPDATE per destination.
+//
+// VALIDATES: AC-6, "measured at 0 allocations per call", with the gate closed
+// and with it open.
+// PREVENTS: an allocation on the forwarding hot path.
+func TestForwardOrderHoldAllocatesNothing(t *testing.T) {
+	peer := newForwardHoldPeer()
+	session := peer.setTestInitialSync(1, true)
+
+	closed := testing.AllocsPerRun(100, func() { _ = peer.forwardOrderHold(false) })
+	require.Zero(t, closed, "forwardOrderHold allocated with the gate closed")
+
+	session.sendingInitialRoutes.Store(0)
+	open := testing.AllocsPerRun(100, func() { _ = peer.forwardOrderHold(false) })
+	require.Zero(t, open, "forwardOrderHold allocated with the gate open")
 }

@@ -362,8 +362,53 @@ type Session struct {
 	// The callback borrows scalar IDs and this typed, reusable origin receipt.
 	sentReceipt wireu.WireUpdate
 	sentOrigin  wireu.SentOrigin
+	// sendingInitialRoutes gates route QUEUEING during this session's
+	// establishment. States: 0=open, 1=gate closed (queuing enabled), 2=closed
+	// with the initial-sync goroutine running. Set to 1 by enterEstablished
+	// before it publishes PeerStateEstablished, so no goroutine can ever read an
+	// established peer whose route ops still bypass opQueue. Upgraded to 2 by
+	// sendInitialRoutes, opened by it once it has drained the queue.
+	//
+	// It answers ONE question: is the initial-sync goroutine still writing the
+	// routes it owns. initialSyncEOROwed below answers whether the End-of-RIB is
+	// still owed. The two spans are different, and folding them made the plugin
+	// barrier unwidenable: any hold taken before the marker also held this flag,
+	// and holding this flag parks the forwarding rails and queues every route op
+	// behind the wait.
+	//
+	// Both facts are the session's rather than the Peer's, so a sync can only
+	// ever write the facts of the session it serves, never those of the session
+	// that replaced it.
+	sendingInitialRoutes atomic.Int32
+
+	// initialSyncEOROwed records that this session's initial-sync End-of-RIB has
+	// not reached the wire yet. Set by enterEstablished beside
+	// sendingInitialRoutes, cleared by sendInitialRoutes once its marker loop
+	// has run, and cleared on every path that abandons the sync.
+	//
+	// It is the WIDER of the two facts: the goroutine opens the queueing gate
+	// once it has written every route it owns, and the marker is still owed
+	// after that, until its End-of-RIB loop has run.
+	//
+	// Read by pendingSync, so `request quiesce` still means "this peer's initial
+	// update AND its marker are on the wire", and by AnnounceEOR, so another
+	// producer's marker does not overtake the one this sync owes.
+	initialSyncEOROwed atomic.Bool
+
+	// initialSyncStart is the start latch of this session's initial sync:
+	// syncLatchNotStarted, syncLatchStarted or syncLatchEnded. Only the start
+	// door (Peer.spawnInitialSync) and the runOnce session-end defer
+	// (endInitialSync) write it, so at most one sync goroutine ever runs for a
+	// session, and none starts once the session has ended.
+	initialSyncStart atomic.Int32
+
+	// initialSyncDone is closed by the sync goroutine as its last action, a
+	// panic included (Peer.runInitialSync). endInitialSync waits on it when the
+	// latch reads started. Created with the session (NewSession).
+	initialSyncDone chan struct{}
+
 	// Receipt for this connection's deliberate initial replay. It is
-	// published on peer-UP and expires with Peer.initialSyncEOROwed. NewSession
+	// published on peer-UP and expires with initialSyncEOROwed. NewSession
 	// takes one, and enterEstablished takes it again, from the same counter as
 	// every received UPDATE's MessageID, once the replay fence is up and before
 	// Established is published: an UPDATE numbered below it may have been
@@ -730,6 +775,7 @@ func NewSession(settings *PeerSettings) *Session {
 		writeBuf:        wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
 		errChan:         make(chan error, 2),          // Buffer 2: normal error + teardown
 		done:            make(chan struct{}),
+		initialSyncDone: make(chan struct{}),
 		prefixCounts:    newPrefixCounts(settings),
 		coalesceEnabled: coalesceEnabled(),
 		addrLabel:       settings.Address.String(),
@@ -931,6 +977,53 @@ func (s *Session) Conn() net.Conn {
 // Done returns a channel that is closed when the session Run loop exits.
 func (s *Session) Done() <-chan struct{} {
 	return s.done
+}
+
+// The three values of Session.initialSyncStart.
+const (
+	syncLatchNotStarted int32 = iota // no sync goroutine was started for the session
+	syncLatchStarted                 // one was started; initialSyncDone closes when it returns
+	syncLatchEnded                   // the session ended; no sync goroutine starts any more
+)
+
+// claimInitialSyncStart moves the start latch from not started to started, and
+// reports whether this caller won it. The winner, and only the winner, MUST run
+// the session's initial sync on a goroutine that closes initialSyncDone as its
+// last action (Peer.runInitialSync). A second start of the same session, or a
+// start after the session ended, loses and MUST spawn nothing. Safe for
+// concurrent use.
+//
+// RFC 4724 Section 4: "The End-of-RIB marker MUST be sent by a BGP speaker to
+// its peer once it completes the initial routing update (including the case
+// when there is no update to send) for an address family after the BGP session
+// is established." One sync per session is what makes the marker this
+// session's own: a second goroutine for the session, or a late one started for
+// an ended session, could write a marker ahead of the routes it claims to end.
+func (s *Session) claimInitialSyncStart() bool {
+	return s.initialSyncStart.CompareAndSwap(syncLatchNotStarted, syncLatchStarted)
+}
+
+// endInitialSync moves the start latch to ended and, when a sync goroutine was
+// started for this session, waits until that goroutine has returned. After it
+// returns, nothing of this session's initial sync runs and none will start.
+//
+// MUST be called once, by the runOnce session-end defer, after sessionDown and
+// before the End-of-RIB claims are reset and p.session is cleared. MUST NOT be
+// called with p.mu, p.staticMu or the session's writeMu held: the sync goroutine
+// takes all three on its way out.
+func (s *Session) endInitialSync() {
+	if s.initialSyncStart.Swap(syncLatchEnded) != syncLatchStarted {
+		return
+	}
+	<-s.initialSyncDone
+}
+
+// initialSyncEnded reports whether the session-end defer has ended this
+// session's initial sync (endInitialSync). A sync goroutine reads it to tell
+// that its own session is gone while p.session still names it, during the
+// join. Safe for concurrent use.
+func (s *Session) initialSyncEnded() bool {
+	return s.initialSyncStart.Load() == syncLatchEnded
 }
 
 // Negotiated returns the negotiated capabilities (nil until OPENCONFIRM).

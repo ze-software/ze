@@ -287,7 +287,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 	// key is owed again with that source excluded and a moved epoch.
 	t.Run("survivor-session-replaced-reowes", func(t *testing.T) {
 		r, source, destination, conn, _ := newSyncOrderRail(t)
-		destination.sendingInitialRoutes.Store(0)
+		destination.testInitialSync().sendingInitialRoutes.Store(0)
 		session := destination.currentSession()
 		key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
 		epoch := record.epoch
@@ -319,7 +319,7 @@ func TestOwedKeyFenceInterleavings(t *testing.T) {
 	// decided by this round, and no source is excluded.
 	t.Run("survivor-source-advanced-is-written", func(t *testing.T) {
 		r, source, destination, conn, _ := newSyncOrderRail(t)
-		destination.sendingInitialRoutes.Store(0)
+		destination.testInitialSync().sendingInitialRoutes.Store(0)
 		session := destination.currentSession()
 		key, record := recoveryOweForTest(t, destination, session, syncOrderPrefixWire)
 		epoch := record.epoch

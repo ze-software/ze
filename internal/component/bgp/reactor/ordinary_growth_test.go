@@ -121,10 +121,10 @@ func TestOrdinaryIPv6GrowthBoundary(t *testing.T) {
 				policyCalls = 0
 				pool = newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 				r.fwdPool = pool
-				peer.sendingInitialRoutes.Store(1)
+				peer.testInitialSync().sendingInitialRoutes.Store(1)
 				t.Cleanup(func() {
 					// Release ordering before Stop, including fatal exits.
-					peer.sendingInitialRoutes.Store(0)
+					peer.testInitialSync().sendingInitialRoutes.Store(0)
 					peer.wakeForwardOverflow()
 					pool.Stop()
 				})
@@ -154,7 +154,7 @@ func TestOrdinaryIPv6GrowthBoundary(t *testing.T) {
 				if policyCalls != 0 {
 					t.Fatalf("queued policy ran before release: %d", policyCalls)
 				}
-				peer.sendingInitialRoutes.Store(0)
+				peer.testInitialSync().sendingInitialRoutes.Store(0)
 				peer.wakeForwardOverflow()
 				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 				defer cancel()

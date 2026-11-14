@@ -70,8 +70,8 @@ func (p *Peer) reconcileExportFinal() error {
 	p.deliverStaticRouteDelta(p.staticRoutes())
 	if negotiated := p.negotiated.Load(); negotiated != nil {
 		previous := p.sendingConfigStatic.Swap(true)
-		p.sendDefaultOriginateRoutes(negotiated)
-		p.sendPluginRoutesVia(session, p.sendUpdateDirect)
+		p.sendDefaultOriginateRoutes(session, negotiated)
+		p.sendPluginRoutesVia(session, session.SendUpdate)
 		p.sendingConfigStatic.Store(previous)
 	}
 	if r.api == nil {

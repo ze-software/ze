@@ -135,7 +135,7 @@ func TestAnnounceEOR_SkipsPeerInInitialRouteSync(t *testing.T) {
 	adapter, peer, conn := newEORGuardPeer(t)
 
 	// Simulate "initial route sync in progress" -> shouldQueue() == true.
-	peer.sendingInitialRoutes.Store(1)
+	peer.setTestInitialSync(1, false)
 	require.True(t, peer.shouldQueue(), "precondition: peer must be in initial-sync state")
 
 	err := adapter.AnnounceEOR(selector.All(), uint16(family.AFIIPv4), uint8(family.SAFIUnicast), plugin.OperatorSender())
@@ -159,4 +159,33 @@ func TestAnnounceEOR_SendsWhenNotInInitialSync(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, eorWire(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}), conn.written(),
 		"a not-syncing peer must receive the End-of-RIB on the wire")
+}
+
+// TestAnnounceEORDefersToCurrentSessionMarker pins the second half of the
+// AnnounceEOR ordering guard: the End-of-RIB the current session's initial sync
+// still owes (Session.initialSyncEOROwed, read by initialSyncMarkerOwed).
+//
+// VALIDATES: AC-7. The session's queueing gate is open, so shouldQueue alone
+// would let the marker through, but its own marker is still owed: AnnounceEOR
+// succeeds and writes nothing. Once that marker is no longer owed, the same call
+// writes the End-of-RIB, the family not being claimed yet.
+// PREVENTS: a route server's marker overtaking the one the initial sync owes,
+// in the window after the sync opened its gate and before its End-of-RIB loop
+// ran; and a marker withheld for good once the sync owes nothing.
+func TestAnnounceEORDefersToCurrentSessionMarker(t *testing.T) {
+	adapter, peer, conn := newEORGuardPeer(t)
+	session := peer.setTestInitialSync(0, true)
+	require.False(t, peer.shouldQueue(), "precondition: the session's queueing gate must be open")
+
+	ipv4 := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
+	err := adapter.AnnounceEOR(selector.All(), uint16(ipv4.AFI), uint8(ipv4.SAFI), plugin.OperatorSender())
+	require.NoError(t, err)
+	require.Empty(t, conn.written(),
+		"no End-of-RIB may reach the wire while the current session's own marker is owed")
+
+	session.initialSyncEOROwed.Store(false)
+	err = adapter.AnnounceEOR(selector.All(), uint16(ipv4.AFI), uint8(ipv4.SAFI), plugin.OperatorSender())
+	require.NoError(t, err)
+	require.Equal(t, eorWire(ipv4), conn.written(),
+		"once the current session owes no marker, AnnounceEOR must write the End-of-RIB")
 }

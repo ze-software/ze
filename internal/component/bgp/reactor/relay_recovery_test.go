@@ -179,7 +179,7 @@ func TestRecoveryFinalWorkerRequestsCausalReresolution(t *testing.T) {
 			source, destination = src, dst
 			r.clock = clock.RealClock{}
 			source.recvCtxID = ctxID
-			destination.sendingInitialRoutes.Store(0)
+			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			destination.session.setSendCtxID(ctxID)
 			destination.session.onMessageReceived = r.notifyMessageReceiver
 			failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
@@ -233,7 +233,7 @@ func TestRecoveryLookupRejectsReconnectedSource(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
 	source.recvCtxID = ctxID
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
 	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
@@ -275,7 +275,7 @@ func TestRecoveryMixedPolicySectionsCompleteOnce(t *testing.T) {
 			r, source, destination, conn, ctxID := newSyncOrderRail(t)
 			r.clock = clock.RealClock{}
 			source.recvCtxID = ctxID
-			destination.sendingInitialRoutes.Store(0)
+			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			destination.session.setSendCtxID(ctxID)
 			destination.session.onMessageReceived = r.notifyMessageReceiver
 			destination.settings.NextHopMode = NextHopUnchanged
@@ -362,7 +362,7 @@ func TestRecoveryCanceledAndStoppedOperation(t *testing.T) {
 	for _, stopped := range []bool{false, true} {
 		t.Run(map[bool]string{false: "canceled", true: "stopped"}[stopped], func(t *testing.T) {
 			r, _, destination, conn, _ := newSyncOrderRail(t)
-			destination.sendingInitialRoutes.Store(0)
+			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			ctx, cancel := context.WithCancel(t.Context())
 			cancel()
 			session := destination.currentSession()
@@ -540,7 +540,7 @@ func (c recoveryClock) Now() time.Time {
 func TestRecoverySourceLossBeforeEnqueueReowes(t *testing.T) {
 	r, source, destination, conn, ctxID := newSyncOrderRail(t)
 	source.recvCtxID = ctxID
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	destination.session.setSendCtxID(ctxID)
 	destination.session.onMessageReceived = r.notifyMessageReceiver
 	r.clock = clock.RealClock{}
@@ -582,7 +582,7 @@ func recoveryAddPathRail(t *testing.T) (*Reactor, *Peer, *recordingConn) {
 	t.Helper()
 	r, _, destination, conn, _ := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	encoding := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{family.IPv4Unicast: true})
 	ctxID, err := bgpctx.Registry.Register(encoding)
 	require.NoError(t, err)
@@ -711,7 +711,7 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 			})
 			r.clock = clock.RealClock{}
 			source.recvCtxID = ctxID
-			destination.sendingInitialRoutes.Store(0)
+			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			session := destination.currentSession()
 			session.setSendCtxID(ctxID)
 			// Seed every failed-source key before arming transport failure
@@ -818,12 +818,16 @@ func TestRecoveryWriterFailureOverridesPartialRetry(t *testing.T) {
 func TestRecoveryRetryOwnsReplacementSession(t *testing.T) {
 	r, _, destination, oldConn, ctxID := newSyncOrderRail(t)
 	r.clock = clock.RealClock{}
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	failed := recoveryAdvertiseFailed(t, r, destination, syncOrderAnnounceBody)
 	setup := len(oldConn.written())
 	original := destination.currentSession()
 	recoveryOwnerStart(t, r, destination)
 	unrelated, unrelatedConn := newSyncOrderDest(t, bgpctx.Registry.Get(ctxID), ctxID)
+	// The destination takes this session below, and its initial-sync gate
+	// with it. An open gate keeps the destination's operations direct, so a
+	// write that reached the replacement session would show on its wire.
+	unrelated.setTestInitialSync(0, false)
 	failure := errors.New("replacement attempt lookup failed")
 	owner := ribevents.PublishRecovery(func(ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		destination.mu.Lock()

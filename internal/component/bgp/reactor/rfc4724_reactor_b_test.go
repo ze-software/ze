@@ -31,7 +31,7 @@ func TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		close(done)
 	}()
 

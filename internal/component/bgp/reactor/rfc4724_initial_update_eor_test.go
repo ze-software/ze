@@ -48,7 +48,7 @@ func TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete(t *testing.T) {
 
 	t.Run("nothing to send", func(t *testing.T) {
 		peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		assert.Equal(t, eor, conn.written(), "the marker is owed with no update to send")
 	})
 
@@ -56,7 +56,7 @@ func TestRFC4724EndOfRIBSentOnceTheInitialUpdateIsComplete(t *testing.T) {
 		peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 		peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.1")
 		peer.settings.DefaultOriginate = map[string]bool{"ipv4/unicast": true}
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 
 		msgs := splitWireMessages(t, conn.written())
 		require.Len(t, msgs, 2, "the route's UPDATE, then the marker")

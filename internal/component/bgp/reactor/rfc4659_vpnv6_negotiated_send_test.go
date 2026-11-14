@@ -72,7 +72,7 @@ func TestRFC4659VPNv6RouteSentWhenNegotiated(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, rfc4659VPNv6Family)
 	peer.settings.StaticRoutes = []StaticRoute{rfc4659ConfiguredVPNv6Route()}
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	frames := rfc4659UpdatesNamingVPNv6(t, conn.written())
 	require.NotEmpty(t, frames, "a negotiated VPNv6 route and its End-of-RIB must reach the wire")
@@ -91,7 +91,7 @@ func TestRFC4659VPNv6RouteWithheldWhenNotNegotiated(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.settings.StaticRoutes = []StaticRoute{rfc4659ConfiguredVPNv6Route()}
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	wire := conn.written()
 	require.NotEmpty(t, wire, "the IPv4 unicast End-of-RIB proves the initial sync ran")

@@ -92,7 +92,7 @@ func TestRFC7313EoRRFollowsTheRoutesItCloses(t *testing.T) {
 
 	t.Run("outside the initial sync", func(t *testing.T) {
 		peer, conn := enhanced(t)
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		require.False(t, peer.shouldQueue(), "the sync is over, so routes go straight out")
 
 		answerRefresh(t, newSendPermissionReactor(peer))
@@ -109,7 +109,7 @@ func TestRFC7313EoRRFollowsTheRoutesItCloses(t *testing.T) {
 			"no marker may leave ahead of the route the queue still holds")
 		assert.Equal(t, uint32(0), peer.Stats().RefreshSent, "a queued marker has not been sent")
 
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		assert.Equal(t, []string{"borr", "route", "eorr", "eor"}, refreshWireLabels(t, conn.written()),
 			"the queue drains in the order the refresh was answered")
 		assert.Equal(t, uint32(2), peer.Stats().RefreshSent, "both markers reached the socket")

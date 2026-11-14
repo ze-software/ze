@@ -64,7 +64,7 @@ func TestClosingDrainRunsQueuedTeardown(t *testing.T) {
 	peer.session.conn = conn
 	peer.session.bufWriter = bufio.NewWriterSize(conn, 4096)
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	if conn.writes < 2 {
 		t.Fatalf("socket writes = %d, the closing drain never sent the queued route", conn.writes)
@@ -76,7 +76,7 @@ func TestClosingDrainRunsQueuedTeardown(t *testing.T) {
 	if len(types) == 0 || types[len(types)-1] != uint8(msgtype.TypeNOTIFICATION) {
 		t.Fatalf("message types on the wire = %v, want a Cease NOTIFICATION last", types)
 	}
-	if peer.sendingInitialRoutes.Load() != 0 {
+	if peer.testInitialSync().sendingInitialRoutes.Load() != 0 {
 		t.Error("the teardown left the initial-sync queue gate closed")
 	}
 }
@@ -121,7 +121,7 @@ func TestQueuedTeardownSkipsSessionThatReplacedItsTarget(t *testing.T) {
 	first.bufWriter = bufio.NewWriterSize(conn, 4096)
 	peer.restartForBinding(first, []string{"monitor"}, "test restart")
 
-	peer.sendInitialRoutes()
+	peer.runInitialSyncNow()
 
 	if !conn.done {
 		t.Fatal("the teardown path sent no End-of-RIB on the first session")
@@ -151,7 +151,7 @@ func TestQueuedTeardownSendsNothingToSessionThatReplacedItsTarget(t *testing.T) 
 	peer.session = other.session
 	peer.mu.Unlock()
 
-	peer.runQueuedTeardown(peer.settings.Address.String(), peerOp{Type: PeerOpTeardown, TeardownSession: first})
+	peer.runQueuedTeardown(peer.currentSession(), peer.settings.Address.String(), peerOp{Type: PeerOpTeardown, TeardownSession: first})
 
 	if frames := bgpFrames(t, nextConn.written()); len(frames) != 0 {
 		t.Fatalf("the second session's wire carries %d frames, want none", len(frames))
@@ -225,7 +225,7 @@ func TestPeerLevelTeardownWithNoSessionWaitsForNextSession(t *testing.T) {
 	peer.mu.Unlock()
 
 	teardown := peerOp{Type: PeerOpTeardown, Notice: ceaseNotice(message.NotifyCeaseOtherConfigChange, "")}
-	peer.runQueuedTeardown(peer.settings.Address.String(), teardown)
+	peer.runQueuedTeardown(peer.currentSession(), peer.settings.Address.String(), teardown)
 
 	requireTeardownThenRoute(t, peer, route)
 	logged := sink.String()
@@ -250,7 +250,9 @@ func TestClosingDrainKeepsPeerLevelTeardownWithNoSession(t *testing.T) {
 	peer.opQueue = append(peer.opQueue, teardown, route)
 	peer.mu.Unlock()
 
-	if !peer.drainAndCloseQueueGate(peer.settings.Address.String(), message.MaxMsgLen) {
+	// The drain serves no session: testInitialSync would install one here and
+	// turn the gone session this test is about into a live one.
+	if !peer.drainAndCloseQueueGate(peer.currentSession(), peer.settings.Address.String(), message.MaxMsgLen) {
 		t.Fatal("the closing drain went past a teardown")
 	}
 

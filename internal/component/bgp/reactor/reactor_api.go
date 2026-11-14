@@ -1650,8 +1650,9 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 }
 
 // DrainPeerSync blocks until no peer has pending route work -- for every peer,
-// !pendingSync(): sendingInitialRoutes cleared AND its opQueue drained
-// (peer_initial_sync.go). A peer that is still establishing but already has
+// !pendingSync(): its session's initial-sync gate open and End-of-RIB no longer
+// owed (Session.sendingInitialRoutes, Session.initialSyncEOROwed) AND its opQueue
+// drained (peer_initial_sync.go). A peer that is still establishing but already has
 // routes queued IS waited on: those routes drain when it comes up, so a test's
 // send() reaches the wire before its next send(). Unlike shouldQueue, the
 // condition does NOT gate on peer state -- gating on state would let a route
@@ -1670,9 +1671,11 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 // through the forward pool), so a "routes on the wire" guarantee needs BOTH
 // barriers. Registered as the bgp-peer-sync quiescer alongside bgp-forward-pool.
 //
-// No completion signal exists for sendingInitialRoutes (a plain atomic cleared at
-// several sites), so this polls the cheap pendingSync() condition rather than a
-// fixed sleep: it returns as soon as the condition holds, and ctx bounds it.
+// The session's initial-sync completion signal (Session.initialSyncDone) closes
+// only when the sync goroutine returns, which is not this condition: the opQueue
+// and a handshake in flight count too, and the facts are cleared at several sites.
+// So this polls the cheap pendingSync() condition rather than a fixed sleep: it
+// returns as soon as the condition holds, and ctx bounds it.
 func (a *reactorAPIAdapter) DrainPeerSync(ctx context.Context) error {
 	return waitForCondition(ctx, time.Millisecond, a.peerSyncDrained)
 }

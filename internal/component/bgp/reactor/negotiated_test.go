@@ -114,7 +114,7 @@ func TestNegotiatedCapabilitiesExtendedMessage(t *testing.T) {
 //
 // PREVENTS: Missing EORs for families that have no routes configured.
 //
-// Context: sendInitialRoutes() iterates over nc.Families() to send EORs.
+// Context: sendInitialRoutes(session) iterates over nc.Families() to send EORs.
 // This test ensures all families are included, not just those with routes.
 func TestNegotiatedCapabilitiesFamilies_AllIncluded(t *testing.T) {
 	// Simulate a peer that negotiated multiple families but may have routes

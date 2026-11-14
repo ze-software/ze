@@ -47,15 +47,15 @@ func TestInitialSyncPanicReleasesWriteHolds(t *testing.T) {
 			session.conn = conn
 			session.bufWriter = bufio.NewWriterSize(conn, 4096)
 
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 
 			if conn.writes != 1 {
 				t.Fatalf("socket writes = %d, want one injected panic", conn.writes)
 			}
-			if peer.sendingInitialRoutes.Load() != 0 {
+			if peer.testInitialSync().sendingInitialRoutes.Load() != 0 {
 				t.Error("panic recovery left the initial-sync queue gate closed")
 			}
-			if peer.initialSyncEOROwed.Load() {
+			if peer.testInitialSync().initialSyncEOROwed.Load() {
 				t.Error("panic recovery left an End-of-RIB marker owed")
 			}
 			if !session.writeMu.TryLock() {
@@ -119,7 +119,7 @@ func TestInitialSyncPanicReleasesPeerLocks(t *testing.T) {
 		conn := &initialSyncPanicConn{}
 		peer.session.conn = conn
 		peer.session.bufWriter = bufio.NewWriterSize(conn, 4096)
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 		if conn.writes != 1 {
 			t.Fatalf("static socket writes = %d, want one injected panic", conn.writes)
 		}
@@ -148,7 +148,7 @@ func TestInitialSyncPanicReleasesPeerLocks(t *testing.T) {
 				peer.session.conn = conn
 				peer.session.bufWriter = bufio.NewWriterSize(conn, 4096)
 			}
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 			if codec.calls != 1 {
 				t.Fatalf("NLRI codec calls = %d, want one injected panic", codec.calls)
 			}
@@ -171,10 +171,10 @@ func assertInitialSyncPeerLocksReleased(t *testing.T, peer *Peer) {
 		t.Fatal("initial-sync panic retained session.writeMu")
 	}
 	peer.session.writeMu.Unlock()
-	if peer.sendingInitialRoutes.Load() != 0 {
+	if peer.testInitialSync().sendingInitialRoutes.Load() != 0 {
 		t.Error("panic recovery left the initial-sync queue gate closed")
 	}
-	if peer.initialSyncEOROwed.Load() {
+	if peer.testInitialSync().initialSyncEOROwed.Load() {
 		t.Error("panic recovery left an End-of-RIB marker owed")
 	}
 	peer.session.closeConn()
@@ -234,7 +234,7 @@ func TestInitialSyncQueuedWritePanicRunsUnlocked(t *testing.T) {
 			}
 			peer.session.conn = conn
 			peer.session.bufWriter = bufio.NewWriterSize(conn, 4096)
-			peer.sendInitialRoutes()
+			peer.runInitialSyncNow()
 			if conn.writes != conn.failAt {
 				t.Fatalf("socket writes = %d, want injected panic at %d", conn.writes, conn.failAt)
 			}

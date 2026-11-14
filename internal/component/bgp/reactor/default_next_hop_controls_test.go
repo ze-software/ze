@@ -261,6 +261,10 @@ func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 			peer, _ := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
 			old, oldClient := newConnectedLocalSession(t, peer.settings, "127.0.0.1")
 			peer.session = old
+			// The initial-sync gate and End-of-RIB mark live on the session,
+			// so each installed session carries the closed gate the fixture
+			// set (newInitialSyncPeer) on the session it installed.
+			peer.setTestInitialSync(1, true)
 			adapter := defaultNextHopControlAdapter(peer)
 			for _, prefix := range []string{"10.30.0.0/24", "10.31.0.0/24"} {
 				batch := defaultNextHopControlBatch(prefix, bgptypes.NewNextHopDefault(netip.MustParseAddr("10.1.0.2")))
@@ -291,6 +295,7 @@ func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 				t.Fatal(err)
 			}
 			peer.session = replacement
+			peer.setTestInitialSync(1, true)
 			drainDefaultNextHopControl(t, peer, rail)
 			// Closing makes EOF a deterministic end of the complete wire capture.
 			replacement.closeConn()
@@ -324,8 +329,8 @@ func newDefaultNextHopControlPeer(t *testing.T, rail, local string) (*Peer, *rec
 	peer.settings.LocalAddress = netip.MustParseAddr("198.51.100.99")
 	peer.session.transport.Store(&sessionTransport{local: netip.MustParseAddr(local)})
 	if rail == "direct" {
-		peer.sendingInitialRoutes.Store(0)
-		peer.initialSyncEOROwed.Store(false)
+		peer.testInitialSync().sendingInitialRoutes.Store(0)
+		peer.testInitialSync().initialSyncEOROwed.Store(false)
 	}
 	return peer, conn
 }
@@ -365,9 +370,9 @@ func drainDefaultNextHopControl(t *testing.T, peer *Peer, rail string) {
 	switch rail {
 	case "direct":
 	case "initial-drain":
-		peer.sendInitialRoutes()
+		peer.runInitialSyncNow()
 	case "closing-drain":
-		if peer.drainAndCloseQueueGate(peer.addrString, message.MaxMsgLen) {
+		if peer.drainAndCloseQueueGate(peer.testInitialSync(), peer.addrString, message.MaxMsgLen) {
 			t.Fatal("announcement drain unexpectedly tore down the session")
 		}
 	default:
@@ -376,7 +381,7 @@ func drainDefaultNextHopControl(t *testing.T, peer *Peer, rail string) {
 	if len(peer.opQueue) != 0 {
 		t.Fatalf("drain left %d queued operations", len(peer.opQueue))
 	}
-	if peer.sendingInitialRoutes.Load() != 0 {
+	if peer.testInitialSync().sendingInitialRoutes.Load() != 0 {
 		t.Fatal("drain left the queue gate closed")
 	}
 }

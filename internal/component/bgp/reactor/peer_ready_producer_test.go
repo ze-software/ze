@@ -194,7 +194,7 @@ func TestPeerReadySDKProducers(t *testing.T) {
 			destination.mu.Lock()
 			destination.session = replacement.session
 			destination.mu.Unlock()
-			destination.sendingInitialRoutes.Store(0)
+			destination.testInitialSync().sendingInitialRoutes.Store(0)
 			destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(destination, owner)
 			current := destination.initialReplayToken()
@@ -304,7 +304,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			f.destination.mu.Lock()
 			f.destination.session = replacement.session
 			f.destination.mu.Unlock()
-			f.destination.sendingInitialRoutes.Store(0)
+			f.destination.testInitialSync().sendingInitialRoutes.Store(0)
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
 			token := f.destination.initialReplayToken()
@@ -403,7 +403,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	f.destination.mu.Lock()
 	f.destination.session = replacement.session
 	f.destination.mu.Unlock()
-	f.destination.sendingInitialRoutes.Store(0)
+	f.destination.testInitialSync().sendingInitialRoutes.Store(0)
 	f.destination.resetAPISync([]string{owner})
 	raiseTestReplayFence(f.destination, owner)
 	token := f.destination.initialReplayToken()
@@ -504,7 +504,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				f.destination.mu.Lock()
 				f.destination.session = replacement.session
 				f.destination.mu.Unlock()
-				f.destination.sendingInitialRoutes.Store(0)
+				f.destination.testInitialSync().sendingInitialRoutes.Store(0)
 				f.destination.resetAPISync([]string{owner})
 				raiseTestReplayFence(f.destination, owner)
 				token := f.destination.initialReplayToken()
@@ -614,7 +614,7 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 				f.destination.mu.Unlock()
 				f.conn = conn
 			}
-			f.destination.sendingInitialRoutes.Store(0)
+			f.destination.testInitialSync().sendingInitialRoutes.Store(0)
 			f.destination.resetAPISync([]string{owner})
 			raiseTestReplayFence(f.destination, owner)
 			// A genuine live announcement proves completed error exits drain the

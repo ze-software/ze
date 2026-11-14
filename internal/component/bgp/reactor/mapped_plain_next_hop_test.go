@@ -125,7 +125,7 @@ func TestMappedPlainNextHopOrigination(t *testing.T) {
 						peer, conn := newInitialSyncPeer(t, true, fam)
 						peer.settings.Address = netip.MustParseAddr("2001:db8:2::2")
 						mappedPlainNegotiate(peer, fam)
-						peer.sendingInitialRoutes.Store(0)
+						peer.testInitialSync().sendingInitialRoutes.Store(0)
 						peer.refreshLinkScopeFrom(nil)
 						api := groupUpdatesReactor([]*Peer{peer}, false)
 						raw := mappedPlainNLRI
@@ -156,8 +156,8 @@ func TestMappedPlainNextHopOrigination(t *testing.T) {
 								err = peer.SendAnnounce(route, 65000)
 							}
 						case "default", "configured", "grouped-configured":
-							peer.sendingInitialRoutes.Store(1)
-							peer.initialSyncEOROwed.Store(true)
+							peer.testInitialSync().sendingInitialRoutes.Store(1)
+							peer.testInitialSync().initialSyncEOROwed.Store(true)
 							switch {
 							case rail == "default":
 								peer.settings.DefaultOriginate = map[string]bool{fam.String(): true}
@@ -168,15 +168,15 @@ func TestMappedPlainNextHopOrigination(t *testing.T) {
 							default:
 								peer.settings.PluginRoutes = []PluginRoute{{Family: fam.String(), IsIPv6: true, NLRI: mustHex(t, raw), NextHop: hop, Group: rail == "grouped-configured"}}
 							}
-							peer.sendInitialRoutes()
+							peer.runInitialSyncNow()
 						case "batch", "queued":
 							if rail == "queued" {
-								peer.sendingInitialRoutes.Store(1)
-								peer.initialSyncEOROwed.Store(true)
+								peer.testInitialSync().sendingInitialRoutes.Store(1)
+								peer.testInitialSync().initialSyncEOROwed.Store(true)
 							}
 							err = api.AnnounceNLRIBatch(t.Context(), selector.All(), bgptypes.NLRIBatch{Family: fam, NLRIs: []nlri.NLRI{routeNLRI}, NextHop: bgptypes.NewNextHopExplicit(hop)}, plugin.OperatorSender())
 							if rail == "queued" {
-								peer.sendInitialRoutes()
+								peer.runInitialSyncNow()
 							}
 						case "commit":
 							result, commitErr := api.SendRoutes(selector.All(), []*rib.Route{rib.NewRouteWithASPath(routeNLRI, hop, nil, nil)}, nil, true, plugin.OperatorSender())

@@ -79,7 +79,7 @@ func TestLiveForwardWaitsForPeerUpReplay(t *testing.T) {
 
 			// The reactor's own initial sync is over; the route server still
 			// owes this destination its peer-up replay.
-			dst.sendingInitialRoutes.Store(0)
+			dst.testInitialSync().sendingInitialRoutes.Store(0)
 			dst.resetAPISync([]string{replayFenceOwner})
 			raiseTestReplayFence(dst, replayFenceOwner)
 
@@ -153,7 +153,7 @@ func TestAnnounceRailWithdrawJoinsTheFence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r, src, dst, conn, ctxID := newSyncOrderRail(t)
 			adapter := &reactorAPIAdapter{r: r}
-			dst.sendingInitialRoutes.Store(0)
+			dst.testInitialSync().sendingInitialRoutes.Store(0)
 			dst.resetAPISync([]string{replayFenceOwner})
 			raiseTestReplayFence(dst, replayFenceOwner)
 			// Nothing has reached the connection yet, as when the replay and
@@ -246,7 +246,7 @@ func TestReplayEndOfRIBFollowsTheReplay(t *testing.T) {
 	require.NoError(t, adapter.forwardUpdateCore(live, 7801, []*Peer{dst}, replayFenceSource(src, false)))
 	require.True(t, dst.forwardOverflowPending(), "the replay and the live change must be parked")
 
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 	require.NoError(t, adapter.AnnounceEOR(selector.Addr(dst.Settings().Address), 1, 1, plugin.OperatorSender()))
 	dst.wakeForwardOverflow()
 
@@ -294,7 +294,7 @@ func TestAnnounceRailWithdrawFollowsOverflowForwards(t *testing.T) {
 	require.True(t, dst.forwardOverflowPending(), "the announce must be owed through overflow")
 	require.False(t, dst.initialUpdateOwed.Load(), "no fence: only the overflow owes the peer")
 
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.Addr(dst.Settings().Address),
 		adjOutBatch("192.0.2.0/24", "10.0.0.1"), plugin.OperatorSender()))
 	dst.wakeForwardOverflow()
@@ -320,8 +320,8 @@ func TestReplayFenceHoldsOnlyItsOwnPeer(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 	fenced, _ := newSyncOrderDest(t, ctx, ctxID)
 	other, _ := newSyncOrderDest(t, ctx, ctxID)
-	fenced.sendingInitialRoutes.Store(0)
-	other.sendingInitialRoutes.Store(0)
+	fenced.testInitialSync().sendingInitialRoutes.Store(0)
+	other.testInitialSync().sendingInitialRoutes.Store(0)
 
 	fenced.resetAPISync([]string{replayFenceOwner, "receive-store", "never-reports"})
 	raiseTestReplayFence(fenced, replayFenceOwner, "receive-store")
@@ -384,7 +384,7 @@ func replayFenceSource(src *Peer, initialUpdate bool) forwardSourceInfo {
 // connection shows the fence released nothing the fast path held.
 func TestRSFastPathHandsAFencedDestinationBack(t *testing.T) {
 	r, src, dst, conn, ctxID := newSyncOrderRail(t)
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 	dst.resetAPISync([]string{replayFenceOwner})
 	raiseTestReplayFence(dst, replayFenceOwner)
 
@@ -594,7 +594,7 @@ func TestEstablishedIsPublishedBehindTheReplayFence(t *testing.T) {
 	dst.mu.Unlock()
 	dst.refreshForwardFacts()
 	dst.state.Store(int32(PeerStateConnecting))
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 
 	update := syncOrderPublish(t, r, ctxID, 7750, syncOrderAnnounceBody)
 	var skipped []netip.AddrPort
@@ -606,7 +606,7 @@ func TestEstablishedIsPublishedBehindTheReplayFence(t *testing.T) {
 		handed, sent := reactorForwardRS(r, update, 7750, netip.MustParseAddr(forwardSourceAddr), src)
 		skipped, dispatched = slices.Clone(handed), sent
 	})
-	dst.enterEstablished()
+	dst.enterEstablished(dst.testInitialSync())
 
 	require.Equal(t, 0, dispatched, "nothing may be dispatched to a destination whose fence is owed")
 	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
@@ -660,10 +660,10 @@ func TestRSFastPathHandsBackAnUpdateOlderThanTheSession(t *testing.T) {
 	dst.mu.Unlock()
 	dst.refreshForwardFacts()
 	dst.state.Store(int32(PeerStateConnecting))
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 
 	before := nextMsgID()
-	dst.enterEstablished()
+	dst.enterEstablished(dst.testInitialSync())
 	receipt := dst.session.initialReplay.Load()
 	require.Greater(t, receipt, before, "the receipt must be taken at establishment, above every earlier MessageID")
 	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), receipt))
@@ -718,7 +718,7 @@ func TestRSFastPathHandsBackADestinationNotYetEstablished(t *testing.T) {
 	dst.mu.Unlock()
 	dst.refreshForwardFacts()
 	dst.state.Store(int32(PeerStateConnecting))
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 	dst.establishedReceipt.Store(0)
 	require.False(t, dst.initialUpdateOwed.Load(), "the fence must be down for this test to judge the state alone")
 	require.NotNil(t, dst.forwardFacts(), "the facts must be published, as the Established callback does first")
@@ -729,7 +729,7 @@ func TestRSFastPathHandsBackADestinationNotYetEstablished(t *testing.T) {
 	require.Equal(t, 0, dispatched, "a session not yet Established is the route server's to serve")
 	require.Equal(t, []netip.AddrPort{dst.Settings().PeerKey()}, skipped, "the destination must be handed back to the route server")
 
-	dst.enterEstablished()
+	dst.enterEstablished(dst.testInitialSync())
 	receipt := dst.session.initialReplay.Load()
 	require.NoError(t, dst.SignalAPIReady(plugin.ProcessSender(rsFenceFixture), receipt))
 	require.False(t, dst.initialUpdateOwed.Load(), "the fence must be down once the route server reported")

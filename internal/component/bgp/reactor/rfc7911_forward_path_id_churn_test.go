@@ -83,7 +83,7 @@ func fwdChurnRailWith(t *testing.T, reflected bool) (*Reactor, *Peer, *Peer, *re
 
 	src := makeForwardSourcePeer(t, ctx, ctxID)
 	dst, conn := newSyncOrderDest(t, ctx, ctxID)
-	dst.sendingInitialRoutes.Store(0)
+	dst.testInitialSync().sendingInitialRoutes.Store(0)
 	if reflected {
 		src.settings.PeerAS = src.settings.LocalAS
 		src.refreshForwardFacts()

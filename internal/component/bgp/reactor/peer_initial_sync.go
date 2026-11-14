@@ -24,10 +24,41 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
-// sendInitialRoutes sends static routes configured for this peer.
-// Routes with identical attributes are grouped into a single UPDATE message.
-// Uses atomic flag to prevent concurrent execution if session reconnects quickly.
-func (p *Peer) sendInitialRoutes() {
+// spawnInitialSync starts session's initial sync, the one per-session lifecycle
+// goroutine that runs sendInitialRoutes, through the session's start latch. It is
+// the only place that goroutine is spawned. A second start of the same session,
+// or a start after the session ended, spawns nothing (claimInitialSyncStart).
+// The runOnce session-end defer joins the goroutine (Session.endInitialSync).
+// Safe for concurrent use.
+func (p *Peer) spawnInitialSync(session *Session) {
+	// RFC 4724 Section 4
+	if !session.claimInitialSyncStart() {
+		peerLogger().Debug("initial sync not started: this session's sync already ran or the session ended",
+			"peer", p.settings.Address)
+		return
+	}
+	go p.runInitialSync(session) // goroutine-lifecycle: per-session lifecycle, not per-event
+}
+
+// runInitialSync is the body of session's initial-sync goroutine: the sync, then
+// the completion signal the session-end join waits on. MUST only run on the
+// goroutine spawnInitialSync started.
+func (p *Peer) runInitialSync(session *Session) {
+	// Registered first so it runs last, after sendInitialRoutes' own panic
+	// recovery: the join MUST see the signal only once nothing of the sync is left.
+	defer close(session.initialSyncDone)
+	p.sendInitialRoutes(session)
+}
+
+// sendInitialRoutes runs session's initial routing update: the static routes
+// configured for this peer (routes with identical attributes are grouped into a
+// single UPDATE message), the default routes, the queued operations, the plugin
+// routes and the End-of-RIB per family. Every write goes to session, the one it
+// serves, never to whatever session the peer holds by then; and every fact it
+// clears is session's own (Session.sendingInitialRoutes,
+// Session.initialSyncEOROwed). In production it runs on the goroutine
+// spawnInitialSync started, so at most once per session.
+func (p *Peer) sendInitialRoutes(session *Session) {
 	defer func() {
 		if r := recover(); r != nil {
 			buf := make([]byte, 4096)
@@ -40,38 +71,39 @@ func (p *Peer) sendInitialRoutes() {
 			// Clear both facts so shouldQueue() returns false, the peer is not
 			// stuck, and pendingSync stops reporting a marker this goroutine
 			// will never send.
-			p.sendingInitialRoutes.Store(0)
-			p.initialSyncEOROwed.Store(false)
+			session.sendingInitialRoutes.Store(0)
+			session.initialSyncEOROwed.Store(false)
 			p.wakeForwardOverflow()
 		}
 	}()
 	addr := p.settings.Address.String()
 	peerLogger().Debug("sendInitialRoutes ENTER", "peer", addr)
 
-	// setState sets sendingInitialRoutes to 1 in the same call that publishes
-	// PeerStateEstablished, and before it, so shouldQueue() is already true when
-	// the FSM callback notifies plugins. Here we upgrade 1→2 to indicate the
-	// goroutine is actively running. CAS guards against concurrent execution from
-	// rapid reconnects (flag would be 2 if another goroutine is already
-	// processing). If the flag is 0, the session was torn down before we started
-	// — don't run.
-	if !p.sendingInitialRoutes.CompareAndSwap(1, 2) {
-		peerLogger().Debug("sendInitialRoutes skipped", "peer", addr, "flag", p.sendingInitialRoutes.Load())
+	// enterEstablished closes the session's gate (1) before it publishes
+	// PeerStateEstablished, so shouldQueue() is already true when the FSM
+	// callback notifies plugins. Here it moves from 1 to 2 to say the goroutine
+	// is running. A gate that is not 1 was opened by an abandoned sync of this
+	// same session, which owes nothing more: don't run.
+	if !session.sendingInitialRoutes.CompareAndSwap(1, 2) {
+		peerLogger().Debug("sendInitialRoutes skipped", "peer", addr, "flag", session.sendingInitialRoutes.Load())
 		return
 	}
-	// Flag is cleared inside the mutex after the opQueue drain loop completes,
-	// NOT via defer. This ensures shouldQueue() sees a consistent state:
-	// either the flag is set (routes will be queued and drained by us),
-	// or the flag is cleared and the queue is empty (routes can be sent directly).
+	// The gate is opened inside the mutex after the opQueue drain loop
+	// completes, NOT via defer. This ensures shouldQueue() sees a consistent
+	// state: either the gate is closed (routes will be queued and drained by
+	// us), or it is open and the queue is empty (routes can be sent directly).
 
 	peerLogger().Debug("sendInitialRoutes started", "peer", addr)
 
-	// Get negotiated capabilities for family checks.
+	// Get negotiated capabilities for family checks. p.negotiated is this
+	// session's while the sync runs: the next session cannot store its own
+	// before the session-end defer joined this goroutine, and that defer clears
+	// it to nil first, which this read refuses.
 	nc := p.negotiated.Load()
 	if nc == nil {
 		peerLogger().Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
-		p.sendingInitialRoutes.Store(0) // Clear flag so shouldQueue() returns false
-		p.initialSyncEOROwed.Store(false)
+		session.sendingInitialRoutes.Store(0) // Open the gate so shouldQueue() returns false
+		session.initialSyncEOROwed.Store(false)
 		p.wakeForwardOverflow()
 		return
 	}
@@ -90,10 +122,7 @@ func (p *Peer) sendInitialRoutes() {
 	// delivers the DIFFERENCE between two sets on this same connection
 	// (deliverStaticRouteDelta, peer_static_wire.go). Without the lock the two
 	// writers interleave, and a withdrawal can precede the announcement it takes
-	// back. The session is read before the lock is taken so the record names the
-	// connection these frames were written on.
-	wireSession := p.currentSession()
-
+	// back. The record names session, the connection these frames are written on.
 	func() {
 		p.staticMu.Lock()
 		// The static phase MUST release its hold before default routes or the
@@ -109,15 +138,15 @@ func (p *Peer) sendInitialRoutes() {
 		// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
 		p.sendingConfigStatic.Store(true)
 
-		sent := p.sendStaticRoutes(wireSession, routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
-		p.staticWire = staticWireSet{session: wireSession, routes: sent}
+		sent := p.sendStaticRoutes(session, routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
+		p.staticWire = staticWireSet{session: session, routes: sent}
 	}()
 
 	// Send default routes for families with default-originate enabled.
 	// RFC 4271: default route is 0.0.0.0/0 (IPv4) or ::/0 (IPv6).
 	// Sent after static routes but still under config-static marker.
 	if len(p.settings.DefaultOriginate) > 0 {
-		p.sendDefaultOriginateRoutes(nc)
+		p.sendDefaultOriginateRoutes(session, nc)
 	}
 
 	// Clear the config-static marker before opQueue drain so plugin-injected
@@ -127,18 +156,17 @@ func (p *Peer) sendInitialRoutes() {
 	// Hold the End-of-RIB until every plugin that registers this peer on the
 	// peer-up event has processed it, so "End-of-RIB sent" means "this peer is
 	// a live forward target" -- what a peer waiting on the marker before it
-	// sends reads it to mean. Kept SEPARATE from the API-sync wait below: this
-	// one is free in the common case (nothing expected, or an in-process plugin
-	// that already acknowledged on the FSM callback goroutine before this
-	// goroutine was spawned), so it must not drag in that wait's apiSyncTimeout
-	// of 2s (api_sync.go). Bounded; on timeout it releases and says so.
+	// sends reads it to mean. It is free in the common case (nothing expected,
+	// or an in-process plugin that already acknowledged on the FSM callback
+	// goroutine before this goroutine was spawned). Bounded; on timeout it
+	// releases and says so.
 	p.waitPeerUpBarrier()
 
-	// The wait for the processes that push routes into this peer's initial
-	// routing update is NOT here. It sits after the last route this goroutine
-	// owns, and after the queueing flag is cleared -- see waitForAPISync's call
-	// site below and Peer.initialSyncEOROwed (peer.go) for why the two facts are
-	// separate.
+	// No wait for the processes that push routes is taken anywhere in this
+	// sync: the End-of-RIB follows ze's own table (see the comment above the
+	// End-of-RIB phase below). The marker is still owed after the queueing gate
+	// opens, which is why Session.initialSyncEOROwed (session.go) is a separate
+	// fact from the gate.
 
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.
@@ -175,7 +203,7 @@ func (p *Peer) sendInitialRoutes() {
 			// A teardown that names a session ends that session only: a
 			// restart decided for an earlier session is dropped here rather
 			// than ending this one. A nil TeardownSession is peer-level.
-			if op.TeardownSession != nil && op.TeardownSession != p.session {
+			if op.TeardownSession != nil && op.TeardownSession != session {
 				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
 				continue
 			}
@@ -183,9 +211,8 @@ func (p *Peer) sendInitialRoutes() {
 			hasTeardown = true
 
 		case PeerOpAnnounce:
-			// Send route, splitting if needed.
+			// Send route, splitting if needed, on this sync's own session.
 			fam := op.Route.NLRI().Family()
-			session := p.session
 			nextHop := op.Route.NextHop()
 			if fam.NeedsNextHop() {
 				var err error
@@ -226,7 +253,7 @@ func (p *Peer) sendInitialRoutes() {
 			// Framed as the direct write would have framed it (queuedWithdrawal).
 			p.mu.Unlock()
 			queueLocked = false
-			sendErr := p.sendQueuedWithdrawal(op, opMaxMsgSize)
+			sendErr := p.sendQueuedWithdrawal(session, op, opMaxMsgSize)
 			if sendErr != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
@@ -245,7 +272,6 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpRefreshMarker:
 			// RFC 7313 Section 4: the BoRR or EoRR leaves in its place among
 			// the refresh's routes (sendRefreshMarker, peer_send.go).
-			session := p.session
 			processed++
 			if op.MarkerSession != session {
 				routesLogger().Debug("dropping a route refresh marker of an earlier session", "peer", addr)
@@ -268,7 +294,7 @@ func (p *Peer) sendInitialRoutes() {
 		// If we get here, it was a teardown - break out of loop
 		break
 	}
-	// Remove processed items but keep sendingInitialRoutes flag set: this
+	// Remove processed items but keep the session's gate closed: this
 	// goroutine still owns the wire until it has written the family-specific
 	// routes below, so a concurrent plugin command must still be queued rather
 	// than overtake them.
@@ -284,7 +310,7 @@ func (p *Peer) sendInitialRoutes() {
 
 	// If teardown was in queue, send EOR first, then execute teardown.
 	if hasTeardown {
-		p.runQueuedTeardown(addr, teardown)
+		p.runQueuedTeardown(session, addr, teardown)
 		return // Don't send family-specific routes after teardown
 	}
 
@@ -296,8 +322,8 @@ func (p *Peer) sendInitialRoutes() {
 	// TWO holds rather than one, because the plugin barrier sits between them
 	// and a plugin cannot push its routes through a lock this goroutine is
 	// holding while it waits for that plugin. AnnounceEOR is shut out across
-	// both holds AND the gap by initialSyncEOROwed rather than by the lock
-	// (reactor_api_forward.go).
+	// both holds AND the gap by the session's initialSyncEOROwed rather than by
+	// the lock (reactor_api_forward.go).
 	//
 	// holdWrites is s.writeMu.Lock (session_write.go). While it is held both
 	// egress rails are shut out, but by opposite mechanisms, and this comment
@@ -313,23 +339,15 @@ func (p *Peer) sendInitialRoutes() {
 	// keepalives and risks its hold timer.
 	//
 	// Route methods use sendHeld (passed as a callback) to write without
-	// re-acquiring writeMu.
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
+	// re-acquiring writeMu. Both holds are on this sync's own session.
 	func() {
-		sendFn := p.sendUpdateDirect
-		if session != nil {
-			session.holdWrites()
-			// This phase MUST release its hold before the queue drain, including
-			// panic unwinding to sendInitialRoutes' recovery boundary.
-			defer session.releaseWrites()
-			sendFn = session.sendUpdateHeld
-		}
+		session.holdWrites()
+		// This phase MUST release its hold before the queue drain, including
+		// panic unwinding to sendInitialRoutes' recovery boundary.
+		defer session.releaseWrites()
 
 		// Send family-specific routes (config-originated).
-		p.sendPluginRoutesVia(session, sendFn)
+		p.sendPluginRoutesVia(session, session.sendUpdateHeld)
 	}()
 
 	// Everything this goroutine owns is on the wire, so the queueing gate closes
@@ -337,7 +355,7 @@ func (p *Peer) sendInitialRoutes() {
 	// empty and only then clear the flag: an op appended between the last drain
 	// and the clear would otherwise sit in a queue nothing will drain, because
 	// this goroutine is the only drainer.
-	if p.drainAndCloseQueueGate(addr, opMaxMsgSize) {
+	if p.drainAndCloseQueueGate(session, addr, opMaxMsgSize) {
 		return // A queued teardown ended the session: no End-of-RIB phase.
 	}
 
@@ -366,20 +384,17 @@ func (p *Peer) sendInitialRoutes() {
 	// Only the SENT marker moves: a peer's marker still purges stale routes on
 	// receipt (plugins/gr/gr.go, handleEOREvent), which this does not touch.
 	//
-	// initialSyncEOROwed still keeps AnnounceEOR from slipping another
-	// producer's marker in front of this one, and still keeps `request quiesce`
-	// from reporting the peer settled while the marker is owed (peer.go,
-	// pendingSync).
+	// The session's initialSyncEOROwed still keeps AnnounceEOR from slipping
+	// another producer's marker in front of this one, and still keeps `request
+	// quiesce` from reporting the peer settled while the marker is owed
+	// (peer.go, pendingSync).
 
 	func() {
-		sendFn := p.sendUpdateDirect
-		if session != nil {
-			session.holdWrites()
-			// This separate phase MUST release its own hold on return or panic;
-			// it MUST NOT cover the queue drain or forwarding wake above.
-			defer session.releaseWrites()
-			sendFn = session.sendUpdateHeld
-		}
+		session.holdWrites()
+		// This separate phase MUST release its own hold on return or panic;
+		// it MUST NOT cover the queue drain or forwarding wake above.
+		defer session.releaseWrites()
+		sendFn := session.sendUpdateHeld
 
 		// `behavior { manual-eor true }` withholds the AUTOMATIC marker, because
 		// something else decides when this peer's RIB is complete: an API client
@@ -387,7 +402,7 @@ func (p *Peer) sendInitialRoutes() {
 		// after a sync that carried none of them.
 		//
 		// It withholds the SEND and nothing else: this phase still releases its
-		// write hold, and the caller clears initialSyncEOROwed below so AnnounceEOR
+		// write hold, and the caller clears the session's owed marker below so AnnounceEOR
 		// can send the operator's marker. api-manual-eor pins those obligations.
 		sendEOR := !p.settings.ManualEOR
 		if !sendEOR {
@@ -404,8 +419,8 @@ func (p *Peer) sendInitialRoutes() {
 		// sendUpdateHeld), so a nil error means the frame left for the socket, not
 		// that it was queued behind the hold. A non-nil error means it did NOT --
 		// sendUpdateHeld returns ErrInvalidState without writing anything once the FSM
-		// has left Established, and the session can go down between the p.session read
-		// above and this call. Counting such an attempt would publish an end-of-RIB
+		// has left Established, and the session can go down at any point before this
+		// call. Counting such an attempt would publish an end-of-RIB
 		// the peer never receives, exactly the barrier the compiled functional
 		// observers wait on.
 		for _, fam := range sendEORFamilies(sendEOR, nc.Families()) {
@@ -433,16 +448,17 @@ func (p *Peer) sendInitialRoutes() {
 	// The marker is on the wire, or its send failed and said so. Either way this
 	// session owes no other one, so pendingSync settles and AnnounceEOR stops
 	// deferring to this producer (peer.go, reactor_api_forward.go).
-	p.initialSyncEOROwed.Store(false)
+	session.initialSyncEOROwed.Store(false)
 }
 
 // sendQueuedWithdrawal sends one withdrawal the opQueue held, framed from the
 // command it came from (queuedWithdrawal.update) into a pooled buffer pair, so
 // the queued withdrawal and the direct one are the same UPDATE. Both drains call
 // it, so they cannot frame a withdrawal differently. A rejected build reaches
-// sendUpdateWithSplit as a nil update, which answers errBuildRejected.
-// MUST be called without p.mu held.
-func (p *Peer) sendQueuedWithdrawal(op peerOp, maxMsgSize int) error {
+// sendUpdateWithSplit as a nil update, which answers errBuildRejected. It is
+// written on session, the drain's own, never on the session the peer holds by
+// then. MUST be called without p.mu held.
+func (p *Peer) sendQueuedWithdrawal(session *Session, op peerOp, maxMsgSize int) error {
 	attrHandle := getBuildBuf()
 	nlriHandle := getBuildBuf()
 	defer putBuildBuf(attrHandle)
@@ -452,7 +468,7 @@ func (p *Peer) sendQueuedWithdrawal(op peerOp, maxMsgSize int) error {
 	if err != nil {
 		return err
 	}
-	return p.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
+	return session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath, false)
 }
 
 // drainAndCloseQueueGate writes every operation the opQueue still holds, then
@@ -468,13 +484,15 @@ func (p *Peer) sendQueuedWithdrawal(op peerOp, maxMsgSize int) error {
 // A teardown for the current session, or a peer-level one, stops the drain as
 // it stops the main one: runQueuedTeardown sends the End-of-RIB, tears the
 // session down and opens the gate, and drainAndCloseQueueGate reports true so
-// the caller sends nothing more. A peer-level teardown that finds no session is
-// instead requeued for the next session, which it ends. A teardown queues here whenever it is asked
-// for during one of this drain's unlocked sends.
+// the caller sends nothing more. A peer-level teardown that finds session gone
+// (queuedTeardownEnds) is instead requeued for the next session, which it
+// ends. A teardown queues here whenever it is asked for during one of this
+// drain's unlocked sends.
 //
-// Called with p.mu NOT held. addr and opMaxMsgSize are the caller's, so the peer
-// address is formatted once per sync rather than once per operation.
-func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown bool) {
+// Every write goes to session, the sync's own, and the gate it opens is
+// session's. Called with p.mu NOT held. addr and opMaxMsgSize are the caller's,
+// so the peer address is formatted once per sync rather than once per operation.
+func (p *Peer) drainAndCloseQueueGate(session *Session, addr string, opMaxMsgSize int) (tornDown bool) {
 	p.mu.Lock()
 	queueLocked := true
 	// As in the first drain, unwind MUST unlock p.mu only while this drainer
@@ -490,7 +508,6 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 		switch op.Type {
 		case PeerOpAnnounce:
 			fam := op.Route.NLRI().Family()
-			session := p.session
 			nextHop := op.Route.NextHop()
 			if fam.NeedsNextHop() {
 				var err error
@@ -533,7 +550,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 		case PeerOpWithdraw:
 			p.mu.Unlock()
 			queueLocked = false
-			sendErr := p.sendQueuedWithdrawal(op, opMaxMsgSize)
+			sendErr := p.sendQueuedWithdrawal(session, op, opMaxMsgSize)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()
@@ -550,7 +567,6 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 		case PeerOpRefreshMarker:
 			// RFC 7313 Section 4: in its place among the refresh's routes, as in
 			// the main drain.
-			session := p.session
 			finalProcessed++
 			if op.MarkerSession != session {
 				routesLogger().Debug("dropping a route refresh marker of an earlier session", "peer", addr)
@@ -569,7 +585,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 		case PeerOpTeardown:
 			finalProcessed++
 			// A teardown of an earlier session is dropped, as in the main drain.
-			if op.TeardownSession != nil && op.TeardownSession != p.session {
+			if op.TeardownSession != nil && op.TeardownSession != session {
 				routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
 				continue
 			}
@@ -580,7 +596,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 			p.opQueue = p.opQueue[finalProcessed:]
 			p.mu.Unlock()
 			queueLocked = false
-			p.runQueuedTeardown(addr, op)
+			p.runQueuedTeardown(session, addr, op)
 			return true
 		default:
 			panic("BUG: invalid queued peer operation")
@@ -590,7 +606,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 		p.opQueue = p.opQueue[finalProcessed:]
 		routesLogger().Debug("drained queued ops before the end-of-rib", "peer", addr, "count", finalProcessed)
 	}
-	p.sendingInitialRoutes.Store(0)
+	session.sendingInitialRoutes.Store(0)
 	return false
 }
 
@@ -599,26 +615,25 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) (tornDown b
 // queue is cleared and the queueing gate opened. Both drains call it, so a
 // teardown queued during either one ends the session the same way.
 //
-// The drain checked op's target when it dequeued it, but the peer can move to
-// another session before the End-of-RIB sends and while they run. A teardown
-// that names a session therefore checks it before the End-of-RIB, so the next
-// session never reads a marker for an initial update it has not received (RFC
-// 4724 Section 2), and again before the NOTIFICATION. When the target has gone
-// nothing is sent or torn down, and the queue and the gate are left to the
-// initial sync of the session that holds the peer now.
+// session is the sync's own, and the markers and the NOTIFICATION go to it and
+// to nothing else. The drain checked op's target when it dequeued it, but
+// session can end before the End-of-RIB sends and while they run. The teardown
+// therefore checks session before the End-of-RIB (RFC 4724 Section 2) and again
+// before the NOTIFICATION (queuedTeardownEnds). When session has gone nothing
+// is sent or torn down.
 //
-// A peer-level teardown (nil target) that finds no session at all ends the next
-// one, as teardownOf promises: it goes back to the head of the queue, ahead of
-// the routes queued behind it, and the queue is not cleared now. The next
+// A peer-level teardown (nil target) that finds session gone ends the next
+// session, as teardownOf promises: it goes back to the head of the queue, ahead
+// of the routes queued behind it, and the queue is not cleared now. The next
 // session's drain reaches the teardown first, so this function then ends that
 // session and clears the whole queue: the routes behind it are dropped one
 // session later, never sent.
 //
 // Called with p.mu NOT held.
-func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
+func (p *Peer) runQueuedTeardown(session *Session, addr string, op peerOp) {
 	// Checked before the End-of-RIB, so a session that has gone, or that op
 	// does not name, is not sent markers.
-	if p.queuedTeardownSession(addr, op) == nil {
+	if !p.queuedTeardownEnds(session, addr, op) {
 		return
 	}
 	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
@@ -631,7 +646,7 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	// same way the queue drain stops on a connection error.
 	if nc := p.negotiated.Load(); nc != nil {
 		for _, fam := range nc.Families() {
-			if err := p.SendUpdate(message.BuildEOR(fam)); err != nil {
+			if err := session.SendUpdate(message.BuildEOR(fam)); err != nil {
 				routesLogger().Warn("end-of-rib send failed",
 					"peer", addr, "family", fam, "phase", "teardown", "error", err)
 				break
@@ -642,10 +657,9 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	}
 
 	routesLogger().Debug("executing queued teardown", "peer", addr, "code", op.Notice.code, "subcode", op.Notice.subcode)
-	// Checked again: the session can end, or be replaced, while the End-of-RIB
-	// sends run unlocked.
-	session := p.queuedTeardownSession(addr, op)
-	if session == nil {
+	// Checked again: the session can end while the End-of-RIB sends run
+	// unlocked.
+	if !p.queuedTeardownEnds(session, addr, op) {
 		return
 	}
 	// Set state to Connecting BEFORE Teardown to avoid race condition:
@@ -665,23 +679,25 @@ func (p *Peer) runQueuedTeardown(addr string, op peerOp) {
 	}
 	// Clear both facts under mutex for teardown path too: the markers sent
 	// above are the only ones this session gets.
-	p.sendingInitialRoutes.Store(0)
-	p.initialSyncEOROwed.Store(false)
+	session.sendingInitialRoutes.Store(0)
+	session.initialSyncEOROwed.Store(false)
 	p.mu.Unlock()
 	p.wakeForwardOverflow()
 }
 
-// keepTeardownForNextSessionLocked puts a peer-level teardown that found no
-// session back at the head of the opQueue, so the next session's initial sync
-// carries it out before the routes queued behind it, which that teardown then
-// clears unsent, and says so: the peer will be torn down once it next comes up. The queueing gate is left alone, because
-// the session-end defer in runOnce opened it before it cleared p.session.
+// keepTeardownForNextSessionLocked puts a peer-level teardown that found its
+// sync's session gone back at the head of the opQueue, so the next session's
+// initial sync carries it out before the routes queued behind it, which that
+// teardown then clears unsent, and says so: the peer will be torn down once it
+// next comes up. The queueing gate is left alone: it is the gone session's, and
+// the next session closes its own.
 //
 // The teardown reclaims the slot it held when the drain took it, so it goes back
 // even when concurrent queueing has since filled the queue: the queue then holds
 // at most one operation past opQueueMax, and a teardown is never lost to it.
 //
-// MUST be called with p.mu held and p.session nil.
+// MUST be called with p.mu held, from queuedTeardownEnds, once the sync's
+// session has gone.
 func (p *Peer) keepTeardownForNextSessionLocked(addr string, op peerOp) {
 	p.opQueue = append(p.opQueue, peerOp{})
 	copy(p.opQueue[1:], p.opQueue)
@@ -690,30 +706,33 @@ func (p *Peer) keepTeardownForNextSessionLocked(addr string, op peerOp) {
 		"peer", addr, "code", op.Notice.code, "subcode", op.Notice.subcode, "queued", len(p.opQueue)-1)
 }
 
-// queuedTeardownSession returns the session op ends now, or nil when it ends
-// none: a targeted teardown whose session no longer holds the peer is dropped,
-// and a peer-level one (nil target) that finds no session is kept for the next
-// session by keepTeardownForNextSessionLocked. Target check and requeue are one
-// p.mu hold, so a session ending between them cannot requeue a targeted
-// teardown. Called with p.mu NOT held.
-func (p *Peer) queuedTeardownSession(addr string, op peerOp) *Session {
+// queuedTeardownEnds reports whether op ends session, the queue drain's own, now.
+// A teardown that names another session is dropped. Session counts as gone when
+// the session-end defer has ended its sync (Session.initialSyncEnded), which it
+// does while p.session still names it during the join, or when p.session no
+// longer names it: a targeted teardown of a gone session is dropped, and a
+// peer-level one (nil target) is kept for the next session by
+// keepTeardownForNextSessionLocked rather than spent on a session that has
+// ended. Target check and requeue are one p.mu hold, so a session ending between
+// them cannot requeue a targeted teardown. Called with p.mu NOT held.
+func (p *Peer) queuedTeardownEnds(session *Session, addr string, op peerOp) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	session := p.session
 	if op.TeardownSession != nil && op.TeardownSession != session {
 		routesLogger().Debug("dropping a teardown of an earlier session", "peer", addr)
-		return nil
+		return false
 	}
-	if session == nil {
-		p.keepTeardownForNextSessionLocked(addr, op)
-		return nil
+	// A nil session is a drain that serves no session at all: gone.
+	gone := session == nil || session.initialSyncEnded() || p.session != session
+	if !gone {
+		return true
 	}
-	return session
-}
-
-// sendUpdateDirect is the default send callback when writeMu is not held.
-func (p *Peer) sendUpdateDirect(update *message.Update) error {
-	return p.SendUpdate(update)
+	if op.TeardownSession != nil {
+		routesLogger().Debug("dropping a teardown of a session that has ended", "peer", addr)
+		return false
+	}
+	p.keepTeardownForNextSessionLocked(addr, op)
+	return false
 }
 
 // pluginRouteGroup accumulates the NLRIs of same-family same-attribute routes
@@ -1011,7 +1030,10 @@ func defaultRouteForAFI(afi family.AFI, hint netip.Addr) (prefix netip.Prefix, n
 // When a per-family default-originate-filter is configured, the synthetic default
 // route is run through that single named filter as a dry-run; if the filter
 // rejects, the default route is not originated (AC-7/AC-8 of cmd-2).
-func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
+//
+// Every route is resolved for and written on session, the caller's, never on
+// the session the peer holds by then.
+func (p *Peer) sendDefaultOriginateRoutes(session *Session, nc *NegotiatedCapabilities) {
 	addr := p.settings.Address.String()
 
 	for familyKey, enabled := range p.settings.DefaultOriginate {
@@ -1036,7 +1058,6 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			routesLogger().Debug("default-originate: unsupported family AFI", "peer", addr, "family", familyKey)
 			continue
 		}
-		session := p.currentSession()
 		nextHopPolicy := bgptypes.NewNextHopExplicit(nextHop)
 		if !nextHop.IsValid() {
 			nextHopPolicy = bgptypes.NewNextHopSelf()
@@ -1089,7 +1110,7 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 				continue
 			}
 		}
-		err = p.SendUpdate(update)
+		err = session.SendUpdate(update)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("default-originate send error", "peer", addr, "family", familyKey, "error", err)

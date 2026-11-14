@@ -72,7 +72,8 @@ func updateDelayClock() *sim.FakeClock {
 
 // updateDelayTestPeer builds a peer attached to r and already published as
 // Established, which is the state the FSM callback calls startInitialRoutes in.
-// setState closes the initial-sync gate, so the flag is 1 before the call.
+// Its session's initial-sync gate is closed and the End-of-RIB owed before the
+// publish, as enterEstablished leaves them, so the flag is 1 before the call.
 //
 // It carries NO negotiated capabilities, which RFC 4724 Section 4.1 excludes
 // from the End-of-RIB wait: a peer that advertised no Graceful Restart
@@ -80,6 +81,7 @@ func updateDelayClock() *sim.FakeClock {
 func updateDelayTestPeer(r *Reactor) *Peer {
 	p := newTestPeer()
 	p.reactor = r
+	p.setTestInitialSync(1, true)
 	p.setState(PeerStateEstablished)
 	return p
 }
@@ -97,6 +99,7 @@ func updateDelayGRPeer(r *Reactor, families int) *Peer {
 		families:        negotiated,
 		GracefulRestart: &capability.GracefulRestart{RestartTime: 120},
 	})
+	p.setTestInitialSync(1, true)
 	p.setState(PeerStateEstablished)
 	return p
 }
@@ -114,10 +117,11 @@ func updateDelayRestartingPeer(r *Reactor) *Peer {
 }
 
 // initialUpdateRan reports whether this peer's initial routing update has run.
-// sendInitialRoutes stores 0 in sendingInitialRoutes on every exit path, and the
-// hold leaves the flag at the 1 setState wrote.
+// sendInitialRoutes stores 0 in its session's sendingInitialRoutes on every exit
+// path, and the hold leaves the flag at the 1 setTestInitialSync wrote. The flag
+// read is the one on the session the test passed to startInitialRoutes.
 func initialUpdateRan(p *Peer) bool {
-	return p.sendingInitialRoutes.Load() == 0
+	return p.testInitialSync().sendingInitialRoutes.Load() == 0
 }
 
 // requireInitialUpdateRan waits for the per-session goroutine to finish. The
@@ -154,8 +158,8 @@ func TestUpdateDelayWaitsForEndOfRIBNotEstablished(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{first, second}))
 
-	first.startInitialRoutes()
-	second.startInitialRoutes()
+	first.startInitialRoutes(first.testInitialSync())
+	second.startInitialRoutes(second.testInitialSync())
 
 	require.True(t, updateDelayHolding(r),
 		"both peers Established must NOT release the hold: neither has sent an End-of-RIB")
@@ -203,8 +207,9 @@ func TestUpdateDelayExcludesAPeerThatAdvertisedNoGracefulRestart(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{plain}))
 
+	plain.setTestInitialSync(1, true)
 	plain.setState(PeerStateEstablished)
-	plain.startInitialRoutes()
+	plain.startInitialRoutes(plain.testInitialSync())
 
 	require.False(t, updateDelayHolding(r),
 		"a peer that promised no End-of-RIB must settle on Established, or the hold always runs to max-delay")
@@ -222,7 +227,7 @@ func TestUpdateDelayExcludesARestartingPeer(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{restarting}))
 
-	restarting.startInitialRoutes()
+	restarting.startInitialRoutes(restarting.testInitialSync())
 	require.False(t, updateDelayHolding(r),
 		"a peer with the Restart State bit set must be excluded from the End-of-RIB wait")
 	require.Equal(t, updateDelayConverged.String(), updateDelayReason(r))
@@ -245,7 +250,7 @@ func TestUpdateDelayDoesNotCountADynamicPeer(t *testing.T) {
 
 	// The dynamic member was never given to arm.
 	dynamic := updateDelayGRPeer(r, 1)
-	dynamic.startInitialRoutes()
+	dynamic.startInitialRoutes(dynamic.testInitialSync())
 	dynamic.updateDelayEndOfRIB(family.IPv4Unicast)
 
 	require.True(t, updateDelayHolding(r),
@@ -255,7 +260,7 @@ func TestUpdateDelayDoesNotCountADynamicPeer(t *testing.T) {
 	require.Equal(t, 1, status.PeersHeld, "the dynamic peer is HELD even though it is not counted")
 	require.Equal(t, 0, status.PeersConverged)
 
-	configured.startInitialRoutes()
+	configured.startInitialRoutes(configured.testInitialSync())
 	configured.updateDelayEndOfRIB(family.IPv4Unicast)
 	require.False(t, updateDelayHolding(r), "the configured peer's End-of-RIB must release the hold")
 }
@@ -274,7 +279,7 @@ func TestUpdateDelayArmsWithNoStaticPeers(t *testing.T) {
 	require.True(t, updateDelayHolding(r))
 
 	dynamic := updateDelayGRPeer(r, 1)
-	dynamic.startInitialRoutes()
+	dynamic.startInitialRoutes(dynamic.testInitialSync())
 	dynamic.updateDelayEndOfRIB(family.IPv4Unicast)
 	require.True(t, updateDelayHolding(r),
 		"an empty expected set must never converge: every member of an empty set is settled")
@@ -295,7 +300,7 @@ func TestUpdateDelaySuppressesOutbound(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{held, other}))
 
-	held.startInitialRoutes()
+	held.startInitialRoutes(held.testInitialSync())
 
 	require.True(t, held.shouldQueue(),
 		"a held peer must still queue route operations, or a plugin route reaches the wire from under the hold")
@@ -317,7 +322,7 @@ func TestUpdateDelayReleasesOnTimer(t *testing.T) {
 
 	// `up` settles on Established (no Graceful Restart), `never` never
 	// establishes, so convergence is unreachable.
-	up.startInitialRoutes()
+	up.startInitialRoutes(up.testInitialSync())
 	requireInitialUpdateHeld(t, up, "the peer must be held while the timer runs")
 	require.True(t, updateDelayHolding(r))
 
@@ -342,7 +347,7 @@ func TestUpdateDelayReleasesOnTimerWithNoPeerEstablished(t *testing.T) {
 
 	// A peer that establishes after the release takes the unheld path.
 	late := updateDelayTestPeer(r)
-	late.startInitialRoutes()
+	late.startInitialRoutes(late.testInitialSync())
 	requireInitialUpdateRan(t, late, "a peer establishing after the release must send its initial update at once")
 }
 
@@ -354,7 +359,7 @@ func TestUpdateDelayEstablishWaitReleasesOnThePeersThatAreUp(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour, EstablishWait: 10 * time.Second}, []*Peer{up, never}))
 
-	up.startInitialRoutes()
+	up.startInitialRoutes(up.testInitialSync())
 	require.True(t, updateDelayHolding(r))
 
 	clk.Add(10 * time.Second)
@@ -396,7 +401,7 @@ func TestUpdateDelayPeerThatDropsStopsCounting(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{flapping, steady}))
 
-	flapping.startInitialRoutes()
+	flapping.startInitialRoutes(flapping.testInitialSync())
 	flapping.updateDelayEndOfRIB(family.IPv4Unicast)
 	require.Equal(t, 1, r.UpdateDelayStatus().PeersConverged)
 
@@ -405,7 +410,7 @@ func TestUpdateDelayPeerThatDropsStopsCounting(t *testing.T) {
 	require.Equal(t, 0, status.PeersConverged, "a peer that left Established must stop counting as converged")
 	require.Equal(t, 0, status.PeersHeld, "and must stop being held")
 
-	steady.startInitialRoutes()
+	steady.startInitialRoutes(steady.testInitialSync())
 	steady.updateDelayEndOfRIB(family.IPv4Unicast)
 	require.True(t, updateDelayHolding(r),
 		"the second peer alone must not converge a two-peer hold once the first has dropped")
@@ -425,7 +430,7 @@ func TestUpdateDelayNotArmedWithoutMaxDelay(t *testing.T) {
 		"a zero max-delay must arm nothing")
 	require.False(t, updateDelayHolding(r))
 
-	p.startInitialRoutes()
+	p.startInitialRoutes(p.testInitialSync())
 	requireInitialUpdateRan(t, p, "with no update-delay configured the initial routing update must be immediate")
 }
 
@@ -449,7 +454,7 @@ func TestUpdateDelayReleaseIsIdempotent(t *testing.T) {
 	p := updateDelayTestPeer(r)
 	require.True(t, r.updateDelay.arm(context.Background(), clk, UpdateDelay{MaxDelay: time.Hour}, []*Peer{p}))
 
-	p.startInitialRoutes()
+	p.startInitialRoutes(p.testInitialSync())
 	requireInitialUpdateRan(t, p, "the single expected peer settling must end the hold")
 	require.Equal(t, updateDelayConverged.String(), updateDelayReason(r))
 
@@ -468,7 +473,7 @@ func TestUpdateDelayStopsOnReactorShutdown(t *testing.T) {
 	clk := updateDelayClock()
 	p := updateDelayGRPeer(r, 1)
 	require.True(t, r.updateDelay.arm(ctx, clk, UpdateDelay{MaxDelay: 30 * time.Second}, []*Peer{p}))
-	p.startInitialRoutes()
+	p.startInitialRoutes(p.testInitialSync())
 
 	cancel()
 	clk.Add(60 * time.Second)
@@ -510,7 +515,7 @@ func TestUpdateDelayStatusWhileHolding(t *testing.T) {
 	up := updateDelayGRPeer(r, 1)
 	never := updateDelayGRPeer(r, 1)
 	require.True(t, r.updateDelay.arm(context.Background(), clk, r.config.UpdateDelay, []*Peer{up, never}))
-	up.startInitialRoutes()
+	up.startInitialRoutes(up.testInitialSync())
 
 	status := r.UpdateDelayStatus()
 	require.True(t, status.Configured)
@@ -548,7 +553,7 @@ func TestUpdateDelayQueueOverrunIsReportedNotSwallowed(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), clk,
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{p, updateDelayGRPeer(r, 1)}))
 
-	p.startInitialRoutes()
+	p.startInitialRoutes(p.testInitialSync())
 	require.True(t, p.shouldQueue(), "a held peer must queue, or this test proves nothing about the hold")
 
 	for i := range p.opQueueMax {
@@ -579,7 +584,7 @@ func TestUpdateDelayShutdownStopsTheConvergenceRelease(t *testing.T) {
 	p := updateDelayGRPeer(r, 1)
 	require.True(t, r.updateDelay.arm(ctx, updateDelayClock(),
 		UpdateDelay{MaxDelay: time.Hour}, []*Peer{p}))
-	p.startInitialRoutes()
+	p.startInitialRoutes(p.testInitialSync())
 
 	cancel()
 	p.updateDelayEndOfRIB(family.IPv4Unicast)
@@ -601,8 +606,8 @@ func TestUpdateDelayStatusAfterReleaseAgreesWithItself(t *testing.T) {
 	require.True(t, r.updateDelay.arm(context.Background(), updateDelayClock(),
 		r.config.UpdateDelay, []*Peer{first, second}))
 
-	first.startInitialRoutes()
-	second.startInitialRoutes()
+	first.startInitialRoutes(first.testInitialSync())
+	second.startInitialRoutes(second.testInitialSync())
 	first.updateDelayEndOfRIB(family.IPv4Unicast)
 	second.updateDelayEndOfRIB(family.IPv4Unicast)
 
@@ -624,7 +629,7 @@ func TestUpdateDelayReleaseDropsItsPeerReferences(t *testing.T) {
 	p := updateDelayGRPeer(r, 1)
 	require.True(t, r.updateDelay.arm(context.Background(), updateDelayClock(),
 		r.config.UpdateDelay, []*Peer{p}))
-	p.startInitialRoutes()
+	p.startInitialRoutes(p.testInitialSync())
 	p.updateDelayEndOfRIB(family.IPv4Unicast)
 
 	r.updateDelay.mu.Lock()

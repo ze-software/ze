@@ -387,6 +387,20 @@ func (p *Peer) runOnce() error {
 		// callback finished and the down was delivered before this join. It
 		// holds neither writeMu nor the forward worker.
 		session.joinRecovery()
+		// RFC 4724 Section 4: "The End-of-RIB marker MUST be sent by a BGP
+		// speaker to its peer once it completes the initial routing update
+		// (including the case when there is no update to send) for an address
+		// family after the BGP session is established."
+		//
+		// The session's initial sync is joined here, like every other
+		// per-session goroutine, so it cannot outlive its session: no marker,
+		// queued operation or plugin route of this session can reach the
+		// session that replaces it, and the next runOnce cannot start before
+		// it has returned. The latch is moved to ended first, so a convergence
+		// hold that releases this session later starts nothing. The join runs
+		// after sessionDown (registered later, so it ran first) and with no
+		// lock held: the sync takes p.mu, p.staticMu and writeMu on its way out.
+		session.endInitialSync()
 		p.clearEncodingContexts()
 		// Clear prefix-threshold warnings raised by this session from the report
 		// bus so they do not linger after the session ends. Must be called before
@@ -401,22 +415,20 @@ func (p *Peer) runOnce() error {
 		if sess := p.session; sess != nil {
 			sess.clearReportedWarnings()
 		}
-		// Reset both initial-sync facts so the next session can run
-		// sendInitialRoutes(). This is needed because session.Teardown() may
-		// return while the old sendInitialRoutes() goroutine is still inside its
-		// bounded waits. The End-of-RIB fact is cleared here as well as the
-		// queueing one: this session's marker is no longer owed to anybody, and
-		// leaving it set would make pendingSync report a dead peer as pending
-		// for good (peer.go).
-		p.sendingInitialRoutes.Store(0)
-		p.initialSyncEOROwed.Store(false)
+		// The initial-sync facts are this session's (Session.sendingInitialRoutes,
+		// Session.initialSyncEOROwed), so nothing resets them for the next
+		// session, which starts with its own. Once p.session is cleared below,
+		// every reader sees no session, an open gate and no marker owed. The
+		// forward worker's lock-free copy is cleared here, after the join.
+		p.establishedSession.Store(nil)
 		// The session is gone, so nothing will drain an opQueue for it. Release
 		// the forwarded UPDATEs parked behind the sync: fwdBatchHandler discards
 		// them for a peer that is no longer Established, which is what must
 		// happen -- holding them would deliver this session's UPDATEs to its
 		// replacement, after that session's own initial sync.
 		p.wakeForwardOverflow()
-		// A new session owes the peer a fresh End-of-RIB per family.
+		// A new session owes the peer a fresh End-of-RIB per family. After the
+		// join, so no claim of this session's sync lands after the reset.
 		p.resetInitialSyncEOR()
 		p.mu.Lock()
 		p.session = nil
@@ -528,7 +540,7 @@ func (p *Peer) runOnce() error {
 			p.cycleReachedEstablished.Store(true)
 			// RFC 8212 Section 3: establishment joins the import swap's
 			// admission boundary before the first UPDATE is read.
-			p.enterEstablished()
+			p.enterEstablished(session)
 			p.setEstablishedNow()
 
 			// Start EOR timeout if GR was negotiated (AC-11).
@@ -557,13 +569,13 @@ func (p *Peer) runOnce() error {
 			// state those calls land on must already belong to this session.
 			p.ResetPeerUpBarrier()
 
-			// The initial-sync gate is already closed: p.setState above closes it
-			// in the same call that publishes PeerStateEstablished, so shouldQueue()
-			// is true here and stays true through the notifications below. It used
-			// to be closed at THIS line instead, which left every line between the
-			// publication and here as a window in which an established peer's route
-			// ops bypassed opQueue and the bgp-peer-sync quiescer reported the peer
-			// settled -- see setState (peer.go).
+			// The initial-sync gate is already closed: enterEstablished above
+			// closes the session's gate before it publishes PeerStateEstablished,
+			// so shouldQueue() is true here and stays true through the
+			// notifications below. It used to be closed at THIS line instead, which
+			// left every line between the publication and here as a window in which
+			// an established peer's route ops bypassed opQueue and the
+			// bgp-peer-sync quiescer reported the peer settled.
 
 			// Notify the reactor that the session is established.
 			p.mu.RLock()
@@ -587,7 +599,7 @@ func (p *Peer) runOnce() error {
 			// unless the startup convergence hold owns this peer's initial routing
 			// update and will run it when it releases (update_delay.go).
 			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
-			p.startInitialRoutes()
+			p.startInitialRoutes(session)
 			transitionReason = "established"
 		} else if from == fsm.StateEstablished {
 			p.leaveSession(session, leave, from, to, event)

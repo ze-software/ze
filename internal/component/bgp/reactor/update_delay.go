@@ -166,10 +166,12 @@ type updateDelayHold struct {
 	// the race started.
 	expected map[*Peer]struct{}
 
-	// held is the set of peers whose initial routing update this hold owns.
-	// Pruned by peerDown, so it means "is Established and still held" rather
-	// than "has been Established at some point".
-	held map[*Peer]struct{}
+	// held is the set of peers whose initial routing update this hold owns,
+	// each with the session that asked for it (holdInitialUpdate). A later
+	// session of the same peer replaces the earlier one. Pruned by peerDown, so
+	// it means "is Established and still held" rather than "has been
+	// Established at some point".
+	held map[*Peer]*Session
 
 	// tracked carries the convergence state of the expected peers that have
 	// established. A peer leaves it when it leaves Established, so a session
@@ -223,7 +225,7 @@ func (h *updateDelayHold) arm(ctx context.Context, clk clock.Clock, settings Upd
 	for _, p := range peers {
 		h.expected[p] = struct{}{}
 	}
-	h.held = make(map[*Peer]struct{}, len(peers))
+	h.held = make(map[*Peer]*Session, len(peers))
 	h.tracked = make(map[*Peer]*updateDelayPeer, len(peers))
 
 	reactorLogger().Info("update-delay armed: the initial routing update is held",
@@ -256,9 +258,10 @@ func (h *updateDelayHold) startDeadlinesLocked(clk clock.Clock) {
 // holdInitialUpdate registers this peer's initial routing update with the hold,
 // and reports whether the hold now owns it.
 //
-// A true answer is a promise: this hold WILL run p.sendInitialRoutes when it
-// releases, and the caller MUST NOT run it. A false answer means the caller owns
-// it as it always did.
+// A true answer is a promise: this hold WILL start session's initial sync
+// through its start latch when it releases (runHeldInitialUpdates), and the
+// caller MUST NOT start it. A false answer means the caller owns it as it
+// always did.
 //
 // EVERY establishing peer is held, whether or not it is expected. The hold is
 // about what this speaker advertises, and a dynamic-group member's session is
@@ -268,7 +271,7 @@ func (h *updateDelayHold) startDeadlinesLocked(clk clock.Clock) {
 // Registering and evaluating the release happen under one lock, so a peer can
 // neither be counted after the release that would have carried it nor be left
 // behind by a release that started between the two halves.
-func (h *updateDelayHold) holdInitialUpdate(p *Peer) bool {
+func (h *updateDelayHold) holdInitialUpdate(p *Peer, session *Session) bool {
 	h.mu.Lock()
 
 	if !h.armed || h.released {
@@ -276,7 +279,7 @@ func (h *updateDelayHold) holdInitialUpdate(p *Peer) bool {
 		return false
 	}
 
-	h.held[p] = struct{}{}
+	h.held[p] = session
 	if _, expected := h.expected[p]; expected {
 		h.trackLocked(p)
 	}
@@ -401,7 +404,7 @@ func (h *updateDelayHold) peerEndOfRIB(p *Peer, fam family.Family) {
 // Without it the release condition would read "has been Established", and a peer
 // that came up and dropped again would keep counting toward convergence while
 // the wire it was counted for is gone. Its initial routing update is dropped
-// too: sendInitialRoutes would refuse a torn-down peer anyway, and holding a
+// too: the ended session's start latch would refuse it anyway, and holding a
 // dead peer in the release set makes the log line's peer count a lie.
 func (h *updateDelayHold) peerDown(p *Peer) {
 	h.mu.Lock()
@@ -476,9 +479,9 @@ func (h *updateDelayHold) releaseIfAnyHeld() {
 // is exactly what this type's own comment says a shutdown must not do. The other
 // two paths are timers this hold owns; this one is a peer's message.
 //
-// Returns the peers to run, nil when nothing was released. It returned a second
-// bool nobody read.
-func (h *updateDelayHold) releaseIfConvergedLocked() []*Peer {
+// Returns the held updates to run, nil when nothing was released. It returned a
+// second bool nobody read.
+func (h *updateDelayHold) releaseIfConvergedLocked() []heldInitialUpdate {
 	if h.stoppingLocked() {
 		return nil
 	}
@@ -497,14 +500,21 @@ func (h *updateDelayHold) releaseIfConvergedLocked() []*Peer {
 	return h.releaseLocked(updateDelayConverged)
 }
 
+// heldInitialUpdate is one initial routing update the hold owed: the peer and
+// the session that asked for it.
+type heldInitialUpdate struct {
+	peer    *Peer
+	session *Session
+}
+
 // releaseLocked marks the hold ended, stops both deadlines, and returns the
-// peers whose initial routing update it owed. The caller MUST hold h.mu and MUST
-// run the returned peers after it drops the lock.
+// initial routing updates it owed. The caller MUST hold h.mu and MUST run the
+// returned updates after it drops the lock.
 //
 // The set is handed back rather than used here because sendInitialRoutes takes
 // p.mu and p.staticMu and can block on the wire; holding h.mu across it would
 // stall every other peer's Established transition behind one slow socket.
-func (h *updateDelayHold) releaseLocked(reason updateDelayReleaseReason) []*Peer {
+func (h *updateDelayHold) releaseLocked(reason updateDelayReleaseReason) []heldInitialUpdate {
 	if reason == updateDelayNotReleased {
 		panic("BUG: update-delay released with no reason")
 	}
@@ -518,9 +528,9 @@ func (h *updateDelayHold) releaseLocked(reason updateDelayReleaseReason) []*Peer
 		h.establishWait.Stop()
 	}
 
-	peers := make([]*Peer, 0, len(h.held))
-	for p := range h.held {
-		peers = append(peers, p)
+	updates := make([]heldInitialUpdate, 0, len(h.held))
+	for p, session := range h.held {
+		updates = append(updates, heldInitialUpdate{peer: p, session: session})
 	}
 
 	// The counts are FROZEN into the final report before the maps go, so
@@ -529,7 +539,7 @@ func (h *updateDelayHold) releaseLocked(reason updateDelayReleaseReason) []*Peer
 	// `reason=converged` beside `peers-converged=0`, two fields of one record
 	// contradicting each other.
 	h.finalExpected = len(h.expected)
-	h.finalHeld = len(peers)
+	h.finalHeld = len(updates)
 	h.finalConverged = h.settledCountLocked()
 
 	reactorLogger().Info("update-delay released: the initial routing update runs now",
@@ -544,7 +554,7 @@ func (h *updateDelayHold) releaseLocked(reason updateDelayReleaseReason) []*Peer
 	h.tracked = nil
 	h.expected = nil
 
-	return peers
+	return updates
 }
 
 // settledCountLocked is how many expected peers have finished their initial
@@ -565,18 +575,18 @@ func (h *updateDelayHold) stoppingLocked() bool {
 	return h.ctx != nil && h.ctx.Err() != nil
 }
 
-// runHeldInitialUpdates starts the initial routing update of every peer the hold
-// owed, one per-session lifecycle goroutine each, exactly as the unheld path
+// runHeldInitialUpdates starts the initial routing update the hold owed for each
+// held session, through that session's start latch, exactly as the unheld path
 // starts it (Peer.startInitialRoutes).
 //
-// A peer whose session died while it was held is not filtered out here.
-// sendInitialRoutes refuses it: the CAS on sendingInitialRoutes fails once
-// cleanup has cleared the flag, and the negotiated-capabilities read refuses a
-// peer with no session. One refusal, in the function that owns the fact, rather
-// than a second liveness test here that would disagree with it.
-func runHeldInitialUpdates(peers []*Peer) {
-	for _, p := range peers {
-		go p.sendInitialRoutes() // goroutine-lifecycle: per-session lifecycle, not per-event
+// A session that ended while it was held is not filtered out here. Its latch
+// refuses it: the runOnce session-end defer moved the latch to ended
+// (Session.endInitialSync), so the start spawns nothing. One refusal, in the
+// session that owns the fact, rather than a second liveness test here that
+// would disagree with it.
+func runHeldInitialUpdates(held []heldInitialUpdate) {
+	for _, update := range held {
+		update.peer.spawnInitialSync(update.session)
 	}
 }
 
@@ -637,12 +647,16 @@ func (h *updateDelayHold) report(settings UpdateDelay) plugin.UpdateDelayStatus 
 // A reactor-less peer (a unit test that builds a Peer with no reactor) takes the
 // unheld path, because there is no hold to ask. p.reactor is read WITHOUT p.mu,
 // like every other reader of it (peer_run.go, wakeForwardOverflow).
-func (p *Peer) startInitialRoutes() {
+//
+// session is the session that reached Established. Both routes start its sync
+// through its start latch (spawnInitialSync), so the FSM callback and a hold
+// release that both reach one session start one goroutine between them.
+func (p *Peer) startInitialRoutes(session *Session) {
 	r := p.reactor
-	if r != nil && r.updateDelay.holdInitialUpdate(p) {
+	if r != nil && r.updateDelay.holdInitialUpdate(p, session) {
 		return
 	}
-	go p.sendInitialRoutes() // goroutine-lifecycle: per-session lifecycle, not per-event
+	p.spawnInitialSync(session)
 }
 
 // updateDelayPeerDown tells the startup convergence hold this peer has left

@@ -366,7 +366,7 @@ func TestFinalWriterInitialLocalReplay(t *testing.T) {
 			replacement, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 			peer.session = replacement.session
 			peer.session.adjOut = &peer.adjOut
-			peer.initialSyncEOROwed.Store(true)
+			peer.testInitialSync().initialSyncEOROwed.Store(true)
 			target := announceTarget{peer: peer, session: peer.session}
 			batch := bgptypes.NLRIBatch{Replay: true, SentOwnerMessage: receipt}
 			if err := target.sendBatchUpdate(context.Background(), update, message.MaxMsgLen, false, batch); err != nil {
@@ -379,16 +379,16 @@ func TestFinalWriterInitialLocalReplay(t *testing.T) {
 			batch.InitialLocal = true
 			switch mode {
 			case "replay-fence-after-eor":
-				peer.initialSyncEOROwed.Store(false)
+				peer.testInitialSync().initialSyncEOROwed.Store(false)
 				peer.initialUpdateOwed.Store(true)
 			case "newer-forwarded":
 				if err := ownershipWriterForward(t, peer, source, syncOrderAnnounceBody, false); err != nil {
 					t.Fatal(err)
 				}
 			case "expired-phase":
-				peer.initialSyncEOROwed.Store(false)
+				peer.testInitialSync().initialSyncEOROwed.Store(false)
 			case "expired-policy":
-				peer.initialSyncEOROwed.Store(false)
+				peer.testInitialSync().initialSyncEOROwed.Store(false)
 				peer.session.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return true, nil, nil }
 			case "old-session":
 				batch.InitialReplay = old.initialReplay.Load()

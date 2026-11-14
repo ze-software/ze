@@ -114,9 +114,14 @@ path skips its direct write and goes through `TryDispatch`, behind the items on
 the channel. `TryDispatch` itself does not read this count: a send behind
 channel items keeps FIFO on its own.
 
-The hold ends when `sendInitialRoutes` clears the sync flag. It wakes the
-destination's worker at that point, because a worker whose channel is empty
-re-reads the hold only when something arrives on that channel.
+The hold reads the initial-sync gate of the destination's established
+session (`Session.sendingInitialRoutes`), through the peer's lock-free copy of
+that session (`Peer.establishedSession`), because the worker evaluates it under
+its overflow lock and takes no peer lock there. The hold ends when
+`sendInitialRoutes` opens that session's gate, or when the session ends and its
+defer clears the copy. Both wake the destination's worker, because a worker
+whose channel is empty re-reads the hold only when something arrives on that
+channel.
 
 One consequence is visible to operators: `request peer <sel> flush` blocks until
 every targeted peer has finished its initial sync, because the barrier sentinel

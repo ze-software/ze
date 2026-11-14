@@ -187,8 +187,8 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 							t.Errorf("valid batch announcement refused: %v", err)
 						}
 					case ordinaryJointQueued:
-						peer.sendingInitialRoutes.Store(1)
-						peer.initialSyncEOROwed.Store(true)
+						peer.testInitialSync().sendingInitialRoutes.Store(1)
+						peer.testInitialSync().initialSyncEOROwed.Store(true)
 						if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
 							t.Fatalf("queue admission refused: %v", err)
 						}
@@ -202,10 +202,10 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 							t.Fatalf("queued route ran early: updates/EOR=%d/%d advertised=%v policy=%d",
 								stats.UpdatesSent, stats.EORSent, peer.hasAdvertised(), transport.calls())
 						}
-						peer.sendInitialRoutes()
-						if len(peer.opQueue) != 0 || peer.sendingInitialRoutes.Load() != 0 || peer.initialSyncEOROwed.Load() {
+						peer.runInitialSyncNow()
+						if len(peer.opQueue) != 0 || peer.testInitialSync().sendingInitialRoutes.Load() != 0 || peer.testInitialSync().initialSyncEOROwed.Load() {
 							t.Errorf("initial drain incomplete: queued=%d gate=%d EOR-owed=%v",
-								len(peer.opQueue), peer.sendingInitialRoutes.Load(), peer.initialSyncEOROwed.Load())
+								len(peer.opQueue), peer.testInitialSync().sendingInitialRoutes.Load(), peer.testInitialSync().initialSyncEOROwed.Load())
 						}
 						eors = 1
 					case ordinaryJointCommit:

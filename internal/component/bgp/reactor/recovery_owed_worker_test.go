@@ -50,7 +50,7 @@ func newOwedRail(t *testing.T) *owedRail {
 		return command != nil && command.Process != nil
 	}, "recovery command owner registered")
 	destination.reactor = r
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	attachRecoveryOwner(t, r, source)
 	rail := &owedRail{r: r, source: source, destination: destination, conn: conn,
 		requests: make(chan ribevents.RecoveryRequest, 8), release: make(chan owedAnswer, 8)}
@@ -222,7 +222,7 @@ func TestOwnerWithdrawalWrittenWhenOwnerDoesNotReceiveSource(t *testing.T) {
 		return command != nil && command.Process != nil
 	}, "recovery command owner registered")
 	destination.reactor = r
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	requests := make(chan ribevents.RecoveryRequest, 8)
 	release := make(chan struct{}, 1)
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
@@ -330,7 +330,7 @@ func TestOwedKeyWorkerLifecycle(t *testing.T) {
 			return command != nil && command.Process != nil
 		}, "recovery command owner registered")
 		destination.reactor = r
-		destination.sendingInitialRoutes.Store(0)
+		destination.testInitialSync().sendingInitialRoutes.Store(0)
 		asked := make(chan ribevents.RecoveryRequest, 1)
 		owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 			asked <- request
@@ -465,7 +465,7 @@ func TestOwedKeyNoRecoveryOwnerWritesWithdrawal(t *testing.T) {
 	r.api = newBorrowedPluginServer(t, New(&Config{ListenAddr: "127.0.0.1:0"}))
 	require.Nil(t, r.api.Dispatcher().Registry().Lookup(recoveryCommandName), "guard: no recovery owner")
 	destination.reactor = r
-	destination.sendingInitialRoutes.Store(0)
+	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	requests := make(chan ribevents.RecoveryRequest, 8)
 	owner := ribevents.PublishRecovery(func(request ribevents.RecoveryRequest) ([]ribevents.RecoveryOutcome, error) {
 		requests <- request

@@ -304,7 +304,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		session.writeMu.Lock()
 		session.initialReplay.Store(5)
 		session.writeMu.Unlock()
-		rail.destination.initialSyncEOROwed.Store(true)
+		rail.destination.testInitialSync().initialSyncEOROwed.Store(true)
 		item := fwdItem{receivedPeer: rail.source, receivedGeneration: rail.source.forwardGeneration.Load(), sourcePolicyEpoch: rail.source.sourcePolicyEpoch.Load(),
 			authority: adjOutInitial, sourceMessageID: 81, initialReplay: 5, initialUpdate: true,
 			expectedMessage: 91, initialSourceState: PeerStateEstablished}
@@ -441,7 +441,7 @@ func TestAdjOutAnnouncementOwedWhenEntryExists(t *testing.T) {
 		session.writeMu.Lock()
 		session.initialReplay.Store(5)
 		session.writeMu.Unlock()
-		f.destination.initialSyncEOROwed.Store(true)
+		f.destination.testInitialSync().initialSyncEOROwed.Store(true)
 		api := &reactorAPIAdapter{r: f.r}
 		sel := selector.ParseDefault(f.destination.Settings().Address.String())
 		batch := adjOutBatch(syncOrderPrefix, "10.0.0.1")

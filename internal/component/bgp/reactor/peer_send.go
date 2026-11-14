@@ -144,7 +144,10 @@ func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
 // queued. Safe for concurrent use.
 func (p *Peer) sendRefreshMarker(marker []byte) error {
 	p.mu.Lock()
-	if p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0 {
+	// The gate is the current session's; a peer that holds no session reads as
+	// an open gate (queueGateClosedLocked).
+	gateClosed := p.session != nil && p.session.sendingInitialRoutes.Load() != 0
+	if gateClosed || len(p.opQueue) > 0 {
 		if len(p.opQueue) >= p.opQueueMax {
 			size := len(p.opQueue)
 			p.mu.Unlock()
@@ -181,7 +184,7 @@ func (p *Peer) sendQueuedRefreshMarker(marker []byte, session *Session) error {
 // the UPDATE's NLRIs. Returns nil on success, the first error encountered
 // otherwise.
 //
-// Each chunk is handed to p.SendUpdate (which copies synchronously through
+// Each chunk is handed to the session's writer (which copies synchronously through
 // WriteTo) before the next chunk is built -- this satisfies the splitter's
 // scratch-aliasing lifetime invariant (see Update type doc).
 //
@@ -194,12 +197,10 @@ func (p *Peer) sendQueuedRefreshMarker(marker []byte, session *Session) error {
 // buildBatchWithdrawUpdate, buildBatchAnnounceUpdate). Splitter.Split would dereference
 // it, so the nil is turned into errBuildRejected here, at the single choke point
 // every send passes through, rather than repeated at each builder's call site.
-func (p *Peer) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath bool) error {
-	return p.currentSession().sendUpdateWithSplit(ctx, update, maxSize, addPath, false)
-}
-
-// sendUpdateWithSplit keeps every chunk on the session used to resolve and
-// encode it, even if the peer installs a replacement connection meanwhile.
+//
+// It is the session's method, so every chunk stays on the session used to
+// resolve and encode it, even if the peer installs a replacement connection
+// meanwhile.
 func (session *Session) sendUpdateWithSplit(ctx context.Context, update *message.Update, maxSize int, addPath, replay bool) error {
 	return session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, replay, nil, (*Session).writeUpdate)
 }

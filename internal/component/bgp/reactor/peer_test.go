@@ -435,13 +435,15 @@ func TestPeerShouldQueue(t *testing.T) {
 	// Not established → should queue
 	require.True(t, peer.shouldQueue(), "should queue when not established")
 
-	// Simulate established state. setState closes the initial-sync gate as it
-	// publishes Established (peer.go), so the peer queues until its sync ends.
+	// Simulate established state. enterEstablished closes the session's
+	// initial-sync gate before it publishes Established (source_policy_reload.go),
+	// so the peer queues until its sync ends.
+	peer.setTestInitialSync(1, true)
 	peer.setState(PeerStateEstablished)
 	require.True(t, peer.shouldQueue(), "should queue while the initial sync is still owed")
 
 	// What sendInitialRoutes does when its drain and End-of-RIB are done.
-	peer.sendingInitialRoutes.Store(0)
+	peer.testInitialSync().sendingInitialRoutes.Store(0)
 	require.False(t, peer.shouldQueue(), "should not queue when established with empty queue")
 
 	// The gate is open, so the queue refuses: nothing would drain the route.
@@ -464,11 +466,11 @@ func TestPeerShouldQueue(t *testing.T) {
 	require.False(t, peer.shouldQueue(), "should not queue after clearing opQueue")
 
 	// Initial routes in progress → should queue
-	peer.sendingInitialRoutes.Store(1)
+	peer.testInitialSync().sendingInitialRoutes.Store(1)
 	require.True(t, peer.shouldQueue(), "should queue when sendingInitialRoutes flag set")
 
 	// Clear flag → should not queue
-	peer.sendingInitialRoutes.Store(0)
+	peer.testInitialSync().sendingInitialRoutes.Store(0)
 	require.False(t, peer.shouldQueue(), "should not queue after flag cleared")
 }
 
