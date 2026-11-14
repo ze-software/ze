@@ -691,8 +691,10 @@ const (
 	resourceNetwork
 	resourceImageTag
 	// resourceVolume is a Compose proof's named volume, labeled through the
-	// override so its owner is recorded. The lab cleanup never lists, inspects
-	// or removes a volume; the proof names a leftover one (ComposeProofVolumes).
+	// override so its owner is recorded. The lab cleanup never lists or
+	// removes a volume; the proof inspects one to judge its owner with the
+	// cleanup's own ownerJudge.judge, and names a leftover
+	// (ComposeProofVolumes).
 	resourceVolume
 )
 
@@ -1091,7 +1093,7 @@ func (d *Docker) listResources(ctx context.Context, kind resourceKind, filter st
 // owner's own teardown produces.
 func (d *Docker) resourceLabels(ctx context.Context, kind resourceKind, id string) (map[string]string, bool, error) {
 	format := "{{json .Config.Labels}}"
-	if kind == resourceNetwork {
+	if kind == resourceNetwork || kind == resourceVolume {
 		format = "{{json .Labels}}"
 	}
 	argv, err := inspectCommand(kind, format, id)
@@ -1144,7 +1146,9 @@ func inspectCommand(kind resourceKind, format, ref string) ([]string, error) {
 	case resourceImageTag:
 		return []string{DockerExecutable, dockerImageObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
 	case resourceVolume:
-		return nil, errors.New("BUG: the lab cleanup never inspects a volume")
+		// Only the Compose proof's notice inspects a volume
+		// (Docker.ComposeProofVolumes); the cleanup lists none.
+		return []string{DockerExecutable, dockerVolumeObject, dockerInspectVerb, dockerFormatFlag, format, ref}, nil
 	case resourceUnspecified:
 	}
 	return nil, errors.New("BUG: a Docker inspect was asked for without a resource kind")

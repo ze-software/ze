@@ -53,18 +53,43 @@ func ownedVolumeName(name string) bool {
 	return true
 }
 
-// ComposeProofVolumes lists the named volumes Compose proof runs left: a
-// volume carrying the lab marker label whose name is a proof project's
-// (ownedVolumeName), except those of the project named current. It removes
-// nothing: the lab cleanup never touches a volume, so the proof only names
-// what it found.
-func (d *Docker) ComposeProofVolumes(ctx context.Context, current string) ([]string, error) {
+// ComposeVolumeState is what a proof may tell an operator about another
+// proof project's volume. The zero value is no state.
+type ComposeVolumeState uint8
+
+const (
+	ComposeVolumeUnspecified ComposeVolumeState = iota
+	// ComposeVolumeLeftBehind is a volume whose owner the orphan cleanup's
+	// judge proves gone and whose project holds no container: safe to name
+	// with its removal command.
+	ComposeVolumeLeftBehind
+	// ComposeVolumeMaybeLive is every other case: an owner alive, one that
+	// cannot be judged, labels that cannot be read, or a project that still
+	// holds a container. A running proof's volume is unmounted between its
+	// down and its second up, so no removal command is ever named for it.
+	ComposeVolumeMaybeLive
+)
+
+// ComposeProofVolume is one other proof project's volume and its judgement.
+type ComposeProofVolume struct {
+	Name   string
+	State  ComposeVolumeState
+	Reason string
+}
+
+// ComposeProofVolumes judges the named volumes of other Compose proof
+// projects: a volume carrying the lab marker label whose name is a proof
+// project's (ownedVolumeName), except the project named current. A volume is
+// left behind only when ownerJudge.judge, the check the orphan cleanup
+// applies to every resource, answers ownerGone AND its project holds no
+// container. It removes nothing: the lab cleanup never touches a volume.
+func (d *Docker) ComposeProofVolumes(ctx context.Context, current string) ([]ComposeProofVolume, error) {
 	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerVolumeObject, "ls", "--quiet",
 		dockerFilterFlag, "label="+labelMarker+"="+labelMarkerValue)
 	if err != nil {
 		return nil, err
 	}
-	var names []string
+	var volumes []ComposeProofVolume
 	for _, name := range strings.Fields(result.Stdout) {
 		if !ownedVolumeName(name) {
 			continue
@@ -72,9 +97,47 @@ func (d *Docker) ComposeProofVolumes(ctx context.Context, current string) ([]str
 		if strings.HasPrefix(name, current+"_") {
 			continue
 		}
-		names = append(names, name)
+		volume, listed := d.judgeComposeVolume(ctx, name, current)
+		if listed {
+			volumes = append(volumes, volume)
+		}
 	}
-	return names, nil
+	return volumes, nil
+}
+
+// judgeComposeVolume judges one volume. listed is false when the volume went
+// meanwhile or belongs to the current project.
+func (d *Docker) judgeComposeVolume(ctx context.Context, name, current string) (ComposeProofVolume, bool) {
+	volume := ComposeProofVolume{Name: name, State: ComposeVolumeMaybeLive}
+	labels, vanished, err := d.resourceLabels(ctx, resourceVolume, name)
+	if vanished {
+		return volume, false
+	}
+	if err != nil {
+		volume.Reason = "its owner labels could not be read: " + err.Error()
+		return volume, true
+	}
+	project := labels[ComposeProjectLabel]
+	if project == current {
+		return volume, false
+	}
+	judgement := d.judge.judge(resourceVolume, labels)
+	if judgement.verdict != ownerGone {
+		volume.Reason = judgement.reason
+		return volume, true
+	}
+	residue, err := d.ComposeResidue(ctx, ComposeProject{Name: project})
+	if err != nil {
+		volume.Reason = "its owner is gone, but its Compose project's containers could not be listed: " + err.Error()
+		return volume, true
+	}
+	if len(residue.Containers) > 0 {
+		volume.Reason = "its Compose project " + project + " still holds a container"
+		return volume, true
+	}
+	volume.State = ComposeVolumeLeftBehind
+	volume.Reason = judgement.reason
+	return volume, true
 }
 
 // ComposeProjectLabel is the label Docker Compose puts on every container,

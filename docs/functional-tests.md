@@ -238,11 +238,16 @@ network, volume and built image by name, then lists anything the project label
 still names. A run killed before teardown leaves the volume, which holds the
 operator's credential hash and the SSH host key, and `./le test integration
 clean` never removes a volume. So each run first lists the marked volumes named
-`ze-compose-*` that are not its own, and for each one prints a notice saying it
-is an interrupted run's store, what it holds, and the command that removes it
-(`docker volume rm <name>`). The notice is also in the report's
-`earlier-volumes`. It never fails the run, and the proof removes nothing it
-did not create.
+`ze-compose-*` that are not its own and judges each one's owner labels with the
+check the orphan cleanup applies to every lab resource. A volume whose owner is
+proven gone and whose Compose project holds no container is named as an
+interrupted run's store, with what it holds and the command that removes it
+(`docker volume rm <name>`). Any other, an owner still running, one that cannot
+be judged, or a project that still holds a container, may be a proof running
+now in another session, whose volume is unmounted between its `down` and its
+second `up`: it is named as possibly in use, with no removal command. The
+notices are also in the report's `earlier-volumes`. They never fail the run,
+and the proof removes nothing it did not create.
 
 Two counterfactuals each MUST answer `DEPLOYMENT-COMPOSE: FAIL` at their own
 step, so the action refuses them together. `break-volume` mounts no volume at

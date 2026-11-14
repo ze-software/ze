@@ -347,6 +347,20 @@ func (d *Docker) run(ctx context.Context, command ProcessCommand) (ProcessResult
 	return d.runner.Run(ctx, command)
 }
 
+// FixtureComposeVolumeLabels is the labels a NewFixtureDocker client's
+// override puts on a volume of the Compose project named project. Its owner
+// is the fixture owner, whom that client's judge finds gone, so a test outside
+// this package can answer a volume inspect with a left-behind volume.
+func FixtureComposeVolumeLabels(project string) map[string]string {
+	pairs := fixtureOwner().labelPairs(resourceVolume)
+	labels := make(map[string]string, len(pairs)+1)
+	for _, pair := range pairs {
+		labels[pair[0]] = pair[1]
+	}
+	labels[ComposeProjectLabel] = project
+	return labels
+}
+
 // NewFixtureDocker is the test double's client for a package outside this
 // one: it runs every command through runner, under the fixed owner and a host
 // on which every pid is absent, so a recorded argv is deterministic. Code that

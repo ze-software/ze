@@ -2,6 +2,7 @@ package testdeployment
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -129,9 +130,7 @@ func TestComposeBreakCommitReimportsTheSeed(t *testing.T) {
 // or a proof that deletes an operator's store on its own.
 func TestComposeNamesEarlierRunsVolumes(t *testing.T) {
 	const earlier = "ze-compose-ab12cd34_ze-data"
-	recorder := &argvRecorder{answer: func(argv []string) (interoplab.ProcessResult, error) {
-		return interoplab.ProcessResult{Stdout: earlier + "\n"}, nil
-	}}
+	recorder := earlierVolumeRecorder(t, earlier, "ze-compose-ab12cd34")
 	proof := fixtureComposeProof(t, recorder, "img", false)
 	report := ComposeReport{}
 	proof.noticeEarlierVolumes(t.Context(), &report)
@@ -147,6 +146,43 @@ func TestComposeNamesEarlierRunsVolumes(t *testing.T) {
 		if slices.Contains(argv, "rm") {
 			t.Errorf("the notice removed something: %v", argv)
 		}
+	}
+}
+
+// earlierVolumeRecorder answers the marker listing with volume, its inspect
+// with the fixture owner's labels for project (an owner the fixture judge
+// finds gone), and every other listing with nothing.
+func earlierVolumeRecorder(t *testing.T, volume, project string) *argvRecorder {
+	t.Helper()
+	labels, err := json.Marshal(interoplab.FixtureComposeVolumeLabels(project))
+	if err != nil {
+		t.Fatalf("marshal labels: %v", err)
+	}
+	return &argvRecorder{answer: func(argv []string) (interoplab.ProcessResult, error) {
+		joined := strings.Join(argv, " ")
+		switch {
+		case joined == "docker volume ls --quiet --filter label=ze.lab=1":
+			return interoplab.ProcessResult{Stdout: volume + "\n"}, nil
+		case strings.HasPrefix(joined, "docker volume inspect"):
+			return interoplab.ProcessResult{Stdout: string(labels) + "\n"}, nil
+		}
+		return interoplab.ProcessResult{}, nil
+	}}
+}
+
+// VALIDATES: a volume that may belong to a proof running now is named with
+// no removal command.
+// PREVENTS: a notice whose fix deletes a concurrent run's unmounted store
+// between its down and its second up.
+func TestComposeMaybeLiveVolumeNamesNoRemoval(t *testing.T) {
+	notice := composeEarlierVolumeNotice(interoplab.ComposeProofVolume{
+		Name: "ze-compose-ab12cd34_ze-data", State: interoplab.ComposeVolumeMaybeLive, Reason: "its owner is running",
+	})
+	if strings.Contains(notice, "docker volume rm") || strings.Contains(notice, "Fix:") {
+		t.Errorf("a possibly live volume's notice names a removal: %q", notice)
+	}
+	if !strings.Contains(notice, "may belong to a Compose proof running now") || !strings.Contains(notice, "its owner is running") {
+		t.Errorf("notice %q does not say the volume may be in use, and why", notice)
 	}
 }
 

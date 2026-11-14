@@ -18,7 +18,8 @@
 // volume is this run's own, and teardown removes exactly those by name. The
 // container, the network and the named volume carry the owner labels. The lab
 // cleanup removes no volume, so a SIGKILLed run's store is named, with its
-// removal command, by the next run's notice (noticeEarlierVolumes).
+// removal command once its owner is proven gone, by the next run's notice
+// (noticeEarlierVolumes).
 //
 // Two counterfactuals each fail at their own step: break-volume mounts no
 // volume, so init's store goes with its one-off container and the run fails
@@ -133,9 +134,10 @@ func (p *composeProof) runImage() string {
 }
 
 // override answers the Compose file merged over docker/compose.yaml. The
-// named volume carries the owner labels, so `./le test integration clean`
-// finds the store a killed run left. The volume counterfactual mounts no
-// volume, so it labels none.
+// named volume carries the owner labels, so a later proof run can judge
+// whether the run that made it is gone before naming it as left behind
+// (noticeEarlierVolumes); the lab cleanup never lists or removes a volume.
+// The volume counterfactual mounts no volume, so it labels none.
 func (p *composeProof) override() (string, error) {
 	volume := composeVolume
 	if p.breakVolume {
@@ -199,30 +201,41 @@ func (p *composeProof) Run(ctx context.Context) (report ComposeReport, err error
 	return report, nil
 }
 
-// noticeEarlierVolumes names each store volume an interrupted earlier run left
-// and the command that removes it, then lets the run carry on. It removes
-// nothing: the lab cleanup never touches a volume, and the decision to drop an
-// operator's store stays with the person who reads the notice.
+// noticeEarlierVolumes names each other proof project's store volume, then
+// lets the run carry on. Only a volume whose owner is proven gone and whose
+// project holds no container is called an interrupted run's store with its
+// removal command; any other may be a proof running now in another session,
+// whose volume is unmounted between its down and its second up, so it is
+// named with no removal command. Nothing is removed.
 func (p *composeProof) noticeEarlierVolumes(ctx context.Context, report *ComposeReport) {
-	names, err := p.docker.ComposeProofVolumes(ctx, p.project.Name)
+	volumes, err := p.docker.ComposeProofVolumes(ctx, p.project.Name)
 	if err != nil {
-		report.EarlierVolumes = append(report.EarlierVolumes, "could not list earlier runs' volumes: "+err.Error())
-		p.say("notice: could not list the volumes earlier runs left: " + err.Error() +
-			". Check with `docker volume ls --filter label=ze.lab=1`")
+		notice := "could not list other proof runs' volumes: " + err.Error()
+		report.EarlierVolumes = append(report.EarlierVolumes, notice)
+		p.say("notice: " + notice)
 		return
 	}
-	for _, name := range names {
-		notice := composeEarlierVolumeNotice(name)
+	for _, volume := range volumes {
+		notice := composeEarlierVolumeNotice(volume)
 		report.EarlierVolumes = append(report.EarlierVolumes, notice)
 		p.say("notice: " + notice)
 	}
 }
 
-// composeEarlierVolumeNotice says what a leftover volume holds and how to
-// remove it.
-func composeEarlierVolumeNotice(name string) string {
-	return "volume " + name + " is the store of an interrupted earlier run, holding a hashed operator" +
-		" credential and an SSH host key; this run does not use it. Fix: `docker volume rm " + name + "`"
+// composeEarlierVolumeNotice says what another proof project's volume is,
+// and names a removal command only for one left behind.
+func composeEarlierVolumeNotice(volume interoplab.ComposeProofVolume) string {
+	switch volume.State {
+	case interoplab.ComposeVolumeLeftBehind:
+		return "volume " + volume.Name + " is the store of an interrupted earlier run (" + volume.Reason +
+			"), holding a hashed operator credential and an SSH host key; this run does not use it." +
+			" Fix: `docker volume rm " + volume.Name + "`"
+	case interoplab.ComposeVolumeMaybeLive:
+		return "volume " + volume.Name + " may belong to a Compose proof running now (" + volume.Reason +
+			"), so it is left alone; remove it only once no such run is in progress"
+	case interoplab.ComposeVolumeUnspecified:
+	}
+	return "volume " + volume.Name + " was not judged, so it is left alone"
 }
 
 // requireSuppliedImage refuses a run whose prepared image the daemon does not
