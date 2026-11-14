@@ -333,10 +333,13 @@ var builtinCodes = append([]CodeMeta{
 		RelatedCodes: []string{CodeDoctorStoreIntegrity},
 	},
 	{
-		Code:        CodeDoctorStoreIntegrity,
-		Title:       "Store integrity failure",
-		Description: "A managed store key failed its CRC32c check. The diagnostic names the damaged key. Stop the daemon and use ze data check and ze data repair --output to recover valid entries without overwriting the source.",
-		Examples:    []string{exampleDoctorJSON},
+		Code:  CodeDoctorStoreIntegrity,
+		Title: "Store integrity failure",
+		Description: "A managed store key failed its CRC32c check. The diagnostic names the damaged key. " +
+			"ze data check and ze data repair --output <path> run while ze runs: the check lists every damaged entry, and the repair writes a salvage copy holding every entry that reads, without changing the source. " +
+			"A remote operator runs the same through the daemon with show data check and request data repair path <file>, which writes the copy on the daemon's host. " +
+			"Installing the repaired store in place of the damaged one needs ze stopped.",
+		Examples: []string{exampleDoctorJSON},
 	},
 	{
 		Code:        CodeDoctorStorePermissions,

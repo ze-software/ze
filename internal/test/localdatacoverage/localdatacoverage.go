@@ -38,7 +38,7 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 43/43 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 44/44 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -68,6 +68,7 @@ func Evidence() []Invocation {
 		{Command: "show schema protocol | json compact", Evidence: "show schema protocol"},
 		{Command: "show data list --path %s | json compact", Evidence: "show data list"},
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
+		{Command: "show data check --path %s | json compact", Evidence: "show data check"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
 		{Command: "show yang tree --config | json compact", Evidence: "show yang tree"},
 		{Command: "show yang completion --min-prefix 2 | json compact", Evidence: "show yang completion"},
@@ -747,6 +748,21 @@ func runScenario(output io.Writer, work string) error {
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		return row["pattern"] == "meta/instance/name" && row["description"] == "Router instance name"
 	}, "data registered lost the instance-name contract: %#v", values); err != nil {
+		return err
+	}
+	payload, err = localJSON("show data check --path "+blobPath+" | json compact", "show data check", output)
+	if err != nil {
+		return err
+	}
+	verdict, isVerdict := payload.(map[string]any)
+	if err := require(isVerdict, "data check answered %T, want the verdict document", payload); err != nil {
+		return err
+	}
+	if err := require(verdict["corrupt-entries"] == float64(0) && verdict["history-checked"] == true,
+		"data check did not answer a clean verdict for the seeded store: %#v", verdict); err != nil {
+		return err
+	}
+	if err := require(verdict["entries"] != float64(0), "data check counted no entry in the seeded store: %#v", verdict); err != nil {
 		return err
 	}
 

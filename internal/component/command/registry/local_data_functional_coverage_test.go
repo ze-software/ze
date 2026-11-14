@@ -50,17 +50,17 @@ func TestEveryLocalDataRegistrationHasAFunctionalCase(t *testing.T) {
 
 func TestLocalDataCoverageEvidenceIsNonVacuousAndComplete(t *testing.T) {
 	invocations := localdatacoverage.Evidence()
-	if len(invocations) != 45 {
-		t.Fatalf("executable local-data calls = %d, want 45", len(invocations))
+	if len(invocations) != 46 {
+		t.Fatalf("executable local-data calls = %d, want 46", len(invocations))
 	}
 	distinct := make(map[string]bool, len(invocations))
 	for _, invocation := range invocations {
 		distinct[invocation.Evidence] = true
 	}
-	if len(distinct) != 43 {
-		t.Fatalf("distinct registration evidence = %d, want 43: %v", len(distinct), distinct)
+	if len(distinct) != 44 {
+		t.Fatalf("distinct registration evidence = %d, want 44: %v", len(distinct), distinct)
 	}
-	if localdatacoverage.CompletionMarker != "OK: 43/43 local-data commands and local one-shot save" {
+	if localdatacoverage.CompletionMarker != "OK: 44/44 local-data commands and local one-shot save" {
 		t.Fatalf("completion marker = %q", localdatacoverage.CompletionMarker)
 	}
 }

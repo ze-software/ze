@@ -1,10 +1,11 @@
 // Design: docs/architecture/api/commands.md — where a command is served
 // Related: docs/architecture/api/commands.md — the operator model this serves
 //
-// storage_data.go answers `show data list` and `show data registered` with
-// structured data, so they reach the pipe layer. They printed a table and
-// returned an exit code, while YANG declared a wire method for each that no
-// daemon handler implements.
+// storage_data.go answers `show data list`, `show data registered` and `show
+// data check` with structured data, so they reach the pipe layer and the
+// daemon serves them under the same path. list and registered printed a table
+// and returned an exit code, while YANG declared a wire method for each that
+// no daemon handler implements.
 //
 // `show data cat` answers the BYTES of one stored file, which may be YAML,
 // JSON, a certificate or a binary blob. Those bytes are the answer, so it
@@ -15,6 +16,7 @@ package cli
 
 import (
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -47,9 +49,72 @@ func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 	rows := make([]map[string]any, 0, len(keys))
 	for _, key := range keys {
-		rows = append(rows, map[string]any{"key": key})
+		rows = append(rows, map[string]any{keywordKey: key})
 	}
 	return command.LocalAnswer{Payload: map[string]any{"keys": rows}}
+}
+
+// dataCheck answers `show data check`: the store's integrity verdict as rows,
+// the rows `ze data check` prints (integrityVerdict), with exit 1 when any row
+// is an error. In the caller's own process it checks the store the path
+// resolves to, as `ze data check` does. On the daemon it checks the tree the
+// daemon commits to with the daemon's writers held (storage.HoldWrites): the
+// walk opens one directory entry after another, so a key the daemon removed
+// between the listing and the open failed it, where under the guard the
+// removal waits. A daemon that has not published its store (starting or
+// stopping) has no writers to hold, and checks the resolved path unguarded.
+func dataCheck(validated command.ValidatedArgs) command.LocalAnswer {
+	storePath, _ := extractPathFlag(validated.Tokens())
+	target := dataRPC.Load()
+	if validated.Route().CallerLocal() || target == nil {
+		verdict, err := integrityVerdict(storePath)
+		if err != nil {
+			return storageRefusal(err)
+		}
+		return verdict.answer()
+	}
+	var verdict storeVerdict
+	err := storage.HoldWrites(target.Store, func(tree string) error {
+		var walkErr error
+		verdict, walkErr = integrityVerdict(tree)
+		return walkErr
+	})
+	if err != nil {
+		return storageRefusal(err)
+	}
+	return verdict.answer()
+}
+
+// answer is the verdict as `show data check` answers it: the entry counts and
+// one row per finding, exit 1 with the closing line when any row is an error.
+func (v storeVerdict) answer() command.LocalAnswer {
+	rows := make([]map[string]any, 0, len(v.findings))
+	for _, finding := range v.findings {
+		rows = append(rows, map[string]any{
+			findingSeverity: finding.severity, findingCheck: finding.check, findingKind: finding.kind,
+			keywordKey: finding.key, findingDetail: finding.detail,
+		})
+	}
+	payload := map[string]any{
+		"path": v.path, "entries": v.entries, "corrupt-entries": v.corrupt,
+		"history-checked": v.historyChecked, "findings": rows,
+	}
+	errorCount := v.errorCount()
+	if errorCount == 0 {
+		return command.LocalAnswer{Payload: payload}
+	}
+	var tb textbuf.Buffer
+	tb.Str("error: ")
+	switch {
+	case v.containerFault:
+		tb.Str("the store container does not parse; run ze data repair --output <path>")
+	case v.corrupt > 0:
+		tb.Str(v.corruptLine())
+	default:
+		tb.Int(int64(errorCount)).Str(" history errors; run ze data repair --output <path>")
+	}
+	tb.Byte('\n')
+	return command.LocalAnswer{Payload: payload, Code: 1, Diagnostic: tb.String()}
 }
 
 // dataRegistered answers `show data registered [pattern]`: the key patterns the

@@ -2,10 +2,11 @@ module ze-data-cmd {
     namespace "urn:ze:data:cmd";
     prefix datacmd;
     import ze-extensions { prefix ze; }
-    description "Live maintenance of the daemon's own store: backup, config restore, and the
-removal of one runtime-state key, each through the store handle the daemon owns.";
+    description "Live maintenance of the daemon's own store: backup, config restore, a salvage
+copy, and the removal of one runtime-state key, each through the store handle
+the daemon owns.";
     revision 2026-09-26 { description "Initial revision"; }
-    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs."; }
+    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs, and request data repair, a salvage copy of the live store."; }
 
     container delete {
         config false;
@@ -46,7 +47,7 @@ error.";
             config false;
             description "These act on the running daemon's store. The file is on the daemon's host, and
                          the daemon reads or writes it under its own store lock.";
-            ze:help "Back up the store, or restore a config from a backup.";
+            ze:help "Back up the store, restore a config from a backup, or write a salvage copy.";
 
             container backup {
                 config false;
@@ -113,6 +114,26 @@ artifact's only config, or the config named like this device, is taken.";
 writes. The daemon MUST be a hub with a client entry of this name. Without it,
 the restore replaces this daemon's own config through the reload.";
                     ze:help "Managed client whose served config is restored";
+                }
+            }
+
+            container repair {
+                config false;
+                ze:command "ze-config:data-repair";
+                description "Writes a salvage copy of the live store to a new store at path, holding every
+entry that reads, while the daemon runs. The daemon holds its own writes for
+the walk, so the copy is one moment of the store. The history of the copy is
+then repaired the way ze data repair repairs it. The answer carries the
+recovered and skipped counts and the path. The live store is not changed:
+installing the copy needs ze stopped.";
+                ze:help "Write a salvage copy of the store to a new path on the daemon's host.";
+                leaf path {
+                    type string { length "1..4096"; }
+                    mandatory true;
+                    description "Absolute path of the new store. A relative path, a '..' element, a symlink, a
+path that exists, every name the store owns in its folder and a path inside
+the live tree are refused, each naming the rule it broke.";
+                    ze:help "Absolute path of the new store";
                 }
             }
         }

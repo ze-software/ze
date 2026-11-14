@@ -54,6 +54,34 @@ func TestOrphanCodeDescriptionNamesTheLiveRemoval(t *testing.T) {
 	}
 }
 
+// TestStoreIntegrityDescriptionNamesTheLiveCommands verifies AC-15 of the data
+// store maintenance spec: the description `ze show diagnostic
+// doctor-store-integrity` prints names the local check and repair as commands
+// that run while ze runs, names their daemon forms for a remote operator, and
+// says installing the repaired store needs ze stopped. It no longer tells the
+// operator to stop the daemon before checking or repairing.
+func TestStoreIntegrityDescriptionNamesTheLiveCommands(t *testing.T) {
+	RegisterBuiltinCodes()
+
+	meta := Lookup(CodeDoctorStoreIntegrity)
+	if meta == nil {
+		t.Fatalf("%s: ze show diagnostic has no entry", CodeDoctorStoreIntegrity)
+	}
+	description := meta.Description
+	for _, want := range []string{
+		"ze data check and ze data repair --output <path> run while ze runs",
+		"show data check and request data repair path <file>",
+		"Installing the repaired store in place of the damaged one needs ze stopped",
+	} {
+		if !strings.Contains(description, want) {
+			t.Errorf("description %q does not say %q", description, want)
+		}
+	}
+	if strings.Contains(description, "Stop the daemon and use ze data check") {
+		t.Errorf("description %q still says the check and repair need the daemon stopped", description)
+	}
+}
+
 // TestCrossCuttingCodesDescribed registers the builtin codes as the binary
 // entry point does, then looks up every code
 // spec-doctor-coverage-12-plugin-infra names: the ten cross-cutting codes

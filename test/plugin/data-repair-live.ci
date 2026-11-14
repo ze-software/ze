@@ -1,0 +1,50 @@
+# Test: data-repair-live
+# VALIDATES: AC-11 -- `request data repair path <absolute-output>` on a running daemon writes a new store at the path, holding the runtime key seeded while ze was stopped, that `ze data --path <output> check` accepts; the answer names the path and the recovered and skipped counts; a relative path, a ".." element, a symlink, an existing output, a name the store owns and a path inside the live tree are refused naming the rule; `ze data repair --output` beside the daemon works as before; the daemon keeps answering.
+# PREVENTS: a salvage that needs ze stopped, a salvage written into the store's own entries, a repair that fails because the daemon wrote meanwhile.
+# QUESTION: does the command reach the daemon's own store handle through the real dispatcher over SSH, walk the live tree the daemon owns, and leave a store the offline check accepts? A unit test calls the handler directly and cannot see the dispatch, the YANG binding of `path`, or the daemon's own tree.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=stale.txt:terminator=EOF_STALE
+stale runtime state
+EOF_STALE
+
+tmpfs=data-repair-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+# The first start creates the store; the key is seeded while ze is stopped,
+# the only time the offline writer may open it.
+cmd=background:seq=1:exec=ze start data-repair-live.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=foreground:seq=3:exec=ze data write meta/test/stale-state stale.txt:exit=0
+cmd=background:seq=4:exec=ze start data-repair-live.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=5:exec=le test fixture storage/data-repair-live $PORT2:exit=0
+expect=stdout:contains=OK: data-repair-live
+cmd=stop:seq=6:name=daemon:signal=term

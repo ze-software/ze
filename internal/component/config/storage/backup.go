@@ -39,7 +39,7 @@ func Backup(source Storage, path string, replace bool, opts ...zefs.Option) (res
 	if err != nil {
 		return BackupResult{}, fmt.Errorf("backup %s: %w", path, err)
 	}
-	if err := refuseStoreName(owned, target); err != nil {
+	if err := refuseStoreName(owned, target, "backup"); err != nil {
 		return BackupResult{}, err
 	}
 
@@ -95,14 +95,15 @@ func copyKeys(source WriteGuard, seed Storage, keys []string) (err error) {
 	return nil
 }
 
-// refuseStoreName refuses a backup path that names something the live store
-// owns in its folder. Each one breaks the store in its own way: a file under
-// database/ is read as one frame and a blob is two, database.zefs makes every
-// live open refuse, a lock sidecar is flocked by inode and a published file
-// installs a new one, and the intent, replaced and stage names belong to the
-// import protocol. An artifact source has no store folder, so nothing is
-// refused for it here.
-func refuseStoreName(source *store, target string) error {
+// refuseStoreName refuses an output path (a backup artifact, a salvage tree)
+// that names something the live store owns in its folder. Each one breaks the
+// store in its own way: a file under database/ is read as one frame and a blob
+// is two, database.zefs makes every live open refuse, a lock sidecar is flocked
+// by inode and a published file installs a new one, and the intent, replaced
+// and stage names belong to the import protocol. An artifact source has no
+// store folder, so nothing is refused for it here. verb names the operation
+// the refusal opens with.
+func refuseStoreName(source *store, target, verb string) error {
 	if source.tree == nil {
 		return nil
 	}
@@ -111,14 +112,14 @@ func refuseStoreName(source *store, target string) error {
 	name := filepath.Base(target)
 	if sameDirectory(parent, storeDir) {
 		if reason := storeOwnedName(name); reason != "" {
-			return fmt.Errorf("backup %s: %s is %s: %w", target, name, reason, errors.ErrUnsupported)
+			return fmt.Errorf("%s %s: %s is %s: %w", verb, target, name, reason, errors.ErrUnsupported)
 		}
 		return nil
 	}
 	tree := filepath.Join(storeDir, treeName)
 	for dir := parent; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
 		if sameDirectory(dir, tree) {
-			return fmt.Errorf("backup %s: inside the live tree %s: %w", target, tree, errors.ErrUnsupported)
+			return fmt.Errorf("%s %s: inside the live tree %s: %w", verb, target, tree, errors.ErrUnsupported)
 		}
 	}
 	return nil

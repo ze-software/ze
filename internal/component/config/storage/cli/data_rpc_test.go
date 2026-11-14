@@ -263,6 +263,12 @@ func TestDataCommandsRefuseWithNoStore(t *testing.T) {
 		assert.Equal(t, zePlugin.StatusError, response.Status, handler.name)
 		assert.Contains(t, response.Error, handler.name+": this daemon serves no store", handler.name)
 	}
+
+	repair, err := handleDataRepair(&pluginserver.CommandContext{}, repairArgs(t, "path", "/tmp/salvage"))
+	require.NoError(t, err)
+	assert.Equal(t, zePlugin.StatusError, repair.Status)
+	assert.Contains(t, repair.Error, "request data repair: this daemon serves no store")
+	assert.Contains(t, repair.Error, "fix: ze data repair --output <path>")
 }
 
 // TestBackupRPCPath verifies AC-4's refusals through the RPC entry point:

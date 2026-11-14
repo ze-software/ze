@@ -1,0 +1,41 @@
+# Test: data-check-live
+# VALIDATES: AC-13 -- `show data check` through a running daemon answers the store's integrity verdict, plain and as `| json` (entries counted, no corrupt entry, history checked, no finding row), and `ze data check` beside the daemon keeps its `ok:` line.
+# PREVENTS: a check only the host that holds the store can run, a verdict rendered as text no pipe reads.
+# QUESTION: does the daemon serve the local-data handler under its YANG path to a remote caller, over the store it owns, with the pipes applied? A unit test calls the handler and cannot see the dispatcher's local-data bridge or the SSH surface.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=data-check-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start data-check-live.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=le test fixture storage/data-check-live $PORT2:exit=0
+expect=stdout:contains=OK: data-check-live
+cmd=stop:seq=3:name=daemon:signal=term

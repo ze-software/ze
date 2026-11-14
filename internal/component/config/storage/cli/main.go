@@ -29,20 +29,25 @@ import (
 
 const defaultStoreName = storage.TreeName
 
+// subcommandCheck is the name of the `ze data check` subcommand, which the
+// handler table and the usage page both spell. It is not findingCheck, the
+// answer column of an integrity finding, which only shares its spelling.
+const subcommandCheck = "check"
+
 // subcommandHandlers maps subcommand names to their handler functions.
 // Each handler receives the store path and remaining args.
 var subcommandHandlers = map[string]func(string, []string) int{
-	"backup":     cmdBackup,
-	"restore":    cmdRestore,
-	"import":     cmdImport,
-	"write":      cmdWrite,
-	"rm":         cmdRm,
-	"list":       cmdList,
-	"cat":        cmdCat,
-	"registered": cmdRegistered,
-	"check":      cmdCheck,
-	"repair":     cmdRepair,
-	"encode":     cmdEncode,
+	"backup":        cmdBackup,
+	"restore":       cmdRestore,
+	"import":        cmdImport,
+	"write":         cmdWrite,
+	"rm":            cmdRm,
+	"list":          cmdList,
+	"cat":           cmdCat,
+	"registered":    cmdRegistered,
+	subcommandCheck: cmdCheck,
+	"repair":        cmdRepair,
+	"encode":        cmdEncode,
 }
 
 // Run executes the data subcommand with the given arguments.
@@ -415,7 +420,7 @@ func usage() {
 				{Name: "list [prefix]", Desc: "List all matching keys recursively"},
 				{Name: "cat <key>", Desc: "Print entry content to stdout"},
 				{Name: "registered", Desc: "List all registered key patterns"},
-				{Name: "check", Desc: "Verify store integrity (CRC32c)"},
+				{Name: subcommandCheck, Desc: "Verify store integrity (CRC32c)"},
 				{Name: "repair --output <path>", Desc: "Recover valid entries to a new store"},
 				{Name: "encode [--crc|--header] [--cap N] <string>", Desc: "Show netcapstring encoding"},
 			}},

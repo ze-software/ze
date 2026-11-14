@@ -36,6 +36,7 @@ expect=stdout:contains=COVERED: show config history [done]
 expect=stdout:contains=COVERED: show config list [done]
 expect=stdout:contains=COVERED: show config validation [done]
 expect=stdout:contains=COVERED: show data cat [done]
+expect=stdout:contains=COVERED: show data check [done]
 expect=stdout:contains=COVERED: show data list [done]
 expect=stdout:contains=COVERED: show data registered [done]
 expect=stdout:contains=COVERED: show debug profile [done]
@@ -56,4 +57,4 @@ expect=stdout:contains=COVERED: show skills [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang doc [done]
 expect=stdout:contains=COVERED: show yang tree [done]
-expect=stdout:contains=OK: 43/43 local-data commands and local one-shot save
+expect=stdout:contains=OK: 44/44 local-data commands and local one-shot save

@@ -5,6 +5,7 @@ package cli
 
 import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // The key removal carries no RequiresSelector. That guard is the peer
@@ -17,6 +18,10 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-config:data-backup", Handler: handleDataBackup},
 		pluginserver.RPCRegistration{WireMethod: "ze-config:data-restore", Handler: handleDataRestore},
-		pluginserver.RPCRegistration{WireMethod: "ze-config:data-key-delete", Handler: handleDataKeyDelete},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:data-key-delete", Handler: handleDataKeyDelete, AuditAction: audit.ActionDataKeyChange},
+		// A salvage writes a new store on the daemon's host and changes nothing
+		// in the live one, as a backup writes a file, so like the backup it
+		// declares no audit action.
+		pluginserver.RPCRegistration{WireMethod: "ze-config:data-repair", Handler: handleDataRepair},
 	)
 }

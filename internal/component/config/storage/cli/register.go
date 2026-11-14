@@ -49,9 +49,24 @@ func init() {
 	// store is opened.
 	command.MustRegisterLocalData("show data cat", dataCat, registry.Meta{NotReadOnly: true}, command.RenderLocalAnswer)
 
+	// `show data check` answers the integrity verdict `ze data check` prints,
+	// from the same rows, and exits 1 when any row is an error. It reads the
+	// store through a reader handle, so it is a read, and the daemon serves it
+	// under the same path with the daemon's writers held for the walk.
+	command.MustRegisterLocalData("show data check", dataCheck, registry.Meta{
+		ShortHelp: "Check every entry and the config history of the store.",
+		Mode:      modeOffline,
+	}, command.RenderLocalAnswer)
+
 	command.RegisterShape([]string{"show data list", "show data registered"}, command.ShapeTab)
+	// The verdict is ONE document, its rows inside it, as the config
+	// validation verdict is, so the row operators are refused over it by name.
+	command.RegisterShape([]string{"show data check"}, command.ShapeDoc)
+	command.RegisterColumns([]string{"show data check"},
+		command.ColumnOrder{"path", "entries", "corrupt-entries", "history-checked", "findings"},
+		command.ColumnOrder{findingSeverity, findingCheck, findingKind, keywordKey, findingDetail})
 	command.RegisterShape([]string{"show data cat"}, command.ShapeBlob)
-	command.RegisterColumns([]string{"show data list"}, command.ColumnOrder{"key"})
+	command.RegisterColumns([]string{"show data list"}, command.ColumnOrder{keywordKey})
 	command.RegisterColumns([]string{"show data registered"},
 		command.ColumnOrder{"pattern", "description"})
 }

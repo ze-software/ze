@@ -3,6 +3,7 @@ module ze-storage-cli-cmd {
     prefix storageclicmd;
     import ze-extensions { prefix ze; }
     description "Commands to inspect stored keys and values. Owned by the config storage subsystem. See ai/rules/plugins.md.";
+    revision 2026-11-14 { description "Added show data check, the store's integrity verdict, which the daemon serves too."; }
     revision 2026-08-31 { description "Renamed show data ls to show data list, so every command that enumerates a set spells the verb the same way."; }
     revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-06 { description "Relocated show data out of the central show schema (plugin self-containment)."; }
@@ -43,6 +44,18 @@ module ze-storage-cli-cmd {
                 ze:command "ze-config-storage:show-data-registered";
                 description "Lists the storage key patterns registered by subsystems.";
                 ze:help "List the key patterns registered by all subsystems.";
+            }
+
+            container check {
+                config false;
+                ze:command "ze-config-storage:show-data-check";
+                description "Checks every entry of the store and, when every entry decodes, its config
+                             history. The answer is the entry count and one row per corrupt entry and
+                             per history finding, with an error status when any row is an error. It
+                             reads the store and changes nothing, so it runs while ze runs; the
+                             daemon holds its own writes for the walk. ze data check prints the same
+                             rows on the host that holds the store.";
+                ze:help "Check the integrity of the store's entries and config history.";
             }
         }
     }

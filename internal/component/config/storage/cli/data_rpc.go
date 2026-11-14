@@ -57,12 +57,25 @@ func InstallDataRPC(target *DataRPCTarget) { dataRPC.Store(target) }
 // and the answer key that echoes it. keywordClient does the same for the
 // restore's client target, keywordName names the source config a config restore
 // reads, and keywordKey names the store key leaf of `delete data key` and the
-// answer key that echoes it.
+// answer key that echoes it, and the key column of every answer row that names
+// a store key.
 const (
 	keywordPath   = "path"
 	keywordClient = "client"
 	keywordName   = "name"
 	keywordKey    = "key"
+)
+
+// findingSeverity, findingCheck, findingKind and findingDetail are answer keys
+// of one integrity finding row: how bad it is, the check that found it, its
+// kind and what it found. `show data check` answers its rows with all four and
+// orders its columns by them, and `request data repair` answers its history
+// findings with the same kind and detail.
+const (
+	findingSeverity = "severity"
+	findingCheck    = "check"
+	findingKind     = "kind"
+	findingDetail   = "detail"
 )
 
 // dataBackupArgs is one parsed `request data backup` line.
