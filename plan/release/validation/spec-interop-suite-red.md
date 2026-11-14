@@ -274,6 +274,8 @@ reach green (`ai/rules/completion.md`).
 | `interop-check-expects-what-the-peer-cannot-do.md` | 2026-11-03 | FRR 10.7.1 default-instance SRv6 export runs before the locator, worked around in b8e7f293ae |
 | `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-md5-auth-frr` assertion 1, no messages exchanged |
 | `session-never-establishes-with-the-peer.md` | 2026-10-30 | `bgp-exabgp-bridge-vpnv4-frr` assertion 2, peer never ready |
+| `scenario-checker-waits-on-an-absent-peer.md` | 2026-11-14 | `ospf-ti-lfa-frr`, `ospf-lfa-frr` need a second link no `linkDeclarations` entry builds |
+| `interop-check-expects-what-the-peer-cannot-do.md` | 2026-11-14 | `ospfv3-sr-frr`: FRR 10.7.1 ospf6d SR unverified, two fixture gaps of `ospf-sr-frr` likely |
 
 ## Work Inherited From a Deferral Row
 
