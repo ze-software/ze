@@ -252,7 +252,7 @@ peer peer-east {
 
 ```
 # Announce with path ID
-update text path-information 0.0.0.1 nhop set 1.1.1.1 nlri add 10.0.0.0/8
+update text path-information 0.0.0.1 next-hop 1.1.1.1 nlri add 10.0.0.0/8
 
 # Withdraw specific path
 update text nlri del 10.0.0.0/8 path-information 0.0.0.1

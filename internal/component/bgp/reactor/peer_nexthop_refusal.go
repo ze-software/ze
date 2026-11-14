@@ -29,8 +29,9 @@ func (p *Peer) nextHopIncompatible(session *Session, addr netip.Addr, fam family
 // route family. Its text is an operator error naming the route family, the
 // next hop, the session's address family and the peer, and the fixes: a next
 // hop of the route's own address family (IPv4-mapped for an IPv6 route on an
-// IPv4 session), `nhop set self` on a session of the route's address family,
-// or the extended next hop capability for the pair. Unwrap reaches the
+// IPv4 session), next-hop self on a session of the route's address family,
+// each in its update text form and its update hex or b64 form, or the
+// extended next hop capability for the pair. Unwrap reaches the
 // operator error and, through it, ErrNextHopIncompatible, so every caller's
 // errors.Is still matches. Immutable after construction.
 type nextHopRefusal struct {
@@ -72,10 +73,16 @@ func (r *nextHopRefusal) operatorError() *opererr.Error {
 			Str(routeAFI).Str(" next hop")
 	}
 
+	// The route reached the reactor from config, update text, update hex or
+	// update b64, and the refusal does not know which, so the fix names the
+	// next-hop form of both grammars: update text takes `next-hop <address>`
+	// and refuses `nhop set` (parseNhopFlat), while update hex and b64 take
+	// `nhop set` with the address encoded (parseWireNhopSection).
 	var fix textbuf.Buffer
 	if routeAFI != "" {
-		fix.Str("nhop set ").Str(sameFamilyNextHop(r.addr, r.fam.AFI)).
-			Str(", or nhop set self on an ").Str(routeAFI).Str(" session, or ")
+		fix.Str("update text next-hop ").Str(sameFamilyNextHop(r.addr, r.fam.AFI)).
+			Str(" (update hex or b64: nhop set with the address encoded), or update text next-hop self on an ").
+			Str(routeAFI).Str(" session (update hex or b64: nhop set self), or ")
 	}
 	fix.Str("set bgp peer ").Str(peerName).Str(" session capability nexthop ").Str(familyName).
 		Str(" nhafi ").Str(nhafiName(r.addr))

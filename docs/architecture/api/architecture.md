@@ -802,7 +802,7 @@ signals across reactor startup under the race detector.
 
 ```
 API Client
-    │ "update text nhop set 1.2.3.4 nlri add 10.0.0.0/24"
+    │ "update text next-hop 1.2.3.4 nlri add 10.0.0.0/24"
     ▼
 Dispatcher.handleUpdate()
     │ Parse attributes, validate keywords
@@ -917,7 +917,8 @@ type PathAttributes struct {
 **Errors:**
 - `ErrNextHopUnset` - zero value `RouteNextHop`
 - `ErrNextHopSelfNoLocal` - Self policy but `LocalAddress` not configured
-- `ErrNextHopIncompatible` - the self or explicit next hop is incompatible with the NLRI family (no Extended NH). The returned error is an operator error with `ErrNextHopIncompatible` as its cause (`errors.Is` matches): it names the next hop, the route family, the session's address family and the peer, and the fix line offers a next hop of the route's family (IPv4-mapped, `::ffff:<IPv4>`, for an IPv6 route on an IPv4 session), `nhop set self` on a session of the route's family, or `set bgp peer <name> session capability nexthop <family> nhafi <afi>`
+- `ErrNextHopIncompatible` - the self or explicit next hop is incompatible with the NLRI family (no Extended NH). The returned error is an operator error with `ErrNextHopIncompatible` as its cause (`errors.Is` matches): it names the next hop, the route family, the session's address family and the peer, and the fix line offers a next hop of the route's family (IPv4-mapped, `::ffff:<IPv4>`, for an IPv6 route on an IPv4 session), or next hop self on a session of the route's family, each in its `update text` form (`next-hop <address>`, `next-hop self`) and its `update hex`/`b64` form (`nhop set` with the address encoded, `nhop set self`), because the refusal does not know which command carried the route and `update text` refuses `nhop set`; or `set bgp peer <name> session capability nexthop <family> nhafi <afi>`
+<!-- source: internal/component/bgp/reactor/peer_nexthop_refusal.go -- operatorError -->
 
 **Extended Next Hop (RFC 5549/8950):** Cross-family next-hop (e.g., IPv6 next-hop for IPv4 NLRI) allowed when `peer.sendCtx.ExtendedNextHopFor(family) != 0`.
 
@@ -1369,10 +1370,10 @@ ACK is controlled by serial prefix, not session commands:
 
 ```
 # No serial = fire-and-forget (no response)
-update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
+update text next-hop 1.2.3.4 nlri add 10.0.0.0/24
 
 # With serial = get response
-#1 update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
+#1 update text next-hop 1.2.3.4 nlri add 10.0.0.0/24
 → {"serial":"1","status":"done"}
 
 # Error response
@@ -1751,7 +1752,7 @@ RIB stores: ribOut[peerAddr][prefix] = route1
 RIB receives "state up"
     │ Looks up ribOut[peerAddr]
     ▼
-RIB replays: "send bgp <selector> update text nhop set <nh> (nlri | mp <family>) add <prefix>"
+RIB replays: "send bgp <selector> update text next-hop <nh> (nlri | mp <family>) add <prefix>"
     │
     ▼
 RIB signals: "request peer <addr> plugin session ready session <captured-token>"

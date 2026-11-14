@@ -3031,7 +3031,7 @@ option=file:path=test.conf
 option=asn:value=65000
 
 # Commands and expectations
-cmd=api:conn=1:seq=1:text=update text nhop set 10.0.1.1 nlri add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text next-hop 10.0.1.1 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFF...
 expect=json:conn=1:seq=1:json={...}
 ```
@@ -3813,7 +3813,7 @@ peer loopback {
 EOF_CONF
 
 option=file:path=mytest.conf
-cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text next-hop 1.2.3.4 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
 ```
 
@@ -3844,7 +3844,7 @@ peer loopback {
 ```
 # test/encode/mytest.ci
 option=file:path=mytest.conf
-cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=update text next-hop 1.2.3.4 nlri add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
 ```
 

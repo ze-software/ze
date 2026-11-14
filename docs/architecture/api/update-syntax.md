@@ -35,68 +35,77 @@ update <hex|b64> [<wire-attr>]... nlri <family> add <nlri>... [del <nlri>...]...
 
 ## Text Mode - Per-Attribute Keywords
 
-In text mode, each attribute uses its own keyword with `set`/`add`/`del`:
+In text mode, each attribute is its keyword followed by its value, with no
+operation word. Every attribute and the next hop come before the first `nlri`
+or `mp` section:
 
 ```
-update text <attr> <op> <value> [<attr> <op> <value>]... nhop set <addr> (nlri | mp <family>) add prefix <prefix>...
+update text [<attr> <value>]... next-hop <addr|self> (nlri | mp <family>) add [prefix] <prefix>...
 ```
 
-### Scalar Attributes (set/del only)
+`set`, `add` or `del` after an attribute keyword is refused, with the error
+`<op> keyword removed for attributes; use: <attr> <value>`. An attribute or a
+next hop written after an `nlri` or `mp` section is refused with
+`attributes must precede all nlri sections`. A keyword written twice keeps the
+last value.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText, parseCommonAttributeText, errAttrsAfterNLRI -->
+
+### Scalar Attributes
 
 | Attribute | Syntax | Example |
 |-----------|--------|---------|
-| origin | `origin set <igp\|egp\|incomplete>` | `origin set igp` |
-| origin | `origin del` | Remove origin attribute |
-| med | `med set <value>` | `med set 100` |
-| med | `med del` | Remove MED attribute |
-| local-preference | `local-preference set <value>` | `local-preference set 200` |
-| local-preference | `local-preference del` | Remove local-preference |
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- scalar attribute handling -->
+| origin | `origin <igp\|egp\|incomplete>` | `origin igp` |
+| med | `med <value>` | `med 100` |
+| local-preference | `local-preference <value>` | `local-preference 200` |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseCommonAttributeText -->
 
-### AS-Path (set/add/del)
+### AS-Path
 
 | Syntax | Example |
 |--------|---------|
-| `as-path set [<asn>...]` | `as-path set [ 65001 65002 ]` |
-| `as-path add [<asn>...]` | `as-path add [ 65000 ]` (prepend) |
-| `as-path del` | Remove entire AS path |
-| `as-path del [<asn>...]` | `as-path del [ 65000 ]` (remove first occurrence)
+| `as-path [<asn>...]` | `as-path [ 65001 65002 ]` |
 
-### List Attributes (set/add/del)
+### List Attributes
 
 | Attribute | Syntax | Example |
 |-----------|--------|---------|
-| community | `community <set\|add\|del> [<comm>...]` | `community set [ 65000:1 65000:2 ]` |
-| large-community | `large-community <set\|add\|del> [<lc>...]` | `large-community add [ 65000:0:1 ]` |
-| extended-community | `extended-community <set\|add\|del> [<ec>...]` | `extended-community del [ rt:65000:1 ]` |
+| community | `community [<comm>...]` | `community [ 65000:1 65000:2 ]` |
+| large-community | `large-community [<lc>...]` | `large-community [ 65000:0:1 ]` |
+| extended-community | `extended-community [<ec>...]` | `extended-community [ target:65000:100 ]` |
 
 ### Next-Hop (required for announce)
 
+`next-hop` also answers to `next` and `nhop`. `next-hop set` and `next-hop del`
+are refused with `set/del keywords removed; use: next-hop <address|self>`; the
+`nhop set` form belongs to the hex and b64 encodings.
+
 | Syntax | Example |
 |--------|---------|
-| `nhop set <addr>` | `nhop set 10.0.0.1` |
-| `nhop set self` | `nhop set self` |
-| `nhop del` | Clear next-hop (for withdraw) |
+| `next-hop <addr>` | `next-hop 10.0.0.1` |
+| `next-hop self` | `next-hop self` |
+| `next-hop default <gateway>` | `next-hop default 192.0.2.1` |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseNhopFlat -->
+<!-- source: internal/component/bgp/textparse/keywords.go -- aliases -->
 
 #### Next-Hop Resolution (`self` vs explicit)
 
 | Input | Stored | Wire (per-peer) |
 |-------|--------|-----------------|
-| `nhop set 10.0.0.1` | Explicit: 10.0.0.1 | 10.0.0.1 |
-| `nhop set self` | Policy: self | Resolved per-peer (e.g., 192.168.1.1) |
+| `next-hop 10.0.0.1` | Explicit: 10.0.0.1 | 10.0.0.1 |
+| `next-hop self` | Policy: self | Resolved per-peer (e.g., 192.168.1.1) |
 
-When `nhop set self` is used:
+When `next-hop self` is used:
 - **Stored**: Policy marker "self" (not an IP)
 - **Wire**: Resolved at send time to peer's local address
 - **Output**: Shows resolved address, not "self"
 
 #### Input vs Output Format
 
-**Input format**: `nhop` is a separate accumulator, can appear anywhere before `nlri`:
+**Input format**: `next-hop` can appear anywhere among the attributes, before the first section:
 ```bash
-send bgp upstream1 update text nhop set self origin set igp nlri add prefix 1.0.0.0/24
-send bgp upstream1 update text origin set igp nhop set self nlri add prefix 1.0.0.0/24
-# Both equivalent - nhop accumulates
+send bgp upstream1 update text next-hop self origin igp nlri add prefix 1.0.0.0/24
+send bgp upstream1 update text origin igp next-hop self nlri add prefix 1.0.0.0/24
+# Both equivalent
 ```
 
 **Output format** (event from engine to plugin): attributes have no `set` keyword, `next` is the emitted next-hop keyword, and the header includes `remote as`, the peer's AS, or `unknown` while a dynamic peer's AS is not yet negotiated:
@@ -107,49 +116,40 @@ peer 10.0.0.1 remote as 65001 received update 123 origin igp next 192.168.1.1 nl
 #                                            no "set"                   next-hop value for this NLRI group
 ```
 
-**Multiple nlri groups** - each gets its own next-hop in output:
+**Multiple nlri groups** - on output, each group carries its own next-hop:
 ```bash
-# Input:
-send bgp * update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 \
-                  nhop set 10.0.0.2 nlri add prefix 2.0.0.0/24
-
-# Output:
 peer 10.0.0.1 remote as 65001 received update 123 next 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 next 10.0.0.2 nlri ipv4/unicast add 2.0.0.0/24
 ```
 
-This ensures output is self-contained per nlri group.
+This keeps output self-contained per nlri group. On input, one command
+carries one next hop for all its sections: routes that need different next
+hops are sent as separate commands.
 <!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop, NextHopExplicit, NextHopSelf -->
 <!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
 #### Next-Hop Overwriting
 
-`nhop set` can appear multiple times - last one wins before each `nlri` section:
+`next-hop` written twice keeps the last value:
 
 ```bash
-# nhop overwritten - 10.0.0.2 used for both prefixes
-update text nhop set 10.0.0.1 nhop set 10.0.0.2 nlri add prefix 1.0.0.0/24,2.0.0.0/24
-
-# Different nhop per nlri section
-update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 \
-            nhop set 10.0.0.2 nlri add prefix 2.0.0.0/24
-# → 1.0.0.0/24 gets nhop 10.0.0.1
-# → 2.0.0.0/24 gets nhop 10.0.0.2
+# 10.0.0.2 used for both prefixes
+update text next-hop 10.0.0.1 next-hop 10.0.0.2 nlri add prefix 1.0.0.0/24 2.0.0.0/24
 ```
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- nhop accumulation -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- parseNhopFlat -->
 
 #### Next-Hop and Withdraw
 
-| Operation | nhop required |
-|-----------|---------------|
+| Operation | next-hop required |
+|-----------|-------------------|
 | `nlri add ...`, `mp <family> add ...` | ✅ Yes |
-| `nlri del ...`, `mp <family> del ...` | ❌ No (ignored if present) |
+| `nlri del ...`, `mp <family> del ...` | ❌ No |
 
 ```bash
-# Withdraw - nhop not needed
+# Withdraw - no next-hop needed
 update text nlri del prefix 1.0.0.0/24
 
-# Mixed - nhop required for add, ignored for del
-update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24 del prefix 2.0.0.0/24
+# Mixed - next-hop required for add
+update text next-hop 10.0.0.1 nlri add prefix 1.0.0.0/24 del prefix 2.0.0.0/24
 ```
 
 #### Withdrawing a route the config also announces
@@ -165,7 +165,7 @@ configured one gives the configured route back
 (`docs/architecture/exabgp-bridge.md`).
 
 ```
-send bgp 10.0.0.1 update text restore-configured nlri ipv4/unicast del 1.1.1.1/32
+send bgp 10.0.0.1 update text restore-configured nlri del 1.1.1.1/32
 ```
 
 A static route matches when its family, ADD-PATH path identifier, route
@@ -193,13 +193,13 @@ to the first and `flush adj-rib out` to the second.
 
 ```bash
 # Simple announce
-send bgp upstream1 update text nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
+send bgp upstream1 update text next-hop 10.0.0.1 nlri add prefix 1.0.0.0/24
 
 # With attributes
-send bgp upstream1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
+send bgp upstream1 update text origin igp med 100 next-hop 10.0.0.1 nlri add prefix 1.0.0.0/24
 
 # Multiple attributes
-send bgp upstream1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24,2.0.0.0/24
+send bgp upstream1 update text origin igp local-preference 200 community [ 65000:1 ] next-hop 10.0.0.1 nlri add prefix 1.0.0.0/24 2.0.0.0/24
 
 # Withdraw (no nhop needed)
 send bgp upstream1 update text nlri del prefix 1.0.0.0/24
@@ -241,193 +241,59 @@ send bgp upstream1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri i
 
 | Operation | Text Mode | Wire Mode |
 |-----------|-----------|-----------|
-| `set` | Per-attribute: `med set 100` | `attr set <bytes>` |
-| `add` | List attrs only: `community add [...]` | ❌ Not supported |
-| `del` | List attrs only: `community del [...]` | ❌ Not supported |
+| Give a value | `<attr> <value>`: `med 100`, `community [ 65000:1 ]` | `attr set <bytes>` |
+| Next hop | `next-hop <addr\|self>` | `nhop set <bytes\|self>` |
+| `add`, `del` on an attribute | ❌ Refused: `<op> keyword removed for attributes; use: <attr> <value>` | ❌ Not supported |
 
-## Validation Rules
-
-### Scalar Attributes (origin, med, local-preference)
-
-| Operation | Allowed | Notes |
-|-----------|---------|-------|
-| `set` | ✅ | Replace value |
-| `add` | ❌ | Error: "origin: add not supported on scalar attribute" |
-| `del` | ✅ | Remove attribute (always succeeds, no-op if not set) |
-
-### AS-Path (special - list with prepend semantics)
-
-| Operation | Allowed | Notes |
-|-----------|---------|-------|
-| `set` | ✅ | Replace entire path |
-| `add` | ✅ | Prepend ASN(s) to path |
-| `del` | ✅ | Remove entire attribute (always succeeds) |
-| `del [asn]` | ✅ | Remove first occurrence (**error if not present**) |
-
-### List Attributes (community, large-community, extended-community)
-
-| Operation | Allowed | Notes |
-|-----------|---------|-------|
-| `set` | ✅ | Replaces entire list |
-| `add` | ✅ | Prepends to existing list |
-| `del [value]` | ✅ | Removes first occurrence of each value (**error if not present**) |
-| `del` (no value) | ✅ | Removes entire attribute (always succeeds, no-op if not set) |
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- list attribute operations -->
-
-#### How `add` Works
-
-`add` **prepends** to the current accumulated list - it does NOT replace:
-
-```bash
-# Single add - starts empty, adds [65000:1]
-update text community add [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community = [65000:1]
-
-# Multiple adds - prepends (newest first)
-update text community add [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community = [65000:2, 65000:1]  (65000:2 prepended to [65000:1])
-
-# set then add - set replaces, add prepends
-update text community set [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community = [65000:2, 65000:1]
-
-# add then set - add is lost (set replaces everything)
-update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community = [65000:2]  (add was overwritten by set)
-```
-
-#### How `del` Works
-
-`del [value]` removes the **first occurrence** of each specified value from the list.
-**Errors if value not present.**
-
-```bash
-# set then del - removes first occurrence
-update text community set [ 65000:1 65000:2 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community = [65000:2]
-
-# del with duplicates - removes only FIRST occurrence
-update text community set [ 65000:1 65000:2 65000:1 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community = [65000:2, 65000:1]  (only first 65000:1 removed)
-
-# ERROR: del from empty list
-update text community del [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → error: "community del: 65000:1 not present"
-
-# ERROR: del non-existent value
-update text community set [ 65000:1 ] community del [ 65000:99 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → error: "community del: 65000:99 not present"
-
-# del without value - removes entire attribute (always succeeds)
-update text community set [ 65000:1 65000:2 ] community del nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → community removed entirely
-
-# del without value on unset attribute - no-op, no error
-update text community del nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → no change (community was not set)
-```
-
-#### Accumulation Across NLRI Sections
-
-Attributes accumulate across `nlri` sections - each section captures a **snapshot**:
-
-```bash
-update text \
-    community set [ 65000:1 ] nhop set 10.0.0.1 \
-    nlri add prefix 1.0.0.0/24 \
-    community add [ 65000:2 ] \
-    nlri add prefix 2.0.0.0/24 \
-    community add [ 65000:3 ] \
-    nlri add prefix 3.0.0.0/24
-
-# Result (add prepends):
-# 1.0.0.0/24 → community = [65000:1]                     (snapshot after set)
-# 2.0.0.0/24 → community = [65000:2, 65000:1]            (65000:2 prepended)
-# 3.0.0.0/24 → community = [65000:3, 65000:2, 65000:1]   (65000:3 prepended)
-```
-
-### Operation Order Constraints
-
-| Sequence | Valid | Notes |
-|----------|-------|-------|
-| `community set [...] community add [...]` | ✅ | Set then prepend |
-| `community add [...] community set [...]` | ⚠️ | Add then replace (add is lost) |
-| `community set [...] community del [x]` | ✅ | Set then delete specific value |
-| `community del [x]` (before set) | ❌ | Error: value not present |
-| `community del` (no value) | ✅ | Always succeeds (clears or no-op) |
+Text mode builds each attribute from the one value its keyword carries: there
+is no prepend, no removal of one list member and no removal of an attribute.
+A keyword written twice keeps the last value. Every attribute applies to every
+`nlri` and `mp` section of the command, because none may follow the first
+section.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText, parseCommonAttributeText -->
 
 ### Required Fields
 
-| Context | Required | Error if missing |
-|---------|----------|------------------|
-| Announce (add NLRI) | `nhop set <addr>` | "missing next-hop" |
-| Withdraw (del NLRI) | - | None required |
+| Context | Required |
+|---------|----------|
+| Announce (add NLRI) | `next-hop <addr\|self>` |
+| Withdraw (del NLRI) | None |
 
 ### Invalid Sequences (Errors)
 
 ```bash
-# ERROR: add on scalar
-update text origin add igp ...
-# → "origin: add not supported on scalar attribute"
+# ERROR: an operation word after an attribute keyword
+update text origin set igp ...
+# → "set keyword removed for attributes; use: origin <value>"
 
-# ERROR: missing next-hop for announce
-update text nlri add prefix 1.0.0.0/24
-# → "missing next-hop"
+# ERROR: set/del after next-hop
+update text nhop set 10.0.0.1 ...
+# → "set/del keywords removed; use: next-hop <address|self>"
 
-# ERROR: nhop without set/del keyword
-update text nhop 10.0.0.1 ...
-# → "nhop requires set or del"
-
-# ERROR: unknown attribute
-update text foo set bar ...
-# → "unexpected token: foo"
-
-# ERROR: del specific value not present
-update text community set [ 65000:1 ] community del [ 65000:99 ] ...
-# → "community del: 65000:99 not present"
+# ERROR: an attribute after a section
+update text next-hop 10.0.0.1 nlri add prefix 1.0.0.0/24 med 100
+# → "attributes must precede all nlri sections"
 ```
 
-### Valid but Wasteful Sequences
+## Several Sections (Text Mode)
 
-```bash
-# VALID but wasteful: set overwrites previous set
-update text med set 100 med set 200 nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → Works, med=200 (first set is lost)
-
-# VALID but wasteful: add then set (add is lost)
-update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → Works, community=[65000:2] (add is lost)
-
-# VALID: del (no value) before set - clears nothing, then sets
-update text community del community set [ 65000:1 ] nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
-# → Works, community=[65000:1]
-```
-
-## Chained Sections (Text Mode)
-
-Multiple attribute and nlri sections can be chained. Attributes accumulate:
+One command may carry several `nlri` and `mp` sections. They share the
+attributes and the next hop written before the first one:
 
 ```bash
 send bgp upstream1 update text \
-    origin set igp community set [ 65000:1 65000:2 ] nhop set 10.0.0.1 \
-    nlri add prefix 1.0.0.0/24,2.0.0.0/24 \
-    community add [ 65000:3 ] \
-    nlri add prefix 3.0.0.0/24 \
-    community del [ 65000:1 ] \
-    nlri add prefix 4.0.0.0/24 del prefix 5.0.0.0/24
+    origin igp community [ 65000:1 65000:2 ] next-hop 10.0.0.1 \
+    nlri add prefix 1.0.0.0/24 2.0.0.0/24 del prefix 5.0.0.0/24
 ```
 
-Result (add prepends, del removes first occurrence):
-- `1.0.0.0/24`, `2.0.0.0/24` → community [65000:1, 65000:2]
-- `3.0.0.0/24` → community [65000:3, 65000:1, 65000:2] (65000:3 prepended)
-- `4.0.0.0/24` → community [65000:3, 65000:2] (first 65000:1 removed)
-- `5.0.0.0/24` → withdraw
+Routes that need different attributes or next hops are sent as separate
+commands.
 
 ## API Command Format
 
 **Text mode:**
 ```
-send bgp <selector> update text [<attr> <set|add|del> <value>]... nhop set <addr> (nlri | mp <family>) add prefix <prefix>... [del prefix <prefix>...]
+send bgp <selector> update text [<attr> <value>]... next-hop <addr|self> (nlri | mp <family>) add [prefix] <prefix>... [del [prefix] <prefix>...]
 ```
 
 **Wire mode:**
@@ -440,7 +306,7 @@ Each API command line = clean state.
 **Examples:**
 ```bash
 # Text mode - per-attribute keywords
-send bgp upstream1 update text med set 100 nhop set 10.0.0.1 nlri add prefix 1.0.0.0/24
+send bgp upstream1 update text med 100 next-hop 10.0.0.1 nlri add prefix 1.0.0.0/24
 
 # Wire mode - attr set <bytes>
 send bgp upstream1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a00 18020b00
@@ -449,46 +315,45 @@ send bgp upstream1 update b64 attr set QAEBQAIGAgEAAAH5 nlri ipv4/unicast add GA
 
 ## Config File Format
 
+A config announces static routes with an `update` block, not with the
+`update text` command. The block has no text or wire encoding: an `attribute`
+container holds the path attributes by name, and an `nlri` list holds one
+entry per address family, keyed by the family, whose content is an operation
+keyword (`add`, `del` or `eor`), an optional `rd` and `label`, then the
+prefixes. Every entry takes the block's attributes, so prefixes that need
+different attributes go in separate `update` blocks. A block with no `nlri`
+entry is refused at config load.
+
 ```
 update {
-    text {
-        # Route group - attributes accumulate within block
-        origin set igp;
-        nhop set 10.0.0.1;
-        community set [ 65000:1 65000:2 ];
-
-        nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24;
-
-        community add [ 65000:3 ];
-        nlri ipv4/unicast add prefix 3.0.0.0/24;
+    attribute {
+        origin <igp|egp|incomplete>
+        next-hop <address|self>
+        med <value>
+        local-preference <value>
+        as-path [ <asn>... ]
+        community [ <community>... ]
     }
-
-    hex {
-        attr set 400101400206020100001f94;
-        nlri ipv4/unicast add 18010a00;
+    nlri {
+        <family> add <prefix>...
     }
 }
 ```
 
-**Example:**
+**Example** (`examples/quickstart/r1.conf`, inside the peer):
 ```
 update {
-    text {
-        # Route group 1
-        origin set igp;
-        nhop set 10.0.0.1;
-        community set [ 65000:1 65000:2 ];
-
-        nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24;
-
-        community add [ 65000:3 ];
-        nlri ipv4/unicast add prefix 3.0.0.0/24;
-
-        community del [ 65000:1 ];
-        nlri ipv4/unicast add prefix 4.0.0.0/24 del prefix 5.0.0.0/24;
+    attribute {
+        origin igp
+        next-hop 192.0.2.1
+    }
+    nlri {
+        ipv4/unicast add 192.0.2.0/24
     }
 }
 ```
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block -->
+<!-- source: examples/quickstart/r1.conf -- update -->
 
 ## Wire Bytes Format
 
@@ -963,14 +828,14 @@ or `del`. Each applies to every prefix of that section, never to one prefix:
 | `label` | `label <num>` or `label [ <num>... ]` | the label stack, read by the parser the top-level `label` uses |
 
 ```bash
-send bgp upstream1 update text origin set igp nhop set 10.0.0.1 \
-    nlri path-information 7 add prefix 1.0.0.0/24,2.0.0.0/24
+send bgp upstream1 update text origin igp next-hop 10.0.0.1 \
+    nlri path-information 7 add prefix 1.0.0.0/24 2.0.0.0/24
 ```
 
 After `add`, a section also takes `watchdog set <name>`, which the parser reads
-and the handler refuses (see "Watchdog Commands"). A section takes no path attribute and no `nhop`: those are
-written before the section, and a section that follows a new `nhop set` or
-attribute keyword uses the new value (see "Chained Sections").
+and the handler refuses (see "Watchdog Commands"). A section takes no path attribute and no `next-hop`: those are
+written before the first section and apply to every section of the command
+(see "Several Sections").
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseINETSection -->
 
 ## VPN Modifiers
@@ -979,11 +844,11 @@ NLRI modifiers for VPN families (not path attributes):
 
 ```bash
 # L3VPN with RD and label
-send bgp upstream1 update text extended-community set [ target:65000:100 ] nhop set 10.0.0.1 \
+send bgp upstream1 update text extended-community [ target:65000:100 ] next-hop 10.0.0.1 \
     mp ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24
 
 # Multiple prefixes same RD/label
-mp ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24,10.0.1.0/24
+mp ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24 10.0.1.0/24
 ```
 
 | Modifier | Syntax | Example |
@@ -1016,7 +881,7 @@ send bgp upstream1 update text mp ipv6/unicast eor
 send bgp upstream1 update text nlri eor mp ipv6/unicast eor
 
 # EOR with NLRI in same command
-send bgp upstream1 update text mp ipv6/unicast eor nhop set 10.0.0.1 nlri add prefix 10.0.0.0/24
+send bgp upstream1 update text next-hop 10.0.0.1 mp ipv6/unicast eor nlri add prefix 10.0.0.0/24
 ```
 
 ### Wire Format
@@ -1195,26 +1060,6 @@ send bgp upstream1 update text mp l2vpn/evpn eor
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- EVPN NLRI parsing -->
 
-## Conditional nhop del
-
-`nhop del <addr>` only removes if current nhop matches:
-
-```bash
-send bgp upstream1 update text nhop set 10.0.0.1 \
-    nlri add prefix 1.0.0.0/24 \
-    nhop del 10.0.0.1 \
-    nhop set 10.0.0.2 \
-    nlri add prefix 2.0.0.0/24
-# → 1.0.0.0/24 nhop 10.0.0.1
-# → 2.0.0.0/24 nhop 10.0.0.2 (del matched, then set)
-
-send bgp upstream1 update text nhop set 10.0.0.1 \
-    nhop del 10.0.0.99 \
-    nlri add prefix 1.0.0.0/24
-# → nhop del 10.0.0.99 is no-op (doesn't match 10.0.0.1)
-# → 1.0.0.0/24 nhop 10.0.0.1
-```
-
 ## Raw Passthrough Commands
 
 Raw is an explicit diagnostic injection operation. The peer must attach the
@@ -1263,19 +1108,22 @@ operation cannot retire a replacement connection.
 
 | Condition | Message |
 |-----------|---------|
-| Invalid encoding | `invalid hex/b64 in attributes: <error>` |
-| Peer not found | `peer not found: 10.0.0.1` |
-| Peer not established | `peer not established: 10.0.0.1` |
-| Invalid family | `invalid family: <family>` |
-| Empty nlri section | `nlri section requires 'add' and/or 'del' with prefixes` |
-| Missing nlri | `missing nlri keyword after attributes` |
-| Missing next-hop | `missing next-hop for announce` |
-| Extended NH required | `extended next-hop not negotiated for IPv6 with IPv4 next-hop` |
-| Family mismatch | `prefix family mismatch: 2001:db8::/32 is IPv6, expected IPv4` |
-| Scalar add | `'origin' is a scalar attribute: use 'set' or 'del'` |
-| Wire mode add/del | `wire mode only supports 'attr set'` |
-| Del not present | `community del: 65000:99 not present` |
-<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- error messages -->
+| Invalid wire attribute data (hex, b64) | `invalid attr data: <decode error>` |
+| Selector matches no peer | `no peers match selector` |
+| Invalid family | `invalid address family: <family>` |
+| Section with no prefix | `nlri section has no prefixes` |
+| Prefix before `add` or `del` | `expected 'add' or 'del' before prefix: got "<token>"` |
+| No section and no EOR | Warning, not an error: `no routes or EOR markers to send` |
+| Announce without next-hop | No parse error; see "Next-Hop Validation" |
+| Extended NH required | `next hop 127.0.0.1 cannot be sent for route family ipv6/unicast to peer peer1`, then why and the fix (see "Next-Hop Validation") |
+| Family mismatch | `NLRI does not match declared family: IPv6 prefix for ipv4/unicast` |
+| Operation word on an attribute | `add keyword removed for attributes; use: origin <value>` |
+| set/del on next-hop | `set/del keywords removed; use: next-hop <address\|self>` |
+| Wire mode add/del | `wire mode only supports attr set, got: <op>` |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText, parseNhopFlat, handleUpdateText -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text_nlri.go -- parseMPSection, parseINETSection -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- parseWireAttrSection -->
+<!-- source: internal/component/bgp/route/route.go -- ErrNoPeersMatch, ErrInvalidFamily, ErrEmptyNLRISection, ErrMissingAddDel, ErrFamilyMismatch -->
 
 ## Family Validation
 
@@ -1288,17 +1136,25 @@ operation cannot retire a replacement connection.
 
 | Check | Result |
 |-------|--------|
-| Announce without nhop | Error: entire block rejected |
-| IPv4 nhop for IPv6 NLRI | Requires Extended NH capability (RFC 5549) |
-| Extended NH not negotiated | Error: `extended next-hop not negotiated` |
-<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop -->
+| Announce without next-hop | The parser accepts it. Each destination peer is skipped (`next-hop policy not set`, logged at debug); when no peer took the route the command answers `no peers have family negotiated`, and when some peer did it answers the last skip error, here `next-hop policy not set` |
+| IPv4 next hop for IPv6 NLRI | Requires Extended NH capability (RFC 8950) |
+| Extended NH not negotiated | Operator error: the next hop, the route family and the peer; why; and the fix |
+
+The fix names the command form of each grammar, because the refusal does not
+know which command carried the route: `update text next-hop <address>` or
+`update text next-hop self` on a session of the route's family, the same next
+hop as `nhop set` in `update hex` or `update b64`, or the extended next hop
+capability, `set bgp peer <name> session capability nexthop <family> nhafi <afi>`.
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, ErrNextHopUnset -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- AnnounceNLRIBatch -->
+<!-- source: internal/component/bgp/reactor/peer_nexthop_refusal.go -- operatorError -->
 
 ## Removed Commands
 
 | Old | New |
 |-----|-----|
-| `announce route <p> next-hop <nh>` | `update text nhop set <nh> nlri add prefix <p>` |
-| `announce attributes ... nlri ...` | `update text ... nhop set <nh> nlri ... add prefix ...` |
+| `announce route <p> next-hop <nh>` | `update text next-hop <nh> nlri add prefix <p>` |
+| `announce attributes ... nlri ...` | `update text ... next-hop <nh> nlri ... add prefix ...` |
 | `withdraw route <p>` | `update text nlri del prefix <p>` |
 | `announce watchdog <name>` | `request bgp watchdog announce <name>` |
 | `withdraw watchdog <name>` | `request bgp watchdog withdraw <name>` |

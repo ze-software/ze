@@ -1123,8 +1123,10 @@ func TestResolveNextHop_Self(t *testing.T) {
 //
 // VALIDATES: AC-7 -- the error names the route family, the next hop, the
 // session family and the peer, and the three fixes (a next hop of the route's
-// family, IPv4-mapped for an IPv6 route; nhop set self on a session of the
-// route's family; the extended next hop capability); it is an operator error;
+// family, IPv4-mapped for an IPv6 route; next-hop self on a session of the
+// route's family; each in its update text form, since update text refuses
+// nhop set, and in its update hex or b64 form; the extended next hop
+// capability); it is an operator error;
 // errors.Is still finds ErrNextHopIncompatible; the capability fix is a config
 // line the BGP schema accepts.
 // PREVENTS: "next-hop incompatible with family", which named no family, no
@@ -1150,7 +1152,8 @@ func TestNextHopIncompatibleNamesFamiliesAndFix(t *testing.T) {
 				"the IPv4 session did not negotiate the extended next hop capability (RFC 8950) for ipv4/unicast " +
 				"with next-hop family IPv6, and without it route family ipv4/unicast takes only an IPv4 next hop: " +
 				"next-hop incompatible with family\n" +
-				"fix: nhop set <an IPv4 address>, or nhop set self on an IPv4 session, or " +
+				"fix: update text next-hop <an IPv4 address> (update hex or b64: nhop set with the address encoded), " +
+				"or update text next-hop self on an IPv4 session (update hex or b64: nhop set self), or " +
 				"set bgp peer peer1 session capability nexthop ipv4/unicast nhafi ipv6",
 			line: "set bgp peer peer1 session capability nexthop ipv4/unicast nhafi ipv6",
 		},
@@ -1162,7 +1165,8 @@ func TestNextHopIncompatibleNamesFamiliesAndFix(t *testing.T) {
 				"the IPv4 session did not negotiate the extended next hop capability (RFC 8950) for ipv6/unicast " +
 				"with next-hop family IPv4, and without it route family ipv6/unicast takes only an IPv6 next hop: " +
 				"next-hop incompatible with family\n" +
-				"fix: nhop set ::ffff:127.0.0.1, or nhop set self on an IPv6 session, or " +
+				"fix: update text next-hop ::ffff:127.0.0.1 (update hex or b64: nhop set with the address encoded), " +
+				"or update text next-hop self on an IPv6 session (update hex or b64: nhop set self), or " +
 				"set bgp peer peer1 session capability nexthop ipv6/unicast nhafi ipv4",
 			line: "set bgp peer peer1 session capability nexthop ipv6/unicast nhafi ipv4",
 		},
