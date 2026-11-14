@@ -1036,8 +1036,9 @@ condition is false and nothing is owed. That one is counted with
 what each one says (`docs/contributing/rfc-conformance-gates.md`). That card,
 and the `Not applicable, so out of scope` row of the at-a-glance table, count
 only the rows the figures judged excluded (`rfcOutOfScopeValue`, reading
-`rfc.StemFigures` `Mandatory.Excluded`): an annotation whose evidence fails is
-a Ze gap in the figures, so neither surface calls it out of scope. The bucket
+`rfc.StemFigures` `Mandatory.Excluded`): an annotation whose evidence fails
+stays among the rows Ze owes in the figures, as exclusion unchecked
+(`openSectionOf`), so neither surface calls it out of scope. The bucket
 cards beside them still count the annotations, and their notes say which ones
 stay owed. The gated count is the accounting total, and the bucket table states
 it as the sum of the two populations. The page led with that count until
