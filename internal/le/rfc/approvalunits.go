@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/gitenv"
 )
 
 // ValidApprovalTarget reports whether target has canonical full Git object syntax.
@@ -46,6 +48,16 @@ func ResolveApprovalUnit(root, target, unit string) (string, error) {
 	return content.Path, err
 }
 
+// ResolveApprovalUnitIn resolves unit as ResolveApprovalUnit does, among the
+// carriers at carrierPath alone when it is not empty. A unit whose name two
+// files of one directory declare at once (a new file whose helper collides
+// with a committed one, so the package does not compile until it is renamed)
+// is ambiguous by name, and the file is what names the one the judge read.
+func ResolveApprovalUnitIn(root, target, unit, carrierPath string) (string, error) {
+	content, err := ResolveApprovalUnitContentIn(root, target, unit, carrierPath)
+	return content.Path, err
+}
+
 // ApprovalUnitContent is one resolved unit and the content an approval of it
 // judged: the digest of the unit's text before the change (HEAD, or the
 // target's first parent) and after it (the working tree, or the target).
@@ -63,6 +75,52 @@ const approvalAbsent = "none"
 // `<base digest>..<current digest>`.
 func ApprovalContentCell(content ApprovalUnitContent) string {
 	return content.Base + ".." + content.Current
+}
+
+// approvalCarrierMark separates a Content cell's digests from the carrier path
+// an approval was qualified with. A digest never holds it.
+const approvalCarrierMark = "@"
+
+// QualifiedApprovalContentCell renders the Content cell of a row qualified
+// with the one file it judged: `<base digest>..<current digest>@<path>`. An
+// empty carrierPath renders the unqualified cell.
+func QualifiedApprovalContentCell(content ApprovalUnitContent, carrierPath string) string {
+	if carrierPath == "" {
+		return ApprovalContentCell(content)
+	}
+	return ApprovalContentCell(content) + approvalCarrierMark + carrierPath
+}
+
+// SplitApprovalCarrier separates a Content cell into its digest pair and the
+// carrier path it was qualified with, empty for an unqualified cell.
+func SplitApprovalCarrier(cell string) (digests, carrierPath string) {
+	digests, carrierPath, _ = strings.Cut(cell, approvalCarrierMark)
+	return digests, carrierPath
+}
+
+// ValidApprovalCarrierPath reports whether carrierPath can qualify an approval
+// row: a clean repository-relative slash path that stays inside the checkout
+// and fits one table cell.
+func ValidApprovalCarrierPath(carrierPath string) bool {
+	if carrierPath == "" {
+		return false
+	}
+	if strings.ContainsAny(carrierPath, "|\r\n\x00\\") {
+		return false
+	}
+	if strings.HasPrefix(carrierPath, "/") {
+		return false
+	}
+	if carrierPath != strings.TrimSpace(carrierPath) {
+		return false
+	}
+	if filepath.ToSlash(filepath.Clean(carrierPath)) != carrierPath {
+		return false
+	}
+	if carrierPath == ".." {
+		return false
+	}
+	return !strings.HasPrefix(carrierPath, "../")
 }
 
 // ParseApprovalContentCell reads a Content cell ApprovalContentCell wrote.
@@ -120,14 +178,23 @@ func approvalDigest(carriers []approvalCarrier) string {
 // ResolveApprovalUnitContent resolves unit as ResolveApprovalUnit does and
 // answers the digests of its text on both sides of the change.
 func ResolveApprovalUnitContent(root, target, unit string) (ApprovalUnitContent, error) {
-	path, base, current, err := resolveApprovalSides(root, target, unit)
+	return ResolveApprovalUnitContentIn(root, target, unit, "")
+}
+
+// ResolveApprovalUnitContentIn resolves unit as ResolveApprovalUnitIn does and
+// answers the digests of its text on both sides of the change.
+func ResolveApprovalUnitContentIn(root, target, unit, carrierPath string) (ApprovalUnitContent, error) {
+	if carrierPath != "" && !ValidApprovalCarrierPath(carrierPath) {
+		return ApprovalUnitContent{}, errors.New("approval file qualifier must be a clean repository-relative path, got " + carrierPath)
+	}
+	path, base, current, err := resolveApprovalSides(root, target, unit, carrierPath)
 	if err != nil {
 		return ApprovalUnitContent{}, err
 	}
 	return ApprovalUnitContent{Path: path, Base: approvalDigest(base), Current: approvalDigest(current)}, nil
 }
 
-func resolveApprovalSides(root, target, unit string) (string, []approvalCarrier, []approvalCarrier, error) {
+func resolveApprovalSides(root, target, unit, carrierPath string) (string, []approvalCarrier, []approvalCarrier, error) {
 	if !ValidApprovalUnit(unit) {
 		return "", nil, nil, errors.New("approval unit must be <package>.<TestName>, got " + unit)
 	}
@@ -207,6 +274,9 @@ func resolveApprovalSides(root, target, unit string) (string, []approvalCarrier,
 		if filepath.Base(filepath.Dir(path)) != packageName {
 			continue
 		}
+		if carrierPath != "" && path != carrierPath {
+			continue
+		}
 		oldText, err := approvalSide(root, before, path, oldSet[path])
 		if err != nil {
 			return "", nil, nil, err
@@ -242,6 +312,9 @@ func resolveApprovalSides(root, target, unit string) (string, []approvalCarrier,
 		return "", nil, nil, ambiguousApprovalCarrier(unit, newCarriers)
 	}
 	if len(oldCarriers) == 0 && len(newCarriers) == 0 {
+		if carrierPath != "" {
+			return "", nil, nil, errors.New("approval unit " + unit + " has no current/parent carrier in " + carrierPath)
+		}
 		return "", nil, nil, noApprovalCarrier(root, target, unit, newPaths)
 	}
 	if target != "" {
@@ -303,13 +376,25 @@ func changedApprovalCarriers(carriers []approvalCarrier, unchanged map[string]bo
 	return kept
 }
 
+// AmbiguousCarrierError refuses a unit whose name more than one carrier
+// declares on one side of the change. Paths are the carriers, sorted, so a
+// caller can print the file-qualified form that names each one.
+type AmbiguousCarrierError struct {
+	Unit  string
+	Paths []string
+}
+
+func (e *AmbiguousCarrierError) Error() string {
+	return "approval unit " + e.Unit + " is ambiguous across carriers: " + strings.Join(e.Paths, ", ")
+}
+
 func ambiguousApprovalCarrier(unit string, carriers []approvalCarrier) error {
 	paths := make([]string, len(carriers))
 	for index, carrier := range carriers {
 		paths[index] = carrier.path
 	}
 	slices.Sort(paths)
-	return errors.New("approval unit " + unit + " is ambiguous across carriers: " + strings.Join(paths, ", "))
+	return &AmbiguousCarrierError{Unit: unit, Paths: paths}
 }
 
 // noApprovalCarrier refuses a unit no directory carries. A unit is keyed by
@@ -426,8 +511,11 @@ func approvalUnitTexts(path, content, name string) ([]string, error) {
 
 // approvalGit preserves blob and NUL-delimited path bytes; gitAnswer trims them.
 func approvalGit(root string, args ...string) (string, error) {
+	// Every query here is a read, and the edit hook reaches it on every
+	// session's edit over one shared index, so it carries gitenv.ReadOnlyQuery.
 	command := exec.CommandContext(context.Background(), "git", args...) // #nosec G204 -- Fixed Git executable with separately passed query operands.
 	command.Dir = root
+	command.Env = gitenv.ReadOnlyQuery(os.Environ())
 	var complaint bytes.Buffer
 	command.Stderr = &complaint
 	content, err := command.Output()

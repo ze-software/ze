@@ -256,6 +256,124 @@ checkout's test, passes unjudged, because no test of this repository lives
 there.
 <!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 
+A weakening is the loss of proof the committed tree holds, so the edit hook
+judges a whole working-tree file only for the units a committed baseline
+records. The baseline is HEAD's text of the edited path and, because a move
+keeps the proof the file carried, the HEAD text of every committed test file
+of the same extension, in the edited file's own directory, that the working
+tree no longer holds at its committed path: a file moved with `git mv` within
+its directory, or deleted and written again there under another name, stays
+guarded. The hook lists that one directory of HEAD (`git ls-tree`, not
+recursive), never the whole tree, so a test file deleted in another directory
+locks nothing in this edit. A unit only the working tree holds (a new
+untracked file, a helper added to a tracked file since HEAD) is the author's
+to rename, replace or remove, with no verdict and no count notice. Only the
+edited file's own committed text counts, so a committed file of the same
+directory that declares the same name does not lock an untracked file's unit
+while it stands. An untracked copy of a committed test may lose assertions
+while the original stands, because the original still proves what it proved.
+A `Write` that creates a path the working tree lacks is judged with HEAD's
+text of that path as its old text, so deleting a committed test file and
+writing it again with fewer assertions is refused at the edit. Every
+whole-file edit of a Go test file at a path HEAD does not hold, the `Write`
+that creates it and each later `Write` or `Edit`, is also set beside the
+committed test files of its directory that the working tree lacks, for the
+unit names the new text declares and the edit changes. A shell `mv` of a
+committed test, then a weaker copy under a new name, is refused whether the
+copy arrives in one `Write` or is added later to a stub written first,
+because the copy keeps the names it took. A unit the edit leaves as it was
+is not judged again. It was judged only if a `Write` or `Edit` the hook sees
+wrote it after the committed file went missing, or through a link to the
+committed file; a unit written any other way
+is judged at the commit (below). A unit of the missing
+file that the new text does not declare is not judged, so a new test that
+shares no name with a deleted one is clean, and its loss is a deletion the
+commit gate judges. A new unit that does share a name with a deleted
+committed one and proves less is refused all the same, since the hook cannot
+tell a copy from a coincidence. The refusal names the missing committed
+file and gives two ways out: an independent judge's approval, or, when the
+two files are unrelated, the author stops and reports it, so that whoever
+deleted the file commits the deletion first. In a
+directory where every committed test file stands, an untracked file is
+judged as before, so renaming its helper or deleting its test stays allowed.
+A renamed file whose units are renamed too shares no name with the original,
+so it is caught only at the commit gate. A new `.ci` or `.et` has no unit
+names, so it is never set beside a deleted one at the edit.
+
+The deleted-file arm works at the stem level for a `.ci` or `.et`: the file is
+one unit named for its stem, so while a committed `.ci` of a directory is
+missing from the working tree, every untracked `.ci` of that directory is
+judged against its own text on each edit, and an edit that lowers what it
+proves is refused. That fails closed: it can refuse an edit to an unrelated
+new `.ci` beside a deleted one, never admit the loss of committed proof.
+
+The hook judges an alias of a committed test as that test. The edited path's
+symlinks are resolved, and each existing component is spelled as its
+directory lists it, so a case variant on a case-insensitive filesystem
+(`pkg/Intent_test.go` for `pkg/intent_test.go` on macOS) is the committed
+path. A path whose target lies outside the checkout keeps its lexical form.
+A hard link has no spelling to map back to, so a committed test file of the
+edited file's own directory that is the same file on disk (`os.SameFile`)
+joins the baseline. The `test/draft/` exemption holds only when the file the
+edit reaches resolves, and lies under `test/draft/` too: a new draft file
+resolves through its existing parent and is skipped, while a dangling
+symlink there (its committed target removed from disk) does not resolve, so
+the edit is judged and refused as an alias that cannot be resolved; the
+refusal says to stop and report the dangling link to the main thread. A Git failure while the baseline
+is read, an unborn HEAD included, refuses the edit rather than judging
+against an empty set. Whether the root is a repository at all is decided on
+what the directory is (`rfc.InsideGitCheckout`, git's own discovery), never
+on the wording of a git refusal, which a localised git translates.
+<!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedRecreated, proposedRenamedFindings, renamedLines, resolveExistingPrefix, proposedCommittedUnits, proposedBaselineSiblings, checkoutAlias, committedUnits.holds -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
+
+What the hook does not see is caught at the commit. A test file moved to
+another directory, a new `.ci` or `.et` written under another name after its
+committed original was moved or deleted, and the deletion of an original
+whose copy stands all reach the commit gate as a deletion and an addition. It
+pairs them by rename detection (`--find-renames` on the prospective index)
+and compares the old text with the new, and a deletion it cannot pair is
+judged as the loss of every unit the file held. An edit through a hard link
+made in another directory is not seen by the hook either, but it changes the
+committed file's own content, which the commit gate judges like any edit.
+
+Three more cases reach only the commit gate. A unit written by a write the
+hook does not see (a shell redirect, `sed -i`, `cp`, or a draft moved into
+place with `mv`) is never judged at the edit, because the Bash hook guards
+shell writes only under `plan/` and `ai/rules/`. A unit written while its
+committed namesake still stood is not judged when that file is deleted
+afterwards. A weaker copy of a moved unit added to a file HEAD already
+tracks, while a committed sibling is missing, is not seen either: a tracked
+file is judged against its own HEAD text only. The commit gate sees each as
+an addition beside a deletion, or as a deletion it cannot pair.
+<!-- source: internal/le/hookruntime/bash.go -- governedShellWrite -->
+<!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedRenamedFindings -->
+<!-- source: internal/le/test/weakened/prospective.go -- ProspectiveCommit -->
+<!-- source: internal/le/test/weakened/testweakened.go -- weakenedTests, comparePath -->
+
+Two files of one directory can declare the same name at once, as when a new
+file's helper collides with a committed one, so the package does not compile
+until one is renamed. The unit's name alone then names two carriers, and
+`./le test weakened approve` refuses it, printing the qualified command for
+each file: `./le test weakened approve unit <package>.<Name> file <path>
+reason "<the judge's verdict>"`. The qualified row records the file after the
+`Content` digests (`<base>..<current>@<path>`), so the loader resolves the
+same carrier for its staleness check, and the row admits the unit in that file
+alone at the hook and the commit gate. A row is keyed on its target, its unit
+and its file, so one name may carry one row per file: re-approving one file
+replaces that file's row only. The qualifier is accepted only when the bare
+unit is ambiguous; on a unit one file declares, the command refuses it and
+prints the unqualified form, because the qualified resolution reads that file
+alone and would stop following the unit's committed side through a move. The
+file lives only in the untracked approval row: the commit's
+`Weakening-approved:` trailer names the unit and the verdict, never the file,
+so two rows of one name with the same verdict are spent by the one commit
+that lands either.
+<!-- source: internal/le/rfc/approvalunits.go -- ResolveApprovalUnitContentIn, AmbiguousCarrierError, QualifiedApprovalContentCell -->
+<!-- source: internal/le/test/weakened/approve.go -- ApproveIn, approveAnswer, ambiguousUnitFix, resolveApproval -->
+<!-- source: internal/le/test/weakened/ledger.go -- rowCovers, parseLedger -->
+<!-- source: internal/le/rfc/approve.go -- rowNames -->
+
 ### A row is used once
 
 A semantic test change can keep or add assertions, so the structural detector

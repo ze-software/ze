@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/commit/hunks"
+	"github.com/ze-software/ze/internal/le/gitenv"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/repo/objects"
 )
@@ -237,7 +238,7 @@ func namesUnlanded(file *approvalFile, unit Finding) bool {
 		if row.Carrier != "" {
 			continue
 		}
-		if rowMatches(row.Name, unit) {
+		if rowCovers(row.Row, unit) {
 			return true
 		}
 	}
@@ -256,7 +257,7 @@ func staleRowProblem(file *approvalFile, unit Finding) string {
 		if row.Stale == "" {
 			continue
 		}
-		if !rowMatches(row.Name, unit) {
+		if !rowCovers(row.Row, unit) {
 			continue
 		}
 		var text textbuf.Buffer
@@ -319,7 +320,7 @@ func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bo
 		if row.Target != "" {
 			continue
 		}
-		if !rowMatches(row.Name, finding) {
+		if !rowCovers(row.Row, finding) {
 			continue
 		}
 		if row.Carrier != "" {
@@ -640,10 +641,15 @@ func uniquePaths(first, second []string) []string {
 	return paths
 }
 
+// gitCapture runs one git query of this package. The edit hook runs on every
+// Write and Edit of every session, and the sessions share one index, so every
+// call carries gitenv.ReadOnlyQuery: no automatic maintenance or gc, and no
+// optional index lock or refresh.
 func gitCapture(root string, args ...string) (string, string, int, bool) {
 	// #nosec G204 -- Git is the fixed executable and every call site supplies one of this package's closed verbs; path and ref operands remain distinct argv, never shell code.
 	command := exec.CommandContext(context.Background(), "git", args...)
 	command.Dir = root
+	command.Env = gitenv.ReadOnlyQuery(os.Environ())
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	command.Stdout = &stdout

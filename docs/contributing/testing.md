@@ -386,7 +386,13 @@ The route, in order:
    main thread's commit namespace, so a subagent's edit sees it too. git never
    reads that file. `<package>` is the name of the directory holding the test,
    not its Go package clause; the command refuses a unit no directory carries
-   and names the key to use. The row records the unit's content as the judge
+   and names the key to use. When two files of the directory declare the
+   name, it refuses the bare unit and prints the form that names the file:
+   `./le test weakened approve unit <package>.<Name> file <path> reason "<the judge's verdict>"`.
+   `file` is accepted only then: on a unit one file declares, the command
+   refuses it and prints the form without it. The file lives only in the
+   approval row; the commit's trailer names the unit alone.
+   The row records the unit's content as the judge
    read it, so it approves that change only: a different later change of the
    same test needs a new verdict (`docs/architecture/testing/test-health.md`,
    "One approval names one test"). On REFUSE, fix the code instead.
@@ -414,6 +420,51 @@ helper as a call or a function value (never after a selector's dot), directly
 or through other helpers, in the `_test.go` files of the same directory. The
 rule matches names, so a local of the same name also counts as a call. A
 helper no test calls keeps its finding all the same.
+
+A weakening is the loss of proof the committed tree holds. The edit hook
+judges only the units HEAD records for the file. It follows a committed test
+file that the working tree lacks into the other test files of the same
+directory: an Edit of a file moved there (by `git mv` or by `mv`) is judged
+against the committed units. A Go test file at a path HEAD does not hold is
+judged, on the `Write` that creates it and on every later whole-file `Write`
+or `Edit`, against the committed files missing from its directory, for each
+unit it declares and the edit changes under the name of one the missing
+file held, so a stub written first cannot carry a weaker copy in later. A
+renamed file whose units are renamed too is caught only at the commit gate.
+A `Write` that
+recreates a deleted committed file is judged against HEAD's text of it. An
+alias of a committed test (a symlink, a hard link in its directory, or a case
+variant of its name on a case-insensitive filesystem) is judged as the
+committed test. A test or helper that only the working tree holds, in a new
+untracked file or added to a tracked one, is yours to rename, replace or
+remove without a verdict, unless it shares a name with a unit of a committed
+file missing from its directory. While a committed `.ci` is missing from a
+directory, every untracked `.ci` there is guarded against losing what its own
+text proves, which can refuse an edit to an unrelated new `.ci`, never admit
+a loss. When a refusal comes from a committed file missing from the
+directory, it names that file: have an independent judge approve the change,
+or, if the two files are unrelated, stop and report it, so that whoever
+deleted the file commits the deletion first. A unit the edit leaves as it was
+is not judged again; it was judged only if a `Write` or `Edit` the hook sees
+wrote it after the committed file went missing, or through a link to the
+committed file. The hook does not see these, and the commit gate judges
+them as an addition beside a deletion, or as a deletion it cannot pair:
+
+- a move to another directory, and a new `.ci` written under another name
+- an edit through a hard link made in another directory
+- a unit written by a shell command (a redirect, `sed -i`, `cp`, or a draft
+  moved into place with `mv`): the Bash hook guards shell writes only under
+  `plan/` and `ai/rules/`
+- a unit written while its committed namesake still stood, that file deleted
+  afterwards
+- a weaker copy of a moved unit added to a file HEAD already tracks, while a
+  committed sibling is missing: a tracked file is judged against its own HEAD
+  text only
+
+The rules are in `docs/architecture/testing/test-health.md`, "One approval
+names one test".
+<!-- source: internal/le/test/weakened/proposed.go -- Proposed, proposedRenamedFindings, renamedLines -->
+<!-- source: internal/le/hookruntime/bash.go -- governedShellWrite -->
 
 A test edited again after its verdict is refused at commit, even when the new
 edit weakens nothing: the row is stale, because the judge saw other text. Run
@@ -497,7 +548,7 @@ silent for that long. That is the linter in a queue, not a hang.
 ### The post-edit lint takes no index lock
 
 <!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand, postLinter -->
-<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch -->
+<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch, ReadOnlyQuery -->
 
 After each Go edit the post-write hook lints the edited package with
 `--new-from-rev=HEAD --timeout=30s`. For `--new-from-rev`, golangci-lint runs
@@ -508,7 +559,10 @@ hook therefore runs the linter with `GIT_OPTIONAL_LOCKS=0`, which stops
 `git status` refreshing the index, and `diff.autoRefreshIndex=false`, which
 stops `git diff` writing the refresh back. The patch the linter reads is the
 same either way. le's other `git status` queries under a deadline carry the
-first setting through `gitenv.ReadOnly`. The hook starts the real linter, not
+first setting through `gitenv.ReadOnly`. The weakening check's queries, which
+the edit hook runs on every test edit, carry `gitenv.ReadOnlyQuery`: the
+first setting plus `maintenance.auto=false` and `gc.auto=0`, so none of them
+starts a detached maintenance run under `.git`. The post-edit hook starts the real linter, not
 the `golangci-lint` shim, so the kill at the hook's 60 second budget ends the linter
 itself and no `le exec` waits for a job slot on an edit (`postLinter`).
 

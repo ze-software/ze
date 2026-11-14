@@ -137,6 +137,14 @@ func gitExit(tree string, args ...string) (string, int, string) {
 	return "", code, "`git " + strings.Join(args, " ") + "` failed: " + strings.TrimSpace(err.Error()+" "+stderr.String())
 }
 
+// InsideGitCheckout answers insideGitCheckout for a caller outside this
+// package: the weakening check's edit hook decides whether a root is a
+// repository at all on what the directory is, never on the wording of a git
+// refusal.
+func InsideGitCheckout(tree string) bool {
+	return insideGitCheckout(tree)
+}
+
 // insideGitCheckout answers whether Git's discovery boundary holds a `.git`
 // entry: a directory in a clone, a file in a worktree. GIT_CEILING_DIRECTORIES
 // excludes ancestors, never the current directory or an explicit GIT_DIR.

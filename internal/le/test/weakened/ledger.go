@@ -25,7 +25,20 @@ type Row struct {
 	// judged, before and after the change (rfc.ApprovalContentCell).
 	Base    string `json:"base"`
 	Current string `json:"current"`
-	Line    int    `json:"line"`
+	// File is the one carrier the row was qualified with
+	// (`./le test weakened approve ... file <path>`), empty for an ordinary
+	// row. A qualified row covers the unit in that file alone.
+	File string `json:"file,omitempty"`
+	Line int    `json:"line"`
+}
+
+// rowCovers reports whether row approves finding: the row names its unit, and
+// a row qualified with a file names the finding's own file.
+func rowCovers(row Row, finding Finding) bool {
+	if !rowMatches(row.Name, finding) {
+		return false
+	}
+	return row.File == "" || row.File == finding.Path
 }
 
 // ledgerHeaderCells is the one table header every approval file opens with
@@ -73,7 +86,11 @@ func parseLedger(contents, path string) ([]Row, []string) {
 			continue
 		}
 		target := cells[2]
-		base, current, judged := rfc.ParseApprovalContentCell(cells[3])
+		digests, file := rfc.SplitApprovalCarrier(cells[3])
+		base, current, judged := rfc.ParseApprovalContentCell(digests)
+		if judged && file != "" && !rfc.ValidApprovalCarrierPath(file) {
+			judged = false
+		}
 		if !judged {
 			problems = append(problems, message.Reset().Str(path).Byte(':').Int(int64(line)).
 				Str(" names no judged content for ").Str(name).
@@ -95,7 +112,9 @@ func parseLedger(contents, path string) ([]Row, []string) {
 				Str("; a row with no reason accepts nothing").String())
 			continue
 		}
-		key := target + "\x00" + name
+		// A row qualified with a file is its own row: one unit name may carry
+		// one row per file that declares it, and one unqualified row.
+		key := target + "\x00" + name + "\x00" + file
 		if previous, duplicate := seen[key]; duplicate {
 			problems = append(problems, message.Reset().Str(path).Byte(':').Int(int64(line)).
 				Str(" names ").Str(name).Str(" again (already on line ").Int(int64(previous)).
@@ -103,7 +122,7 @@ func parseLedger(contents, path string) ([]Row, []string) {
 			continue
 		}
 		seen[key] = line
-		rows = append(rows, Row{Name: name, Reason: reason, Target: target, Base: base, Current: current, Line: line})
+		rows = append(rows, Row{Name: name, Reason: reason, Target: target, Base: base, Current: current, File: file, Line: line})
 	}
 	return rows, problems
 }
@@ -290,7 +309,7 @@ func LoadApprovals(root string, source ApprovalSource) ([]ApprovalRow, []string)
 // that no longer resolves to one carrier is stale too: the verdict judged a
 // carrier that is gone or no longer unique.
 func staleApproval(root string, row Row) string {
-	now, err := rfc.ResolveApprovalUnitContent(root, "", row.Name)
+	now, err := rfc.ResolveApprovalUnitContentIn(root, "", row.Name, row.File)
 	if err != nil {
 		return "its unit no longer resolves: " + err.Error()
 	}

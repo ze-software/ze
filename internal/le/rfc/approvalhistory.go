@@ -8,9 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/gitenv"
 )
 
 // approvalHistoryQuery is one ordinary verdict or exact same-carrier pair.
@@ -48,6 +51,8 @@ func approvalHistoryLanded(root, history string, queries []approvalHistoryQuery)
 	defer cancel()
 	command := exec.CommandContext(ctx, "git", "cat-file", "--batch") // #nosec G204 -- Fixed Git object query; validated full IDs go through stdin.
 	command.Dir = root
+	// The edit hook reaches this on every session's edit: a read-only query.
+	command.Env = gitenv.ReadOnlyQuery(os.Environ())
 	command.Stdin = strings.NewReader(history)
 	var complaint bytes.Buffer
 	command.Stderr = &complaint

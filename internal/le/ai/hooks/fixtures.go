@@ -473,11 +473,34 @@ var (
 	// spec/model.go). Pinned by session_caller_test.go in hookruntime and
 	// model_fork_setting_test.go in spec. Re-sealed after an independent
 	// review of that change, again over the committed tree's content.
+	//
+	// 2026-11-14, the weakening check judges only what HEAD holds: a whole-file
+	// edit keeps a finding only for a unit the committed tree records, so a
+	// unit HEAD never held can be renamed or removed (Proposed and
+	// proposedCommittedUnits in test/weakened/proposed.go); a file reached
+	// through a symlink, a hard link or a case variant is judged as the
+	// committed file; a Write that recreates a committed path, and an edit of
+	// a file that stands in for a committed sibling missing from its directory,
+	// are judged against the committed text; an approval names its file when
+	// its unit is declared in more than one (ApproveIn, rowCovers); the draft
+	// exemption needs a path that resolves into test/draft/ (writeWeakening);
+	// and every git call of the hook path runs read-only
+	// (gitenv.ReadOnlyQuery). internal/le/gitenv is an imported helper, not a
+	// direct producer, so it stays outside hookSourcePackages; the read-only
+	// property is pinned by TestEveryHookGitQueryIsReadOnly instead. Pinned by
+	// proposed_head_baseline_test.go,
+	// proposed_fake_git_test.go and proposed_git_readonly_test.go in
+	// test/weakened, writeweakening_head_test.go in hookruntime,
+	// approval_carrier_test.go in rfc and gitenv_query_test.go. Sealed after
+	// five independent reviews: the last confirmed that proposed.go differs
+	// from the reviewed logic in message text and comments only. No other
+	// session held an uncommitted edit in these packages, so the value is the
+	// digest of the working tree and of the commit alike.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x67, 0x25, 0xe5, 0xc8, 0x8b, 0x8a, 0x3a, 0x50,
-		0x9c, 0x21, 0x73, 0x33, 0x37, 0x64, 0x9f, 0xc3,
-		0xb5, 0x77, 0x45, 0xc4, 0x1f, 0xff, 0x6c, 0x80,
-		0xd5, 0xfb, 0x48, 0xc2, 0xe9, 0xa5, 0x9a, 0x2d,
+		0xc6, 0x86, 0x80, 0x1d, 0xd3, 0xb1, 0x15, 0xba,
+		0x0b, 0xb7, 0x9d, 0x9f, 0x40, 0xc5, 0x56, 0xae,
+		0xb8, 0xb4, 0xdd, 0x2a, 0xc8, 0x27, 0x6d, 0xf8,
+		0x4d, 0xbd, 0x0a, 0xe2, 0x1d, 0x4a, 0xe6, 0xd9,
 	}
 )
 

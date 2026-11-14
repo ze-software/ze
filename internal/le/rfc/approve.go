@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/gitenv"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/le/human"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -120,6 +121,12 @@ type ApprovalFile struct {
 	Header  string
 	Command string
 	Target  string
+	// Carrier qualifies the unit with the one file that declares it, for a
+	// name more than one file of its directory declares at once. The row
+	// records it after the Content digests, so every reader resolves the same
+	// carrier the judge read (ResolveApprovalUnitContentIn). Empty for the
+	// ordinary unqualified unit.
+	Carrier string
 }
 
 // ValidApprovalUnit reports whether unit is `<package>.<TestName>`, the one
@@ -179,7 +186,7 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 	if strings.ContainsAny(report.Reason, "\r\n|") {
 		return report, errors.New(file.Command + ": reason must be one line and carry no '|': it becomes one trailer line and one ledger cell")
 	}
-	judged, err := ResolveApprovalUnitContent(root, file.Target, unit)
+	judged, err := ResolveApprovalUnitContentIn(root, file.Target, unit, file.Carrier)
 	if err != nil {
 		return report, err
 	}
@@ -192,11 +199,11 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 	if err != nil {
 		return report, err
 	}
-	row := "| " + unit + " | " + report.Reason + " | " + file.Target + " | " + ApprovalContentCell(judged) + " |"
+	row := "| " + unit + " | " + report.Reason + " | " + file.Target + " | " + QualifiedApprovalContentCell(judged, file.Carrier) + " |"
 	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
 	var page textbuf.Buffer
 	for _, line := range lines {
-		if rowNames(line, file.Target, unit) {
+		if rowNames(line, file.Target, unit, file.Carrier) {
 			report.Replaced = true
 			page.Str(row).Byte('\n')
 			continue
@@ -230,22 +237,27 @@ func BoundApprovalLanded(root, trailer, target, unit string) (carrier string, la
 }
 
 func approvalLanded(root, trailer, binding string) (carrier string, landed bool, problem string) {
+	// A tree no repository holds at all (an edit hook fixture tree) has no
+	// commit that could carry the trailer, so "not landed" is the answer
+	// rather than a default. It is decided on what the directory is, never on
+	// the wording of git's refusal, which a localised git translates.
+	// refuse-by-default: guards proposedApprovals -- no repository holds the root, so no commit spent the row
+	if !insideGitCheckout(root) {
+		return "", false, ""
+	}
 	command := exec.CommandContext(context.Background(), "git", "log", "--no-show-signature", "--format=%H") // #nosec G204 -- Fixed metadata-only history query; message bytes never frame carrier IDs.
 	command.Dir = root
+	// The edit hook reaches this on every session's edit: a read-only query.
+	command.Env = gitenv.ReadOnlyQuery(os.Environ())
 	var stdout bytes.Buffer
 	var complaint bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &complaint
 	if err := command.Run(); err != nil {
-		// A tree with no commits, or one no repository holds at all (an edit
-		// hook fixture tree), has no commit that could carry the trailer, so
-		// "not landed" is the answer rather than a default. Any other git
+		// A tree with no commits has no commit that could carry the trailer,
+		// so "not landed" is the answer rather than a default. Any other git
 		// failure leaves the question open, and the caller fails closed.
 		if _, ok := errors.AsType[*exec.ExitError](err); ok && strings.Contains(complaint.String(), "does not have any commits") {
-			return "", false, ""
-		}
-		if _, ok := errors.AsType[*exec.ExitError](err); ok &&
-			strings.HasPrefix(complaint.String(), "fatal: not a git repository (") {
 			return "", false, ""
 		}
 		return "", false, "git log approval history failed: " + strings.TrimSpace(complaint.String())
@@ -254,8 +266,8 @@ func approvalLanded(root, trailer, binding string) (carrier string, landed bool,
 	return carrier, matched >= 0, problem
 }
 
-// rowNames compares the existing table's exact target/unit key.
-func rowNames(line, target, unit string) bool {
+// rowNames compares the existing table's exact target/unit/file key.
+func rowNames(line, target, unit, carrierPath string) bool {
 	body := strings.TrimSpace(line)
 	if !strings.HasPrefix(body, "|") {
 		return false
@@ -267,7 +279,14 @@ func rowNames(line, target, unit string) bool {
 	if strings.TrimSpace(cells[0]) != unit {
 		return false
 	}
-	return strings.TrimSpace(cells[2]) == target
+	if strings.TrimSpace(cells[2]) != target {
+		return false
+	}
+	// A row qualified with a file approves that file's unit alone, so it is
+	// a row of its own: re-approving one file replaces only its row, and an
+	// unqualified row is replaced only by an unqualified approval.
+	_, rowCarrier := SplitApprovalCarrier(strings.TrimSpace(cells[3]))
+	return rowCarrier == carrierPath
 }
 
 // approveAnswer admits a parsed ruling before process startup can write.

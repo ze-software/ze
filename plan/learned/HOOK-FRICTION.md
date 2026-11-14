@@ -2023,3 +2023,64 @@ is another session's. The cases are
     that writes, if its judge ever admits one.
 
   A scoped lint finds these at commit.
+
+## The weakening check judged units HEAD never held, and the approval could not name a file (2026-11-13)
+
+**What happened.** A new, untracked `internal/le/rfc/sections_split_test.go`
+declared a helper `intentRow` that the committed `intent_test.go` also
+declared, so the package did not compile. `pretool-writeedit` refused the
+rename in the new file as a weakening, and refused replacing a test and
+deleting a helper there. An independent judge approved the rename, and
+`./le test weakened approve unit rfc.intentRow` then refused it, because the
+name had two carriers in one directory. The owner made the rename by hand.
+
+**Why.** `proposedFindings` compared the edit's old and new working-tree text,
+never HEAD, so a unit no commit held was judged as if it carried committed
+proof. The approval resolver (`resolveApprovalSides`,
+`internal/le/rfc/approvalunits.go`) keeps an unchanged same-directory copy on
+purpose, and the action had no way to say which file the judge read.
+
+**Fix.** `Proposed` keeps a whole-file finding only for a unit a committed
+baseline records: HEAD's text of the path, plus every committed test file of
+the same extension, in the edited file's own directory, that the working tree
+lacks, so a `git mv` or a delete-and-recreate within the directory cannot
+launder a weakening (`proposedCommittedUnits`). The sibling arm lists one
+directory of HEAD with a non-recursive `git ls-tree`: a first version listed
+the whole tree, so one test file another session deleted anywhere locked its
+names in every edit, and every whole-file test edit listed every committed
+file. A `Write` that creates a missing path is judged with HEAD's text of it
+(`proposedRecreated`), so recreating a deleted committed file with fewer
+assertions is refused at the edit. A `Write` of a new Go test file is set
+beside the committed test files missing from its directory, unit by unit
+name (`proposedRenamedFindings`), so a shell `mv` then a weaker copy written
+under a new name is refused too. An alias is judged as the committed file: a
+symlink is resolved and a case variant respelled as the directory lists it
+(`checkoutAlias`), a hard link in the same directory is matched with
+`os.SameFile` (`proposedBaselineSiblings`), and the `test/draft/` exemption
+follows the resolved file. A move to another directory, a new `.ci` written
+under another name, and an edit through a hard link made in another
+directory are caught only at the commit: rename detection pairs a deletion
+with an addition, and a hard link's edit changes the committed file itself.
+Whether a root is a repository at all is decided by git's own discovery on
+the filesystem (`rfc.InsideGitCheckout`), never from the words of a git
+refusal, which a localised git translates. Every git query on the hook path
+carries `gitenv.ReadOnlyQuery` (no automatic maintenance or gc, no optional
+index lock), each one that takes a pathspec carries `--literal-pathspecs`, and
+none is `git diff` or `git status`: `TestEveryHookGitQueryIsReadOnly` records
+every call through a git placed first on PATH.
+
+`./le test weakened approve` takes `file <path>`, accepted only when the bare
+unit is ambiguous: an ambiguous bare unit is refused with the qualified
+command for each file, and a qualifier on an unambiguous unit is refused with
+the unqualified command, because it would drop the unit's committed side. The
+row keeps the file after its Content digests (`<base>..<current>@<path>`),
+which every reader resolves and matches, and a row is keyed on target, unit
+and file. The `Weakening-approved:` trailer names the unit alone; the file
+lives only in the untracked row. Journal:
+`plan/journal/guard-blocks-its-own-authors-repair.md`.
+
+**General lesson.** A guard protects what HEAD holds. Its baseline is read from
+HEAD and followed through moves, never taken from the working tree, which
+holds the author's own unfinished text. A baseline that follows moves is
+bounded to what the edit can reach, or one stray deletion anywhere becomes a
+lock everywhere.

@@ -43,6 +43,7 @@ var actions = leaction.New(area,
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved weakened unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
+			{Keyword: keyFile, Kind: leaction.KindPath, Help: "the test file that declares the unit, when several do", Value: "<path>", Requirement: leaction.Optional},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "the judge's verdict approving the weakening", Value: keyReason, Requirement: leaction.Required},
 		},
 		PrepareArgs: approveAnswer,

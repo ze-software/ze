@@ -48,6 +48,33 @@ func ReadOnly(base []string) []string {
 // cannot parse is left as it is, and git then refuses the query with its own
 // message rather than running it with the caller's settings dropped.
 func ReadOnlyPatch(base []string) []string {
+	return withConfig(base, setting{key: "diff.autoRefreshIndex", value: "false"})
+}
+
+// ReadOnlyQuery answers ReadOnly(base) plus maintenance.auto=false and
+// gc.auto=0, for a query a hook runs on every session's edit over the one
+// shared index: whatever git command the caller passes, it never starts an
+// automatic maintenance or gc run, whose detached child would write objects
+// and lock files under .git after the query returned. It does not change what
+// the query prints, and it carries no diff setting, so it is right for
+// `git diff --name-status` too. The settings travel as ReadOnlyPatch's do.
+func ReadOnlyQuery(base []string) []string {
+	return withConfig(base,
+		setting{key: "maintenance.auto", value: "false"},
+		setting{key: "gc.auto", value: "0"},
+	)
+}
+
+// setting is one git config key and value carried in the environment.
+type setting struct {
+	key   string
+	value string
+}
+
+// withConfig answers ReadOnly(base) plus settings as GIT_CONFIG_KEY_<n> and
+// GIT_CONFIG_VALUE_<n> pairs numbered after any base already declares, then
+// the new GIT_CONFIG_COUNT last, so exec keeps it over base's own count.
+func withConfig(base []string, settings ...setting) []string {
 	out := ReadOnly(base)
 	count := 0
 	for _, entry := range base {
@@ -64,10 +91,9 @@ func ReadOnlyPatch(base []string) []string {
 		}
 		count = parsed
 	}
-	index := strconv.Itoa(count)
-	return append(out,
-		"GIT_CONFIG_KEY_"+index+"=diff.autoRefreshIndex",
-		"GIT_CONFIG_VALUE_"+index+"=false",
-		configCountKey+"="+strconv.Itoa(count+1),
-	)
+	for offset, pair := range settings {
+		index := strconv.Itoa(count + offset)
+		out = append(out, "GIT_CONFIG_KEY_"+index+"="+pair.key, "GIT_CONFIG_VALUE_"+index+"="+pair.value)
+	}
+	return append(out, configCountKey+"="+strconv.Itoa(count+len(settings)))
 }

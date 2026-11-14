@@ -522,8 +522,24 @@ func writeFilePatterns(ctx context) *verdict {
 // checkout) is not its business and passes unjudged, as writeDesignDoorsRead
 // treats it.
 func writeWeakening(ctx context) *verdict {
-	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") || strings.Contains(filepath.ToSlash(ctx.path), "test/draft/") {
+	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
 		return nil
+	}
+	// The draft incubator is skipped only when the file the edit reaches lies
+	// in it too: a symlink placed there that names a committed test is judged
+	// as that test. testweakened.Proposed resolves every other alias.
+	if strings.Contains(filepath.ToSlash(ctx.path), "test/draft/") {
+		// resolveEvidencePath, not resolveExisting: a dangling symlink whose
+		// committed target was removed from disk does not resolve, and
+		// resolveExisting would then answer the draft path itself, so a Write
+		// through the link would recreate the committed file unjudged. A
+		// path that does not resolve falls through to Proposed, which refuses
+		// an alias it cannot resolve. A new draft file resolves through its
+		// existing parent.
+		resolved, err := resolveEvidencePath(absolutePath(ctx))
+		if err == nil && strings.Contains(filepath.ToSlash(resolved), "test/draft/") {
+			return nil
+		}
 	}
 	if _, inside := checkoutPath(ctx); !inside {
 		return nil
