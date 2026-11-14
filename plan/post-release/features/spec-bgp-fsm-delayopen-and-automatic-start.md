@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 The BGP child of the rfc-verdict pass (spec-rfc-verdict-fix-bgp; its
 "Gap accounting" section survives in git history) left requirement rows that no spec owned.
-One spec took them (`plan/release/fixes/spec-bgp-unowned-rfc-rows.md`). On 2026-10-11 the
+One spec took them (`spec-bgp-unowned-rfc-rows`). On 2026-10-11 the
 owner put DelayOpen and Event 3 IN and split the work: "Split into three". This
 spec owns the two RFC 4271 FSM rows. The defects stay in the immediate spec; the
 EPE rows are `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md`.
@@ -123,7 +123,7 @@ DelayOpen sub-states remain phase 3a, not part of this implementation.
 - [ ] `internal/component/bgp/reactor/config.go` around line 244 (timer container parse), `internal/component/bgp/reactor/peer_settings.go` around line 69 (timer defaults, YANG as source of truth)
 - [ ] `internal/component/bgp/reactor/session_connection.go` `connectionEstablished` (line 328) fires Event 17 at line 413 and the OPEN follows through `session_negotiate.go` `sendOpen` (line 130): the OPEN is sent immediately after the TCP connection today
 - [ ] `internal/component/bgp/reactor/session_bfd_strict.go` - `advanceAfterOpen`, `handleBFDEvent`, `raiseBFDHoldTimerExpired`: the wire half of the strict-mode OpenSent sub-states, which row 6s extends to the Connect and Active sub-states
-- [ ] Comments that call the DelayOpen sub-states unreachable, all false after row 6s: `fsm/fsm.go` header lines 11 and 77, `EnterBfdUpPending` comment lines 232-240, the Connect BFD arm lines 503-512, the BfdHoldTimerExpires arm lines 531-532, the Event 24 arm lines 557-558 and 656, the Active sub-state arm lines 664-669; `fsm/state.go` lines 274-277; `fsm/timer.go` line 61; test comments `fsm/bfd_strict_test.go` line 274, `fsm/rfc4271_connect_any_other_event_test.go` line 48, `fsm/rfc4271_connect_retry_test.go` lines 320, 367, 396
+- [ ] Comments that call the DelayOpen sub-states unreachable, all false after row 6s: `internal/component/bgp/fsm/fsm.go` header lines 11 and 77, `EnterBfdUpPending` comment lines 232-240, the Connect BFD arm lines 503-512, the BfdHoldTimerExpires arm lines 531-532, the Event 24 arm lines 557-558 and 656, the Active sub-state arm lines 664-669; `fsm/state.go` lines 274-277; `fsm/timer.go` line 61; test comments `fsm/bfd_strict_test.go` line 274, `fsm/rfc4271_connect_any_other_event_test.go` line 48, `fsm/rfc4271_connect_retry_test.go` lines 320, 367, 396
 
 **Behavior to preserve:**
 - Event 6 backoff semantics and `TestRFC4271ConnectRetryCounterSurvivesDampedStart`.
@@ -135,7 +135,7 @@ DelayOpen sub-states remain phase 3a, not part of this implementation.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec |
 |-----------|-----------------------------------------|--------------------|-----------|
-| DelayOpen FSM | `fsm/delay_open.go`: `FSM.handleDelayOpen`; `fsm/fsm.go`: `FSM.handleActive` | Holds the connection and handles the DelayOpen events; Active Event 18 restarts retry | Reuses these transitions and completes their live retry obligation; no parallel FSM |
+| DelayOpen FSM | `internal/component/bgp/fsm/delay_open.go`: `FSM.handleDelayOpen`; `internal/component/bgp/fsm/fsm.go`: `FSM.handleActive` | Holds the connection and handles the DelayOpen events; Active Event 18 restarts retry | Reuses these transitions and completes their live retry obligation; no parallel FSM |
 | Timer ownership | `fsm/timer.go`: `Timers.StartConnectRetryTimer`, `Timers.StopAll` | Starts the FSM retry and cancels timers during session cleanup | AC-1e must preserve the restarted retry across connection-resource release |
 | Real connection lifecycle | `reactor/session_read.go`: `Session.handleConnectionCloseLocked` | Delivers the TCP failure event, then cancels timers | Corrects that boundary without replacing the session lifecycle |
 | Peer reconnect loop | `reactor/peer_run.go`: `Peer.run` | Drives actual reconnects with independent backoff | Uses the required initial-value retry for Active Event 18 rather than counting a timer that cleanup cancels |
@@ -458,7 +458,7 @@ This does not clear either promoted TIME30 or certify the whole RFC ledger.
 | DelayOpen with `bfd strict`: implement the two strict-mode DelayOpen sub-states (draft §8.3.5, §8.4.5), or refuse `delay-open` together with `bfd strict` at commit? (raised by the independent design review, B1) | "Implement them" | Row 6s and AC-4 to AC-9: `ConnectDelayOpenBfdUpPending` and `ActiveDelayOpenBfdUpPending` are declared and implemented, and every comment and page that calls them unreachable is corrected |
 | With DelayOpen on both sides, when the peer's OPEN arrives first on the inbound connection while Ze holds its outbound with no OPEN sent: close Ze's held outbound at once, or keep both until one reaches Established as FRR does? (round-3 design review, Q1; Thomas, 2026-10-11) | "ok" to the recommendation, after comparing FRR and BIRD | AC-1i order (b): Ze closes its held outbound at once and hands the inbound to the session. Key Design Decisions carries the rationale |
 | Approve the design after the round-5 design review (0 BLOCKER, 0 ISSUE, 3 NOTE, all folded)? (Thomas, 2026-10-11) | "Approve" | Status moves from `design` to `ready`, so `/ze-implement` may claim it |
-| One spec or several? | "Split into three" | This spec owns rows 6 and 7; the defects stay in `plan/release/fixes/spec-bgp-unowned-rfc-rows.md`, EPE is `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` |
+| One spec or several? | "Split into three" | This spec owns rows 6 and 7; the defects stay in `spec-bgp-unowned-rfc-rows`, EPE is `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` |
 
 ## Open Questions (owner)
 
