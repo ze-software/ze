@@ -102,7 +102,8 @@ whose leaf holds no secret, to `redact.Command`. Every record of a command line
 reaches it through `DisplayCommand`: the accounting record
 (`Dispatcher.BeginAccounting`, and `beginAccountingArgs` for a typed
 inter-plugin call), the audit log entry (`recordCommandAudit`, which records
-only the actions `auditActionForCommand` names, today `request reload`), the
+only a builtin whose registration declares an `AuditAction`, today
+`request reload` and `delete data key`), the
 SSH exec log (`loggedCommand`), the CLI session transcript
 (`TranscriptWriter.Record`), the unauthorized refusal, the dispatch failure log
 lines and the TACACS+ authorization log lines. The transcript is the one that
@@ -110,7 +111,7 @@ writes to a FILE, so a credential typed at the prompt outlived the session until
 `Record` was routed through it.
 
 <!-- source: internal/component/config/mask.go -- DisplayCommand -->
-<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, beginAccountingArgs, recordCommandAudit, auditActionForCommand -->
+<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, beginAccountingArgs, recordCommandAudit -->
 <!-- source: internal/component/ssh/passwordauth.go -- loggedCommand -->
 
 **A daemon command that carries caller bytes names them `content`, and

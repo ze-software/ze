@@ -1073,6 +1073,20 @@ plugin command that declared itself completable is answered by its plugin.
 <!-- source: internal/component/plugin/server/arg_completion.go -- ArgCompleter, builtinArgCompletions, WireArgCompletion -->
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandComplete, handleArgComplete, commandRows -->
 
+A builtin that changes state an operator must be able to trace declares an
+`AuditAction` (an `audit.Action*` value) in its `RPCRegistration`. After a
+successful run the dispatcher records one audit entry under that action, with
+the command line through `config.DisplayCommand` as its detail, so a credential
+value and the value after `content` read as the placeholder. A refusal or a
+handler error records nothing, and a registration that declares no action is
+not audited: the dispatcher never picks the audited commands by their text.
+`request reload` declares `daemon-reload` and `delete data key` declares
+`data-key-change` (`docs/guide/audit.md`). A plugin command has no such
+declaration: `pkg/plugin/sdk` carries none, so the audit log records no plugin
+command.
+<!-- source: internal/component/plugin/server/handler.go -- RPCRegistration.AuditAction -->
+<!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
+
 ### Process Lifecycle Commands
 
 ```

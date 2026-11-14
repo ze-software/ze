@@ -17,6 +17,9 @@ const (
 	MaxMaxEntries     = 100000
 )
 
+// The actions an entry records. A daemon command records one by declaring it
+// on its builtin RPC registration (plugin/server RPCRegistration.AuditAction);
+// the other surfaces name theirs where they record.
 const (
 	ActionConfigCommit   = "config-commit"
 	ActionConfigDiscard  = "config-discard"
@@ -24,6 +27,12 @@ const (
 	ActionConfigUpload   = "config-upload"
 	ActionDaemonReload   = "daemon-reload"
 	ActionAuthFail       = "auth-fail"
+	// ActionDataKeyChange is a runtime-state key of the daemon's store removed
+	// or written through the daemon, as `delete data key` removes one.
+	ActionDataKeyChange = "data-key-change"
+	// ActionDataConfigImport is a config imported into the daemon's store
+	// through the daemon, as a new version of that config.
+	ActionDataConfigImport = "data-config-import"
 )
 
 const (

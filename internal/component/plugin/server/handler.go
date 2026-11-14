@@ -348,6 +348,12 @@ type RPCRegistration struct {
 	// daemon's runtime state, for tab completion (arg_completion.go). Nil
 	// means the argument completes from its YANG leaves alone.
 	Complete ArgCompleter
+	// AuditAction is the audit action (audit.Action*) a successful run of the
+	// command records, through the dispatcher's audit recorder, with the
+	// redacted command line as its detail. Empty means the command records no
+	// audit entry. The owner declares it here, so the dispatcher never names a
+	// command by its text to decide what is audited.
+	AuditAction string
 	// registrar is the import path of the package that called RegisterRPCs.
 	// Only RegisterRPCs writes it, and the field is private so that neither a
 	// struct literal nor a caller holding the slice AllBuiltinRPCs returns can

@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -42,7 +43,7 @@ func init() {
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-reboot", Handler: handleDaemonReboot},
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-quit", Handler: handleDaemonQuit},
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-status", Handler: handleDaemonStatus},
-		RPCRegistration{WireMethod: "ze-plugin:system-daemon-reload", Handler: handleDaemonReload},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-reload", Handler: handleDaemonReload, AuditAction: audit.ActionDaemonReload},
 		RPCRegistration{WireMethod: "ze-plugin:system-subsystem-list", Handler: handleSystemSubsystemList},
 		RPCRegistration{WireMethod: "ze-plugin:system-command-list", Handler: handleSystemCommandList},
 		RPCRegistration{WireMethod: "ze-plugin:system-command-help", Handler: handleSystemCommandHelp},

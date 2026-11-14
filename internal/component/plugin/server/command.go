@@ -95,6 +95,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 			Description:      pathToHelp[name],
 			Owner:            reg.WireMethod,
 			Complete:         reg.Complete,
+			AuditAction:      reg.AuditAction,
 		}); err != nil {
 			return err
 		}
@@ -152,6 +153,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 				Description:      pathToHelp[name],
 				Owner:            reg.WireMethod,
 				Complete:         reg.Complete,
+				AuditAction:      reg.AuditAction,
 			}); err != nil {
 				return err
 			}
@@ -530,6 +532,10 @@ type Command struct {
 	// daemon's runtime state (arg_completion.go). Nil means the command
 	// declares none, and its argument completes from its YANG leaves alone.
 	Complete ArgCompleter
+	// AuditAction is the audit action a successful run of this command records
+	// (recordCommandAudit), from its builtin RPC registration. Empty means the
+	// command records no audit entry.
+	AuditAction string
 }
 
 // TakesInlineSelector reports whether Dispatch would consume an INLINE selector
@@ -567,6 +573,7 @@ type RegisterOptions struct {
 	Description      string           // The long explanation the command's own help page prints (empty = none declared)
 	Owner            string           // The wire method of the builtin RPC registering the command (empty = none declared)
 	Complete         ArgCompleter     // The argument completer the builtin RPC declares (nil = none declared)
+	AuditAction      string           // The audit action a successful run records (empty = no audit entry)
 }
 
 // ErrCommandHeld is the refusal Dispatcher.RegisterWithOptions returns for a
@@ -662,6 +669,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		RequiresSelector: opts.RequiresSelector,
 		ArgDefs:          opts.ArgDefs,
 		Complete:         opts.Complete,
+		AuditAction:      opts.AuditAction,
 	}
 	d.updateSortedKeys()
 
@@ -1236,7 +1244,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		}
 
 		resp, handlerErr := matchedCmd.Handler(ctx, validated)
-		d.recordCommandAudit(ctx, input, resp, handlerErr)
+		d.recordCommandAudit(ctx, matchedCmd.AuditAction, input, resp, handlerErr)
 		return resp, handlerErr
 	}
 
@@ -1423,8 +1431,13 @@ func firstFlagToken(args []string) string {
 	return ""
 }
 
-func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp *plugin.Response, err error) {
-	action := auditActionForCommand(input)
+// recordCommandAudit records one audit entry for a builtin command that ran,
+// under action, the audit action its registration declares
+// (RPCRegistration.AuditAction). An empty action records nothing, and so does
+// a handler that failed or refused: the log records what changed state. The
+// detail is the command line through config.DisplayCommand, so a secret or a
+// `content` value reads as the placeholder.
+func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, action, input string, resp *plugin.Response, err error) {
 	if d.audit == nil || action == "" || err != nil {
 		return
 	}
@@ -1448,14 +1461,6 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp 
 	if recordErr := d.audit.Record(entry); recordErr != nil {
 		logger().Warn("audit record failed", "code", "doctor-audit-record-failed", "action", action, "command", input, "error", recordErr)
 	}
-}
-
-func auditActionForCommand(input string) string {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	if lower == "request reload" {
-		return audit.ActionDaemonReload
-	}
-	return ""
 }
 
 // dispatchSubsystem routes a command to a forked subsystem process.

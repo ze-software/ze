@@ -1001,7 +1001,7 @@ func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 	d := NewDispatcher()
 	if err := d.RegisterWithOptions("request reload", func(_ *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
-	}, "reload", RegisterOptions{}); err != nil {
+	}, "reload", RegisterOptions{AuditAction: audit.ActionDaemonReload}); err != nil {
 		t.Fatal(err)
 	}
 	recorder, err := audit.NewMemory(100)
