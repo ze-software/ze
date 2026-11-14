@@ -2,24 +2,26 @@
 title: Keeping documentation in step with the code
 date: 2026-08-22
 author: Thomas Mangin
-description: Ze generates command, configuration and support reference data from the code and its records, so the website does not depend on a second list being updated by hand.
+description: Ze generates public reference from its code and records, with links to the decisions behind them. Operators and future AI sessions can use the same maintained account of the system.
 
-deck: Shared command metadata supplies both the program and its reference pages, so keeping them consistent becomes part of the documentation build.
+deck: Generated reference data and maintained design explanations give operators and future AI sessions a common account of Ze.
 
 image: assets/blog/reference-from-the-system.svg
 image-dark: assets/blog/reference-from-the-system-dark.svg
 image-alt: Command definitions supply the reference pages, with links from the documentation back to the source.
 ---
 
-When a command reference is written separately from the code, keeping it accurate depends on someone remembering to update it each time the command changes. The code can be changed and tested while the website still describes the old syntax, leaving a reader to follow instructions that no longer work. The documentation was correct when written; it became misleading because maintaining it required a separate edit that was missed.
-
-In Ze, we address this by using shared command metadata to generate the reference pages. That metadata describes the arguments and their help text for use in the program, so it also provides the information needed to document them. An argument change is then recorded in one place and appears in the reference on the next documentation build. Keeping the two consistent becomes part of how we build the software and its documentation, instead of something a developer has to remember afterwards.
+An outdated command reference can mislead an operator and give the next AI session the wrong account of the system. In Ze, the network operating system I am developing, I want both readers to work from the facts and explanations we maintain alongside the code.
 
 *This article was drafted and revised with OpenAI Codex. The design, decisions and conclusions are mine.*
 
 ## From a command definition to its reference page
 
-The command metadata is available through Ze's built-in help. As well as displaying it in a terminal, we can request it as structured data with `ze help command --json`. The [catalogue producer](https://github.com/ze-software/ze/blob/main/internal/le/docvalid/command_render.go) runs that command against Ze compiled from the checkout, giving the website build a list of commands from the code being documented.
+When a command reference is written separately from the code, keeping it accurate depends on someone remembering to update it each time the command changes. The code can be changed and tested while the website still describes the old syntax, leaving a reader to follow instructions that no longer work. The documentation was correct when written; it became misleading because maintaining it required a separate edit that was missed.
+
+In Ze, we address this by using shared command metadata to generate the reference pages. That metadata describes the arguments and their help text for use in the program, so it also provides the information needed to document them. An argument change is then recorded in one place and appears in the reference on the next documentation build. Keeping the two consistent becomes part of how we build the software and its documentation, instead of something a developer has to remember afterwards.
+
+Those same definitions supply Ze's built-in help. As well as displaying them in a terminal, we can request them as structured data with `ze help command --json`. The website build [obtains this catalogue](https://github.com/ze-software/ze/blob/main/internal/le/doc/yangcontract/command_render.go) from Ze compiled from the checkout, so the command list comes from the code being documented.
 
 The [reference generator](https://github.com/ze-software/ze/blob/main/internal/le/site/commands.go) uses this list to produce the syntax and descriptions for both the website and a Markdown reference. Because both versions use the same input, correcting a help description once updates the terminal help and, on the next build, both documents. We can change how the reference is presented without having to maintain its command list separately.
 
@@ -31,13 +33,13 @@ Configuration presents the same maintenance problem, with the added complication
 
 Ze's configuration tree already combines those definitions for the running program. The [configuration reference generator](https://github.com/ze-software/ze/blob/main/internal/le/site/yang.go) obtains that tree with `show yang tree --config | json`, including the settings supplied by plugins in the build. Generating the reference from this tree includes their contributions without a second description of the available configuration.
 
-We use the registrations in the code for the [plugin inventory](https://github.com/ze-software/ze/blob/main/internal/le/inventory/plugins.go) too. Each inventory entry identifies the plugin and its configuration root, with a link to the package that implements it. A reader can see where the plugin's settings belong and find the source that implements them.
+The [plugin inventory](https://github.com/ze-software/ze/blob/main/internal/le/repo/inventory/plugins.go) reads the registrations from a committed source snapshot. Its entries identify plugins and their configuration roots, and the website links each entry to its implementation package. This gives a reader investigating a plugin's settings a route from the public reference into the source, without maintaining another list of packages for the website.
 
 ## Publish the support records we use during development
 
 Command names and configuration options can be taken directly from definitions in the program. Protocol support requires more judgement: the presence of BGP code does not establish that every requirement of a particular RFC has been implemented. A manually written list of supported RFCs would also need revisiting whenever we implemented a missing requirement or discovered a gap.
 
-For Ze, we record individual RFC requirements and connect them to tests and records of missing behaviour. These are the records we use to assess implementation progress, so we use them to generate the [public compliance pages](../../quality/rfc-compliance/) as well. The [RFC ledger generator](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) combines the requirement rows with our recorded descriptions of support. Updating a gap or a description during development then updates the public account on the next website build.
+For Ze, we record individual RFC requirements and connect them to tests and records of missing behaviour. These are the records we use to assess implementation progress, so we use them to generate the [public compliance pages](../../quality/rfc-compliance/) as well. The [RFC ledger generator](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) combines the requirement rows with our recorded descriptions of support. Updating a gap or a description changes the generated reference on the next full website build. The public account changes when that build is published.
 
 This also lets a reader examine what a support claim means. A partial-support entry links to the requirements Ze has not yet implemented and the tests cited for implemented behaviour. The page also shows where we have evidence that a test detects a particular mistake. [The proof is the expensive part](../the-proof-is-the-expensive-part/) explains why a test can pass while leaving the required application behaviour unchecked.
 
@@ -49,12 +51,30 @@ Generating the page keeps it consistent with our records, but those records are 
 
 The reason for a design choice cannot usually be recovered from the code that implements it. A dependency list makes this limit easy to see: `go.mod` records which modules we use and their versions, but it does not record why I chose them. The [dependency page generator](https://github.com/ze-software/ze/blob/main/internal/le/site/dependencies.go) therefore combines those versions with explanations we maintain separately.
 
-Those explanations can become outdated too, so a check compares them with the direct dependencies. It reports a new dependency with no explanation, or an explanation for a module that is no longer used directly. This identifies an omission for us to correct, while reviewing whether the explanation is useful remains a writing task.
+Those explanations can become outdated too, so `checkDependencyDrift` compares the entries with the direct dependencies and refuses to publish a mismatched list. A new dependency needs an explanation, and an entry for a module no longer used directly needs removing. The check identifies the missing edit, while reviewing whether the explanation is accurate and useful remains a writing task.
 
-The same applies to documents about Ze's design. We can generate a command's accepted arguments, but explaining why we chose that interface requires the reasoning behind the decision. [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/) describes how we connect those explanations to the code, so the person or agent changing it can find the decisions they need to consider.
+## Give the next session the same context
 
-Even the generated reference must be read and checked. An incorrect help description will appear in the terminal and on the website, and the generator will reproduce it until we correct the source. The pages must also identify which build they describe, because documentation generated from today's code can give the wrong instructions to someone running an older build.
+The reasons behind a design choice also matter when an agent comes to change it. Reading the implementation can show how a command works while leaving unexplained why I chose that interface or imposed a particular constraint. If the reason remains only in an earlier conversation, the new session can propose a design I already rejected, and I have to explain the decision again.
 
-For Ze, keeping the public website in step with the published code is a requirement. Generating the reference removes the separate manual description, but the resulting pages still have to be rebuilt and published with the corresponding changes. Otherwise we would have correct documentation in the build directory and outdated instructions in front of the reader.
+We therefore keep those explanations in the repository and connect them to the code. The generated [design-to-code](https://github.com/ze-software/ze/blob/main/ai/DOCS-TO-CODE.md) and [code-to-documentation](https://github.com/ze-software/ze/blob/main/ai/CODE-TO-DOCS.md) indexes let a session reach the reasoning from an implementation, or find the implementation from its explanation. An operator following a source link from the public reference can reach the same account.
 
-*Originally written: 22 August 2026. Last updated: 21 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/reference-from-the-system.md).*
+Ze's [documentation rules](https://github.com/ze-software/ze/blob/main/ai/rules/documentation.md) require the agent to read that account before investigating the code. When its change affects a command definition or a support record, it updates the source from which the reference is generated. When I change a design, the explanation has to change with the implementation too. The next agent and the operator can then recover the revised decision, without a separate account being written for each of them.
+
+[AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/) develops the conventions for finding and maintaining these relationships, and [The repository is half the AI harness](../the-repository-is-the-ai-harness/) explains the instructions and checks around their use. Here, using the same records means that the agent maintaining Ze also maintains the information from which we publish its reference. Leaving an old explanation in place would pass the wrong decision to both readers.
+
+## Maintaining the shared reference
+
+Generation gives us a precise way to check an inventory: the published commands should match the catalogue, and the published versions should match `go.mod`. An incorrect help description can still appear in both the terminal and the website. Whether its words explain the command correctly requires reading and judgement, just as an article does. Sharing the description removes the duplicate edit without establishing that the description makes sense.
+
+The generators and links need maintenance too. A new kind of command data can require a change to the renderer, and moving a source file can break the route from its explanation. An automatic check can also refuse a legitimate edit, leaving someone to establish whether the edit or the check is wrong before proceeding.
+
+Choosing the producing source requires review as well. A generator connected to the wrong source could publish a consistent account of something other than the behaviour we meant to document. Checking that the page matches its input would miss that mistake, just as a correct join between RFC records cannot establish that the tests exercise the required behaviour.
+
+The reference also has to correspond to the reader's version of Ze. The build reads command and configuration data from a binary compiled from the working checkout, plugin inventory from committed source, and RFC records from the checkout. It does not freeze those inputs into one snapshot, so a local preview can combine working changes with committed data.
+
+For Ze, keeping the public website in step with the published code is a requirement. The code and records chosen for publication therefore have to correspond to the same intended version, and the pages must identify that version for readers using older builds. The resulting pages still have to be rebuilt and published with the corresponding code changes. Otherwise we would have correct documentation in the build directory and outdated instructions in front of the reader.
+
+I also want the next agent session to be able to continue from a decision I have already made. Keeping the explanation connected to the implementation gives it a place to find that decision, and the same source records give it a way to update the public reference when its change affects an operator. I can spend the next conversation on the decision we now need to make, instead of reconstructing the one made last time.
+
+*Originally written: 22 August 2026. Last updated: 13 November 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/reference-from-the-system.md).*

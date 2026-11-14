@@ -2,75 +2,106 @@
 title: The proof is the expensive part
 date: 2026-08-06
 author: Thomas Mangin
-description: Passing unit tests and CI does not establish that Ze behaves as the protocol requires. Our RFC testing framework connects each requirement to the behaviour its tests observe.
+description: Ze aims to meet every applicable mandatory RFC requirement. Interoperability labs and tests tied to the RFC text help establish what the running router does and which claims remain unverified.
 
-deck: A function can calculate the right BGP hold time while the running daemon uses the wrong one. Ze's RFC testing framework is intended to expose gaps like this.
-
+deck: Tests can pass while the router still does the wrong thing.
 
 ---
 
-When a unit test calls a function and checks its return value, a passing result tells us that the function produced the answer the test expected. It tells us nothing about whether the running daemon acts on that answer correctly. Ze can therefore pass its unit tests while still behaving incorrectly as an application, and the gap is harder to see when Claude writes both the code and its tests from the same misunderstanding of the protocol.
-
-Running the tests automatically in continuous integration, or CI, repeats the checks whenever the code changes. But CI cannot perform a check that nobody put in the test. Before relying on a routing daemon, I need evidence that the running program responds as the protocol requires when it communicates with another router.
-
-We are building Ze's RFC testing framework to connect each protocol requirement to a test which observes the required behaviour. The difficulty is in establishing what that test must observe. The BGP hold timer gives a simple example of why checking a calculation is not enough to show that the daemon uses its result correctly.
+AI can write a feature and get its first tests passing quickly. If the code and its tests have both been written and reviewed by agents, someone considering the software still needs a reason to trust it. Establishing that the running router does what the protocol requires takes much longer.
 
 *This article was drafted and revised with OpenAI Codex. The ideas, experience and conclusions are mine.*
 
-## A correct calculation is only the beginning
+## The objective is RFC compliance
 
-BGP routers exchange messages to keep a session alive. If one router stops hearing from the other for the agreed hold time, it closes the session. Each router proposes a hold time when the session starts, and [RFC 4271 section 4.2](https://www.rfc-editor.org/rfc/rfc4271.html#section-4.2) says they must use the smaller of the two values.
+Ze is the network operating system I am building. I review its structure and overall implementation, while relying on agents for much of the detailed code and test review. The basis for trusting their output has to be something an operator can examine independently.
 
-A unit test could give a function two proposed values and check that it returns the smaller one. That would tell us about the calculation, but the daemon could still start the timer with the wrong value. The unit test would pass even though a silent peer remained connected longer than intended.
+Our goal is to satisfy every applicable mandatory requirement in the protocol specifications Ze implements. These are published as Requests for Comments, or RFCs, and include `MUST` and `MUST NOT` obligations which define how the router must behave. Establishing that behaviour is part of deciding whether Ze is ready to depend on in a network.
 
-Ze's [functional test](https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci) starts the daemon with a hold time of 180 seconds and connects a peer that proposes three seconds. The peer then stays silent. The test expects Ze to send a hold-timer-expired notification within the test's time limit, well before the 180 seconds Ze proposed.
+We are building an RFC testing framework to connect each obligation to tests which observe the required behaviour. That is ongoing work, and a claim of support needs to show which requirements have been checked and where evidence is still missing.
 
-The functional test observes what the daemon does with the negotiated value, rather than stopping at the result of a calculation. It checks one case: the peer proposes the smaller value and then stops sending messages. Other cases need their own tests, including one where Ze proposes the smaller value.
+## Work with other implementations
 
-## Connect tests to requirements
+Ze has to exchange routes correctly with software people already use. Our [interoperability labs](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/interop.md) run Ze alongside implementations such as FRR, BIRD and GoBGP, with checks on what those peers receive. This exercises both ends of a protocol exchange with independently developed software.
 
-Adding more tests does not necessarily reveal a missing case. We need to start with the behaviour required by the RFC and find the observation that demonstrates it. Ze's [requirement checklists](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4271.md) give each obligation an identifier, which tests cite to state what they check. A reviewer can then compare the assertions with the requirement instead of inferring coverage from the number of passing tests.
+A session reaching the established state is only the beginning. The tests must check the routes exchanged and the effects of the particular feature being exercised. A peer can accept an UPDATE while discarding an attribute Ze should never have sent, so even successful route delivery can leave a protocol defect hidden.
 
-An identifier gives a reviewer a route from an RFC requirement to the tests that cite it. The reviewer can then examine what each test sends and observes. The identifier alone cannot establish that a test covers every case the requirement describes, and it must name the right requirement for the link to be useful.
+## Observe the exchange in the lab
 
-The [public RFC page](../../quality/rfc-compliance/rfc4271/) brings requirements and their test references together so a reviewer can follow an obligation to its tests and inspect what they exercise. Maintaining that connection gives us a way to investigate a support claim: we can see which part of the requirement is asserted and which part still lacks evidence.
+The lab gives us a controlled setup in which to arrange those exchanges and inspect their results. For example, `LOCAL_PREF` expresses a route's preference within an autonomous system, and normally has to be removed when a route is sent to an external peer.
 
-A correct assertion is only useful if the test runs. A scenario can remain in the repository after it has been left out of the maintained suites, giving the appearance of coverage without an automatic check. The framework's [scanner](https://github.com/ze-software/ze/blob/main/internal/le/rfc/carriers.go) detects this by rejecting requirement tags in recognised test files which no runner executes.
+In a [recorded lab run on 10 November 2026](https://github.com/ze-software/ze/blob/b2b6a36ef0/internal/le/interoplab/bgp/testdata/bgp-local-pref-strip-gobgp/bgp-local-pref-strip-gobgp-UIYSVYU5KP45REAV3CAV7EZJQQ.jsonl), Ze received three routes carrying `LOCAL_PREF` 200 from an internal peer. All three reached the external FRR and GoBGP destinations, and the test observed that both sessions remained established. It also inspected Ze's outgoing messages towards GoBGP through the scenario's declared observation interval and checked that `LOCAL_PREF` was absent.
 
-Having a runner makes the test available, but does not establish that it ran for a particular change. Functional verification selects suites according to the change, so reviewing the result still requires checking which scenarios were executed. The requirement table tells us where the evidence should come from; it cannot replace a test result.
+The wire observation matters because an external receiver is required to ignore `LOCAL_PREF`. Looking only at a receiver's stored routes could therefore hide a sender's mistake. The [lab checker](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go) checks successful delivery as well as the transmitted bytes, so dropping every route cannot satisfy the test either.
+
+Establishing that result required a setup which exercised forwarding after the destination sessions were established, together with observations of both delivered routes and transmitted bytes. If the setup never reaches that forwarding path, or the test looks only at the receiver's stored routes, a passing result leaves the sender's behaviour unchecked. Finding such an omission sends us back to the setup or assertions before the test can tell us whether the implementation is correct.
+
+## Derive the checks from the RFC
+
+Choosing those observations requires reading the protocol's exact requirements. [RFC 4271 section 5.1.5](https://www.rfc-editor.org/rfc/rfc4271.html#section-5.1.5) states:
+
+> A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065].
+
+That sentence gives the LOCAL_PREF wire check its purpose, including an exception which matters when deciding where it applies. Adding tests only for the examples we happen to think of can leave another required case undiscovered. Ze's [requirement checklists](https://github.com/ze-software/ze/blob/main/rfc/short/rfc4271.md) therefore start from the RFC's obligations and give each one an identifier. A test cites that identifier and states the particular behaviour it checks, so another reviewer can compare its assertions with the requirement.
+
+A test can agree perfectly with our checklist while both omit something required by the RFC. An obligation can appear in a table, a state machine or ordinary prose without using the word `MUST`. Some passages concern roles Ze does not perform, and others depend on another RFC, so the checklist itself needs review against the source text.
+
+We record which passages justify each requirement and why we exclude others. An [automated check](https://github.com/ze-software/ze/blob/main/internal/le/rfc/signoff.go) flags passages left unaccounted for and checklist requirements with no recorded basis. A reviewer still has to read the RFC and decide whether the interpretations and exclusions are justified.
+
+Recommendations remain distinct from mandatory obligations, because recording a recommendation as mandatory would misrepresent the RFC too. The records make those decisions available for someone else to challenge, but cannot reveal an obligation missed by both the tool and the reviewer.
+
+## Cover the whole required response
+
+The required observations can extend beyond whether a session survives. [RFC 7606 section 7.1](https://www.rfc-editor.org/rfc/rfc7606.html#section-7.1) says a BGP UPDATE with a malformed ORIGIN attribute must receive treat-as-withdraw handling. Under [section 2](https://www.rfc-editor.org/rfc/rfc7606.html#section-2), the routes in that UPDATE are treated as withdrawn, removing them from the routes received from that peer.
+
+One of Ze's [functional scenarios](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-withdraw.ci) starts the daemon and a peer, sends an UPDATE with a two-octet ORIGIN where one octet is required, then expects a later valid announcement over the same connection. That announcement checks that the session survives. Ignoring the malformed UPDATE would also keep the session alive, so the later announcement alone cannot distinguish that mistake from correct treat-as-withdraw handling.
+
+The scenario does not inspect the receiver's stored routes before or after the malformed UPDATE. Its comments acknowledge that limit, and it does not claim to establish that a previously installed route was removed. Separate [component tests](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go) install a route and assert that the malformed re-announcement removes it, but they drive component handlers directly. Establishing the same effect through the complete daemon requires observing route removal there too.
 
 ## Check whether the test would notice a bug
 
-Even when the expected result has been observed, we can be wrong about what caused it. In [The repository is half the AI harness](../the-repository-is-the-ai-harness/), I describe route redistribution tests which continued to pass after the intended behaviour was disabled. The route reached the peer through another path, so the test could observe success while the feature it was supposed to protect was broken.
+A test can observe the expected result for the wrong reason. As I describe in [The repository is half the AI harness](../the-repository-is-the-ai-harness/), a route can arrive through an unintended path and keep a test passing after the feature under test has been disabled.
 
-If the test still passes after breaking the behaviour it is meant to check, it cannot be relied on to detect that fault. Its setup or assertions must be corrected before we rely on it. We store the result of this exercise so a reviewer can see whether the test detected that particular fault.
+Ze's [fault-detection checks](https://github.com/ze-software/ze/blob/main/internal/le/rfc/discriminate_observe.go) test this by first requiring the test to pass, then deliberately breaking the producing code and requiring that same test to fail. A build failure or an unrelated failing test cannot supply the required observation. If the selected test still passes, either the break did not affect the claimed behaviour or the test failed to notice it, and no successful fault-detection record is written.
 
-The [public RFC report](../../quality/rfc-compliance/rfc4271/) shows this evidence separately from the requirement cited by the test. That citation states what the test claims to cover, while a failure after the deliberate break shows that the test can detect that mistake. Without the corresponding evidence, that ability remains unproven. Even with it, other mistakes can go undetected, so the report only supports the particular check we performed.
+The LOCAL_PREF experiment included that second step. The [10 November record](https://github.com/ze-software/ze/commit/22d430d39b) reports a successful lab run, followed by a failure after the code suppressing `LOCAL_PREF` towards external peers was deliberately disabled. The wire check reported that the attribute had appeared on the actual external destination connection. The record supports the observation for the versions tested and shows one specific fault the test could detect.
 
-Changes to the test can undermine that evidence too. If Claude changes an expected result to match a defect, the next run can pass without the required behaviour having been restored. Ze's [test-edit process](https://github.com/ze-software/ze/blob/main/ai/rules/testing.md) requires an independent agent to judge changes that could weaken a test, as well as changes to RFC-tagged tests. Since automated checks cannot recognise every change of meaning, the reviewer still has to compare the revised assertion with the requirement.
+The public report keeps that record separate from the requirement citation. The citation says what the test claims to check; the recorded failure shows that it detected a particular deliberately introduced mistake. Other mistakes can still pass unnoticed. This is the practical meaning of proof here, with its scope limited to the observation the record contains.
 
-The public record can also show that evidence is missing. As of 11 September 2026, for example, RFC 7606 had tests citing its requirements but no stored result showing that those tests detected a deliberate fault. There was also no record confirming that the requirement list had been checked against the RFC. Publishing those omissions prevents a reader from mistaking the existence of test references for completed verification.
+## Preserve what the evidence established
 
-## The requirements need review too
+An old observation can become misleading when the code or test changes. Ze's [stored records](https://github.com/ze-software/ze/blob/main/internal/le/rfc/discriminate.go) identify the test and producing code, together with the claim being checked, and store fingerprints of those inputs. Changes can then be detected, so an old result is not presented as evidence for a different version. Matching fingerprints do not rerun the experiment.
 
-Reviewing the requirement list against the RFC is necessary because a test can agree perfectly with our checklist while both omit something required by the RFC. An obligation can appear in a table, a state machine or ordinary prose without using the word `MUST`. Identifying it also requires understanding where it applies: some passages concern roles Ze does not perform, and others depend on another RFC.
+The [test-edit rules](https://github.com/ze-software/ze/blob/main/ai/rules/testing.md) forbid agents from changing expected results, removing assertions or skipping tests simply to obtain a passing run. If an agent believes a test itself is wrong, it must explain the defect and obtain independent approval before changing its expectations. Changes which could weaken a test require that review, and changes to RFC-tagged tests must be checked against the RFC's actual text.
 
-We record where each checklist requirement came from so another reviewer can inspect those interpretations. An [automated check](https://github.com/ze-software/ze/blob/main/internal/le/rfc/signoff.go) compares these records with passages identified in the RFC text. Each passage must either link to a requirement or have a reason for leaving it out. A passage with neither may contain an obligation we overlooked, and the recorded reasons let a reviewer question our exclusions.
+An independent reviewer is another agent which did not write the change, ideally starting with a fresh context. It reads the old and proposed tests, the code they exercise and the relevant requirement, alongside the author's reason for the change. It must decide whether the expectation was wrong or whether the change would conceal a defect. The author cannot approve its own explanation.
 
-The comparison also runs from the checklist back to the source. Each mandatory requirement must have a source passage or an explanation of why the inventory missed it, giving the reviewer a place to check whether we attributed the requirement correctly. This helps expose an invented obligation as well as a missed one. Recommendations remain distinct from mandatory obligations, so reviewers can assess them according to the requirement level in the RFC.
-
-These records make exclusions available for review alongside the requirements we included. They cannot reveal a requirement missed by both the tool and the reviewer, so recording that someone read the RFC does not establish that they found every requirement. Another reader can still find an omission or disagree with an interpretation.
+Automated checks cannot recognise every change of meaning, and the reviewer can share the author's misunderstanding. The rules give us a way to challenge a convenient passing result against the original requirement.
 
 ## Be clear about what we can claim
 
-An incomplete test and an implementation that departs from the standard leave different kinds of uncertainty for an operator. A test might leave a required behaviour unchecked even though the implementation is correct. A documented implementation gap, on the other hand, identifies behaviour that Ze does not yet provide as required.
+A missing check and an implementation gap leave different kinds of uncertainty for an operator. Ze might behave correctly without a test observing it. A documented implementation gap identifies behaviour that Ze does not yet provide as required, and can rule it out for a network which needs that behaviour.
 
-Ze's [website generator](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) publishes the requirement rows alongside stored audits and proof records so someone considering Ze can examine both kinds of gap. The support declaration remains our judgement, and the page carries no IETF certification. Publishing the records gives the reader a basis for assessing that judgement before relying on it.
+Leaving a known gap undisclosed moves the risk to the operator, who may discover the limitation only when trying to use the feature. Naming the missing behaviour gives them a chance to assess it before depending on Ze in their network.
 
-An unimplemented requirement can be irrelevant in one network and essential in another. Naming the missing behaviour lets an operator assess it against their intended use of Ze. A broad claim of RFC support could leave them to discover the limitation only when they tried to use the feature.
+Ze's [public RFC reports](../../quality/rfc-compliance/rfc4271/) publish requirement rows alongside stored reviews and fault-detection records. Someone considering Ze can examine what has been claimed, which tests are cited and what evidence accompanies them. These remain Ze's own records, with no IETF certification, and publishing them does not turn incomplete verification into a guarantee.
 
-In [AI slop is the wrong test](../ai-slop-is-the-wrong-test/), I argued that I remain responsible for what Claude produces. The RFC framework helps me act on that responsibility by following a claimed feature from the protocol requirement to the behaviour observed in a test. If the test stops at a helper function or omits a required observation, we have a specific gap to address before trusting the application.
+Where a test is listed without a recorded fault-detection result, we have not yet established that it catches the mistake it is meant to detect. Where the requirement list has not been checked against the RFC, we may also have missed obligations entirely. Publishing those gaps makes clear what still needs checking before we can claim coverage.
 
-Claude can write an implementation much faster than I could, but establishing that the running application behaves correctly takes longer and sometimes requires correcting the tests as well as the code. I expected Ze to be finished by now. A passing test run can hide unfinished verification, and finding those omissions is part of the development still ahead of us.
+In [AI slop is human slop](../ai-slop-is-the-wrong-test/), I argued that I remain responsible for what Claude produces. I still review the structure and overall implementation, while relying on the development process to provide suitable tests and independent checks of their design. Connecting a requirement to an observed behaviour, then checking that the test can detect a fault, gives that reliance a basis beyond the author's confidence in its own code.
 
-*Last updated: 21 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/the-proof-is-the-expensive-part.md).*
+## Smaller tests give faster feedback
+
+Broader scenarios take more setup and time, so we also need smaller checks while developing. Ze has many unit tests, fewer [integration and functional tests](https://github.com/ze-software/ze/blob/main/docs/functional-tests.md), and fewer still of the complete network lab scenarios. Unit tests let Claude and Codex check a small part of the code quickly, while integration tests exercise components together. Retaining cases at each level helps detect behavioural regressions as the project changes.
+
+The BGP hold timer illustrates their different scopes. Routers use it to detect a peer which has stopped sending messages; with a non-zero hold time, expiry requires a notification and session closure. [RFC 4271 section 4.2](https://www.rfc-editor.org/rfc/rfc4271.html#section-4.2) requires the smaller of the two routers' proposed hold times to be used. A unit test can check that the negotiation code selects that value, while a test of the daemon can check what happens when the peer goes silent.
+
+Ze's [functional test](https://github.com/ze-software/ze/blob/main/test/plugin/open-hold-time-peer-lower-wins.ci) proposes 180 seconds, connects a peer proposing three seconds and expects the exact bytes of a hold-timer-expired notification within a 20-second budget. That can expose a daemon using its own longer value even when the negotiation function passes its tests. The test does not separately assert connection closure or expiry at exactly three seconds, and the opposite negotiation case needs its own test.
+
+Continuous integration, or CI, automates repeated runs of these checks. Ze's [GitHub workflow](https://github.com/ze-software/ze/blob/main/.github/workflows/verify.yml) runs checks on pushes and pull requests, while [scheduled jobs](https://github.com/ze-software/ze/blob/main/.github/workflows/evidence-nightly.yml) run further suites, including interoperability labs. The framework's [scanner](https://github.com/ze-software/ze/blob/main/internal/le/rfc/carriers.go) rejects requirement tags in recognised test files which have no automatic runner. That establishes where a test can run; the results for a particular change still have to show that it ran.
+
+Claude can write an implementation much faster than I could, but establishing that the application behaves correctly takes longer. Changes to the implementation, test setup or checker can require us to repeat that investigation before relying on the result.
+
+I expected Ze to be finished by now. Finding what a test failed to observe can send us back to its setup and assertions before it can tell us whether the implementation works, and correcting those checks is part of the development work still to do.
+
+*Originally written: 6 August 2026. Last updated: 13 November 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/the-proof-is-the-expensive-part.md).*
