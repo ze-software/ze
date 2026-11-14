@@ -100,7 +100,15 @@ func registerPeerRowShapes() {
 // which emits no Data bytes here because PeerInfo does not carry them. That
 // bounding is load-bearing: last-error reaches the PUBLIC looking glass
 // (lg/server.go query path), and code/subcode originate from a remote peer.
+//
+// A session ze closed by itself with no NOTIFICATION built, because the peer
+// accepted no data for the write budget, has no NOTIFICATION to render. Its
+// cause is the last error when it is the newer of the two records, in the
+// fixed words of plugin.CloseCause, which carry no peer input.
 func lastErrorString(p *plugin.PeerInfo) string {
+	if closedWithoutNotification(p) {
+		return p.LastCloseCause.String()
+	}
 	if p.LastNotifDirection == plugin.NotifNone {
 		return ""
 	}
@@ -112,6 +120,19 @@ func lastErrorString(p *plugin.PeerInfo) string {
 		return n.String() + " (not sent)"
 	}
 	return n.String()
+}
+
+// closedWithoutNotification reports whether the peer's last error is a close
+// ze made with no NOTIFICATION built: such a close is recorded, and no
+// NOTIFICATION record is newer than it.
+func closedWithoutNotification(p *plugin.PeerInfo) bool {
+	if p.LastCloseCause == plugin.CloseCauseNone {
+		return false
+	}
+	if p.LastNotifDirection == plugin.NotifNone {
+		return true
+	}
+	return !p.LastCloseCauseTime.Before(p.LastNotifTime)
 }
 
 // stateChangedString renders a peer's most recent FSM transition time as

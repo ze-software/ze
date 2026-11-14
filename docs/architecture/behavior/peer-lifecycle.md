@@ -435,10 +435,13 @@ The down, on every exit from `runOnce`:
    `rpc.ReasonTCPFailure` and reason 2 with the event code for
    `rpc.ReasonLocalClose` and `rpc.ReasonAdjRIBInInvalid` (RFC 7854 Section
    4.9).
-5. If no NOTIFICATION was exchanged (`notificationExchanged == false`),
-   raise `session-dropped` on the report bus via
-   `raiseSessionDropped`. The check avoids duplicating an event the
-   operator already sees elsewhere when NOTIFICATION fired.
+5. If nothing else reported the close (`sessionDroppedOwed`), raise
+   `session-dropped` on the report bus via `raiseSessionDropped`. Two
+   closes owe none, because the operator already sees their event: one
+   where a NOTIFICATION was exchanged (`notificationExchanged == true`),
+   and one whose recorded close reason is a write budget expiry
+   (`ErrWriteBudgetExpired`), which the session raised as
+   `doctor-bgp-peer-not-reading` when the write failed.
 6. Notify the reactor via `reactor.notifyPeerClosed(p, closed)`, which tells
    the observers and then schedules a dynamic peer's cleanup.
 7. Log `session closed` with the reason and append the history row, which

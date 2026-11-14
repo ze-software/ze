@@ -89,6 +89,12 @@ type PeerStats struct {
 	LastNotifDirection plugin.NotifDirection
 	LastNotifTime      time.Time
 
+	// Last close ze made by itself with no NOTIFICATION built (survives
+	// ClearStats). plugin.CloseCauseNone is the "this peer never had one"
+	// answer, and LastCloseCauseTime is not read for that question.
+	LastCloseCause     plugin.CloseCause
+	LastCloseCauseTime time.Time
+
 	// Activity timestamps.
 	LastReadTime  time.Time
 	LastWriteTime time.Time
@@ -123,6 +129,10 @@ type peerCounters struct {
 	lastNotifDirection atomic.Uint32 // plugin.NotifDirection stored in uint32
 	lastNotifTime      atomic.Int64  // UnixNano
 
+	// Last close with no NOTIFICATION built (not reset by ClearStats).
+	lastCloseCause     atomic.Uint32 // plugin.CloseCause stored in uint32
+	lastCloseCauseTime atomic.Int64  // UnixNano
+
 	// Activity timestamps.
 	lastReadTime  atomic.Int64 // UnixNano
 	lastWriteTime atomic.Int64 // UnixNano
@@ -149,9 +159,13 @@ func (p *Peer) Stats() PeerStats {
 		LastNotifCode:          uint8(p.counters.lastNotifCode.Load()),
 		LastNotifSubcode:       uint8(p.counters.lastNotifSubcode.Load()),
 		LastNotifDirection:     plugin.NotifDirection(p.counters.lastNotifDirection.Load()),
+		LastCloseCause:         plugin.CloseCause(p.counters.lastCloseCause.Load()),
 	}
 	if ns := p.counters.lastNotifTime.Load(); ns != 0 {
 		stats.LastNotifTime = time.Unix(0, ns)
+	}
+	if ns := p.counters.lastCloseCauseTime.Load(); ns != 0 {
+		stats.LastCloseCauseTime = time.Unix(0, ns)
 	}
 	if ns := p.counters.lastReadTime.Load(); ns != 0 {
 		stats.LastReadTime = time.Unix(0, ns)
@@ -289,6 +303,7 @@ func (p *Peer) incrOpensSent() {
 func (p *Peer) attachStatsCallbacks(session *Session) {
 	session.onNotifSent = p.recordNotificationSend
 	session.onNotifRecv = p.incrNotificationReceived
+	session.onWriteBudgetExpired = p.recordWriteBudgetClose
 	session.onOpenSent = p.incrOpensSent
 	session.onOpenRecv = p.incrOpensReceived
 	session.onRefreshRecv = p.incrRefreshReceived
@@ -298,6 +313,16 @@ func (p *Peer) attachStatsCallbacks(session *Session) {
 		p.negotiatedHoldTime.Store(holdSec)
 		p.negotiatedKeepaliveTime.Store(keepaliveSec)
 	}
+}
+
+// recordWriteBudgetClose is the session's onWriteBudgetExpired hook: it stores
+// that ze closed this session because the peer accepted no data for a write
+// budget, so `show bgp peer` answers why the session ended when no
+// NOTIFICATION could say it. It stores two atomics and takes no lock, because
+// the session calls it under its write lock.
+func (p *Peer) recordWriteBudgetClose() {
+	p.counters.lastCloseCause.Store(uint32(plugin.CloseCauseWriteBudget))
+	p.counters.lastCloseCauseTime.Store(p.clock.Now().UnixNano())
 }
 
 func (p *Peer) recordNotification(code, subcode uint8, direction plugin.NotifDirection) {

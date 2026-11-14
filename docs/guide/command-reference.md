@@ -519,7 +519,8 @@ ze show errors source l2tp count 5     # last 5 errors from l2tp
 | warning | `bgp / prefix-stale` | `peer { prefix { updated ... } }` date is older than 180 days | Peer re-added with a fresher date, or peer removed |
 | error | `bgp / notification-sent` | This ze instance sends a NOTIFICATION to a peer (code/subcode in `detail`) | Never (errors are events) |
 | error | `bgp / notification-received` | A peer sends a NOTIFICATION to this ze instance | Never |
-| error | `bgp / session-dropped` | An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) | Never |
+| error | `bgp / session-dropped` | An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) and no other event reported the close | Never |
+| error | `bgp / doctor-bgp-peer-not-reading` | Ze closes a session because the peer accepted no data for a whole write budget (the budget is in `detail`, the fix on the event) | Never |
 
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- report code constants and helper functions -->
 <!-- source: internal/component/bgp/reactor/peer_stats.go -- incrNotificationSent, incrNotificationReceived -->

@@ -87,6 +87,9 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// pointer under that lock as well as mu. No writer needs mu in reverse.
 	s.writeMu.Lock()
 	s.negotiated = negotiated
+	// Published for readers that hold neither lock, or writeMu alone
+	// (Reactor.notifyOneMessage on the sent direction).
+	s.negotiatedPeerAS.Store(negotiated.PeerASN)
 
 	// RFC 9234 Section 4.1: Role is code(1), length(1), value(1); value 2
 	// denotes the LOCAL RS-client. Retain our advertised role, not the peer's:

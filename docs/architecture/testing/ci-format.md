@@ -1227,6 +1227,17 @@ from its start to the end of the run, so the daemon teardown that follows is
 still forbidden. A command the run never reached has an EMPTY span, never the
 whole buffer.
 
+A `le test peer` command's output is in no span. The runner captures a test
+peer's stdout and stderr in that peer's own buffers, which feed its verdict
+and the PEER OUTPUT section of a failure report, and never in the run's two
+accumulators. An `expect=stdout:` or `expect=stderr:` line under a peer's
+`cmd=` line therefore reads none of what the peer printed, and fails with
+"output does not contain" while the text is on screen under PEER OUTPUT. What
+a peer received is asserted by its `expect=bgp` lines. What the daemon did
+about the peer is asserted on the daemon's log, under the daemon's `cmd=` line
+(`test/plugin/session-peer-stops-reading.ci`).
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the isPeerExec arm of the output capture -->
+
 Output snapshots taken between commands do not finish an open span. The runner
 closes it only after the output writers have joined, including deferred child
 cleanup on an early error. Until 2026-11-03, saving a foreground helper's output

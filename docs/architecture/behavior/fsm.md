@@ -624,7 +624,7 @@ included:
 | 1 | When the FSM still reads Established (nothing else ended the session), fire `EventTCPConnectionFails`, so the leave arm runs |
 | 2 | Close the delivery channel and wait for the delivery worker, which publishes every buffered UPDATE first |
 | 3 | When the FSM's sticky entered-Established bit is set, wait on the leave signal, then on the BFD subscriber the arm released |
-| 4 | Derive the close once (`sessionCloseFor`, `peer_close.go`) from the leave record and from whether the receive publication failed, which is final only now; raise session-dropped when no NOTIFICATION was exchanged, announce the down (`announceDown`, `notifyPeerClosed`), log "session closed" and append the leave-Established history row with the same reason |
+| 4 | Derive the close once (`sessionCloseFor`, `peer_close.go`) from the leave record and from whether the receive publication failed, which is final only now; raise session-dropped when no NOTIFICATION was exchanged and the close reason is no write budget expiry (`sessionDroppedOwed`), announce the down (`announceDown`, `notifyPeerClosed`), log "session closed" and append the leave-Established history row with the same reason |
 
 So a plugin hears every UPDATE of a session before its down, and the down
 follows `PeerStateConnecting`. A delivery worker that cannot publish a batch

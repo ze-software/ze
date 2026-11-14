@@ -76,8 +76,11 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 	return s.sendNotificationWithin(conn, code, subcode, data, s.controlWriteDeadline())
 }
 
-// sendNotificationWithin is sendNotification with a caller-chosen write
-// deadline. See writeMessageWithin.
+// sendNotificationWithin is sendNotification with a caller-chosen deadline,
+// which bounds the wait for the write path and then the write. See
+// writeMessageWithin. When the path stayed held it answers errWritePathBusy:
+// nothing was sent, and the hook below still records the reason with
+// delivered=false, as it does for a refused write.
 func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte, deadline time.Duration) error {
 	notif := &message.Notification{
 		ErrorCode:    code,
@@ -87,14 +90,13 @@ func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyError
 	return s.notificationWritten(code, subcode, s.writeMessageWithin(conn, notif, deadline))
 }
 
-// tryNotificationWithin is sendNotificationWithin for a caller that MUST NOT
-// wait on the write path: it takes writeMu only if the lock comes free within
-// deadline, and answers errWritePathBusy when it does not. The panic guard of
-// Session.Run is its caller, because the write path may belong to a writer that
-// is itself stuck (ceaseAfterPanic).
+// tryNotificationWithin is sendNotificationWithin for a caller that reports a
+// busy write path itself: on errWritePathBusy it fires no hook and logs
+// nothing. The panic guard of Session.Run is its caller, because the write path
+// may belong to a writer that is itself stuck (ceaseAfterPanic).
 func (s *Session) tryNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, deadline time.Duration) error {
 	notif := &message.Notification{ErrorCode: code, ErrorSubcode: subcode}
-	err := s.tryWriteMessageWithin(conn, notif, deadline)
+	err := s.writeMessageWithin(conn, notif, deadline)
 	if errors.Is(err, errWritePathBusy) {
 		// Nothing was attempted, so the peer-last-error hook below does not fire:
 		// the caller logs that no NOTIFICATION was sent.
@@ -144,59 +146,43 @@ func (s *Session) notificationWritten(code message.NotifyErrorCode, subcode uint
 
 // writeMessage writes a BGP message directly into the session buffer.
 // Always flushes immediately -- used for KEEPALIVE, OPEN, NOTIFICATION.
-// Sets a write deadline to prevent indefinite blocking on stuck TCP.
+// The control-message budget bounds both its wait for the write path and its
+// write (writeMessageWithin).
 func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	return s.writeMessageWithin(conn, msg, s.controlWriteDeadline())
 }
 
-// writeMessageWithin is writeMessage with the write deadline chosen by the
-// caller. Only a caller whose own deadline is tighter than the control-message
-// budget needs it: the hold-expiry NOTIFICATION, which must not hold a teardown
-// open for the ten seconds controlWriteDeadline allows a peer to accept 21
-// octets (holdExpiryNotifyDeadline, session.go).
+// writeMessageWithin is writeMessage with the deadline chosen by the caller.
+// The deadline is spent twice at most: once waiting for the write path, which
+// answers errWritePathBusy with nothing written when another writer kept it
+// that long, and once as the budget of the write itself. A control message
+// therefore never queues without bound behind a writer that is stuck.
+//
+// Only a caller whose own deadline is tighter than the control-message budget
+// passes one: the hold-expiry NOTIFICATION, which must not hold a teardown open
+// for the ten seconds controlWriteDeadline allows a peer to accept 21 octets
+// (holdExpiryNotifyDeadline, session.go).
 func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadline time.Duration) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
+	if err := s.acquireWriteWithin(deadline, deadline); err != nil {
+		return err
+	}
+	defer s.releaseWrites()
 
-	return s.writeMessageHeld(conn, msg, deadline)
+	return s.writeMessageHeld(msg)
 }
 
-// errWritePathBusy is tryWriteMessageWithin's answer when another writer kept
-// writeMu for the whole deadline: nothing was written.
+// errWritePathBusy is the write path acquisition's answer when another writer
+// kept writeMu for as long as the caller was willing to wait: nothing was
+// written (acquireWriteWithin, tryAcquireWrite).
 var errWritePathBusy = errors.New("another writer held the session's write path for the whole deadline")
 
-// writePathPoll is how often tryWriteMessageWithin retries writeMu. A writer
-// holds it for one message or one batch, so a few milliseconds is far below the
-// deadline and costs nothing on a path that runs once per contained panic.
-const writePathPoll = 5 * time.Millisecond
-
-// tryWriteMessageWithin is writeMessageWithin for a caller that MUST NOT block
-// on writeMu: it retries TryLock until deadline has passed, then gives up with
-// errWritePathBusy. The write itself keeps the same deadline.
-func (s *Session) tryWriteMessageWithin(conn net.Conn, msg message.Message, deadline time.Duration) error {
-	if conn == nil {
-		return ErrNotConnected
-	}
-
-	giveUp := s.clock.Now().Add(deadline)
-	for !s.writeMu.TryLock() {
-		if !s.clock.Now().Before(giveUp) {
-			return errWritePathBusy
-		}
-		s.clock.Sleep(writePathPoll)
-	}
-	defer s.writeMu.Unlock()
-
-	return s.writeMessageHeld(conn, msg, deadline)
-}
-
 // writeMessageHeld is the body of writeMessageWithin. The caller MUST hold
-// writeMu.
-func (s *Session) writeMessageHeld(conn net.Conn, msg message.Message, deadline time.Duration) error {
+// the write path through the acquisition, which armed the write budget.
+func (s *Session) writeMessageHeld(msg message.Message) error {
 	if s.writeFailed != nil {
 		return s.writeFailed
 	}
@@ -211,14 +197,6 @@ func (s *Session) writeMessageHeld(conn net.Conn, msg message.Message, deadline 
 	if s.bufWriter == nil {
 		return ErrNotConnected
 	}
-
-	// Set write deadline to prevent indefinite blocking on stuck TCP.
-	// Without this, a stuck connection holds writeMu forever, preventing
-	// the forward worker from detecting the failure and triggering teardown.
-	if err := conn.SetWriteDeadline(s.clock.Now().Add(deadline)); err != nil {
-		return err
-	}
-	defer func() { _ = conn.SetWriteDeadline(time.Time{}) }()
 
 	// Zero-allocation: write directly into session buffer.
 	// Message types don't use context for basic encoding
@@ -996,6 +974,10 @@ func (s *Session) flushWrites() error {
 // retireWrite MUST run under writeMu. It seals and closes only this connection;
 // closeConn cannot be called here because it acquires writeMu itself. The read
 // loop and existing error channel own the ordinary FSM teardown afterwards.
+//
+// Every failed write ends here, so this is where a write that passed its
+// budget is told apart from any other failure and reported to the operator
+// (recordWriteFailure). A writer MUST NOT report the expiry itself.
 func (s *Session) retireWrite(err error) {
 	if s.writeFailed != nil {
 		return
@@ -1003,7 +985,7 @@ func (s *Session) retireWrite(err error) {
 	s.writeFailed = err
 	s.writePending = false
 	s.seal()
-	s.setCloseReason(err)
+	s.recordWriteFailure(err)
 	s.commitAIGPWrites(false)
 	if s.adjOut != nil {
 		s.adjOut.mu.Lock()
@@ -1049,8 +1031,11 @@ func (s *Session) appendFwdDirty(peer *Peer, dst *Session) {
 // path writes. Called when the source bufReader has no more data (natural
 // batch boundary) or on read loop exit.
 //
-// For each dirty session: acquires writeMu via TryLock, sets write deadline,
-// flushes bufWriter, clears deadline, resets send hold timer.
+// For each dirty session: takes the write path without waiting
+// (tryAcquireWrite), which arms the session's write budget, flushes bufWriter
+// and releases the path, which clears the budget. A flush that fails retires
+// the destination session (flushWrites), and a successful one that carried
+// bytes resets its send hold timer.
 //
 // A session whose writeMu is held is handed to its peer's forward worker
 // (Peer.handOffForwardFlush), which waits for writeMu and flushes. It is not
@@ -1067,7 +1052,7 @@ func (s *Session) flushFwdDirty() {
 	if len(s.fwdDirty) == 0 {
 		return
 	}
-	deadline := s.clock.Now().Add(fwdWriteDeadline())
+	budget := fwdWriteDeadline()
 	kept := 0
 	for _, target := range s.fwdDirty {
 		dst := target.session
@@ -1078,7 +1063,8 @@ func (s *Session) flushFwdDirty() {
 		if state != fsm.StateEstablished || conn == nil {
 			continue
 		}
-		if !dst.writeMu.TryLock() {
+		err := dst.tryAcquireWrite(budget)
+		if errors.Is(err, errWritePathBusy) {
 			if target.peer.handOffForwardFlush(dst) {
 				continue
 			}
@@ -1086,18 +1072,22 @@ func (s *Session) flushFwdDirty() {
 			kept++
 			continue
 		}
-		err := conn.SetWriteDeadline(deadline)
 		if err == nil {
+			// The path is held and the budget armed.
 			err = dst.flushWrites()
+			if err != nil {
+				dst.retireWrite(err)
+			}
+			dst.releaseWrites()
 		}
+		// One line for both ways the flush fails, as before the acquisition
+		// existed: the socket refused its write budget, so it is closed and
+		// the acquisition retired the session (armWriteOrRetire), or the flush
+		// itself failed and retired it above.
 		if err != nil {
-			dst.retireWrite(err)
 			sessionLogger().Warn("forward flush failed; destination session retired",
 				"peer", dst.settings.Address, "error", err)
-		} else {
-			_ = conn.SetWriteDeadline(time.Time{})
 		}
-		dst.writeMu.Unlock()
 	}
 	for i := kept; i < len(s.fwdDirty); i++ {
 		s.fwdDirty[i] = fwdDirtyTarget{}
@@ -1119,10 +1109,12 @@ func (s *Session) SendUpdate(update *message.Update) error {
 // writeUpdate MUST consume the borrowed UPDATE synchronously under writeMu;
 // sendUpdateOwnedWithSplit MUST keep owner alive through every such call.
 func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *updateSendCounts, replay bool, owner *fwdItem, writeUpdate func(*Session, *message.Update) error) error {
-	if err := s.writeMu.LockContext(ctx); err != nil {
+	// The budget is the earlier of the request's deadline and the session
+	// budget, so a background context is bounded like any other writer.
+	if err := s.acquireWriteContext(ctx, fwdWriteDeadline()); err != nil {
 		return err
 	}
-	defer s.writeMu.Unlock()
+	defer s.releaseWrites()
 	s.sentForward = owner
 	defer func() { s.sentForward = nil }()
 
@@ -1191,17 +1183,18 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 	return nil
 }
 
-// requestWriteDeadline binds a socket write to its request after ownership has
-// been acquired. Cleanup joins an in-flight cancellation callback before another
-// writer can reuse the connection, so an old request cannot poison its deadline.
+// requestWriteDeadline binds a socket write to its request's cancellation after
+// ownership has been acquired: a canceled request expires the socket's write
+// deadline at once, which fails a write blocked in the kernel. The deadline
+// itself was armed by acquireWriteContext, as the earlier of the request's
+// deadline and the session budget.
+//
+// The caller MUST call the returned cleanup before releaseWrites. It joins an
+// in-flight cancellation callback, so the callback cannot expire the deadline
+// after releaseWrites cleared it and poison the next writer's.
 func (s *Session) requestWriteDeadline(ctx context.Context, conn net.Conn) (func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
-	}
-	if deadline, ok := ctx.Deadline(); ok {
-		if err := conn.SetWriteDeadline(deadline); err != nil {
-			return nil, err
-		}
 	}
 	canceled := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
@@ -1212,24 +1205,44 @@ func (s *Session) requestWriteDeadline(ctx context.Context, conn net.Conn) (func
 		if !stop() {
 			<-canceled
 		}
-		_ = conn.SetWriteDeadline(time.Time{})
 	}, nil
 }
 
-// holdWrites acquires the session write lock, preventing the forward pool
-// (which uses TryLock) from interleaving messages. Caller MUST call
+// holdWrites takes the write path for a run of messages the caller sends with
+// sendUpdateHeld, shutting out every other writer so nothing interleaves: the
+// RS fast path gives up on a held path, and the forward pool waits for it. It
+// is the held form of the write path acquisition (session_write_mutex.go). It
+// arms no budget of its own, because the hold writes nothing: sendUpdateHeld
+// arms one for each message, so the budget bounds one message's write and
+// flush, and a long, healthy hold is never cut by it. Caller MUST call
 // releaseWrites when done and use sendUpdateHeld instead of SendUpdate.
 func (s *Session) holdWrites() {
 	s.writeMu.Lock()
 }
 
-// releaseWrites releases the write lock acquired by holdWrites.
+// releaseWrites releases the write path taken by holdWrites or by any form of
+// the write path acquisition (session_write_mutex.go). It clears the socket's
+// write deadline first, so the next taker never meets a budget another writer
+// armed. It clears exactly what its holder armed (writeBudgetArmed): a write
+// that failed and retired the session still has its deadline cleared before the
+// path is given back, and a holder that armed nothing leaves the socket alone.
 func (s *Session) releaseWrites() {
+	if s.writeBudgetArmed {
+		s.writeBudgetArmed = false
+		if s.conn != nil {
+			// A socket closed under the writer has no deadline left to clear.
+			_ = s.conn.SetWriteDeadline(time.Time{})
+		}
+	}
 	s.writeMu.Unlock()
 }
 
 // sendUpdateHeld sends an UPDATE while writeMu is already held by the caller
 // via holdWrites. Calling without holdWrites is undefined.
+//
+// It arms the session's write budget for this message alone, before the write:
+// the hold it runs under spans many messages, and a budget armed once for the
+// hold would cut a long sync to a peer that reads every one of them.
 //
 // It MUST NOT take s.mu. The caller already holds writeMu, and the lock
 // hierarchy orders s.mu BEFORE writeMu (see the Session type). closeConn takes
@@ -1245,6 +1258,12 @@ func (s *Session) sendUpdateHeld(update *message.Update) error {
 		return ErrInvalidState
 	}
 
+	if err := s.armWriteBudget(fwdWriteDeadline()); err != nil {
+		// A socket that refuses its deadline is closed: retire the session, as
+		// the write to it would have.
+		s.retireWrite(err)
+		return err
+	}
 	if err := s.writeUpdate(update); err != nil {
 		return err
 	}
@@ -1283,8 +1302,10 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		return ErrNotConnected
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
+	if err := s.acquireWrite(fwdWriteDeadline()); err != nil {
+		return err
+	}
+	defer s.releaseWrites()
 
 	// The writer refuses a next hop it cannot encode by writing nothing and
 	// reporting 0 (WriteAnnounceUpdate, reactor_wire.go). Asking for the reason
@@ -1380,8 +1401,10 @@ func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 		return ErrNotConnected
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
+	if err := s.acquireWrite(fwdWriteDeadline()); err != nil {
+		return err
+	}
+	defer s.releaseWrites()
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
@@ -1414,8 +1437,10 @@ func (s *Session) sendRawUpdateBody(body []byte) error {
 		return ErrNotConnected
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
+	if err := s.acquireWrite(fwdWriteDeadline()); err != nil {
+		return err
+	}
+	defer s.releaseWrites()
 
 	if err := s.writeRawUpdateBody(body); err != nil {
 		return err
@@ -1445,8 +1470,10 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 
 	if msgType == 0 {
 		// Full packet mode - send as-is through bufWriter
-		s.writeMu.Lock()
-		defer s.writeMu.Unlock()
+		if err := s.acquireWrite(fwdWriteDeadline()); err != nil {
+			return err
+		}
+		defer s.releaseWrites()
 		if s.writeFailed != nil {
 			return s.writeFailed
 		}
@@ -1477,8 +1504,10 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		return s.finishRawWrite(opaque)
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
+	if err := s.acquireWrite(fwdWriteDeadline()); err != nil {
+		return err
+	}
+	defer s.releaseWrites()
 	if s.writeFailed != nil {
 		return s.writeFailed
 	}

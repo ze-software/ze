@@ -93,7 +93,7 @@ Promoted vars are **deprecated**. Use YANG `environment { reactor { } }` instead
 | Variable | YANG Leaf | Default | Description |
 |----------|-----------|---------|-------------|
 | `ze.fwd.chan.size` | `forward-queue-size` | 256 | Per-destination forward worker channel capacity |
-| `ze.fwd.write.deadline` | (none) | 30s | TCP write deadline for forward pool batch writes |
+| `ze.fwd.write.deadline` | (none) | 30s | Write budget of every route write to a BGP session (UPDATE, raw message, ROUTE-REFRESH, forward pool batch). A peer that accepts no data for this long has its session closed and logged under `doctor-bgp-peer-not-reading`. Zero or a negative value means the default |
 | `ze.fwd.pool.size` | (none) | 0 | **Deprecated:** use `forward-pool-max-bytes` YANG leaf |
 | `ze.fwd.pool.maxbytes` | `forward-pool-max-bytes` | 0 | Combined byte budget for 4K+64K buffer pools (0 = unlimited) |
 | `ze.fwd.batch.limit` | `forward-batch-limit` | 1024 | Max items per forward batch |

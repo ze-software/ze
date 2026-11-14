@@ -323,11 +323,13 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		// A dynamic peer's settings learn its AS only at Established, while the
 		// session's negotiation resolved it from the peer's OPEN in OpenConfirm, so
 		// the KEEPALIVEs exchanged in between name the negotiated AS rather than 0.
+		//
+		// Never Session.Negotiated: on the sent direction the writer that called
+		// this holds the session's writeMu, and Negotiated waits on s.mu, the
+		// reverse of the session's lock order.
 		peerAS = peer.PeerAS()
 		if peerAS == 0 && session != nil {
-			if neg := session.Negotiated(); neg != nil {
-				peerAS = neg.PeerASN
-			}
+			peerAS = session.negotiatedPeerASNoWait()
 		}
 		peerInfo = plugin.PeerInfo{
 			Address:         s.Address,

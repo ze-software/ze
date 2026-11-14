@@ -2201,8 +2201,39 @@ The timer is stopped, not armed, when the negotiated hold time is zero. RFC 4271
 
 ### Write Deadline
 
-Forward pool batch writes set a TCP write deadline (default: 30 seconds, configurable via `ze.fwd.write.deadline`) to prevent a stuck peer from blocking the worker goroutine indefinitely. The deadline is cleared after the batch completes.
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, fwdWriteDeadlineDefault -->
+Every writer of a session socket takes the session's write path through one acquisition, and the acquisition arms a write budget: the socket's write deadline is set once the path is held, so the whole budget is spent on the write and none on the wait. Releasing the path clears the deadline, so one writer's budget never reaches the next. A writer cannot forget the bound, because it belongs to the path.
+<!-- source: internal/component/bgp/reactor/session_write_mutex.go -- acquireWrite, acquireWriteContext, acquireWriteWithin, tryAcquireWrite, armWriteDeadline -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- releaseWrites -->
+
+| Writer | Wait for the write path | Budget of the write |
+|--------|-------------------------|---------------------|
+| UPDATE, raw message and ROUTE-REFRESH writers, forward pool batches included | until it is free | the session budget: 30 seconds, set by `ze.fwd.write.deadline` |
+| A request-scoped write (an API route batch) | until it is free or the request ends | the earlier of the request's deadline and the session budget; a canceled request expires the deadline at once |
+| KEEPALIVE, OPEN, NOTIFICATION | no longer than the control budget | the control budget: a third of the hold time, held between 10 and 30 seconds; one second for the hold-expiry NOTIFICATION |
+| The deferred flush of route-server fast-path writes | none: a busy path hands the flush to the destination's forward worker | the session budget |
+| A held run of messages (the initial sync's config routes and End-of-RIB) | until it is free, once for the run | the session budget, armed again for each message |
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendUpdateCounted, requestWriteDeadline, writeMessageWithin, controlWriteDeadline, flushFwdDirty, holdWrites, sendUpdateHeld -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, fwdWriteDeadlineDefault, fwdWriteDeadline -->
+
+When a write passes its budget it fails, and the writer retires the session: the connection is sealed and closed, the error reaches `Session.Run`, and the peer reconnects. The budget bounds one write and its flush, never a run of them, so a long initial sync to a peer that keeps reading is not cut.
+<!-- source: internal/component/bgp/reactor/session_write.go -- flushWrites, retireWrite -->
+
+Every failed write ends in `retireWrite`, and that is the one place a budget expiry is told apart from any other failure: the error is a deadline error, the holder armed a budget, and that budget's deadline has passed. A canceled request expires the socket's deadline early to end its own write, so a deadline error alone is no expiry. An expiry records `ErrWriteBudgetExpired` as the session's close reason, with the budget and the write's own error. When that reason wins (the first close reason does), the session reports it once, under `writeMu`: one WARN line with the peer, the budget, a fix and the code `doctor-bgp-peer-not-reading`, the same problem as an error event on the report bus, and the peer's last-error record (`plugin.CloseCauseWriteBudget`, shown by `show bgp peer` until a later NOTIFICATION replaces it). The session end then raises no `session-dropped` event for that close. When another close recorded its reason first, that close reports itself and the expiry is not reported.
+<!-- source: internal/component/bgp/reactor/session_write_budget.go -- recordWriteFailure, writeBudgetPassed, reportWriteBudgetExpiry, ErrWriteBudgetExpired -->
+<!-- source: internal/component/bgp/reactor/session_write_mutex.go -- armWriteDeadline -->
+<!-- source: internal/component/bgp/reactor/peer_close.go -- sessionDroppedOwed -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go -- recordWriteBudgetClose -->
+<!-- source: internal/component/bgp/reactor/register_diagnostic.go -- init -->
+
+A control message that finds the write path held for its whole budget is not sent and the session is not retired for it: a KEEPALIVE timer that fires behind a stuck writer gives up, and a NOTIFICATION sender is told nothing was sent.
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeMessageWithin, errWritePathBusy -->
+
+The route-server fast path writes to a destination under a non-waiting take of the write path and arms no budget for that write: only its deferred flush carries one.
+<!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+
+The two refusals written to a raw connection that has no session, the collision loser and a connection to an administratively held peer, carry a 30-second write deadline of their own.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- rejectConnectionCollision -->
+<!-- source: internal/component/bgp/reactor/peer_admin.go -- rejectAdminDownConnection -->
 
 ---
 

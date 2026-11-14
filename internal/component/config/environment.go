@@ -113,7 +113,7 @@ var (
 	// Forward pool tuning (consumed in internal/component/bgp/reactor/).
 	// Promoted to YANG: environment/reactor/forward-queue-size et al.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: env.TypeInt, Default: "256", Description: "Per-destination forward worker channel capacity", Deprecated: "YANG reactor/forward-queue-size"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: env.TypeDuration, Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: env.TypeDuration, Default: "30s", Description: "Write budget of every route write to a BGP session: a peer that accepts no data for this long has its session closed"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: env.TypeInt, Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: env.TypeInt64, Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: env.TypeInt, Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)", Deprecated: "YANG reactor/forward-batch-limit"})

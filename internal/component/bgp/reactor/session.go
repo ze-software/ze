@@ -309,6 +309,13 @@ type Session struct {
 	// callbacks hold writeMu and MUST NOT take mu (the reverse lock order).
 	transport atomic.Pointer[sessionTransport]
 
+	// negotiatedPeerAS is the peer AS the negotiation resolved from the peer's
+	// OPEN (negotiated.PeerASN), zero until negotiateWith stored it. Atomic for
+	// the same reason as transport: a sent event callback names the peer's AS
+	// while its writer holds writeMu, where Negotiated, which takes mu, would
+	// reverse the lock order.
+	negotiatedPeerAS atomic.Uint32
+
 	// localOpen stores our OPEN for reference during negotiation.
 	localOpen *message.Open
 
@@ -418,6 +425,18 @@ type Session struct {
 	initialReplay atomic.Uint64
 	// A write failure seals this exact connection before any further writer.
 	writeFailed error
+	// writeBudgetArmed says the holder of writeMu armed the socket's write
+	// deadline (armWriteDeadline), so releaseWrites owes its clearing. Owned by
+	// writeMu. A holder that armed nothing, such as the RS fast path or a writer
+	// on a retired session, leaves the socket's deadline alone.
+	writeBudgetArmed bool
+	// writeBudget is the budget the holder armed, and writeBudgetEnd the
+	// deadline it gave the socket. Owned by writeMu and read only while
+	// writeBudgetArmed is set: a write that fails on a deadline is a budget
+	// expiry only when writeBudgetEnd has passed (writeBudgetExpiry), because
+	// a canceled request expires the socket's deadline early to end its write.
+	writeBudget    time.Duration
+	writeBudgetEnd time.Time
 	// A successful nonempty bufWriter.Write MUST set writePending under writeMu.
 	// flushWrites consumes it only after flush succeeds, including direct writes
 	// that bufio has already sent without retaining buffered bytes.
@@ -689,6 +708,12 @@ type Session struct {
 	// the last-error record.
 	onNotifSent func(code, subcode uint8, delivered bool)
 
+	// onWriteBudgetExpired is called when a write budget expiry closes the
+	// session (reportWriteBudgetExpiry). It runs under writeMu, so it MUST NOT
+	// block and MUST NOT take the session's locks. Set by Peer in runOnce() for
+	// the last-error record.
+	onWriteBudgetExpired func()
+
 	// onNotifRecv is called when a NOTIFICATION is received from the peer.
 	// Set by Peer in runOnce() for Prometheus notification counter.
 	onNotifRecv func(code, subcode uint8)
@@ -912,10 +937,18 @@ func NewSession(settings *PeerSettings) *Session {
 		// "sends a KEEPALIVE message" — fire the FSM event first, then send.
 		s.logFSMEvent(fsm.EventKeepaliveTimerExpires)
 
-		s.mu.Lock()
+		// A read lock: this callback only reads the connection, and it MUST
+		// NOT queue as a writer of s.mu behind a close that holds it.
+		s.mu.RLock()
 		conn := s.conn
-		s.mu.Unlock()
+		s.mu.RUnlock()
 
+		// The KEEPALIVE waits for the write path no longer than the control
+		// budget (writeMessageWithin). When another writer kept it that long
+		// the send answers errWritePathBusy and this callback gives up: the
+		// session is not retired by it, and a timer that keeps firing behind a
+		// stuck writer parks a bounded number of goroutines, never one more
+		// per fire for good.
 		if conn != nil {
 			if err := s.sendKeepalive(conn); err != nil {
 				sessionLogger().Debug("keepalive send failed", "peer", s.settings.Address, "error", err)
@@ -1031,6 +1064,29 @@ func (s *Session) Negotiated() *capability.Negotiated {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.negotiated
+}
+
+// negotiatedPeerASNoWait answers the peer AS the negotiation resolved, zero
+// when none is published yet, without ever waiting on s.mu. A sent event names
+// the peer's AS while its writer holds writeMu, where Negotiated, which waits
+// on s.mu, would reverse the session's lock order.
+//
+// negotiateWith publishes the AS in negotiatedPeerAS beside s.negotiated, and
+// that is the answer whenever it is set. A session whose negotiated state was
+// installed without negotiateWith has only the field, which is read when s.mu
+// is free at this instant; when it is not, the answer is zero, which the
+// caller reports as an AS not resolved yet.
+func (s *Session) negotiatedPeerASNoWait() uint32 {
+	if peerAS := s.negotiatedPeerAS.Load(); peerAS != 0 {
+		return peerAS
+	}
+	if s.mu.TryRLock() {
+		defer s.mu.RUnlock()
+		if s.negotiated != nil {
+			return s.negotiated.PeerASN
+		}
+	}
+	return 0
 }
 
 // setRecvCtxID sets the encoding context ID for received messages.

@@ -751,8 +751,10 @@ func (s *Session) flushForClose() {
 // Only the first reason wins — subsequent calls are no-ops. A teardown owner
 // must record its cause before NOTIFICATION I/O: a failed write retires the
 // transport and wakes Run, which must not mistake that consequence for its cause.
-func (s *Session) setCloseReason(err error) {
-	s.closeReason.CompareAndSwap(nil, &err)
+// It reports whether err became the reason: a caller that reports the close to
+// the operator does so only when its reason won (recordWriteFailure).
+func (s *Session) setCloseReason(err error) bool {
+	return s.closeReason.CompareAndSwap(nil, &err)
 }
 
 // sessionTransport keeps the connection's socket identity and actual local OPEN

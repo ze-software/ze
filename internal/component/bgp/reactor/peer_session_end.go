@@ -183,7 +183,7 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 //     for the BFD subscriber the arm released, which is never this goroutine.
 //  4. It derives the close, now that every failure of the session's receive
 //     publication has happened (sessionLeave.close), raises session-dropped
-//     when no NOTIFICATION was exchanged, tells the plugins down, logs
+//     when nothing else reported the close, tells the plugins down, logs
 //     "session closed" and appends the history row.
 //
 // So a plugin hears every UPDATE of a session before its down, and the down
@@ -216,11 +216,12 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 	closed := leave.close(publication.failed.Load())
 	reason := closed.reason
 	leave.transition.Reason = reason
-	// Raise session-dropped on the report bus only when no NOTIFICATION
-	// was exchanged during this session. If one was sent or received,
-	// the operator already sees that event in `ze show errors` and a
-	// duplicate session-dropped would be noise.
-	if !leave.notified {
+	// Raise session-dropped on the report bus only when nothing else
+	// reported this close. If a NOTIFICATION was sent or received, or the
+	// session closed on a write budget expiry, the operator already sees
+	// that event in `ze show errors` and a duplicate session-dropped would
+	// be noise (sessionDroppedOwed).
+	if sessionDroppedOwed(leave.notified, leave.cause) {
 		raiseSessionDropped(p.peerAddrLabel(), reason)
 	}
 

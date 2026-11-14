@@ -286,6 +286,37 @@ ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server con
 # Look for FSM transitions and session establishment
 ```
 
+#### A session closed because the peer stopped reading
+
+Ze logs this line at WARN, with no debug logging needed, when it closes a
+session whose peer accepted no data:
+
+```
+level=WARN msg="BGP session closed: the peer accepted no data for the write budget; ze connects to it again by itself" subsystem=bgp.reactor.session peer=192.0.2.1 budget=30s fix="..." code=doctor-bgp-peer-not-reading
+```
+
+What it means: ze had data to send, and for the whole write budget the peer
+took none of it while it kept the TCP connection open. Its BGP process is not
+reading. Ze closed the connection with no NOTIFICATION, because the peer could
+not have read one, and connects again by itself. The routes are sent again
+when the session is Established.
+
+| Where | What it shows |
+|-------|---------------|
+| `ze show errors`, `ze show doctor` | One event per close, code `doctor-bgp-peer-not-reading`, with the peer and the budget that passed |
+| `ze show bgp peer`, field `last-error` | `peer accepted no data for the write budget (no NOTIFICATION sent)`, until a later NOTIFICATION replaces it |
+| `ze show diagnostic doctor-bgp-peer-not-reading` | The description of the code |
+
+What to do: on the peer, find why its BGP process stopped reading (CPU load,
+a stalled process, a full input queue). The budget of a route write is
+`ze.fwd.write.deadline` (30s by default); a KEEPALIVE, OPEN or NOTIFICATION
+has a third of the hold time, between 10s and 30s. Raise
+`ze.fwd.write.deadline` only for a peer that is known to be slow and healthy:
+a longer budget keeps a dead session up for longer.
+<!-- source: internal/component/bgp/reactor/session_write_budget.go -- recordWriteFailure, reportWriteBudgetExpiry, writeBudgetExpiryFix -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- lastErrorString, closedWithoutNotification -->
+<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorBGPPeerNotReading -->
+
 ### 4. Test Failures
 
 ```bash

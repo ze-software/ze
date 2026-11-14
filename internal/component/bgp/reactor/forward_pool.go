@@ -213,12 +213,17 @@ func sentOwnerCurrent(owner adjOutPath, window, epoch uint64) bool {
 	return open != nil && open.aborted && open.restore == epoch && open.applied == window
 }
 
-// fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
-// batch writes (30 seconds). Overridable via env var ze.fwd.write.deadline.
+// fwdWriteDeadlineDefault is the default write budget of a BGP session (30
+// seconds): how long one write to a peer's socket may take before it fails and
+// the session is retired. Every UPDATE writer is bound by it through the write
+// path acquisition (session_write_mutex.go), the forward pool's batches
+// included, and it caps the control-message budget (controlWriteDeadline).
+// Overridable via env var ze.fwd.write.deadline, whose name dates from when
+// only the forward pool carried it.
 const fwdWriteDeadlineDefault = 30 * time.Second
 
-// fwdWriteDeadlineNs holds the resolved write deadline in nanoseconds,
-// cached at package init to avoid per-batch env.GetDuration overhead on
+// fwdWriteDeadlineNs holds the resolved write budget in nanoseconds,
+// cached at package init to avoid per-write env.GetDuration overhead on
 // the hot path. Overridden by initFwdWriteDeadline() at reactor startup.
 // Stored via atomic.Int64 for safe concurrent access.
 var fwdWriteDeadlineNs atomic.Int64 //nolint:gochecknoglobals // hot-path cache
@@ -237,7 +242,8 @@ func initFwdWriteDeadline() {
 	fwdWriteDeadlineNs.Store(int64(d))
 }
 
-// fwdWriteDeadline returns the cached write deadline for forward pool batches.
+// fwdWriteDeadline returns the cached write budget every UPDATE writer of a
+// session arms when it takes the write path.
 func fwdWriteDeadline() time.Duration {
 	return time.Duration(fwdWriteDeadlineNs.Load())
 }
@@ -251,9 +257,9 @@ func fwdWriteDeadline() time.Duration {
 // its recovery admissions is settled with errRecoveryDestinationClosed: no
 // return leaves an admission for releaseItem to report as not written.
 //
-// Sets a write deadline on the TCP connection before writing to prevent a stuck
-// peer from blocking the worker goroutine indefinitely. The deadline is cleared
-// after the batch write+flush completes (or fails).
+// Takes the write path through the session's acquisition, which arms the write
+// budget so a stuck peer cannot block the worker goroutine indefinitely. The
+// release clears it after the batch write+flush completes (or fails).
 func fwdBatchHandler(key fwdKey, items []fwdItem) {
 	if len(items) == 0 {
 		return
@@ -309,18 +315,22 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 		return
 	}
 
-	session.writeMu.Lock()
-	defer session.writeMu.Unlock()
+	// The held form of the write path acquisition: the policy-replay requeue
+	// below needs the path before any budget is armed, and a refused budget
+	// here fails the batch's recovery admissions without retiring the session,
+	// which the recovery owner ends with a Cease of its own.
+	session.holdWrites()
+	defer session.releaseWrites()
 	if peer.policyReplayHolds.Load() != 0 {
 		peer.reactor.fwdPool.requeuePolicyReplay(key, items)
 	}
 
-	// Set write deadline AFTER acquiring writeMu so the full deadline budget
+	// Arm the write budget AFTER acquiring the write path so the full budget
 	// is available for TCP writes (not consumed by mutex contention).
-	// Cleared in defer after write+flush completes.
-	// Write deadline is cached in fwdPoolConfig at startup to avoid per-batch
-	// env.GetDuration overhead (hot path: called thousands of times/sec).
-	if err := conn.SetWriteDeadline(session.clock.Now().Add(fwdWriteDeadline())); err != nil {
+	// releaseWrites clears it after write+flush completes or fails. The budget
+	// is cached at startup to avoid per-batch env.GetDuration overhead (hot
+	// path: called thousands of times/sec).
+	if err := session.armWriteBudget(fwdWriteDeadline()); err != nil {
 		fwdLogger().Warn("forward set write deadline failed",
 			"peer", peer.Settings().Address,
 			"err", err,
@@ -328,6 +338,7 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 		failRecoveryWrites(items, session, err)
 		return
 	}
+
 	defer func() {
 		session.sentMeta = nil         // Clear route metadata on all exit paths.
 		session.sentSourcePeerStr = "" // Clear source peer string on all exit paths.
@@ -337,8 +348,6 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 		session.sentAIGPCostWithheld = false
 		session.sentForward = nil
 		session.commitAIGPWrites(false)
-		// Clear write deadline (zero value = no deadline).
-		_ = conn.SetWriteDeadline(time.Time{})
 	}()
 
 	// Bucket merge: group items with identical post-egress attrs into fewer

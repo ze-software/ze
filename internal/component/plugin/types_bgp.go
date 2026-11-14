@@ -130,6 +130,33 @@ func (d NotifDirection) String() string {
 	}
 }
 
+// CloseCause says why ze closed a peer's session by itself with no
+// NOTIFICATION built for it, so the last-notification record cannot name the
+// cause. Only ze produces a value: no peer input reaches it.
+type CloseCause uint8
+
+const (
+	// CloseCauseNone means no such close was recorded for this peer. It is
+	// the zero value, so a record nobody wrote never reads as a real one.
+	CloseCauseNone CloseCause = iota
+	// CloseCauseWriteBudget means the peer accepted no data for a whole write
+	// budget, with its connection open, and ze closed the session. No
+	// NOTIFICATION was built, because the peer was not reading.
+	CloseCauseWriteBudget
+)
+
+// String is the cause as an operator reads it in a peer's last error.
+func (c CloseCause) String() string {
+	switch c {
+	case CloseCauseNone:
+		return "none"
+	case CloseCauseWriteBudget:
+		return "peer accepted no data for the write budget (no NOTIFICATION sent)"
+	default:
+		panic("BUG: unknown BGP close cause")
+	}
+}
+
 // PeerInfo is a snapshot of BGP peer state for API output.
 //
 // AddrStr and LocalAddrStr return the cached address strings with fallback.
@@ -252,6 +279,15 @@ type PeerInfo struct {
 	LastNotifSubcode   uint8
 	LastNotifDirection NotifDirection
 	LastNotifTime      time.Time
+
+	// LastCloseCause is why ze last closed this peer's session by itself with
+	// no NOTIFICATION built (lifetime, survives session reset), and
+	// LastCloseCauseTime when. CloseCauseNone means there is no record, so
+	// LastCloseCauseTime is not read for that question. A reader that reports
+	// the peer's last error shows the newer of this record and the last
+	// notification.
+	LastCloseCause     CloseCause
+	LastCloseCauseTime time.Time
 
 	// LastStateChange is the time of the peer's most recent FSM transition.
 	// Zero means the peer has never transitioned. Unlike Uptime (derived from

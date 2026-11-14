@@ -10,6 +10,7 @@ import (
 	"net"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // AdminShutdown is the peer `shutdown` container (ze-bgp-conf.yang). Its zero
@@ -93,7 +94,7 @@ func (p *Peer) holdAdminDown() {
 		case <-p.adminWake:
 		case <-p.inboundNotify:
 			if inbound := p.takeInboundConnection(); inbound.conn != nil {
-				rejectAdminDownConnection(inbound.conn)
+				rejectAdminDownConnection(inbound.conn, p.clock)
 			}
 		}
 	}
@@ -108,7 +109,18 @@ func (p *Peer) holdAdminDown() {
 // transport protocol connection, then the BGP speaker SHOULD send a
 // NOTIFICATION message with the Error Code Cease and the Error Subcode
 // "Connection Rejected"."
-func rejectAdminDownConnection(conn net.Conn) {
+//
+// The write is bounded by the normal control-write maximum, as the collision
+// refusal is (rejectConnectionCollision): a peer that connects and reads
+// nothing cannot hold the goroutine that serves the administrative hold. The
+// connection is closed whether or not the NOTIFICATION left.
+func rejectAdminDownConnection(conn net.Conn, clk clock.Clock) {
+	defer closeConnQuietly(conn)
+	if err := conn.SetWriteDeadline(clk.Now().Add(fwdWriteDeadlineDefault)); err != nil {
+		// A socket that refuses a deadline is already closed: there is no
+		// peer left to tell, and an unbounded write must not be attempted.
+		return
+	}
 	notif := &message.Notification{
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseConnectionRejected,
@@ -116,5 +128,4 @@ func rejectAdminDownConnection(conn net.Conn) {
 	if _, err := conn.Write(message.PackTo(notif, nil)); err != nil {
 		peerLogger().Debug("connection rejected write failed", "error", err)
 	}
-	closeConnQuietly(conn)
 }

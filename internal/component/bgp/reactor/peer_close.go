@@ -113,3 +113,17 @@ func sessionCloseFor(notified, publicationFailed bool, event fsm.Event, cause er
 	}
 	return sessionClose{reason: rpc.ReasonTCPFailure, fsmEvent: number}
 }
+
+// sessionDroppedOwed reports whether the end of an Established session owes
+// the session-dropped event on the report bus. notified and cause are the
+// inputs sessionCloseFor reads. The event stands for a close nothing else
+// reported, so two closes owe none: one where a NOTIFICATION crossed the wire,
+// which raised its own event, and one whose recorded cause is a write budget
+// expiry, which the session reported under its own code when it happened
+// (Session.reportWriteBudgetExpiry). One close gives one event.
+func sessionDroppedOwed(notified bool, cause error) bool {
+	if notified {
+		return false
+	}
+	return !errors.Is(cause, ErrWriteBudgetExpired)
+}

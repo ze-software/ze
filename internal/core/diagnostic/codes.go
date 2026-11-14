@@ -144,6 +144,7 @@ const (
 	CodeConfigPluginVerify                         = "config-plugin-verify"
 	CodeDoctorBFDPort                              = "doctor-bfd-port"
 	CodeDoctorBGPListen                            = "doctor-bgp-listen"
+	CodeDoctorBGPPeerNotReading                    = "doctor-bgp-peer-not-reading"
 	CodeDoctorImageListen                          = "doctor-image-listen"
 	CodeDoctorIPsecListen                          = "doctor-ipsec-listen"
 	CodeDoctorListenUnavailable                    = "doctor-listen-unavailable"
@@ -1444,6 +1445,17 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-bgp-listen"},
+	},
+	{
+		Code:  CodeDoctorBGPPeerNotReading,
+		Title: "BGP session closed: the peer accepted no data for the write budget",
+		Description: "ze had data to send to a BGP peer, and the peer accepted none of it for the whole write budget: its TCP connection stayed open and its receive window stayed shut. " +
+			"A peer in that state is not processing BGP messages, and a write that waits for it holds the session, so ze closed the connection without a NOTIFICATION, which the peer could not have read. " +
+			"ze connects to the peer again by itself, and sends its routes again once the session is Established. " +
+			"The event names the peer and the budget that passed. The budget of a route write is ze.fwd.write.deadline (30s by default); a KEEPALIVE, OPEN or NOTIFICATION has a third of the hold time, between 10s and 30s. " +
+			"Remedy: on the peer, find why its BGP process stopped reading (CPU load, a stalled process, a full input queue). " +
+			"Raise ze.fwd.write.deadline only when the peer is known to be slow and healthy.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show bgp peer", "ze show diagnostic doctor-bgp-peer-not-reading"},
 	},
 	{
 		Code:        "doctor-bgp-md5",
