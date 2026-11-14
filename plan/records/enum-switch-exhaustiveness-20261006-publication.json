@@ -1,0 +1,389 @@
+{
+  "purpose": "Lossless publication-clearance supplement; earlier census and final-proof archives remain unchanged.",
+  "archive": "plan/handover/enum-switch-exhaustiveness-20261006-publication.tar.gz",
+  "archive_bytes": 284580,
+  "archive_sha256": "794f2610d2e873571733a5f0e9c642f9340abc777c4ded9510728a609412a632",
+  "members": [
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/CommandPublicationReview-publication-clearance.json",
+      "member": "CommandPublicationReview-publication-clearance.json",
+      "bytes": 1791,
+      "mode": 436,
+      "sha256": "945e2e28e42dd3275081af876dc10e82407f3ad15020f7d7ead0c20914a4f859"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/CommandPublicationReview-publication-final.json",
+      "member": "CommandPublicationReview-publication-final.json",
+      "bytes": 1839,
+      "mode": 436,
+      "sha256": "a380a4b1f6efd7a48194d3485bf0a992f3ef065507715210e328ee9ccf2c5fc4"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/CommandPublicationReview-publication-full.txt",
+      "member": "CommandPublicationReview-publication-full.txt",
+      "bytes": 583,
+      "mode": 436,
+      "sha256": "5d13d1ec5099bb27bfcc5aae88775246fd06835e26f9cfab9455d29e5c490e40"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-publication-clearance.json",
+      "member": "FinalAcceptanceDeltaReview-publication-clearance.json",
+      "bytes": 2537,
+      "mode": 436,
+      "sha256": "80b3eb2e44e2988d12d786015e1a8396f227f4a2aff2ae808558b5a1744af720"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-publication-conclusion.txt",
+      "member": "FinalAcceptanceDeltaReview-publication-conclusion.txt",
+      "bytes": 3229,
+      "mode": 436,
+      "sha256": "8ee1826d6434e3c49e0107b0701efbae78731a36921f89bd6d89592d6b4ae790"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-publication-final-report.json",
+      "member": "FinalAcceptanceDeltaReview-publication-final-report.json",
+      "bytes": 2537,
+      "mode": 436,
+      "sha256": "80b3eb2e44e2988d12d786015e1a8396f227f4a2aff2ae808558b5a1744af720"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-publication-full.txt",
+      "member": "FinalAcceptanceDeltaReview-publication-full.txt",
+      "bytes": 5459,
+      "mode": 436,
+      "sha256": "45bf8cdfe4bf9a5012a33c2086aab10ad125e76613f8ef5cdb7ead479988be80"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/SourcePopulationReview-fixture-final.json",
+      "member": "SourcePopulationReview-fixture-final.json",
+      "bytes": 1717,
+      "mode": 436,
+      "sha256": "599e9045bffb51a28ac7d9df24d200410d26e6f0a0101a5e177b41d4a1d39d41"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/SourcePopulationReview-publication-clearance.json",
+      "member": "SourcePopulationReview-publication-clearance.json",
+      "bytes": 1853,
+      "mode": 436,
+      "sha256": "959b02c4c024a974805e1bcc05a22d16b6959a6f831a37eaf2803aa4f4826c7c"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/SourcePopulationReview-publication-final.json",
+      "member": "SourcePopulationReview-publication-final.json",
+      "bytes": 1979,
+      "mode": 436,
+      "sha256": "1b19762b1a27e3e6e07d657513958b9bf12761c9c68b768a3e33fdd8341dace3"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/SourcePopulationReview-publication-full.txt",
+      "member": "SourcePopulationReview-publication-full.txt",
+      "bytes": 610,
+      "mode": 436,
+      "sha256": "b645ac2d6b65e2fcdcadafdc491abe17233cbadfc9b9f2799e72bd7d27eadaf9"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-before-overlay-sources.json",
+      "member": "enum-publication-before-overlay-sources.json",
+      "bytes": 103159,
+      "mode": 436,
+      "sha256": "194b5cf645b6d392373d2ecb978f5f95a82916ce6d540dc249dceef53ad00f9c"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-before-overlay.json",
+      "member": "enum-publication-before-overlay.json",
+      "bytes": 1116,
+      "mode": 436,
+      "sha256": "fc652666f632cc41f8158333e2e8dcaffcd571b7a98a7b15142ad41c0707e8f5"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-browser.json",
+      "member": "enum-publication-browser.json",
+      "bytes": 281,
+      "mode": 436,
+      "sha256": "6cdd409bd9cffd16ee5aeaca6416f39a8735b285cf376927f715fe53b47d6378"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-cli-browser.png",
+      "member": "enum-publication-cli-browser.png",
+      "bytes": 74083,
+      "mode": 436,
+      "sha256": "1a26f626f49f37145c6b836a311f5562dd3dd199dd3c570f533b3b0048c7953a"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-cli-painted-final.png",
+      "member": "enum-publication-cli-painted-final.png",
+      "bytes": 29334,
+      "mode": 436,
+      "sha256": "92397d5e47a3759a29f862664951a477c126983ac9a439dc92d7b81f7b72b15f"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-cli-visible-row.png",
+      "member": "enum-publication-cli-visible-row.png",
+      "bytes": 999,
+      "mode": 436,
+      "sha256": "d4b2ce14de9cf032ed91b6e98dc2f1e2a18c53f7834463b6c50eb50d9e6ce9aa"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-commit-inputs.json",
+      "member": "enum-publication-commit-inputs.json",
+      "bytes": 283065,
+      "mode": 436,
+      "sha256": "9b73d44235887f4d7001dc78e1fc34353fbed512a09d9b0ee20466e271505307"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-commit-receipts.json",
+      "member": "enum-publication-commit-receipts.json",
+      "bytes": 1985,
+      "mode": 436,
+      "sha256": "0787eaddea6fda8adf44da2a44dc90e9c45570797d2c2600a66e7448b19fdfd2"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-fixture-diagnosis.json",
+      "member": "enum-publication-fixture-diagnosis.json",
+      "bytes": 1316,
+      "mode": 436,
+      "sha256": "0e71c7e1e8b86930fa962bac420e981fe57694605fc0c39615f75c8cb64885ee"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-pages-commit-files.txt",
+      "member": "enum-publication-pages-commit-files.txt",
+      "bytes": 27085,
+      "mode": 436,
+      "sha256": "84c07be702dd8db963a0a340280e3635d348a6c0be40a371741c703a5c31610a"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-remaining-site-recipe.json",
+      "member": "enum-publication-remaining-site-recipe.json",
+      "bytes": 23036,
+      "mode": 436,
+      "sha256": "c5b90b16f2402aef3596477d4cd42a1353c624db3b3d6949dd9253a8c30a08c6"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-reveal-after.json",
+      "member": "enum-publication-reveal-after.json",
+      "bytes": 356,
+      "mode": 436,
+      "sha256": "db92f8f51168600b9639fc440c7a575e6e08c6adb7130d20a9b127f883db44fd"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-reveal-before.json",
+      "member": "enum-publication-reveal-before.json",
+      "bytes": 3810,
+      "mode": 436,
+      "sha256": "51ad660b6d5dc74346b27365ff4356bdd687f68f66292dda8db39ecf7a8439d7"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-site-race-coverage.json",
+      "member": "enum-publication-site-race-coverage.json",
+      "bytes": 38889,
+      "mode": 436,
+      "sha256": "67a283c4738f599387480e83e96d1c4c948f2e0256b4dfaf606ad5c478c5eea2"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-source-relation.json",
+      "member": "enum-publication-source-relation.json",
+      "bytes": 33276,
+      "mode": 436,
+      "sha256": "a9da8d47327bb33bc7a46cd8cfb5e2d3f746c4a0c32485d67e5d0f7df4df6d8b"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-test-recipes.json",
+      "member": "enum-publication-test-recipes.json",
+      "bytes": 1831,
+      "mode": 436,
+      "sha256": "aa5302810028a53a203ee3cc15dc260dcf75c1803d2d6a337b1616b503162719"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-untracked-after.json",
+      "member": "enum-publication-untracked-after.json",
+      "bytes": 151,
+      "mode": 436,
+      "sha256": "56de3e0b580222564c5e0f3edb98e52eaaa03fe72673c8f5552ab3d62731a03c"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-publication-untracked-before.json",
+      "member": "enum-publication-untracked-before.json",
+      "bytes": 3480,
+      "mode": 436,
+      "sha256": "0b09aa4479084ec9d2173948f42b5c24df18a109d66fa7534c284378045f7711"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-q7-landed-source-relation.json",
+      "member": "enum-q7-landed-source-relation.json",
+      "bytes": 7270,
+      "mode": 436,
+      "sha256": "c097cdf452820fcd93a20566909c15478a9c86121197d6e6671a6bc3b1b94aad"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-owner-updated-doc-check-29876447.log",
+      "member": "job-enum-owner-updated-doc-check-29876447.log",
+      "bytes": 52009,
+      "mode": 420,
+      "sha256": "c35902339ac98f7131d4575a2a7a5bf218648258f7d53ff97f85aa77d04a9057"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-owner-updated-site-check-581a2253.log",
+      "member": "job-enum-owner-updated-site-check-581a2253.log",
+      "bytes": 137,
+      "mode": 420,
+      "sha256": "813def402b9d954d0fa0760a4695144f4c0ebe4b391a6229503b7c72c57efe23"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-before-regressions-751c49a4.log",
+      "member": "job-enum-publication-before-regressions-751c49a4.log",
+      "bytes": 21701,
+      "mode": 420,
+      "sha256": "df0ad3b21eec617c8e90df51b9cb03a4e0c9d47eaca03a45bf4d8721ce5ddddf"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-doc-index-ee0e48c9.log",
+      "member": "job-enum-publication-doc-index-ee0e48c9.log",
+      "bytes": 100,
+      "mode": 420,
+      "sha256": "39b4513e544ada7577ef44d7a4f8170db467d0d17cfa28c0d9026b1aa36e46ca"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-final-build-fixture-race-6ed1019d.log",
+      "member": "job-enum-publication-final-build-fixture-race-6ed1019d.log",
+      "bytes": 158,
+      "mode": 420,
+      "sha256": "241be7430ab92ee6a068e80109ea18767ae83042407b9a94a8a312bf9bdd6d5d"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-final-doc-check-29876447.log",
+      "member": "job-enum-publication-final-doc-check-29876447.log",
+      "bytes": 49738,
+      "mode": 420,
+      "sha256": "cc42d61e90f327a4816dc8b1a13470c6b9d3fc0a056b565c037034b6dceae16b"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-final-fixture-format-e9afe9f0.log",
+      "member": "job-enum-publication-final-fixture-format-e9afe9f0.log",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-final-native-lint-2c7ef39f.log",
+      "member": "job-enum-publication-final-native-lint-2c7ef39f.log",
+      "bytes": 384,
+      "mode": 420,
+      "sha256": "dc3dfffd23669d74aed9a64a393af08c87bc122fc19cbef33699a66a012723dc"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-final-site-check-581a2253.log",
+      "member": "job-enum-publication-final-site-check-581a2253.log",
+      "bytes": 137,
+      "mode": 420,
+      "sha256": "813def402b9d954d0fa0760a4695144f4c0ebe4b391a6229503b7c72c57efe23"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-fixture-format-b9219fb1.log",
+      "member": "job-enum-publication-fixture-format-b9219fb1.log",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-format-34df8965.log",
+      "member": "job-enum-publication-format-34df8965.log",
+      "bytes": 0,
+      "mode": 420,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-full-lint-2c7ef39f.log",
+      "member": "job-enum-publication-full-lint-2c7ef39f.log",
+      "bytes": 3976,
+      "mode": 420,
+      "sha256": "7c704d27eea32011cdff9f43b93b5b312e06be762a3b4f6554e134b9f247b233"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-integrated-race-c45afb88.log",
+      "member": "job-enum-publication-integrated-race-c45afb88.log",
+      "bytes": 121230,
+      "mode": 420,
+      "sha256": "20782cdf6b7bbd0753e08b0ea9bd46e9fece8ce48fb21705212193262283f573"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-landed-native-lint-2c7ef39f.log",
+      "member": "job-enum-publication-landed-native-lint-2c7ef39f.log",
+      "bytes": 3985,
+      "mode": 420,
+      "sha256": "53b7527e074c28b7f60af2d2e9ae8a4b186f78645f0b078842895ae8a323aeeb"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-pages-build-74249a3b.log",
+      "member": "job-enum-publication-pages-build-74249a3b.log",
+      "bytes": 404,
+      "mode": 420,
+      "sha256": "c2372c05ee54a17ee41a8f3cbc1cf9fbba1c7bedea7a0e65325713786d598f5c"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-painted-doc-check-29876447.log",
+      "member": "job-enum-publication-painted-doc-check-29876447.log",
+      "bytes": 49738,
+      "mode": 420,
+      "sha256": "2a4cf0f254111be0ddf72bb6c4fcf0ae616f1b2cbd19ae4d01a813baa7f7356a"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-remaining-site-race-e5a5aa3e.log",
+      "member": "job-enum-publication-remaining-site-race-e5a5aa3e.log",
+      "bytes": 17130,
+      "mode": 420,
+      "sha256": "42d2e6806f85347f29e7ed8194d28925db5cd97068c75578e6c2ed8abfdf6e50"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-scoped-lint-52099e5a.log",
+      "member": "job-enum-publication-scoped-lint-52099e5a.log",
+      "bytes": 143,
+      "mode": 420,
+      "sha256": "5b2ee457febb4ae5c9cfc48d70d4021645fea24a36614562c5f3c8336c9ce2a0"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-site-test-population-f5f0038f.log",
+      "member": "job-enum-publication-site-test-population-f5f0038f.log",
+      "bytes": 15693,
+      "mode": 420,
+      "sha256": "d8a4fd447bc28fa28d65aa8488af263b5834ec398de46699aaa0e4af13cc699f"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-visible-pages-build-74249a3b.log",
+      "member": "job-enum-publication-visible-pages-build-74249a3b.log",
+      "bytes": 404,
+      "mode": 420,
+      "sha256": "0b2320226498c739a22ea73a8b806b2d41079536828ad908d4d18cfb6fb74ca2"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-wiki-catalog-840e1691.log",
+      "member": "job-enum-publication-wiki-catalog-840e1691.log",
+      "bytes": 48,
+      "mode": 420,
+      "sha256": "1b8695b032bcdd2835efd9d5c25887780ba4e1e32737ac23fb6e2dacbb1b0b01"
+    },
+    {
+      "source": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-publication-wiki-mirrors-3e011831.log",
+      "member": "job-enum-publication-wiki-mirrors-3e011831.log",
+      "bytes": 49,
+      "mode": 420,
+      "sha256": "cc239aa857bd40209d6a211c0179405012ef3df7e29b17c288386c8a4e33de00"
+    }
+  ],
+  "readback": "Every archived member byte hash, length and mode verified against its source.",
+  "results": {
+    "lint": "All 19 settled-HEAD native populations pass; three established exceptions remain.",
+    "documentation": "Native final documentation gate passes; actual public artifact build covers 995 artifacts from 22 producers.",
+    "race": "Complete yangcontract package passes; all 358 listed site cases pass across 233 + 124 + 1 partitions. Original aggregate reds retained.",
+    "visual": "Original DOM text and blank screenshots were insufficient. Rebuilt threshold-zero artifact paints the selector at opacity one.",
+    "source_relation": "enum-publication-source-relation.json extends the prior relation for 14 Go files without rewriting frozen census bytes.",
+    "publication": "Wiki d004de6 and Pages 49988df280 are local commits, not a push or remote deployment.",
+    "formal_closure": "Not claimed; historical full-unit/startup/AIGP and provenance limits remain."
+  },
+  "commit_receipts": "enum-publication-commit-receipts.json",
+  "full_final_review": "FinalAcceptanceDeltaReview-publication-conclusion.txt",
+  "inert_recipes": [
+    "enum-publication-before-overlay-sources.json",
+    "enum-publication-commit-inputs.json"
+  ],
+  "preview_captures": "JSON tool-read captures may contain column truncation; the *-publication-full.txt and conclusion.txt members retain untruncated final reports."
+}

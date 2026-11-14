@@ -1,0 +1,101 @@
+// Design: docs/architecture/bgp/structural-forwarding.md -- the route-server relay forwards each received UPDATE
+// Related: server_withdrawal.go -- processForward, the relay of one source's UPDATE
+// Related: propagation_test.go -- newIntegrationRouteServer, the fixture
+//
+// UNTAGGED, RED ON PURPOSE (BGP c19, 2026-10-01): a defect probe for main-thread
+// ruling R55(b), not a conformance proof.
+package rs
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"slices"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
+
+// TestRouteServerWithdrawalKeepsTheReplacementRoute drives the relay with two
+// sources of one prefix and a client without ADD-PATH.
+//
+// RFC 4271 Section 9.2: "All newly installed routes and all newly unfeasible
+// routes for which there is no replacement route SHALL be advertised to its
+// peers by means of an UPDATE message." When source A withdraws 10.9.0.0/24
+// while source B's route for it remains, a replacement exists: the client must
+// not be left without the prefix. A client on a session without ADD-PATH holds
+// one path per prefix, the last one it was sent, so the relay must either keep
+// A's withdrawal from it or send B's route after it.
+//
+// VALIDATES: after A announces, B announces and A withdraws, the client
+// 10.0.0.3's last UPDATE for the prefix is B's announcement, not A's withdrawal.
+// PREVENTS: a client losing a prefix a route server still holds a route for.
+func TestRouteServerWithdrawalKeepsTheReplacementRoute(t *testing.T) {
+	rs, engineConn := newIntegrationRouteServer(t)
+	ipv4 := map[family.Family]bool{family.IPv4Unicast: true}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Families: ipv4}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true, Families: ipv4}
+	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true, Families: ipv4}
+	rs.mu.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var mu sync.Mutex
+	var toClient []uint64
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			req, err := engineConn.ReadRequest(ctx)
+			if err != nil {
+				return
+			}
+			if req.Method == "ze-plugin-engine:forward-cached" {
+				var input rpc.ForwardCachedInput
+				if json.Unmarshal(req.Params, &input) == nil && slices.Contains(input.Destinations, "10.0.0.3") {
+					mu.Lock()
+					toClient = append(toClient, input.IDs...)
+					mu.Unlock()
+				}
+			}
+			if sendErr := engineConn.SendResult(ctx, req.ID, nil); sendErr != nil && !errors.Is(sendErr, context.Canceled) {
+				t.Errorf("send result: %v", sendErr)
+			}
+		}
+	}()
+
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 1 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.9.0.0/24")
+	flushWorkers(t, rs)
+	rs.dispatchText("peer 10.0.0.2 remote as 65002 received update 2 origin igp next-hop 192.168.1.2 nlri ipv4/unicast add prefix 10.9.0.0/24")
+	flushWorkers(t, rs)
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 3 nlri ipv4/unicast del prefix 10.9.0.0/24")
+	flushWorkers(t, rs)
+	time.Sleep(200 * time.Millisecond) // Let a late re-advertisement, if any, reach the engine.
+
+	cancel()
+	<-done
+
+	mu.Lock()
+	sent := slices.Clone(toClient)
+	mu.Unlock()
+	t.Logf("UPDATE ids forwarded to the client, in order: %v", sent)
+	if !slices.Contains(sent, 2) {
+		t.Fatalf("B's announcement never reached the client: %v", sent)
+	}
+	lastWithdrawal, lastReplacement := -1, -1
+	for i, id := range sent {
+		switch id {
+		case 2:
+			lastReplacement = i
+		case 3:
+			lastWithdrawal = i
+		}
+	}
+	if lastWithdrawal > lastReplacement {
+		t.Errorf("the client was sent A's withdrawal after B's route and nothing after it: it holds no route for 10.9.0.0/24 while B's remains (ids %v)", sent)
+	}
+}

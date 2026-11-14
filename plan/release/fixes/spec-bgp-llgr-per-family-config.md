@@ -39,7 +39,7 @@ LLGR for one family of a multi-family peer and leave another off.
 
 Found by spec-rfc-verdict-test-fix-pass (child spec-rfc-verdict-fix-bgp,
 continuation 27, 2026-10-02). OWNER RULING 8 (e) in
-`plan/handover/rfc-verdict-test-fix-pass/RULINGS.md`: "Per-AFI/SAFI LLGR
+`plan/records/rfc-verdict-test-fix-pass-rulings.md`: "Per-AFI/SAFI LLGR
 configuration (RFC9494-5-2): its own small spec; the row stays {gap} until it
 lands."
 
@@ -51,7 +51,7 @@ lands."
 | Producer, capability | `parseLLGRCapValue` and `extractLLGRCapabilities` (`internal/component/bgp/plugins/gr/gr_llgr.go`) read one `long-lived-stale-time` and stamp it on every negotiated family |
 | Producer, schema | `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang`, leaf `long-lived-stale-time`: "Ze applies the value to every negotiated address family of the peer." |
 | Helper side (already per family) | RFC9494-5-1, fixed in c27: `exchangedLLGRLocked` (`internal/component/bgp/plugins/gr/gr_llgr_exchange.go`) honours a received code 71 only for families Ze declared in the OPEN it sent. This spec changes what Ze declares, not that filter |
-| Author record | `plan/handover/rfc-verdict-test-fix-pass/bgp/c27-author.md`, RFC9494-5-1 row (open question on per-family config) and the judge note on the unproven per-family exclusion |
+| Author record | Continuation 27 of the closed BGP child (its handoff left with the pass): the RFC9494-5-1 row left per-family config open (its two shapes are under "Shape constraint" below), and its judge found the per-family exclusion unproven (AC-6) |
 | User guide | `docs/guide/graceful-restart.md`, "Long-Lived Graceful Restart (RFC 9494)" |
 
 ### RFC text read for this skeleton

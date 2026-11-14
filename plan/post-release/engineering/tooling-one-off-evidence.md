@@ -60,7 +60,7 @@ authenticity of the missing run or proof that any runtime defect was repaired.
 | EAP `rfc5216_resumption_defect_test.go` probe | Marker at `f201867a36`; deletion at `37dbe54095` inspected. Replacement implementation/proof at that commit is E-reported, not inspected here |
 | RS `rfc4271_replacement_red_test.go` probe | Preserved red probe; runtime obligation remains separately owned by `plan/release/fixes/spec-bgp-one-off-defects.md`. Naming disposition cannot close it |
 
-The archive is `plan/handover/rfc-verdict-test-fix-pass/data/`.
+The archive is `plan/records/rfc-verdict-test-fix-pass/data/`.
 RS archive commit `a9ddcd495ec822e6d252e07dbad984730ca82b12`
 (`2026-10-01T10:13:58+01:00`) and EAP/two-YANG archive commit
 `0f7c52a0150b99bcf0b5b0e6a89152707d64ee3d`

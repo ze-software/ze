@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "kind": "ordered-lossless-parts-of-xz-compressed-tar",
+  "spec": "plan/spec-enum-switch-exhaustiveness.md",
+  "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
+  "archive_bytes": 205039200,
+  "parts": [
+    {
+      "path": "plan/handover/enum-switch-exhaustiveness-20261006-census.tar.xz.part-01",
+      "bytes": 83886080,
+      "sha256": "d00908e88743895a64744f3714a145aca37c6e7a1e7a045cf35eda0b7f6d24f7"
+    },
+    {
+      "path": "plan/handover/enum-switch-exhaustiveness-20261006-census.tar.xz.part-02",
+      "bytes": 83886080,
+      "sha256": "3b5e135fb1bd9b8655eb9cd351d893fea671c4c4151961cd322fecd9e29f51d4"
+    },
+    {
+      "path": "plan/handover/enum-switch-exhaustiveness-20261006-census.tar.xz.part-03",
+      "bytes": 37267040,
+      "sha256": "a4e4635db8841936ffac63aa25039dbe518abe16737060d11d73a5241d9cc6d9"
+    }
+  ],
+  "reassembly": "Concatenate parts in this array order to an .tar.xz file; verify archive_sha256 before reading or extracting. No executable recipe is extracted: recipes are serialized inside recipes.json.",
+  "archive_manifest_member": "manifest.json",
+  "archive_manifest_sha256": "a11332da8e519b475b50708dfdff1321afe0c946ca2f182b67e43af33ac1f6c5",
+  "readback": {
+    "sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
+    "bytes": 205039200,
+    "entries": 114068,
+    "regular_members": 101854,
+    "serialized_recipes": 121,
+    "referenced_entries": 291,
+    "readback": "all retained bytes, modes, directory kinds and link targets matched; serialized recipes decoded and referenced members verified"
+  },
+  "partition_readback": "Each persisted part was reread; ordered concatenation SHA-256 equals the completely verified staging archive.",
+  "qualifications": [
+    "Raw census exit 2 and both qualified errors are preserved.",
+    "Nineteen historical artifacts remain unavailable; the fresh capture does not reconstruct them.",
+    "The archive preserves the initial post-q7 comment-only relation. The subsequent framing-fixture source relation and runtime evidence are separate retained observations."
+  ]
+}

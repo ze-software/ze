@@ -102,7 +102,7 @@ Row numbers are the numbers the rows had before the first split.
 - [ ] `rfc/short/draft-ietf-idr-linklocal-capability.md` - row 6-1
   → Constraint: a wrong Next Hop length stays a session reset (RFC 7606 §7.11, `validateMPReachNextHop`); only a wrong address shape inside a 32-octet field is this row
 - [ ] `rfc/short/rfc2545.md` - row 3-6
-  → Constraint: the row is `{partial}` and its annotation names `link_scope.go::thirdPartyLinkLocal` as the boundary: tested is the include at advertisement, gap is the re-advertise when the table later names the Link-Local. A received complete 32-octet pair relayed unchanged is not in it (main-thread ruling R58(b), `plan/handover/rfc-verdict-test-fix-pass/RULINGS.md`)
+  → Constraint: the row is `{partial}` and its annotation names `link_scope.go::thirdPartyLinkLocal` as the boundary: tested is the include at advertisement, gap is the re-advertise when the table later names the Link-Local. A received complete 32-octet pair relayed unchanged is not in it (main-thread ruling R58(b), `plan/records/rfc-verdict-test-fix-pass-rulings.md`)
 - [ ] `rfc/short/rfc9830.md` - row 2.4.2-12
   → Decision: the 2026-10-11 decline was reversed by the owner on 2026-10-18 (`plan/records/rfc-gap-difficulty-2026-10-18.md`, "Owner decisions", #7), so the row carries no annotation and is tagged
 

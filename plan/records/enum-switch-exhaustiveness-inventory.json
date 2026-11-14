@@ -26,7 +26,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/output/census.json",
       "sha256": "2c072b8fd7d1fc8a8c2e2bedae479225fa3a195b96bf4f2a36ed8479b3194d49",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/output/census.json"
@@ -112,7 +112,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/output/native-plan.json",
       "sha256": "370336b825d03ce46833eca3640f57b993a7fe19631b04d93b426d7638ba14b6",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/output/native-plan.json"
@@ -122,7 +122,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/status.json",
       "sha256": "9c47b8f3666d5054a02a62e71156d5d95699e3f3e625cd9c5768900facbdbc13",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/status.json"
@@ -132,7 +132,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/source-before.json",
       "sha256": "2ffb42577a625ec1fb0c12fc6439fa802b2c3b3dc4b381a7661aca273f603e20",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/source-before.json"
@@ -142,7 +142,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-final-reconciliation-proposal-q7oqzwbw-FinalCensusReconciliation.json",
       "sha256": "4868ab87e55658d9d588db33a3a7477ee2b7fdb0bcf221e7c06947cc6094b2a7",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-final-reconciliation-proposal-q7oqzwbw-FinalCensusReconciliation.json"
@@ -152,7 +152,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/final-census/supplemental-string-switches.json",
       "sha256": "34496fc9f691e6c4f6c1821e6c4c54106dc0fdebbd8fa1419508ddbc271c43e8",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/final-census/supplemental-string-switches.json"
@@ -163,7 +163,7 @@
       "sha256": "ca5aff50c2cdaad7964a16070f0cff66f9d90c1ac1d65c10e28cc281d226cbb7",
       "qualification": "Historical post-054111 verifier fixture delta; those bytes are included in q7. Not evidence of later q7/live equivalence.",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/final-census/post-capture-source-deltas.json"
@@ -174,7 +174,7 @@
       "sha256": "3339778a12f858c0b9d3836e9d7945a3df8d69801938b03bc40622ae2b3ac55b",
       "qualification": "Historical 054111 prepared manifest only; not the archive or manifest for this final recapture.",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/final-census/archive-manifest.json"
@@ -185,7 +185,7 @@
       "manifest_artifact": "latest-source-before",
       "qualification": "Exact frozen q7 snapshot only; no substitution of later live source.",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T091123Z-q7oqzwbw/source"
@@ -195,7 +195,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T054111Z-qbdfxh2f/output/census.json",
       "sha256": "bda27e30eb9cec970eb442a9fb4c51e0bc78c626b43533d2b9af514f10499062",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T054111Z-qbdfxh2f/output/census.json"
@@ -205,7 +205,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/final-census/final-run-reconciliation.json",
       "sha256": "9ebc89df967903d070f41ddbe02bf6964620097a0d62c754c7c3a064e3f0a7bd",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/final-census/final-run-reconciliation.json"
@@ -215,7 +215,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T054111Z-qbdfxh2f/source-before.json",
       "sha256": "18efbf67a47a5f703105d7485d435a10a959e7932e6ffc5b1fd14c93ea622d93",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-census/frozen-census/run-20261006T054111Z-qbdfxh2f/source-before.json"
@@ -225,7 +225,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-final-frozen-census-c1a0272f.log",
       "sha256": "28e5901a8fae1125dc0ba25fba417208698800bf38fbc0b671309c1a0f9d508a",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_index_sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-final-frozen-census-c1a0272f.log"
@@ -245,7 +245,7 @@
       "relation": "Parent will archive this exact capture and proposals after independent review, then add actual archive path, member mapping and SHA-256. No archive is asserted by this proposal."
     },
     "complete-capture-archive": {
-      "path": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+      "path": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
       "sha256": "842390f71ed00f1672bbf4525441aed0540bdf95ed153270f49ed09d64dc9e19",
       "qualification": "Ordered lossless parts; complete tar readback and persisted-part concatenation hashes passed. Includes both frozen captures, original raw failures, source manifests, the private-index experiment and reconciliation proposals; no whole-spec acceptance claim."
     },
@@ -253,14 +253,14 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-q7-parent-final-recount-and-source-relation.json",
       "sha256": "a3f5e72d094f6c6d547d40753f48e8bdf206e8683f666accd4f0e8118e18b7c9",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-census.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-census.json",
         "archive_sha256": "2481e95d27dd8aa16a97cf0627804b85df84aa5d75ef2edded66db73239e5b7b",
         "member": "evidence/tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-q7-parent-final-recount-and-source-relation.json"
       },
       "qualification": "Before the later framing-fixture repair and source landings; retained as a dated observation, not a final all-byte certificate."
     },
     "final-proof-archive": {
-      "path": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+      "path": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
       "sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
       "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
       "parts": [
@@ -281,7 +281,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-q7-landed-source-relation.json",
       "sha256": "c097cdf452820fcd93a20566909c15478a9c86121197d6e6671a6bc3b1b94aad",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
         "archive_index_sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
         "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
         "member": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/enum-q7-landed-source-relation.json"
@@ -291,7 +291,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-post-framing-final-native-lint-2c7ef39f.log",
       "sha256": "989555892a81659a523625de294143827fa3a2d0a5a7c9339525a797ad4b9ac5",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
         "archive_index_sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
         "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
         "member": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-post-framing-final-native-lint-2c7ef39f.log"
@@ -301,7 +301,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-reactor-publication-final-race20-89d29726.log",
       "sha256": "94ea14b5a8204888050e2aa589f05ac8593389b5b786fb6c394668efab6dd8b6",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
         "archive_index_sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
         "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
         "member": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-reactor-publication-final-race20-89d29726.log"
@@ -311,7 +311,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-post-framing-proof-freshness-bd3b0aca.log",
       "sha256": "f7d43e5d22b187e4d8333994ba2813659183cc043d88b870ff9a4c89bb701622",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
         "archive_index_sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
         "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
         "member": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/job-enum-post-framing-proof-freshness-bd3b0aca.log"
@@ -321,7 +321,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-history.txt",
       "sha256": "2548917757723f242e7586d67854560aba2e2139f71b86ed0dc078122c93506c",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
         "archive_index_sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
         "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
         "member": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-history.txt"
@@ -331,7 +331,7 @@
       "path": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-clarification-full-report.txt",
       "sha256": "e365ff9d3b77c9adbef5aa539f5a652a0d330f4e5548af75fa7face2bf592b60",
       "retained_in": {
-        "archive_index": "plan/handover/enum-switch-exhaustiveness-20261006-final-proof.json",
+        "archive_index": "plan/records/enum-switch-exhaustiveness-20261006-final-proof.json",
         "archive_index_sha256": "e9d702690de5c25eea9d55e16ead74b5713d7bb8a2aa072c828b41d88ac64146",
         "archive_sha256": "3926ec7a48587fa6f29d5eb461fe356f83e2f64f35657d7834d1e3761e884207",
         "member": "tmp/session/2026-10-06-7487271c-d4f1-4454-972e-5298f85f9b43/scratch/FinalAcceptanceDeltaReview-clarification-full-report.txt"
@@ -104381,7 +104381,7 @@
     }
   ],
   "verification": "Proposal verified programmatically against every retained raw observation/population, source hashes, guard manifests and preservation invariants. No native Go, lint, test, formatter, census or archival command executed by reconciler. Source observations are not runtime proof or current-entire-tree certification. Parent completed the native lint, runtime and canonical proof checks linked in the final artifacts. The prior source relation retains the two non-enum deltas, two already-absent carrier retirements and four preserved foreign red probes outside HEAD; the publication supplement records fourteen later Go files without rewriting captured census bytes. Thomas approved the five named commits' RFC-tagged changes through the native owner-attestation record. Both siblings are reconciled and locally committed; the native documentation gate and regenerated public artifact pass, including actual painted-browser proof. All nineteen final native lint populations pass. Every listed site test has a race PASS across retained partitions, not one green aggregate invocation. These observations do not supply missing historical provenance, green whole-suite verification, formal spec closure or an authorized push.",
-  "publication_evidence": "plan/handover/enum-switch-exhaustiveness-20261006-publication.json",
+  "publication_evidence": "plan/records/enum-switch-exhaustiveness-20261006-publication.json",
   "history": [
     {
       "date": "2026-10-05",
