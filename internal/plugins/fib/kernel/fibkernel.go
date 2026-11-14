@@ -667,7 +667,14 @@ var fibFlushDiagnosticCode = diagnostic.CodeMeta{
 func (f *fibKernel) startupSweep() map[string]string {
 	routes, err := f.backend.listZeRoutes()
 	if err != nil {
-		logger().Warn("fib-kernel: list ze routes failed", "error", err)
+		// Nothing is marked stale, so the sweep removes nothing: every route a
+		// crashed run left stays in the kernel. The operator learns it here.
+		logger().Warn("fib-kernel: list ze routes failed", "error", err,
+			"fix", sweepFix, "code", reportCodeFIBSweepIncomplete)
+		report.RaiseErrorFix(reportSourceFIB, reportCodeFIBSweepIncomplete, "sweep",
+			report.FitMessage("FIB startup sweep could not list the kernel's Ze routes, so no stale route a previous "+
+				"run left is removed and each keeps forwarding with no route behind it: "+err.Error()),
+			sweepFix, map[string]any{keyOperation: "list", "list-error": err.Error()})
 		return nil
 	}
 
@@ -723,7 +730,8 @@ const sweepFix = "ip route show proto 250 table all; ip -6 route show proto 250 
 	"ip route del <prefix> proto 250 table <table>"
 
 // reportCodeFIBSweepIncomplete is the code of a startup sweep that could not
-// delete a stale route, on the report bus and on its WARN log line.
+// delete a stale route, or could not list the kernel to find any, on the
+// report bus and on its WARN log lines.
 const reportCodeFIBSweepIncomplete = "doctor-fib-sweep-incomplete"
 
 // fibSweepDiagnosticCode describes the code for `ze show diagnostic`. The
@@ -731,10 +739,12 @@ const reportCodeFIBSweepIncomplete = "doctor-fib-sweep-incomplete"
 var fibSweepDiagnosticCode = diagnostic.CodeMeta{
 	Code:  reportCodeFIBSweepIncomplete,
 	Title: "The startup sweep left a stale Ze route in the kernel",
-	Description: "fib-kernel found routes a previous run of Ze left in the kernel (protocol 250) that no " +
-		"routing protocol announced again, and the kernel refused to delete one or more of them. Each one " +
-		"keeps forwarding traffic towards a next hop nothing maintains. The detail counts the prefixes whose " +
-		"delete failed and names the first with the kernel's error. Remedy: " + sweepFix + ".",
+	Description: "fib-kernel looks at startup for routes a previous run of Ze left in the kernel (protocol 250) " +
+		"and removes those no routing protocol announces again. Either the kernel refused to delete one or more " +
+		"of them, and the detail counts the prefixes whose delete failed and names the first with the kernel's " +
+		"error, or the kernel's routes could not be listed at all (operation list), so nothing was swept and " +
+		"the detail carries the listing's error. Each route left keeps forwarding traffic towards a next hop " +
+		"nothing maintains. Remedy: " + sweepFix + ".",
 	Examples: []string{"ze show errors", "ze show diagnostic " + reportCodeFIBSweepIncomplete},
 }
 

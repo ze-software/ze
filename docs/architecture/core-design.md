@@ -2975,11 +2975,15 @@ only the route sysrib refreshed in the table its change names, so a previous
 run's route for the same prefix in another table is still removed. A stale
 route the kernel refuses to delete is not counted as removed: the sweep raises
 one `doctor-fib-sweep-incomplete` error that counts the prefixes left and names
-the first with the kernel's error.
+the lowest of them with the kernel's error. A startup listing that fails marks
+nothing stale, so nothing is swept: startup raises the same error with the
+listing's error, and the same WARN line, rather than leaving the stale routes
+unreported.
 <!-- source: internal/plugins/fib/kernel/backend_linux.go -- listZeRoutes -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- startupSweep, sweepStale, sweepPrefixLocked, delListedLocked -->
 <!-- test: internal/plugins/fib/kernel/named_table_integration_linux_test.go -- TestKernelStartupSweepRemovesNamedTableRoute, TestKernelFlushReportsNamedTableResidue -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelSweepReportsRefusedDelete -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelStartupReportsUnlistedKernel, TestFIBKernelSweepNamesTheLowestFailure, TestFIBKernelFlushDeletesEachListedTableOnce, TestFIBKernelFlushReportsPlainBackendNamedTable -->
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
 MPLS labels, or SRv6 SID), the backend dispatches to `richRouteBackend` which builds

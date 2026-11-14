@@ -145,7 +145,8 @@ Route wins in a protocol, then gets programmed in the kernel:
     (`internal/plugins/fib/kernel/register.go`), then after `sweep-delay` (default 30s, `internal/plugins/fib/kernel/backend.go`) calls
     `sweepStale` (`fibkernel.go`) to delete any route sysrib never refreshed
     (crash recovery), raising one `doctor-fib-sweep-incomplete` error when the
-    kernel refuses a delete. `f.run` (`fibkernel.go`) also emits `sysribevents.ReplayRequest`
+    kernel refuses a delete; `startupSweep` raises the same code when the listing
+    itself fails, since nothing is then swept. `f.run` (`fibkernel.go`) also emits `sysribevents.ReplayRequest`
     on start so sysrib always replays even if fib-kernel started after it,
     independent of which side came up first. sysrib's `HandleEvent`
     (`route_view_worker.go`) admits only the Broadcast identity, and `replay` publishes
