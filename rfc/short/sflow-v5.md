@@ -412,8 +412,10 @@ The agent polls each data source at the configured
 `sFlowCounterSamplingInterval` (typical: 20-120 seconds). Polls should
 be staggered across sources (randomized initial offset) to avoid CPU
 spikes. Counter samples may piggyback on flow sample datagrams when
-space permits. All counters are cumulative since boot; the collector
-computes rates by differencing consecutive samples. 64-bit counters
+space permits. sFlow v5 states no cumulative-since-boot rule of its own:
+the generic interface counters are RFC 2233's ("Generic Interface
+Counters - see RFC 2233"), whose MIB defines them as running totals, and
+the collector computes rates by differencing consecutive samples. 64-bit counters
 eliminate wraparound risk on 100G+ links.
 
 ## Counter Export
@@ -550,7 +552,6 @@ Note: sFlow v5 is an industry specification, not an IETF RFC. The following requ
 - [ ] [SFLOW-V5-x-12] [MUST] If ifIndex numbers may be >= 2^24 then the expanded must be used. (§5)
 - [ ] [SFLOW-V5-x-13] [MUST] Applications receiving sFlow data must always use the opaque length information when decoding opaque<> structures so that encountering extended structures will not cause decoding errors. (§5) {gap: the sentence binds applications receiving sFlow data, which ze is not: it is an sFlow exporter with no decode path, and it emits the opaque length prefixes a collector skips on (internal/plugins/flowexport/sflow/counter.go::writeCounterSample, flow.go); the lowercase must carries no role binding the gate accepts, so the row stays a gap and no test asserts that every opaque structure ze emits carries its length}
 - [ ] [SFLOW-V5-x-14] [MUST] The maximum number of seconds between successive samples of the counters associated with this data source. (§4.3)
-- [ ] [SFLOW-V5-x-15] [MUST] If counter samples are lost then new values will be sent during the next polling interval. The chance of an undetected counter wrap is negligible. (§5) {single-polarity: positive; interfaceCountersFrom copies the raw cumulative kernel counters straight through with no differencing, so exported if_counters are cumulative by construction (internal/plugins/flowexport/register.go:343-358, snapshot.go:10-13)}
 - [ ] [SFLOW-V5-x-16] [SHOULD] The following values should be used for fields that are unknown (unless otherwise indicated in the structure definitions). - Unknown integer value. Use a value of 0 to indicate that a value is unknown. - Unknown counter. Use the maximum counter value to indicate that the counter is not available. (§5)
 - [ ] [SFLOW-V5-x-25] [MUST] While the sFlow Datagram structure permits multiple samples to be included in each datagram, the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram. (§5)
 - [ ] [SFLOW-V5-x-26] [MUST] If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters. (§5)

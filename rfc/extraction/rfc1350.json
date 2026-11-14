@@ -95,14 +95,14 @@
       "quote": "A host which receives netascii mode data must translate the data to its own format.",
       "disposition": "mapped",
       "mapped-to": "RFC1350-5-1",
-      "reason": "The netascii translation obligation, captured verbatim as RFC1350-5-1 at [MUST]. The row is annotated {not-applicable}: ze is a read-only TFTP server that rejects WRQ with an illegal-operation ERROR and accepts only octet mode (serve and handleRRQ, internal/plugins/tftpserver/handler.go), so it never receives file data to translate. The site is nonetheless mapped rather than excluded, because the sentence is the source of a declared gated row and the annotation is a statement about ze rather than about the RFC."
+      "reason": "The netascii translation obligation, captured verbatim as RFC1350-5-1 at [MUST]. The row is annotated {gap}: ze is a read-only TFTP server that rejects WRQ with an illegal-operation ERROR and accepts only octet mode (serveRequests and handleRRQ, internal/plugins/tftpserver/handler.go), so it never receives netascii data to translate, and TFTP uploads are owed work (ai/META-DECISIONS.md, plan/post-release/features/spec-tftp-server-uploads.md). The site is mapped rather than excluded, because the sentence is the source of a declared gated row and the gap is a statement about ze rather than about the RFC."
     },
     {
       "id": "5:2",
       "quote": "If a host receives a octet file and then returns it, the returned file must be identical to the original.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "binds a host that receives an octet file and then returns it, which Ze does not implement: the TFTP server refuses WRQ (serve in internal/plugins/tftpserver/handler.go) and Ze has no TFTP client, so it never receives a file. Row RFC1350-5-2 is retired (rfc/corrections/rfc1350.md)"
+      "disposition": "mapped",
+      "mapped-to": "RFC1350-5-5",
+      "reason": "The octet round-trip identity obligation, captured verbatim as RFC1350-5-5 at [MUST]. It binds a TFTP host that receives a file, a role Ze's TFTP server fills once it accepts uploads, which ai/META-DECISIONS.md puts in scope as owed work. Today serveRequests (internal/plugins/tftpserver/handler.go) answers every WRQ with an Illegal Operation error, so the row is a {gap} owned by plan/post-release/features/spec-tftp-server-uploads.md. Re-walked 2026-11-14: this site was excluded as binds-another-role on 2026-09-30 and its row RFC1350-5-2 retired; that id stays retired, so the obligation returns under RFC1350-5-5 (rfc/corrections/rfc1350.md)."
     },
     {
       "id": "5:3",
@@ -148,5 +148,5 @@
     }
   ],
   "register-reason": "Standards Track, July 1992, written before RFC 2119 existed and carrying no key-words paragraph. A capitalised MUST/SHALL/REQUIRED scan over rfc/full/rfc1350.txt returns nothing, so DeriveRegister grades the source 'prose' and the site inventory is the case-insensitive modal scan, which returns the ten lowercase 'must' sentences classified below. The sign-off claims exactly the derived grade. Six of the eleven gated rows rfc/short/rfc1350.md declares carry no modal at all in the source and are declared as unsourced ids on the section each was read from.",
-  "resign-reason": "Re-walked section 5 on 2026-09-30 under ruling R2: site 5:2 ('If a host receives a octet file and then returns it, the returned file must be identical to the original.') binds a host that receives a file and returns it. Ze's TFTP server refuses WRQ (serve, internal/plugins/tftpserver/handler.go, opWRQ answers errIllegalOp) and Ze has no TFTP client, so Ze never receives a file. The site moves from mapped (RFC1350-5-2) to excluded binds-another-role, and the row is retired; exclusions 5 -> 6."
+  "resign-reason": "Re-walked section 5 on 2026-09-30 under ruling R2: site 5:2 ('If a host receives a octet file and then returns it, the returned file must be identical to the original.') binds a host that receives a file and returns it. Ze's TFTP server refuses WRQ (serve, internal/plugins/tftpserver/handler.go, opWRQ answers errIllegalOp) and Ze has no TFTP client, so Ze never receives a file. The site moves from mapped (RFC1350-5-2) to excluded binds-another-role, and the row is retired; exclusions 5 -> 6. Re-walked section 5 again on 2026-11-14 and reversed that: TFTP uploads to Ze's server are in scope (ai/META-DECISIONS.md), so the receiving role is Ze's and the refusal of WRQ is an owed gap, and Ze has had a TFTP client since fec7380fb1. Site 5:2 maps to RFC1350-5-5, a {gap} row under a fresh ordinal because RFC1350-5-2 stays retired; exclusions 6 -> 5."
 }

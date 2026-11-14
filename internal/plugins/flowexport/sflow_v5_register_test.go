@@ -125,7 +125,15 @@ func TestRunEngine_RefusesExternalProcess(t *testing.T) {
 	}
 }
 
-// RFC requirement: SFLOW-V5-x-15 positive -- if_counters are cumulative since boot: interfaceCountersFrom copies the raw kernel counters straight through (register.go:349-357) with no per-poll differencing. The 64-bit octet counters are carried without truncation, and calling the (stateless) converter twice on the same input yields identical values -- a differencing implementation would report zero on the second identical call.
+// TestInterfaceCountersFromCumulative pins that if_counters carry the
+// kernel's running totals: interfaceCountersFrom copies the raw kernel
+// counters straight through, never reset and never differenced per poll.
+// The running-total meaning comes from the generic interface counters of
+// RFC 2233, which sFlow v5 Section 5 imports ("Generic Interface Counters -
+// see RFC 2233"). The 64-bit octet counters are carried without truncation,
+// and calling the (stateless) converter twice on the same input yields
+// identical values: a differencing implementation would report zero on the
+// second identical call.
 func TestInterfaceCountersFromCumulative(t *testing.T) {
 	info := &iface.InterfaceInfo{
 		Name:  "eth0",

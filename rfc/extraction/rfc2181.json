@@ -227,7 +227,8 @@
     {
       "id": "10.3",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "MX and NS records. Its two modal sentences are sites 10.3:1 and 10.3:2, mapped below. The section's last sentence, 'It can also have other RRs, but never a CNAME RR.', carries no modal and raises no site; it restates RFC2181-10.3-1, because a name that owns a CNAME RR is an alias ('An alias name (label of a CNAME record)', section 10.1), so it gets no row of its own (rfc/corrections/rfc2181.md, 2026-11-14). The rest of the section explains why additional section processing does not follow an alias and binds no implementer."
     },
     {
       "id": "11",
