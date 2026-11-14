@@ -240,7 +240,7 @@ func approvalLanded(root, trailer, binding string) (carrier string, landed bool,
 	// A tree no repository holds at all (an edit hook fixture tree) has no
 	// commit that could carry the trailer, so "not landed" is the answer
 	// rather than a default. It is decided on what the directory is, never on
-	// the wording of git's refusal, which a localised git translates.
+	// the wording of git's refusal, which a localized git translates.
 	// refuse-by-default: guards proposedApprovals -- no repository holds the root, so no commit spent the row
 	if !insideGitCheckout(root) {
 		return "", false, ""

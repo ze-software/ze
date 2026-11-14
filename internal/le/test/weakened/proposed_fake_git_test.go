@@ -205,7 +205,7 @@ func TestProposedRefusesWhenTheDirectoryListingFails(t *testing.T) {
 // TestProposedDecidesARootIsNoRepositoryWithoutGit proves a Write of a new
 // test file in a root no repository holds is clean whatever git would print:
 // the decision is made on what the directory is (rfc.InsideGitCheckout),
-// never on the wording of a git refusal, which a localised git translates.
+// never on the wording of a git refusal, which a localized git translates.
 // Method: a fixture root with no .git, discovery bounded at its parent by
 // GIT_CEILING_DIRECTORIES, and a recording git that refuses every call in
 // another language; a Write of a new test file is proposed.

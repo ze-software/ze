@@ -517,7 +517,7 @@ func proposedCommitted(root, path string) (string, error) {
 // tree) has no commit that could hold the path, so the Write creates a new
 // file and the text is empty. That is decided on what the directory is, by
 // the discovery git itself performs (rfc.InsideGitCheckout), never from the
-// wording of a git refusal, which a localised git translates. Inside a
+// wording of a git refusal, which a localized git translates. Inside a
 // checkout every git failure, an unborn HEAD included, is an error: the Write
 // might recreate committed proof, and the hook refuses rather than guess.
 func proposedRecreated(root, path string) (string, error) {
@@ -932,7 +932,7 @@ func checkoutAlias(root, path string) (string, error) {
 	relative, err := filepath.Rel(resolvedRoot, target)
 	// refuse-by-default: guards Proposed -- a target no relative path reaches lies outside the checkout, so the lexical path is judged as before
 	if err != nil {
-		return path, nil
+		return path, nil //nolint:nilerr // a target outside the checkout is an answer (no alias), not a failure
 	}
 	relative = filepath.ToSlash(relative)
 	if relative == "." || relative == ".." || strings.HasPrefix(relative, "../") {
