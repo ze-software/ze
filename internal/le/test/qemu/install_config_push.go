@@ -445,24 +445,49 @@ func (installer *Installer) configPushRefusals(ctx context.Context, work, disk s
 // sshExecReal and applianceHostKeyCallback). A refusal control MUST see its
 // own cause: a nonzero exit alone is also what a failed login, an unreachable
 // device or a lost receipt produce.
-const (
-	// configPushCauseDevice is printed only when an authenticated session
-	// reached the upload subsystem and the device answered a nonzero status.
-	configPushCauseDevice = "device refused the configuration upload"
+var (
+	// configPushCauseDevice is the problem line the host driver prints when an
+	// authenticated session reached the upload subsystem and the device
+	// answered a nonzero status. The problem ends its line, and the driver's
+	// "device refused the configuration upload subsystem", printed when the
+	// device has no upload subsystem, opens with the same words: only a line
+	// that ends with this text is the device's refusal.
+	configPushCauseDevice = configPushCause{text: "device refused the configuration upload", endsLine: true}
 	// configPushCausePin is printed only when the device presented a key
-	// other than the one pinned for it.
-	configPushCausePin = "host key mismatch"
+	// other than the one pinned for it, inside the connection error's line.
+	configPushCausePin = configPushCause{text: "host key mismatch for "}
 )
 
-func configPushRefused(result commandResult, err error, cause string) error {
+// configPushCause is one failure the host driver prints on standard error.
+type configPushCause struct {
+	text string
+	// endsLine is set when the driver prints text as the last ": " segment
+	// of a line, so a longer message that begins with it is another cause.
+	endsLine bool
+}
+
+// printedIn answers whether stderr carries this cause.
+func (cause configPushCause) printedIn(stderr string) bool {
+	if !cause.endsLine {
+		return strings.Contains(stderr, cause.text)
+	}
+	for line := range strings.Lines(stderr) {
+		if strings.HasSuffix(strings.TrimRight(line, "\r\n"), ": "+cause.text) {
+			return true
+		}
+	}
+	return false
+}
+
+func configPushRefused(result commandResult, err error, cause configPushCause) error {
 	if err == nil {
 		return errors.New("native push refusal control unexpectedly succeeded")
 	}
 	if result.Code == 0 {
 		return errors.New("native push refusal control has no nonzero command status")
 	}
-	if !strings.Contains(result.Stderr, cause) {
-		return errors.New("native push refusal control failed for another cause than: " + cause)
+	if !cause.printedIn(result.Stderr) {
+		return errors.New("native push refusal control failed for another cause than: " + cause.text)
 	}
 	for _, output := range []string{result.Stdout, result.Stderr} {
 		if strings.Contains(output, "config applied to "+InstallApplianceName) {

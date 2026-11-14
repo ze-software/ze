@@ -3,8 +3,8 @@
 //
 // Package diag is the offline home of `request wireguard keypair`. The daemon
 // is not required: the command is answered in the `ze` process that runs it.
-// Per rules/cli-patterns.md each subcommand uses its own flag.NewFlagSet with
-// a custom Usage printer.
+// Per ai/patterns/cli-command.md ("cmd_<sub>.go Template") the command parses
+// its arguments with its own flag.NewFlagSet and a custom Usage printer.
 //
 // The `ze ping` offline root and the daemon-side ping handlers now live in
 // the dedicated ping feature module (internal/component/ping/cmd).

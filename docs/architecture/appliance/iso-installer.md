@@ -130,8 +130,14 @@ image is the one QEMU's own descriptor in the `firmware/` directory beside the
 code image names (`edk2-aarch64-code.fd` pairs with `edk2-arm-vars.fd`,
 `edk2-x86_64-code.fd` with `edk2-i386-vars.fd`), then the OVMF/AAVMF rename
 (`_CODE` to `_VARS`, `-code` to `-vars`). A split image with no variable image
-present is refused. A custom complete firmware image retains the `-bios` route.
-<!-- source: internal/le/test/qemu/install_iso.go -- findUEFIFirmware, isoFirmwareArgs, isoFirmwareVarsCandidates -->
+present is refused. A code image whose first descriptor declares it
+`stateless` boots from one read-only pflash drive with no variable image,
+because QEMU's descriptor format maps a flash executable into a pflash chip.
+A descriptor that does not parse cannot say which image it describes: it
+refuses the proof, naming the file, only when no descriptor that parsed names
+the code image and no renamed variable image is present. A custom complete
+firmware image retains the `-bios` route.
+<!-- source: internal/le/test/qemu/install_iso.go -- findUEFIFirmware, isoFirmwareArgs, isoFirmwarePairing -->
 
 **The two ISO tools share a 10-minute limit (`isoBuildTimeout`).** A tool that
 fails or runs out of it is named with its exact command line, the tool path

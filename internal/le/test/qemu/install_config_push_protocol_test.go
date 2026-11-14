@@ -118,6 +118,63 @@ func TestApplianceConfigPushObserverLoginRequired(t *testing.T) {
 	fixture.assertStopped(t)
 }
 
+// TestApplianceConfigPushMissingSubsystemIsNoRefusal proves that the
+// edit-denial control counts only the device's own refusal. The fixture
+// refuses the observer's subsystem request, as a daemon with no upload
+// subsystem does, so the host driver prints "device refused the configuration
+// upload subsystem": a message that opens with the refusal's words and names
+// another cause. The proof MUST fail rather than count it as an edit denial.
+func TestApplianceConfigPushMissingSubsystemIsNoRefusal(t *testing.T) {
+	fixture := newConfigPushProtocolFixture(t)
+	fixture.observerNoSubsystem = true
+	runner, ok := any(fixture.installer).(applianceConfigPushRunner)
+	if !ok {
+		t.Fatal("missing native configuration push orchestration")
+	}
+	report, err := runner.executeApplianceConfigPush(t.Context())
+	if err == nil {
+		t.Fatalf("a missing upload subsystem passed as an edit refusal: report=%+v", report)
+	}
+	if report.Verdict == InstallVerdictPass {
+		t.Fatalf("failed proof reported a pass: report=%+v", report)
+	}
+	fixture.mu.Lock()
+	defer fixture.mu.Unlock()
+	if fixture.subsystemRefusals != 1 {
+		t.Fatalf("proof did not reach the observer's subsystem request: refusals=%d", fixture.subsystemRefusals)
+	}
+	if fixture.denied != 0 || fixture.badPins != 0 {
+		t.Fatalf("proof continued past a missing subsystem: denied=%d bad pin=%d", fixture.denied, fixture.badPins)
+	}
+	fixture.assertStopped(t)
+}
+
+// TestConfigPushCausePrintedIn proves each refusal cause against the host
+// driver's line shapes: a cause that ends its line is not matched by a longer
+// message that opens with it.
+func TestConfigPushCausePrintedIn(t *testing.T) {
+	const failure = "error: configuration upload to lab at 127.0.0.1:2222: "
+	for _, test := range []struct {
+		name   string
+		cause  configPushCause
+		stderr string
+		want   bool
+	}{
+		{"device refusal", configPushCauseDevice, failure + "device refused the configuration upload\nwhy\nfix: x\n", true},
+		{"device refusal at end of output", configPushCauseDevice, failure + "device refused the configuration upload", true},
+		{"no upload subsystem", configPushCauseDevice, failure + "device refused the configuration upload subsystem\nwhy\nfix: x\n", false},
+		{"refusal words inside another line", configPushCauseDevice, "error: device refused the configuration upload later\n", false},
+		{"pin mismatch", configPushCausePin, "error: connect to 127.0.0.1:2222: ssh: handshake failed: host key mismatch for [127.0.0.1]:2222: presented x\n", true},
+		{"authentication", configPushCausePin, "error: authenticate device 127.0.0.1:2222\n", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := test.cause.printedIn(test.stderr); got != test.want {
+				t.Fatalf("printedIn(%q) = %v, want %v", test.stderr, got, test.want)
+			}
+		})
+	}
+}
+
 // TestApplianceConfigPushFixtureProcess is the bounded child used by the
 // process seam; EOF models QEMU's successful -no-reboot exit.
 func TestApplianceConfigPushFixtureProcess(t *testing.T) {
@@ -145,7 +202,8 @@ type configPushProtocolFixture struct {
 	ports                                                                                             []int
 	seed, acceptedConfig, home, socket, disk                                                          string
 	builds, boots, previews, pushes, accepted, malformed, denied, badPins, snapshots, passwords, keys int
-	failPush, refuseObserver                                                                          bool
+	subsystemRefusals                                                                                 int
+	failPush, refuseObserver, observerNoSubsystem                                                     bool
 }
 
 func newConfigPushProtocolFixture(t *testing.T) *configPushProtocolFixture {
@@ -436,12 +494,24 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 		return commandResult{Code: 1, Stderr: "error: authenticate device " + address + "\n"}, nil
 	}
 	defer client.Close()
+	// The host driver's failure line (internal/appliance, configPushOne and
+	// sshExecReal): the operator error's problem ends the first line, its
+	// reason and its fix follow on their own lines.
+	failure := "error: configuration upload to " + InstallApplianceName + " at " + address + ": "
 	upload, err := configPushExchange(client, content)
 	if err != nil {
+		fixture.mu.Lock()
+		refused := fixture.subsystemRefusals
+		fixture.mu.Unlock()
+		if refused > 0 {
+			return commandResult{Code: 1, Stderr: failure + "device refused the configuration upload subsystem\n" +
+				"The connected daemon does not provide this operation\nfix: ./ze-host appliance push <name>\n"}, nil
+		}
 		return commandResult{}, err
 	}
 	if upload.status != 0 {
-		return commandResult{Code: 1, Stderr: "error: " + configPushCauseDevice + "\n"}, nil
+		return commandResult{Code: 1, Stderr: failure + configPushCauseDevice.text + "\n" +
+			"No acceptance receipt was received\nfix: ze appliance config-push\n"}, nil
 	}
 	if string(upload.output) != configupload.Receipt {
 		return commandResult{}, errors.New("receiver receipt absent")
@@ -553,6 +623,15 @@ func (fixture *configPushProtocolFixture) sshConnection(connection net.Conn) {
 				continue
 			}
 			if request.Type != "exec" && request.Type != "subsystem" {
+				_ = request.Reply(false, nil)
+				continue
+			}
+			if request.Type == "subsystem" && fixture.observerNoSubsystem && transport.User() == configPushObserver {
+				// A daemon with no upload subsystem refuses the request
+				// itself; it never reads a frame or answers a status.
+				fixture.mu.Lock()
+				fixture.subsystemRefusals++
+				fixture.mu.Unlock()
 				_ = request.Reply(false, nil)
 				continue
 			}
