@@ -4,7 +4,8 @@ BGP assumed a configured IP always existed. Listeners were created at startup
 and never adjusted. The reactor now watches the kernel interface address table
 and reacts: it starts a listener when a passive peer's local address appears,
 stops every listener on an address that goes away, and re-settles RFC 2545 Section 3's common-subnet
-condition for every live peer.
+condition for every live peer. It also watches the kernel neighbor table, which
+names the link-local address of another router on a shared subnet.
 
 <!-- source: internal/component/bgp/reactor/reactor_address_watch.go -- startAddressWatch, addressWatchWorker, addressSync.apply -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddressAdded, handleAddressRemoved, refreshPeerLinkScopes -->
@@ -79,6 +80,53 @@ later successful refresh, rather than validated against stale addresses.
 <!-- source: internal/core/network/connected.go -- InterfacePrefixes -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes -->
 <!-- source: internal/component/bgp/reactor/session_next_hop.go -- receiveNextHopScope -->
+
+**The reactor watches the kernel neighbor table too, for the same reason and
+by the same route.** RFC 2545 Section 3 asks for the link-local address of the
+next hop after its global, and for a next hop that is another router on the
+subnet shared with the peer only the neighbor table names that address. A
+neighbor change is no bus topic, because the interface monitor that would
+publish one runs only with an `interface` block. The interface component
+registers the table in `internal/core/network` as a reader and a watcher
+(`network.RegisterNeighborTable`), so the reactor imports no interface code.
+`startNeighborWatch` starts one worker when the reactor starts, after the
+address watch, and `superviseTableWatch` keeps the watch open with the retry
+delays the address watch has.
+
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- startNeighborWatch, neighborWatchWorker -->
+<!-- source: internal/core/network/neighbors.go -- RegisterNeighborTable, WatchNeighbors -->
+<!-- source: internal/component/bgp/reactor/reactor_table_watch.go -- superviseTableWatch -->
+
+**A neighbor signal re-reads the whole table, once for every live peer.** A
+router's link-local is derived from two entries, its global and the
+link-local with the same link-layer address on the same device, so a signal
+names no entry the reactor could apply alone. `refreshPeerLinkScopes` reads
+the table once and gives each live session an immutable replacement snapshot.
+A session whose connected prefixes and neighbor view are unchanged keeps the
+snapshot it has. The address watch calls the same function, and one mutex
+serializes the two callers. The table is never read per UPDATE.
+
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes, refreshPeerLinkScopesMu -->
+<!-- source: internal/component/bgp/reactor/link_scope_neighbors.go -- readNeighborView, neighborView.equal -->
+
+**Every neighbor snapshot carries the state of the watch it was read under.**
+The worker publishes each state it reaches: running, or stopped with the
+error. A change of state is logged, as a warning with the fix when the watch
+stopped, and refreshes every live peer so that no snapshot goes on claiming a
+watch that ended. A next hop sent without its router's link-local then says
+which case it is: the watched table names no usable entry for that router, or
+the table is not watched and the answer may be out of date. An unreadable
+table warns once per peer.
+
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- noteNeighborWatch, neighborWatchState -->
+<!-- source: internal/component/bgp/reactor/link_scope_neighbors.go -- warnThirdPartyLinkLocalUnknown, warnThirdPartyLinkLocalUnwatched, warnNeighborTableUnread -->
+
+**A neighbor change sets the form of the advertisements made after it, and
+re-advertises nothing.** A route already sent with the global address alone is
+not sent again when the table later names the link-local. That
+re-advertisement is not built.
+
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- neighborWatchWorker -->
 
 ## Constraints
 

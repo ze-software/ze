@@ -23,7 +23,7 @@ is a product defect.
 |-------------------------------------|----------|----------------|
 | The Review Gate has no artifact. The closure commit owes a clean, hash-pinned `./le spec review record` over the reviewable files of rows 4, 5 and 9, from a reviewer that is not the agent that narrowed the spec | `checkVerificationGates` (`internal/le/commit/prepare.go`) | An independent `/ze-review` pass over the files the Implementation Audit names, recorded, then the Review Gate table below filled |
 | The owed commands have not run: `./le rfc check`, the scoped package tests and the functional and interop runs listed under Pre-Commit Verification | the main thread schedules them | Each green, pasted into Pre-Commit Verification |
-| Two specs still cite this file by path and commit B removes it: `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` (lines 20, 171, 364) and `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` (lines 20, 461) | `./le spec citation` | Repoint each to the bare stem in commit A. The EPE spec is `ready` with no `## Existing Mechanisms` section, so its edit gate (`writeSpecMechanisms`, `internal/le/hookruntime/specmechanisms.go`) asks for that section first |
+| Two specs still cite this file by path and commit B removes it: `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` (lines 20, 171, 364) and `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` (lines 20, 461) | `./le spec citation` | Repoint each to the bare stem in commit A. `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` cited the dead path `plan/immediate/spec-bgp-unowned-rfc-rows.md` and now cites the bare stem (review round 1, awaiting the main thread's commit); `test/plugin/rfc2545-third-party-linklocal.ci` already cites the bare stem. The EPE spec is `ready` with no `## Existing Mechanisms` section, so its edit gate (`writeSpecMechanisms`, `internal/le/hookruntime/specmechanisms.go`) asks for that section first |
 | The news declaration is not made. Operators see a change (a third-party next hop now carries its router's Link-Local, `binding-sid srv6` exists, a malformed 32-octet next hop is withdrawn), so commit A owes `website/changes/fragments/spec-bgp-unowned-rfc-rows.md` | `./le commit create` | The fragment written to `website/changes/fragments/README.md` |
 
 The main thread sets Status back to `in-progress` when the reviewer starts.
@@ -73,7 +73,7 @@ Row numbers are the numbers the rows had before the first split.
 
 | # | Quote | Read at |
 |---|-------|---------|
-| 4 | "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of "treat-as-withdraw", as described in section 7.3 of [RFC7606]." Section 6 opens: "These procedures apply only when the Link-Local Next Hop Capability has been negotiated for a BGP session." | `rfc/drafts/draft-ietf-idr-linklocal-capability.txt` §6 |
+| 4 | "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of "treat-as- withdraw", as described in section 7.3 of [RFC7606]." (the draft breaks the line after "treat-as-"; the quote keeps its bytes, with the line break read as one space) Section 6 opens: "These procedures apply only when the Link-Local Next Hop Capability has been negotiated for a BGP session." | `rfc/drafts/draft-ietf-idr-linklocal-capability.txt` §6 |
 | 5 | "The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to." | `rfc/full/rfc2545.txt` §3 |
 | 9 | "The value MUST be 18 when a SRv6 BSID is present, 6 when an SR-MPLS BSID is present, or 2 when no BSID is present." | `rfc/full/rfc9830.txt` §2.4.2 |
 | 9 (full) | "It is RECOMMENDED that the SRv6 Binding SID sub-TLV, as defined in Section 2.4.3, be used when signaling an SRv6 BSID for an SR Policy CP. The support for the use of this Binding SID sub-TLV for the signaling of an SRv6 BSID is retained primarily for backward compatibility with implementations that followed early draft versions of this document that had not defined the SRv6 Binding SID sub-TLV." | `rfc/full/rfc9830.txt` §2.4.2 (lines 514-522) |
@@ -224,10 +224,13 @@ with row 3 and AC-7 with row 10.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestLinkLocalCapabilityMalformedThirtyTwoOctet`, `TestLinkLocalCapabilityWellFormedThirtyTwoOctet` | `internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go` | AC-4, including the two-Link-Local accepted form | landed, recorded |
+| `TestLinkLocalCapabilityWrongLengthStillResets`, `TestLinkLocalCapabilityNotNegotiatedJudgesLengthOnly` | same | AC-4: a wrong Next Hop length on a capability-77 session stays a session reset, and without the capability only the length is judged | landed |
 | `TestRFC2545ReceivedPairFirstAddressValidated`, `TestRFC2545ReceivedPairSecondAddressValidated`, `TestRFC2545EffectivePairPolicyAndMixedSibling` | `internal/component/bgp/reactor/rfc2545_forward_subnet_test.go` | AC-4 on the receiving session | landed, recorded |
 | `TestRFC2545ThirdPartyLinkLocalAnnounce`, `TestRFC2545ThirdPartyLinkLocalForward` (the plan named `TestRFC2545ThirdPartyLinkLocal`) | `internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go` | AC-5: neighbour entry found (32 octets) on the announce and forwarding rails | landed, recorded |
 | `TestRFC2545NeighbourStateClasses` | same | AC-5: the valid and invalid neighbour state classes | landed |
-| `TestRFC2545ThirdPartyLinkLocalMisses`, `TestRFC2545ThirdPartyLinkLocalScope` (the plan named `TestRFC2545NoIfaceBackendSixteenOctets`) | same | AC-5: absent, ambiguous or unreadable table yields 16 octets and the Warn; the reviewer confirms the unreadable-table case is among them | landed |
+| `TestRFC2545ThirdPartyLinkLocalMisses`, `TestRFC2545ThirdPartyLinkLocalScope` (the plan named `TestRFC2545NoIfaceBackendSixteenOctets`) | same | AC-5: an absent, ambiguous or unreadable table yields 16 octets (the unreadable table is the `no-reader` case of `TestRFC2545ThirdPartyLinkLocalMisses`). These tests assert no log line | landed |
+| `TestThirdPartyMissWarningTellsTheTruth` | `internal/component/bgp/reactor/neighbor_watch_test.go` | AC-5: the rate-limited Warn names the next hop and the reason, and tells a watched table with no entry from a table nobody watches | landed |
+| `TestNoNeighbourReaderWarnsOncePerPeer` | `internal/component/bgp/reactor/neighbor_table_unread_test.go` | AC-5: an unreadable table warns once per peer | landed |
 | `TestRFC2545NeighbourChangeRefreshes` (the plan named `TestRFC2545NeighbourChangeRefreshesAndReadvertises`) | same | AC-5: a neighbour change refreshes the cache. The re-advertise half moved (Work Not Done) | landed |
 | `TestNeighbourWatchNotesPairingChanges` and the other `TestNeighbourWatch*` (the plan named `TestNeighbourChangedEventEmitted`) | `internal/plugins/iface/netlink/neighbor_watch_linux_test.go` | AC-5: the watch signals on a pairing change; a watch replaced the planned bus event (Deviations) | landed |
 | `TestDoctorNeighbourTableUnreadable`, `TestDoctorNeighbourTableCheckRegistered` | `internal/component/bgp/config/neighbor_table_doctor_test.go` | AC-5: an unreadable neighbour table is reported with the fix | landed |
@@ -365,9 +368,9 @@ those on row 3's send side in the link-local spec.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Row 5 matches the neighbour table by device and MAC | Copy FRR (own Link-Local) or BIRD (16 octets) | Owner: "Fix it"; neither reference derives the third party's Link-Local, and the kernel maps address to MAC, not global to Link-Local (A-5) |
-| Row 4 treats a malformed 32-octet field on a capability-77 session as withdrawn (review N4) | Drop the Link-Local half and keep the route, as FRR and BIRD both do | The draft says "the implementation MUST handle the malformed UPDATE message using the approach of "treat-as-withdraw"" (§6); both references diverge from it, so Ze follows the draft, and the `linklocal-capability-malformed-nexthop-withdraw` test comment records the divergence |
+| Row 4 treats a malformed 32-octet field on a capability-77 session as withdrawn (review N4) | Drop the Link-Local half and keep the route, as FRR and BIRD both do | The draft says "the implementation MUST handle the malformed UPDATE message using the approach of "treat-as- withdraw"" (§6); both references diverge from it, so Ze follows the draft, and the `linklocal-capability-malformed-nexthop-withdraw` test comment records the divergence |
 | Row 9 is implemented as an explicit operator form | Keep the 2026-10-11 decline | Owner, 2026-10-18: "implement the type-13 SRv6 form"; type 20 stays the default because the RFC recommends it |
-| Rows 2 and 10 moved although they are recorded | Close them here on unit proof | A wire-visible change owes an interop test (`ai/rules/interop-and-goal-validation.md`) and the scenarios this spec named for them were never built; a row is not recorded as covered while its named proof is absent |
+| Rows 2 and 10 moved although they are recorded | Close them here on unit proof | A wire-visible change owes an interop test (`ai/rules/interop-and-goal-validation.md`) and the scenarios this spec named for them were never built. On the ledger both rows read as proven: `RFC7606-5.1-1` and `DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5` carry no annotation in `rfc/short/`, and their unit tags and discrimination records stand. What is owed is the interop and `.ci` proof, in `plan/release/validation/spec-bgp-mp-attribute-first-wire-proof.md` (row 10) and `plan/release/fixes/spec-bgp-mup-segment-discovery-originator-checks.md` (row 2). `docs/contributing/rfc-conformance-gates.md` has no annotation for "unit-proven, interop owed": `{gap}` and `{partial}` both say the requirement is unmet, which is false here, so the rows stay as they are |
 
 ## Known Limitations
 - Row 5: a route already sent in 16 octets is not re-advertised when the neighbor table later names the Link-Local. Owned by `plan/release/fixes/spec-rfc2545-readvertise-on-condition-flip.md`.
@@ -430,7 +433,9 @@ and `buildBindingSIDSRv6SubTLV` each carry their sentence.
 - `srpolicy.DecodeNLRIHex` read the wire form as the body (`plan/journal/declared-format-contradicts-payload.md`, 2026-10-18, walked into from this spec; its row reads `fixed:`).
 
 ### Documentation Updates
-- For the reviewer: each Yes of the Documentation Update Checklist is checked against the page, and `./le doc check all` is run.
+- `docs/features/bgp-protocol.md`: the next-hop wire form row says a third-party next hop carries its router's Link-Local from the neighbor table (review round 1).
+- `docs/architecture/bgp/interface-event-reactions.md`: the neighbor table watch (review round 1, checklist item 12).
+- For the reviewer: each other Yes of the Documentation Update Checklist is checked against the page, and `./le doc check all` is run.
 
 ### Deviations from Plan
 - Row 5 reads the neighbor table through a reader and a watch registered in `internal/core/network`, not through `iface.ListNeighbors` and a neighbour-changed bus event, because the monitor that would emit the event runs only with an `interface` block. The reactor gained no import of the interface component.
@@ -506,19 +511,28 @@ The runs that show each green are owed commands; none ran in this pass.
 
 ## Review Gate
 
-Not run. It needs a reviewer independent of the agent that narrowed this spec
-(Blocker).
+Round 1 ran, by a reviewer independent of the agent that narrowed this spec.
+Its findings are fixed below; the artifact is recorded by the main thread once
+a round is clean.
 
 | Field | Value |
 |-------|-------|
 | Artifact | not recorded |
 | `./le spec review check` | not run |
-| Rounds | 0 |
-| Reviewer lenses used | none yet |
+| Rounds | 1 |
+| Round 1 scope | the whole diff of the kept rows (4, 5 tested half, 9) |
+| Reviewer lenses used | protocol correctness against the RFC text, test proves claim, spec match |
+| Round 1 verdict | 0 BLOCKER, 2 ISSUE, 4 NOTE |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| 1 | ISSUE | The page said a third-party global next hop goes alone because Ze holds no source for that router's Link-Local; the code reads it from the neighbor table | `docs/features/bgp-protocol.md`, the "next-hop wire form matches its length octet" row | The cell rewritten from `linkScope.linkLocalNextHop` and `thirdPartyLinkLocal`: the neighbor table is the source, the global goes alone on a miss with a warning, and the re-advertisement is named as not built; a source anchor added |
+| 2 | ISSUE | The `// Design:` page of `reactor_iface.go` never named the neighbor watch | `docs/architecture/bgp/interface-event-reactions.md` | Four decisions added from the code: the watch and its route through `internal/core/network`, the whole-table re-read per signal, the watch state each snapshot carries, and no re-advertisement |
+| 3 | NOTE | The `.ci` cited the dead path `plan/immediate/spec-bgp-unowned-rfc-rows.md` | `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` | Comment-only edit to the bare stem, the form the other `.ci` files use for a closed spec; listed in the Blocker table |
+| 4 | NOTE | Key Design Decisions said a row is not recorded as covered while its named proof is absent, yet rows 2 and 10 read as proven on the ledger | this spec, Key Design Decisions | Reworded to the truth: ledger-proven by unit record, interop and `.ci` proof owed in the two receiving specs. No `rfc/short/` annotation changed, because the gates page has none for that state |
+| 5 | NOTE | The row 4 quote dropped the draft's "treat-as- withdraw" spacing; the Warn proof was credited to the wrong tests; `TestLinkLocalCapabilityWrongLengthStillResets` was unlisted | this spec, the RFC text table and the Unit Tests table | The quote made byte-exact in both places; the Warn rows name `TestThirdPartyMissWarningTellsTheTruth` and `TestNoNeighbourReaderWarnsOncePerPeer`; the wrong-length and not-negotiated tests listed |
+| 6 | NOTE | Three Warn lines in `link_scope_neighbors.go` carry no `code` attribute | `internal/component/bgp/reactor/link_scope_neighbors.go` | Not changed here. The lines landed on 2026-10-31, before the directive (2026-11-10), whose gate refuses only a site a change adds. They are site C17 of `plan/release/validation/spec-doctor-coverage-6-bgp-engine.md` (its AC-28), which keeps `doctor-bgp-neighbor-table` for the unreadable table and adds `doctor-bgp-neighbor-watch-stopped` for the watch. Only the unreadable-table line has a declared code today, and that code is a private constant of `internal/component/bgp/config`, which imports the reactor |
 
 ## Pre-Commit Verification
 
