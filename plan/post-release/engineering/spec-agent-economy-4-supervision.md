@@ -45,8 +45,16 @@ exempts it by name, so a set of specs has no owner once its session ends.
 The second goal: the state of a spec set is derived from its children and
 from the claims held on them, never declared in the umbrella. A set that has
 started and not finished is reported as live, a live set nobody holds is
-reported as stalled with the child to claim next, and a session that worked
-a set does not stop inside it without a committed handover.
+reported as stalled with the child to claim next, and a session does not
+stop while it leaves a child of the set half done.
+
+Owner decision (2026-11-14): two limits, counting different things. The open
+limit counts every spec started and not closed, a started set included,
+whether or not anyone works on it: the reason to close before opening. The
+active limit counts the specs worked on right now, each under a live claim:
+the bound on what runs at once (`ai/META-DECISIONS.md`, "How agents work").
+Today one cap reads `in-progress` Status alone, so it is neither: it misses a
+started set, and it counts a spec nobody holds the same as one being worked.
 
 ## Research Findings (2026-11-11, read at the producer by a research agent; re-read at design)
 
@@ -133,10 +141,11 @@ Unverified, to probe before designing on it:
 | On-demand rationale pages | `ai/rationale/` | Hold text a skill points at | Extends: receives the reference text four skills shed |
 | Spec set naming | `docs/contributing/spec-workflow.md`, "Spec sets"; `internal/le/spec/status/closure.go`, `inspectClosureSpec` | A shared prefix and number make a set, and `-umbrella-` marks its parent | Extends: the same naming is what the derived set state is computed over. No second way to declare a set |
 | Closure detector | `internal/le/spec/status/closure.go`, `closureCompletedNotClosed` | Reports an `in-progress` spec whose work is recorded as done, and exempts umbrellas | Extends: the exemption keeps its reason and gains a positive check for an umbrella whose children are all closed |
-| Stop hook | `internal/le/hookruntime/lifecycle.go`, `hookStop` | Refuses a stop on an implemented spec that is not closed | Extends: the same refusal covers a session that stops inside a live set with no committed handover |
+| Stop hook | `internal/le/hookruntime/lifecycle.go`, `hookStop` | Refuses a stop on an implemented spec that is not closed, and only warns for an `in-progress` claim | Extends: the warning becomes a refusal when the session would leave a claimed spec `in-progress` with nothing committed that says where it stands |
 | Stale-skeleton flag and status inventory | `internal/le/spec/status/specstatus.go`, `skeletonStale`; `report.go` | Lists every spec by bucket and Status and flags old skeleton ideas | Extends: the inventory gains the set view. The stale flag is not the carrier: it measures age, and a stalled set is stalled on its first day |
-| WIP list | `internal/le/spec/session.go`, `wip` | Lists `in-progress` specs, stalest first, when a claim meets the cap | Extends: shows live sets beside them |
-| Committed handover | `plan/handover/` | Holds a handover once a session writes one | Extends: becomes what a session owes when it stops inside a live set |
+| WIP cap and list | `internal/le/spec/session.go`, `wip`, `Claim` | One cap over `in-progress` specs, checked when a `ready` spec is claimed, with the stalest listed on refusal | Replaces: two limits. The open limit counts started and unclosed specs and live sets; the active limit counts live claims. The one cap is deleted, not kept beside them |
+| Spec claims | `internal/le/spec/session.go`, the session and agent markers | Record which session or agent holds which spec | Extends: the live claims are what the active limit counts |
+| Committed handover | `plan/handover/` | Holds a handover once a session writes one | Does not apply to a set left between children: the derived state already names the next child, so a note would be a second copy of it. It stays the home for work left half done |
 | Change-set trailer | `./le commit create`, the `Spec-work: <stem>` line | Ties each commit to the spec it was made under | Extends: with the spec's removal commit it is the record of which children closed, in place of the hand-written Children table |
 
 ## Data Flow (MANDATORY)
@@ -167,7 +176,8 @@ Unverified, to probe before designing on it:
 | PostToolUse of an Agent call with a transcript past the threshold | → | the context-size report | `TestAgentSpawnReportsContextPastTheHandoffThreshold` |
 | `./le spec claim` of a second spec in one main session | → | `Claim` | `TestClaimWarnsOnASecondSpecInOneMainSession` |
 | `./le spec status` over a set with a closed child, an open child and no claim | → | the derived set state | `TestStatusReportsAStartedSetNobodyHoldsAsStalled` |
-| The Stop event of a session that claimed a child of a live set, with no handover committed | → | `hookStop` | `TestStopInsideALiveSetIsRefusedWithoutACommittedHandover` |
+| The Stop event of a session whose claimed spec is `in-progress` with nothing committed that says where it stands | → | `hookStop` | `TestStopLeavingAClaimedSpecHalfDoneIsRefused` |
+| `./le spec claim` of a `ready` spec with the open limit reached and the active limit not | → | `Claim` | `TestClaimIsRefusedAtTheOpenLimitAndNamesWhatToClose` |
 
 ## Acceptance Criteria
 
@@ -182,11 +192,13 @@ Unverified, to probe before designing on it:
 | AC-7 | `./le ai tokens` over a window of transcripts | Reports the umbrella's baseline figures | None |
 | AC-8 | A spec set with at least one child closed or claimed and at least one child still open | The status view reports the set as live and names its closed children, its open children and the next one to run, whatever Status the umbrella declares | A set none of whose children was ever claimed or closed stays an idea and is reported as today |
 | AC-9 | A live set on which no session and no agent holds a claim | The status view and the session-start summary report it as stalled, with the next child and the command that claims it | A set whose every open child waits on a named spec outside the set reports that spec instead: there is nothing to pick up |
-| AC-10 | A session releases its claim on a child of a set whose other children are still open, or closes that child | The release answers with the remaining children, the next one, and the handover owed before the session stops | Releasing the last open child reports the umbrella's own criteria as what remains |
-| AC-11 | A session that claimed an umbrella or a child of a live set stops while children remain open and no tracked handover for the set was committed after its last commit for the set | The stop is refused, naming the set, the next child and the handover to write | A session that claimed nothing in the set stops freely, and so does one whose set has no open child |
+| AC-10 | A session releases its claim on a child of a set whose other children are still open, or closes that child | The release answers with the remaining children and the next one, which is what the next session will be shown | Releasing the last open child reports the umbrella's own criteria as what remains |
+| AC-11 | A session stops while the spec it claimed is `in-progress` and nothing committed says where the work stands: no handover under `plan/handover/` and no blocked hand-back in the spec | The stop is refused, naming the spec and the two ways out: close it, or commit where it stands and release the claim | A session that closed its child and left the set between children stops freely: the derived state is its handover. The owner ending the session himself is never a hook's business |
 | AC-12 | An umbrella all of whose children are closed | The closure detector reports it as owing its own acceptance criteria and its closure, and the stop hook treats it as an implemented spec that is not closed | A child's closure record alone still never makes the umbrella a closure candidate |
-| AC-13 | A claim that meets the WIP cap, and the WIP report | The list shows live sets beside the `in-progress` specs, stalled ones first | A set shown there holds no slot unless the owner decides it does (Open Questions) |
-| AC-14 | The planning rule and the session-start rule | The planning rule states what a session owes when it stops inside a live set: the committed handover naming the next child. The session-start rule points at it and no longer reads as an order to stop with nothing left behind | One spec per session stays the rule: the next child still runs in a fresh session |
+| AC-13 | A claim of a `ready` spec when the open limit is reached | The claim is refused and lists what is open and unheld, stalled sets first, as the things to close | A claim made only to close a spec whose work is committed still passes, as today |
+| AC-14 | The planning rule and the session-start rule | The planning rule states that a session never leaves a claimed spec half done with nothing committed, and that a set left between children needs no note. The session-start rule points at it | One spec per session stays the rule: the next child still runs in a fresh session |
+| AC-16 | A claim when the active limit is reached and the open limit is not | The claim is refused and lists the live claims and who holds each | A claim that resumes a spec already open adds nothing to the open count: only the active limit judges it |
+| AC-17 | The WIP report | It shows the two counts apart, each against its limit: open, and being worked on now | None |
 | AC-15 | The implement skill's review loop | It states the round limit the planning rule states: five rounds are the session's, the sixth is the owner's | The sentence that each round covers less than the one before stays |
 
 ## 🧪 TDD Test Plan
@@ -197,8 +209,9 @@ Unverified, to probe before designing on it:
 | `TestAgentSpawnReportsContextPastTheHandoffThreshold` | `internal/le/hookruntime/` | AC-1 | |
 | `TestClaimWarnsOnASecondSpecInOneMainSession` | `internal/le/spec/` | AC-4 | |
 | `TestStatusReportsAStartedSetNobodyHoldsAsStalled` | `internal/le/spec/status/` | AC-8, AC-9 | |
-| `TestStopInsideALiveSetIsRefusedWithoutACommittedHandover` | `internal/le/hookruntime/` | AC-11 | |
-| others | named at design | AC-2, AC-3, AC-7, AC-10, AC-12, AC-13 | |
+| `TestStopLeavingAClaimedSpecHalfDoneIsRefused` | `internal/le/hookruntime/` | AC-11 | |
+| `TestClaimIsRefusedAtTheOpenLimitAndNamesWhatToClose` | `internal/le/spec/` | AC-13 | |
+| others | named at design | AC-2, AC-3, AC-7, AC-10, AC-12, AC-16, AC-17 | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -221,14 +234,15 @@ Unverified, to probe before designing on it:
 - The three probes above decide whether the reports are additional context or a refusal at the next spawn.
 - Whether AC-7's measure is a new action or an extension of the existing token report.
 - How a closed child is known. The child's file is gone, and the umbrella's Children table is a hand-written copy, so it cannot be the source. The candidates are the commit that removed the spec together with the `Spec-work:` trailer, or the closure record the detector already reads. The answer must come from what git holds.
-- How the handover for a set is recognised. A hook judges what a file is, never its wording, so the candidate is a tracked file under `plan/handover/` whose name carries the set's prefix, committed after the session's last commit for the set.
-- For the owner: does a live set hold a WIP slot? If it does, the cap counts work that is started and unfinished, and a set held open for a two-week measurement blocks a slot for that time. If it does not, the cap keeps counting claims only and the set is visible without costing one.
-- For the owner: may a stop inside a live set be acknowledged without a handover, as the closure refusal can be today, and by whom?
+- How "something committed says where the work stands" is recognised for AC-11. A hook judges what a file is, never its wording, so the candidates are a tracked file under `plan/handover/` whose name carries the spec's stem, or the spec's own Status moved to `blocked`, either one committed after the session's last commit for the spec.
+- For the owner: the two numbers. The open limit takes over today's cap and its value. The active limit has no value yet; the machine runs one heavy job per session, so it is a bound on sessions and agents working at once.
+- For the owner: how a set counts in the open limit. The proposal is that each started, unclosed child counts as itself, and a live set with no such child, as the agent-economy set is today, counts once.
+- For the owner, to confirm at design: no acknowledgement route past AC-11. The refusal binds an agent ending its own turn, and its two ways out are cheap.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-15 all demonstrated
+- [ ] AC-1..AC-17 all demonstrated
 - [ ] The targeted tests pass, run by the main thread: the packages `internal/le/hookruntime`, `internal/le/spec`, `internal/le/spec/status` and `internal/le/ai/tokens`, and `./le ai hooks unit`. No `./le test unit <group>` covers `internal/le`. No agent runs any `./le verify` command
 
 ### TDD
