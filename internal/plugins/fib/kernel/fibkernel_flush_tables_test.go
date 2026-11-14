@@ -399,3 +399,36 @@ func TestFIBKernelInstallsOverItsOwnRefusedStaleRoute(t *testing.T) {
 		t.Errorf("stale tables for %s = %v after Ze's current route took table 100, want none", prefix, tables)
 	}
 }
+
+// Goal: a prefix a protocol installed again into its stale table before the
+// sweep is not an orphan: the sweep deletes nothing for it and raises no
+// orphan warning. Method: a rich backend listing the prefix in table 100
+// only, startupSweep, an Add into table 100 (which takes the stale slot),
+// sweepStale: no rich or plain delete, no fib-orphan warning.
+func TestFIBKernelSweepLeavesARefreshedNamedTablePrefixAlone(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &deleteLogBackend{mockBackend: newMockBackend()}
+	prefix := netip.MustParsePrefix("198.18.134.0/24")
+	backend.zeRoutes = []installedRoute{{prefix: prefix.String(), table: 100}}
+	fib := newFIBKernel(backend)
+	stale := fib.startupSweep()
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Add, Prefix: prefix, NextHop: netip.MustParseAddr("192.168.34.1"), Protocol: "bgp", TableID: 100},
+	}))
+
+	fib.sweepStale(stale)
+
+	if len(backend.deletes) != 0 || len(backend.deleted) != 0 {
+		t.Errorf("the sweep deleted for a refreshed prefix: rich %+v, plain %v", backend.deletes, backend.deleted)
+	}
+	for _, warning := range report.Warnings() {
+		if warning.Code == reportCodeFIBOrphan {
+			t.Errorf("the sweep reported an orphan for a prefix a protocol refreshed: %+v", warning)
+		}
+	}
+	if _, installed := fib.installed[prefix.String()]; !installed {
+		t.Errorf("the sweep dropped the refreshed prefix %s from the installed set", prefix)
+	}
+}

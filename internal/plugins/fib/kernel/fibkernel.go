@@ -743,17 +743,22 @@ func (f *fibKernel) startupSweep() map[string]string {
 // from the table it was listed in, and answers how many it removed.
 // sysrib refreshed a route only in the table its current change names, so a
 // route Ze installed this run keeps that table and a previous run's route in
-// any other table is still stale. A prefix startup never listed is removed
-// from main, the table sweepStale's caller knew it from. A table whose delete
-// the kernel refused stays recorded for the prefix: the route is still Ze's to
-// remove, and flushRoutes tries it again at stop. Caller MUST hold f.mu.
+// any other table is still stale. A prefix with no table recorded and a
+// route installed this run has nothing stale left: its installs took every
+// listed table. A prefix with no table recorded and nothing installed is
+// removed from main, the table sweepStale's caller knew it from. A table whose
+// delete the kernel refused stays recorded for the prefix: the route is still
+// Ze's to remove, and flushRoutes tries it again at stop. Caller MUST hold f.mu.
 func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, error) {
 	tables, listed := f.staleTables[prefix]
 	delete(f.staleTables, prefix)
+	_, installed := f.installed[prefix]
 	if !listed {
+		if installed {
+			return 0, nil
+		}
 		tables = []uint32{0}
 	}
-	_, installed := f.installed[prefix]
 	current := f.forwarding[prefix]
 	swept := 0
 	var errs error
