@@ -6,7 +6,10 @@
 // measures both files. The derivation was ported from the retired rules tool.
 //
 // Both artifacts come from ONE parse. A second source would drift, and a routed
-// section must read identically to the digest section it replaces.
+// section must read identically to the digest section it replaces. The one
+// exception is a core member holding a point that declares `applies`: its block
+// is condensed from its points, through RenderText, because the field lives in
+// the points and never reaches the rendered rule.
 //
 // The generated headers name `./le ai rules update condensed`, the sole producer
 // of both artifacts.
@@ -23,6 +26,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 )
 
 // condensedPointers are the bare cross-reference openers that end a paragraph
@@ -199,8 +203,10 @@ func isListItem(line string) bool {
 }
 
 // ruleBlock answers one rule's condensed section, identical in every artifact
-// that shows it.
-func ruleBlock(rule *Rule) string {
+// that shows it. A rule whose points name situations ends its block with one
+// line naming the rule file and each situation, so a reader who meets one of
+// them knows the rest of the rule is one Read away.
+func ruleBlock(rule *Rule, situations []string) string {
 	var meta textbuf.Buffer
 	for i, pair := range rule.Meta {
 		if i > 0 {
@@ -219,7 +225,71 @@ func ruleBlock(rule *Rule) string {
 	}
 	block = append(block, "")
 	block = append(block, condenseBody(rule.Body)...)
+	if len(situations) > 0 {
+		block = append(block, "", situationsLine(rule.Path, situations))
+	}
 	return strings.TrimRight(strings.Join(block, "\n"), asciiSpace)
+}
+
+// maxSituationsLine bounds the line a core block ends with when points of its
+// rule declare `applies`. Every session loads it, like a trigger row, but it
+// names one situation per marked point, so its room is two trigger rows
+// (maxTriggerLine) rather than one. A line over it is refused, never cut: a
+// cut situation is a pointer an agent cannot match.
+const maxSituationsLine = 2 * maxTriggerLine
+
+// situationsLine answers the line naming a rule file and the situations its
+// marked points apply in.
+func situationsLine(path string, situations []string) string {
+	var tb textbuf.Buffer
+	return tb.Str("**Read `").Str(path).Str("` before acting when:** ").Join(situations, "; ").String()
+}
+
+// coreView is what the core shows of one always-on rule whose points name
+// situations: the rule body without those points, and the situations.
+type coreView struct {
+	body       []string
+	situations []string
+}
+
+// coreViews answers the view of every always-on rule that holds a point
+// declaring `applies`, keyed by the rule's file name. A rule absent from the
+// answer is shown whole, from its rendered file, exactly as it was before the
+// field existed.
+//
+// The body is rendered from the points rather than cut out of the rendered
+// file, because the points are where the field lives and RenderText is the one
+// function that turns points into rule text. Every rule's points are read, so
+// `applies` on a routed rule's point is refused rather than ignored.
+func coreViews(pointsRoot string, core map[string]bool) (map[string]coreView, error) {
+	views := map[string]coreView{}
+	for _, dir := range pointDirs(pointsRoot) {
+		header, sections, err := readRulePoints(dir)
+		if err != nil {
+			return nil, err
+		}
+		stem := filepath.Base(dir)
+		var tb textbuf.Buffer
+		name := tb.Str(stem).Str(".md").String()
+		kept, situations, err := situate(stem, sections, core[name])
+		if err != nil {
+			return nil, err
+		}
+		if len(situations) == 0 {
+			continue
+		}
+		tb.Reset()
+		path := tb.Str(rulesRel).Byte('/').Str(name).String()
+		if length := runeLen(situationsLine(path, situations)); length > maxSituationsLine {
+			tb.Reset()
+			return nil, errors.New(tb.Str(name).Str(": the core line naming the situations its points apply in is ").
+				Int(int64(length)).Str(" characters, over the ").Int(maxSituationsLine).
+				Str("-character bound. Fix: shorten the `applies` situations of its points, or remove an `applies` line").String())
+		}
+		_, _, body := parseRule(splitLines(RenderText(header, kept)))
+		views[name] = coreView{body: body, situations: situations}
+	}
+	return views, nil
 }
 
 // triggerLines answers one routing row per rule: path, severity, trigger. A row
@@ -284,8 +354,10 @@ var triggersHeader = []string{
 	"",
 	"Every rule under `ai/rules/`, one line each. When a trigger matches the work",
 	"in hand, READ that rule's file before acting. A row marked `always-on` is",
-	"already loaded in full (`ai/rules/CORE.md`) and needs no read; every other",
-	"rule's body is one Read away at the path in its row.",
+	"already loaded (`ai/rules/CORE.md`) and needs no read, except that its core",
+	"block may end with a line naming situations: the points for those situations",
+	"are in the rule file, so read it when one of them matches. Every other rule's",
+	"body is one Read away at the path in its row.",
 	"",
 	"| Rule | Severity | When to read it |",
 	"|------|----------|-----------------|",
@@ -305,6 +377,10 @@ var coreHeader = []string{
 	"rather than being dropped from both artifacts, and so does a blocking rule",
 	"that no past task description in `plan/` would surface",
 	"(`./le ai rules report router` prints that set and the corpus it read).",
+	"",
+	"A block shows every point of its rule except a point that declares the",
+	"situation it applies in. Such a block ends with a line naming the rule file",
+	"and each situation: when one matches, read that file before acting.",
 	"",
 	"Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its",
 	"trigger matches.",
@@ -329,7 +405,10 @@ func buildTriggers(rules []Rule, core map[string]bool) (string, error) {
 // rewrite when a commit changed no core rule. Such a rewrite left `--check` red
 // with no relevant author action. The header keeps only membership, which
 // changes when the core changes.
-func buildCore(core []Rule) string {
+//
+// A member named in views is condensed from the view's body and ends with its
+// situations; every other member is condensed from its rendered file.
+func buildCore(core []Rule, views map[string]coreView) string {
 	reasons := make(map[string]bool, len(core))
 	for i := range core {
 		reasons[core[i].CoreReason] = true
@@ -347,7 +426,12 @@ func buildCore(core []Rule) string {
 
 	blocks := make([]string, 0, len(core))
 	for i := range core {
-		blocks = append(blocks, tb.Str(ruleBlock(&core[i])).
+		member := core[i]
+		view, situated := views[member.Name]
+		if situated {
+			member.Body = view.body
+		}
+		blocks = append(blocks, tb.Str(ruleBlock(&member, view.situations)).
 			Str("\n\n<!-- always-on: ").Str(core[i].CoreReason).Str(" -->").String())
 		tb.Reset()
 	}
@@ -430,7 +514,12 @@ func Digest(tree string, check bool) (DigestReport, error) {
 		return report, err
 	}
 
-	triggers, err := buildTriggers(rules, coreNames(core))
+	alwaysOn := coreNames(core)
+	triggers, err := buildTriggers(rules, alwaysOn)
+	if err != nil {
+		return report, err
+	}
+	views, err := coreViews(pointsDir(tree), alwaysOn)
 	if err != nil {
 		return report, err
 	}
@@ -443,7 +532,7 @@ func Digest(tree string, check bool) (DigestReport, error) {
 		content string
 	}{
 		{triggersFile, len(rules), triggers},
-		{coreFile, len(core), buildCore(core)},
+		{coreFile, len(core), buildCore(core, views)},
 	}
 
 	report.Artifacts = make([]DigestArtifact, 0, len(built))
@@ -481,20 +570,22 @@ func artifactPath(name string) string {
 	return tb.Str(rulesRel).Byte('/').Str(name).String()
 }
 
-// PayloadPart is one file of the always-loaded payload.
+// PayloadPart is one file of a measured payload, or one part of a file.
 type PayloadPart struct {
-	File   string `json:"file"`
+	File string `json:"file"`
+	// Part is the heading line that opens the measured part of File, or empty
+	// when the whole file is measured.
+	Part   string `json:"part,omitempty"`
 	Chars  int    `json:"chars"`
 	Tokens int    `json:"tokens"`
-	// Missing says that the file was absent. The script counts an absent file as
-	// zero characters. Thus, a payload without CORE.md appears further under
-	// budget than a complete payload.
+	// Missing says that the file, or the heading that opens Part, was absent.
+	// The script counts an absent file as zero characters. Thus, a payload
+	// without CORE.md appears further under budget than a complete payload.
 	Missing bool `json:"missing"`
 }
 
-// PayloadReport describes what a session loads: the instructions, the routing
-// index, and the always-on core.
-type PayloadReport struct {
+// PayloadSet is one file set measured against its own budget.
+type PayloadSet struct {
 	Parts    []PayloadPart `json:"parts"`
 	Chars    int           `json:"chars"`
 	Tokens   int           `json:"tokens"`
@@ -502,72 +593,136 @@ type PayloadReport struct {
 	Met      bool          `json:"met"`
 	Headroom float64       `json:"headroom-percent"`
 	// Missing names every absent part. A reader can use the verdict only when it
-	// measures a complete payload.
+	// measures a complete set.
 	Missing []string `json:"missing"`
 }
 
-// Failed reports whether the measurement is missing one of the files it
+// PayloadReport describes what a session loads, the instructions, the routing
+// index and the always-on core, and beside it the agent rule set a phase agent
+// starts with.
+type PayloadReport struct {
+	PayloadSet
+	Agent PayloadSet `json:"agent-rule-set"`
+}
+
+// Failed reports whether either measurement is missing one of the parts it
 // measures.
 //
 // The script always answers 0, and an absent file contributes zero characters.
 // Thus, deletion of CORE.md makes the budget look MET. An absent payload is not
 // a smaller payload.
-func (r PayloadReport) Failed() bool { return len(r.Missing) > 0 }
+func (r PayloadReport) Failed() bool { return len(r.Missing) > 0 || len(r.Agent.Missing) > 0 }
 
-// Text renders the report in the shape the script printed.
+// Text renders the report: the main payload in the shape the script printed,
+// then the agent rule set in the same shape.
 func (r PayloadReport) Text() string {
 	var tb textbuf.Buffer
-	tb.Str("always-loaded payload:\n")
-	for _, part := range r.Parts {
-		tb.Str("  ").Str(part.File).Str(": ").Int(int64(part.Chars)).Str(" chars (").
-			Int(int64(part.Tokens)).Str(" tokens)\n")
+	r.PayloadSet.text(&tb, "always-loaded payload", "what a session loads")
+	r.Agent.text(&tb, "agent rule set", "what a phase agent starts with")
+	return tb.String()
+}
+
+// text renders one measured set under its title. What names what the set
+// stands for, in the warning an incomplete set prints.
+func (s PayloadSet) text(tb *textbuf.Buffer, title, what string) {
+	tb.Str(title).Str(":\n")
+	for _, part := range s.Parts {
+		tb.Str("  ").Str(part.File)
+		if part.Part != "" {
+			tb.Str(" (").Str(part.Part).Byte(')')
+		}
+		tb.Str(": ").Int(int64(part.Chars)).Str(" chars (").Int(int64(part.Tokens)).Str(" tokens)\n")
 	}
-	tb.Str("  TOTAL: ").Int(int64(r.Chars)).Str(" chars (").Int(int64(r.Tokens)).Str(" tokens)\n")
+	tb.Str("  TOTAL: ").Int(int64(s.Chars)).Str(" chars (").Int(int64(s.Tokens)).Str(" tokens)\n")
 	verdict := "EXCEEDED"
-	if r.Met {
+	if s.Met {
 		verdict = "MET"
 	}
-	tb.Str("  budget: ").Int(int64(r.Budget)).Str(" tokens -- ").Str(verdict).Byte('\n')
-	tb.Str("  headroom: ").Float(r.Headroom, 1).Str("%\n")
-	if len(r.Missing) > 0 {
-		tb.Str("WARNING: the payload is incomplete, so the total above measures a file set that "+
-			"is not what a session loads: ").Join(r.Missing, ", ").Byte('\n')
+	tb.Str("  budget: ").Int(int64(s.Budget)).Str(" tokens -- ").Str(verdict).Byte('\n')
+	tb.Str("  headroom: ").Float(s.Headroom, 1).Str("%\n")
+	if len(s.Missing) > 0 {
+		tb.Str("WARNING: the ").Str(title).Str(" is incomplete, so the total above measures a set that "+
+			"is not ").Str(what).Str(": ").Join(s.Missing, ", ").Byte('\n')
 	}
-	return tb.String()
 }
 
 // payloadParts names the four files a session loads before it reads anything
 // else: ai/INSTRUCTIONS.md, which becomes AGENTS.md, and the three files its
 // `@` lines include. A new `@` line in ai/INSTRUCTIONS.md owes an entry here.
-var payloadParts = [...]string{
-	"ai/INSTRUCTIONS.md", "ai/META-DECISIONS.md", "ai/rules/TRIGGERS.md", "ai/rules/CORE.md",
+var payloadParts = [...]ruleset.Reader{
+	ruleset.WholeFile(ruleset.InstructionsFile), ruleset.WholeFile(ruleset.DecisionsFile),
+	ruleset.WholeFile(ruleset.TriggersFile), ruleset.WholeFile(ruleset.CoreFile),
 }
 
-// Payload measures what the always-loaded payload costs against its budget.
-func Payload(tree string) (PayloadReport, error) {
-	report := PayloadReport{Budget: tokenBudget, Parts: make([]PayloadPart, 0, len(payloadParts))}
-	for _, rel := range payloadParts {
-		path := filepath.Join(tree, filepath.FromSlash(rel))
-		part := PayloadPart{File: rel}
-		raw, err := os.ReadFile(path) // #nosec G304 -- a path derived from the checkout
-		switch {
-		case err != nil && os.IsNotExist(err):
-			part.Missing = true
-			report.Missing = append(report.Missing, rel)
-		case err != nil:
-			return report, err
-		case !utf8.Valid(raw):
+// agentRuleSetParts names what a phase agent starts with in place of the main
+// session's files: the hard bans of ai/INSTRUCTIONS.md, the every-agent part of
+// ai/META-DECISIONS.md, the trigger index and the core. It is read from the
+// main session's own files, so there is no second copy to keep fresh.
+var agentRuleSetParts = [...]ruleset.Reader{
+	ruleset.HardBans, ruleset.AgentDecisions,
+	ruleset.WholeFile(ruleset.TriggersFile), ruleset.WholeFile(ruleset.CoreFile),
+}
+
+// agentTokenBudget is what the agent rule set must come in under: the core at
+// its 24KB ceiling (6,000 tokens), the trigger index (about 1,400), the hard
+// bans (about 650), and about 3,950 tokens for the every-agent decisions.
+const agentTokenBudget = 12000
+
+// readAgentRuleSet reads the agent rule set from the checkout at tree, part by
+// part. A part whose file or heading is absent is answered Missing with no
+// text, never as an empty part: a caller that joins the texts MUST check
+// Missing, because an absent part is not a shorter one.
+func readAgentRuleSet(tree string) ([]ruleset.Part, error) {
+	return ruleset.Read(tree, agentRuleSetParts[:])
+}
+
+// countable refuses a part whose text is not valid UTF-8, because its size in
+// characters cannot be counted.
+func countable(parts []ruleset.Part) error {
+	for _, part := range parts {
+		if !utf8.ValidString(part.Text) {
 			var tb textbuf.Buffer
-			return report, errors.New(tb.Str(rel).Str(" is not valid UTF-8, so its size in characters cannot be counted").String())
-		default:
-			part.Chars = runeLen(string(raw))
-			part.Tokens = part.Chars / bytesPerToken
+			return errors.New(tb.Str(part.File).Str(" is not valid UTF-8, so its size in characters cannot be counted").String())
 		}
-		report.Chars += part.Chars
-		report.Parts = append(report.Parts, part)
 	}
-	report.Tokens = report.Chars / bytesPerToken
-	report.Met = report.Tokens < tokenBudget
-	report.Headroom = 100.0 * float64(tokenBudget-report.Tokens) / float64(tokenBudget)
-	return report, nil
+	return nil
+}
+
+// measure counts each part against budget.
+func measure(parts []ruleset.Part, budget int) PayloadSet {
+	set := PayloadSet{Budget: budget, Parts: make([]PayloadPart, 0, len(parts))}
+	for _, read := range parts {
+		part := PayloadPart{File: read.File, Part: read.Heading, Missing: read.Missing}
+		if read.Missing {
+			set.Missing = append(set.Missing, read.Reason)
+		}
+		part.Chars = runeLen(read.Text)
+		part.Tokens = part.Chars / bytesPerToken
+		set.Chars += part.Chars
+		set.Parts = append(set.Parts, part)
+	}
+	set.Tokens = set.Chars / bytesPerToken
+	set.Met = set.Tokens < budget
+	set.Headroom = 100.0 * float64(budget-set.Tokens) / float64(budget)
+	return set
+}
+
+// Payload measures what the always-loaded payload costs against its budget,
+// and what the agent rule set costs against its own.
+func Payload(tree string) (PayloadReport, error) {
+	session, err := ruleset.Read(tree, payloadParts[:])
+	if err != nil {
+		return PayloadReport{}, err
+	}
+	if err := countable(session); err != nil {
+		return PayloadReport{}, err
+	}
+	agent, err := readAgentRuleSet(tree)
+	if err != nil {
+		return PayloadReport{}, err
+	}
+	if err := countable(agent); err != nil {
+		return PayloadReport{}, err
+	}
+	return PayloadReport{PayloadSet: measure(session, tokenBudget), Agent: measure(agent, agentTokenBudget)}, nil
 }

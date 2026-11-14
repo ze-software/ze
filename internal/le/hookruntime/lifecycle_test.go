@@ -12,8 +12,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 	"github.com/ze-software/ze/internal/le/derived"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
@@ -125,6 +129,46 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 			want:    []string{"stop and report the agent id to the main thread", "refuses every command, readers included"},
 			absent:  []string{"ZE_AGENT_ID=", "first refusal"},
 		},
+		{
+			// Review round 3, I1: an agent id past the id length bound is one
+			// bashAgentIdentity refuses, so no line is built from it, cut or
+			// whole; the agent is told to stop and report instead.
+			name:    "payload-with-an-over-long-agent-id",
+			payload: map[string]any{"session_id": "context-parent", "agent_id": strings.Repeat("a", idLengthMax(t)+1)},
+			want:    []string{"stop and report the agent id to the main thread", "refuses every command, readers included", "Parent session ID: context-parent\n", lepath.IDRule()},
+			absent:  []string{"ZE_AGENT_ID=", "..."},
+		},
+		{
+			// Review round 4: a payload that names an agent and carries no
+			// session_id key resolves a parent session for the start text,
+			// but bashAgentIdentity reads the payload's own session id and
+			// refuses every command, so no line is printed: one built from
+			// the resolved id is a line no check accepts.
+			name:    "payload-with-an-agent-id-and-no-session-id",
+			payload: map[string]any{"agent_id": "agent-1"},
+			want:    []string{"carries no session id", "refuses every command, readers included", "stop and report the payload's session_id to the main thread"},
+			absent:  []string{"ZE_AGENT_ID=", "CLAUDE_CODE_SESSION_ID="},
+		},
+		{
+			// An over-long session id is neither echoed nor used in a line:
+			// the Bash hook refuses every command of such a subagent with
+			// stop-and-report, and the start text says the same.
+			name:    "payload-with-an-over-long-session-id",
+			payload: map[string]any{"session_id": strings.Repeat("s", idLengthMax(t)+1), "agent_id": "agent-1"},
+			want:    []string{"session id cannot name a file", "stop and report the payload's session id to the main thread", lepath.IDRule()},
+			absent:  []string{"ZE_AGENT_ID=", "CLAUDE_CODE_SESSION_ID=", "Parent session ID", "sss", "..."},
+		},
+		{
+			// Ids at the bound are printed whole, in the exact line the Bash
+			// hook compares.
+			name:    "payload-with-ids-at-the-length-bound",
+			payload: map[string]any{"session_id": strings.Repeat("s", idLengthMax(t)), "agent_id": strings.Repeat("a", idLengthMax(t))},
+			want: []string{
+				"\nexport ZE_AGENT_ID=" + strings.Repeat("a", idLengthMax(t)) + "; export CLAUDE_CODE_SESSION_ID=" + strings.Repeat("s", idLengthMax(t)) + "; \n",
+				"Parent session ID: " + strings.Repeat("s", idLengthMax(t)) + "\n",
+			},
+			absent: []string{"..."},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -153,6 +197,25 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 			}
 		})
 	}
+}
+
+// idLengthMax answers the longest id lepath accepts, found by asking the one
+// id check rather than copying its bound, and fails the test unless that
+// bound sits under the start text's echo bound: the start text prints ids
+// uncut only because the check refuses every id that bound would cut.
+func idLengthMax(t *testing.T) int {
+	t.Helper()
+	longest := 0
+	for longest <= startTextErrorMax && lepath.ValidAgentID(strings.Repeat("a", longest+1)) {
+		longest++
+	}
+	if longest == 0 || longest >= startTextErrorMax {
+		t.Fatalf("the id check admits ids of %d bytes, want a bound in 1..%d so the start text never cuts one", longest, startTextErrorMax-1)
+	}
+	if lepath.ValidSessionID(strings.Repeat("s", longest+1)) || !lepath.ValidSessionID(strings.Repeat("s", longest)) {
+		t.Fatalf("the session id check and the agent id check disagree on the %d-byte bound", longest)
+	}
+	return longest
 }
 
 // TestSubagentStartCarriesTheCallRules drives the subagent-context hook with
@@ -763,6 +826,585 @@ func TestSessionStartDebtLineNeverNamesVerify(t *testing.T) {
 	}
 	if strings.Contains(printed[at:], "le verify") {
 		t.Fatalf("the debt warning %q names a verify", printed[at:])
+	}
+}
+
+// The fixture texts of the agent rule-set tests. Each marker word stands for
+// a rule of one part, so a test can say which part reached the start text.
+const (
+	fixtureBan             = "- Never run the fixture's banned verb."
+	fixtureMainInstruction = "MAIN-INSTRUCTIONS-MARK"
+	fixtureAgentDecision   = "AGENT-DECISION-MARK"
+	fixtureMainDecision    = "MAIN-DECISION-MARK"
+)
+
+// writeRuleSetTree writes a checkout holding a mirrored agent definition with
+// the given frontmatter, and the instruction and decisions files when their
+// text is not empty.
+func writeRuleSetTree(t *testing.T, frontmatter, instructions, decisions string) string {
+	t.Helper()
+	root := t.TempDir()
+	files := map[string]string{
+		filepath.Join(ruleset.AgentDefinitionsDir, "ze-read.md"): "---\n" + frontmatter + "---\n\nBody.\n",
+		ruleset.InstructionsFile:                                 instructions,
+		ruleset.DecisionsFile:                                    decisions,
+	}
+	for name, body := range files {
+		if body == "" {
+			continue
+		}
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+// ruleSetInstructions is an INSTRUCTIONS.md whose hard bans section is
+// followed by a main-session section the start text must not carry.
+const ruleSetInstructions = "# Ze\n\nIntro.\n\n# " + ruleset.HardBansHeading + "\n\n## A ban\n" + fixtureBan + "\n\n# Owner Meta Decisions\n" + fixtureMainInstruction + "\n"
+
+// ruleSetDecisions is a META-DECISIONS.md in two parts. Its every-agent part
+// runs from line 4 (its heading) to line 6 (the blank line before the
+// main-session heading).
+const ruleSetDecisions = "# Owner Meta Decisions\nOpening.\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- " + fixtureAgentDecision + "\n\n## " + ruleset.DecisionsMainPartHeading + "\n- " + fixtureMainDecision + "\n"
+
+// subagentStartText runs the subagent-context hook on a payload and returns
+// the additionalContext it answered, failing the test on any other answer.
+func subagentStartText(t *testing.T, root string, payload map[string]any) string {
+	t.Helper()
+	code, output, diagnostics := runHook(t, root, "subagent-context", payload)
+	if code != 0 {
+		t.Fatalf("code = %d, want advisory context; stderr: %s", code, diagnostics)
+	}
+	var response struct {
+		Output struct {
+			Context string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		t.Fatal(err)
+	}
+	return response.Output.Context
+}
+
+// TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions
+// drives the hook for an agent whose mirrored definition sets omitClaudeMd
+// (spec agent-economy-3, AC-1).
+//
+// VALIDATES: the start text carries the rule-set heading, the hard bans read
+// from ai/INSTRUCTIONS.md, the core and the trigger index by path, and the
+// exact line range of the decisions file's every-agent part; it carries no
+// text of the main-session sections of either file.
+// PREVENTS: an agent that omits the instruction files starting with no ban,
+// or reading the main-session decisions it was meant to skip. The same holds
+// for a definition at the type's path whose name the reader cannot match
+// (another name, uniformly indented frontmatter): it cannot be read for sure,
+// so it gets the rule set rather than none.
+func TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		frontmatter string
+	}{
+		{"omits", "name: ze-read\n" + omitInstructionsKey + ": true\n"},
+		{"name-differs-from-type", "name: other\n" + omitInstructionsKey + ": false\n"},
+		{"uniformly-indented-frontmatter", "  name: ze-read\n  " + omitInstructionsKey + ": true\n"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeRuleSetTree(t, test.frontmatter, ruleSetInstructions, ruleSetDecisions)
+			text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
+			for _, want := range []string{
+				"\n# " + agentRuleSetHeading + "\n",
+				"# " + ruleset.HardBansHeading + "\n\n## A ban\n" + fixtureBan,
+				ruleset.CoreFile,
+				ruleset.TriggersFile,
+				ruleset.DecisionsFile + " lines 4-6 (offset 4, limit 3), the part headed \"" + ruleset.DecisionsAgentPartHeading + "\"",
+			} {
+				if !strings.Contains(text, want) {
+					t.Errorf("start text missing %q:\n%s", want, text)
+				}
+			}
+			for _, absent := range []string{fixtureMainInstruction, fixtureMainDecision, fixtureAgentDecision, "# Owner Meta Decisions"} {
+				if strings.Contains(text, absent) {
+					t.Errorf("start text holds %q, which the agent reads or skips by file:\n%s", absent, text)
+				}
+			}
+		})
+	}
+}
+
+// TestSubagentStartAddsNoRuleSetForAnAgentThatLoadsTheInstructions drives
+// the hook for agents the harness starts with the instruction files (AC-3).
+//
+// VALIDATES: no rule set for a definition whose name matches the type and
+// that sets no omitClaudeMd or a bare false, a type with no mirrored
+// definition, a path and a plugin-scoped type. A definition whose name does
+// not match is in the test above: it gets the rule set.
+// PREVENTS: an agent that already loads the files paying for the set twice,
+// and an agent type reaching a path outside the mirror.
+func TestSubagentStartAddsNoRuleSetForAnAgentThatLoadsTheInstructions(t *testing.T) {
+	tests := []struct {
+		name        string
+		frontmatter string
+		agentType   string
+	}{
+		{"no-omit-line", "name: ze-read\n", "ze-read"},
+		{"omit-false", "name: ze-read\n" + omitInstructionsKey + ": false\n", "ze-read"},
+		{"no-definition", "name: ze-read\n" + omitInstructionsKey + ": true\n", "general-purpose"},
+		{"path-type", "name: ze-read\n" + omitInstructionsKey + ": true\n", "../" + ruleset.AgentDefinitionsDir + "/ze-read"},
+		{"plugin-type", "name: ze-read\n" + omitInstructionsKey + ": true\n", "plugin:ze-read"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeRuleSetTree(t, test.frontmatter, ruleSetInstructions, ruleSetDecisions)
+			text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": test.agentType})
+			for _, absent := range []string{agentRuleSetHeading, fixtureBan, "Cannot read your agent definition"} {
+				if strings.Contains(text, absent) {
+					t.Errorf("start text holds %q:\n%s", absent, text)
+				}
+			}
+		})
+	}
+}
+
+// TestSubagentStartSurvivesAMissingRuleFile drives the hook for an agent that
+// omits the instruction files in a checkout holding neither ai/INSTRUCTIONS.md
+// nor ai/META-DECISIONS.md (R-1).
+//
+// VALIDATES: the hook still answers, names the file it could not read, tells
+// the agent to read the hard bans section itself, and sends the decisions file
+// whole rather than a range.
+// PREVENTS: a missing rule file leaving an agent with no bans and no pointer.
+func TestSubagentStartSurvivesAMissingRuleFile(t *testing.T) {
+	root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", "", "")
+	text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
+	for _, want := range []string{
+		agentRuleSetHeading,
+		"Cannot read the hard bans: ",
+		ruleset.InstructionsFile,
+		"Read the \"# " + ruleset.HardBansHeading + "\" section of " + ruleset.InstructionsFile + " before acting.",
+		ruleset.CoreFile,
+		ruleset.TriggersFile,
+		ruleset.DecisionsFile + " whole: its every-agent part cannot be found",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("start text missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, " lines ") {
+		t.Errorf("start text names a line range of a file that does not exist:\n%s", text)
+	}
+}
+
+// TestSubagentStartSendsTheWholeDecisionsFileWhenAPartHeadingIsMissing drives
+// the hook over decisions files whose two parts cannot be found: no part
+// heading (the file before it is split), one heading only, and the two in the
+// wrong order.
+//
+// VALIDATES: the start text names the heading it could not find or order, and
+// sends the whole file, never a range.
+// PREVENTS: an empty or guessed range that hides decisions an agent must keep.
+func TestSubagentStartSendsTheWholeDecisionsFileWhenAPartHeadingIsMissing(t *testing.T) {
+	tests := []struct {
+		name      string
+		decisions string
+		want      string
+	}{
+		{"no-part-heading", "# Owner Meta Decisions\n\n## Goal and scope\n- A rule.\n", "0 headings \"" + ruleset.DecisionsAgentPartHeading + "\""},
+		{"no-main-heading", "# Owner Meta Decisions\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- A rule.\n", "0 headings \"" + ruleset.DecisionsMainPartHeading + "\""},
+		{"main-first", "# Owner Meta Decisions\n\n## " + ruleset.DecisionsMainPartHeading + "\n- A.\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- B.\n", "puts the heading \"" + ruleset.DecisionsMainPartHeading + "\" before"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", ruleSetInstructions, test.decisions)
+			text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
+			for _, want := range []string{ruleset.DecisionsFile + " whole: its every-agent part cannot be found", test.want} {
+				if !strings.Contains(text, want) {
+					t.Errorf("start text missing %q:\n%s", want, text)
+				}
+			}
+			if strings.Contains(text, " lines ") {
+				t.Errorf("start text names a line range:\n%s", text)
+			}
+		})
+	}
+}
+
+// subagentContextCap is the harness's limit on one hook's additionalContext,
+// in characters. Over it the harness swaps the text for a file path and a
+// preview, and never asks the agent to read the file (Claude Code hooks
+// reference, "Add context for Claude").
+const subagentContextCap = 10000
+
+// subagentContextReserve is the part of the cap the measured start text must
+// leave free, in characters. It reserves room for what a real start carries
+// beyond this fixture: a spec path or branch name longer than the realistic
+// ones driven here, the bounded error line (startTextErrorMax twice) that
+// replaces the spec line when a claim cannot be resolved, and a few lines of
+// growth in the hard bans section before the next change re-reads this test.
+const subagentContextReserve = 1500
+
+// TestSubagentStartStaysUnderTheHarnessContextCap drives the hook for an
+// agent that omits the instruction files, over the repository's own
+// ai/INSTRUCTIONS.md, ai/META-DECISIONS.md and ze-work definition, from a
+// session that has claimed a spec, on a named branch, under a real session id.
+//
+// VALIDATES: the whole start text, spec line, identity line, scratch path and
+// rule set included, stays under the cap less subagentContextReserve, counted
+// in UTF-16 code units as a JavaScript string length counts them.
+// PREVENTS: a longer hard bans section or start text turning the agent's
+// rules into a path it is never told to open.
+func TestSubagentStartStaysUnderTheHarnessContextCap(t *testing.T) {
+	text := repositoryStartText(t, "feature/agent-economy-3-preamble-subagent-start-text")
+	if !strings.Contains(text, "\n# "+agentRuleSetHeading+"\n") {
+		t.Fatalf("the ze-work definition does not omit the instruction files, so the cap was not measured:\n%s", text)
+	}
+	for _, want := range []string{"Spec claimed by the session that spawned you: " + capSpecPath, "Branch: feature/agent-economy-3-preamble-subagent-start-text", "Parent session scratch: "} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("start text missing %q, so the measure is of a shorter start than a real one:\n%s", want, text)
+		}
+	}
+	if length := len(utf16.Encode([]rune(text))); length >= subagentContextCap-subagentContextReserve {
+		t.Fatalf("start text is %d characters, at or over the harness cap of %d less the %d reserved", length, subagentContextCap, subagentContextReserve)
+	}
+}
+
+// TestSubagentStartBoundsALongBranchName drives the same start as
+// TestSubagentStartStaysUnderTheHarnessContextCap on a branch whose name is
+// longer than startTextErrorMax. Git keeps a ref as a file, so its last
+// component stays under the 255-byte file name limit: 250 bytes here.
+//
+// VALIDATES: the start text echoes the branch cut to at most
+// startTextErrorMax bytes, marked "...", and stays under the harness cap less
+// subagentContextReserve.
+// PREVENTS: a value the checkout chooses spending the reserve, so the rule
+// set becomes a path the agent is never told to open.
+func TestSubagentStartBoundsALongBranchName(t *testing.T) {
+	const xs = 250
+	branch := "feature/" + strings.Repeat("x", xs)
+	text := repositoryStartText(t, branch)
+	// The fixture guard: git answers no branch it did not create, and the
+	// start text then says "unknown", which no bound acted on.
+	if strings.Contains(text, "- Branch: unknown\n") {
+		t.Fatalf("the fixture's %d-byte branch was not created (the start text says unknown), so nothing was measured", len(branch))
+	}
+	if want := "- Branch: " + branch[:startTextErrorMax] + "...\n"; !strings.Contains(text, want) {
+		t.Fatalf("the long branch was not echoed cut to %d bytes and marked, want %q in:\n%s", startTextErrorMax, want, text)
+	}
+	if strings.Contains(text, strings.Repeat("x", xs)) {
+		t.Errorf("start text echoes the whole %d-byte branch", len(branch))
+	}
+	if length := len(utf16.Encode([]rune(text))); length >= subagentContextCap-subagentContextReserve {
+		t.Errorf("start text is %d characters, at or over the harness cap of %d less the %d reserved", length, subagentContextCap, subagentContextReserve)
+	}
+}
+
+// capSpecPath is the spec repositoryStartText's session has claimed.
+const capSpecPath = "plan/post-release/engineering/spec-agent-economy-3-preamble-subagent-start-text.md"
+
+// repositoryStartText answers the start text of a ze-work agent over the
+// repository's own ai/INSTRUCTIONS.md, ai/META-DECISIONS.md and ze-work
+// definition, from a session that has claimed capSpecPath, on branch, under a
+// real session id.
+func repositoryStartText(t *testing.T, branch string) string {
+	t.Helper()
+	repository, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	const (
+		sessionID = "972de0b2-472a-4cf3-9820-6385b6ff38e0"
+		claim     = "spec-agent-economy-3-preamble-subagent-start-text.md"
+	)
+	derivedDebtGit(t, root, "init", "-q", "-b", branch)
+	writeHookFixture(t, root, "tmp/session/.session-"+sessionID, claim+"\n")
+	writeHookFixture(t, root, capSpecPath, "# Spec: agent economy 3\n")
+	for _, name := range []string{ruleset.InstructionsFile, ruleset.DecisionsFile, filepath.Join("ai", "agents", "ze-work.md")} {
+		body, err := os.ReadFile(filepath.Join(repository, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		target := filepath.Join(root, name)
+		if name == filepath.Join("ai", "agents", "ze-work.md") {
+			target = filepath.Join(root, ruleset.AgentDefinitionsDir, "ze-work.md")
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return subagentStartText(t, root, map[string]any{"session_id": sessionID, "agent_id": "acc391cc13cdcd73d", "agent_type": "ze-work"})
+}
+
+// TestSubagentStartBoundsAnUnresolvableClaim drives the hook from a session
+// whose claim marker holds a claim far longer than any spec name.
+//
+// VALIDATES: the "Cannot resolve the session's claimed spec" line echoes at
+// most startTextErrorMax bytes of the claim and of the error, marked "...".
+// PREVENTS: a marker or an error text of any size pushing the agent rule set
+// past the harness cap.
+func TestSubagentStartBoundsAnUnresolvableClaim(t *testing.T) {
+	root := t.TempDir()
+	claim := "spec-" + strings.Repeat("x", 4*startTextErrorMax) + ".md"
+	writeHookFixture(t, root, "tmp/session/.session-context-parent", claim+"\n")
+	text := subagentStartText(t, root, map[string]any{"session_id": "context-parent"})
+	if !strings.Contains(text, "Cannot resolve the session's claimed spec ") {
+		t.Fatalf("the claim was not reported unresolved, so the bound was not driven:\n%s", text)
+	}
+	if strings.Contains(text, strings.Repeat("x", startTextErrorMax)) {
+		t.Errorf("start text echoes more than %d bytes of the claim:\n%s", startTextErrorMax, text)
+	}
+	if !strings.Contains(text, "...") {
+		t.Errorf("start text does not mark the cut claim:\n%s", text)
+	}
+}
+
+// TestStartTextBoundedCutsOnARuneBoundary holds the bound to its contract.
+//
+// VALIDATES: a value at the bound is answered whole; a longer one is cut to at
+// most startTextErrorMax bytes, never inside a rune, and marked "...".
+// PREVENTS: an echo that splits a UTF-8 sequence into an invalid string.
+func TestStartTextBoundedCutsOnARuneBoundary(t *testing.T) {
+	whole := strings.Repeat("a", startTextErrorMax)
+	if got := startTextBounded(whole); got != whole {
+		t.Errorf("a value at the bound was changed: %q", got)
+	}
+	long := strings.Repeat("a", startTextErrorMax-1) + "é" + "tail"
+	got := startTextBounded(long)
+	if got != strings.Repeat("a", startTextErrorMax-1)+"..." {
+		t.Errorf("startTextBounded = %q, want the value cut before the two-byte rune", got)
+	}
+	if !utf8.ValidString(got) {
+		t.Errorf("startTextBounded answered invalid UTF-8: %q", got)
+	}
+	if got := startTextBounded("one\ntwo\r\nthree"); got != "one two  three" {
+		t.Errorf("startTextBounded = %q, want every line break read as a space", got)
+	}
+}
+
+// writeAgentDefinition writes one mirrored definition named agentType.md
+// with the given frontmatter, and answers the checkout root.
+func writeAgentDefinition(t *testing.T, agentType, frontmatter string) string {
+	t.Helper()
+	root := t.TempDir()
+	writeHookFixture(t, root, filepath.Join(ruleset.AgentDefinitionsDir, agentType+".md"), "---\n"+frontmatter+"---\n\nBody.\n")
+	return root
+}
+
+// TestAgentOmitsInstructionsReadsTheFrontmatterTheHarnessReads holds the
+// frontmatter reader to the values YAML gives the harness.
+//
+// VALIDATES: a trailing comment, a capitalised or quoted true, a quoted name,
+// and an indented key inside a multi-line description (for name and for
+// omitClaudeMd) are each read as an agent that omits the instruction files;
+// so are an indented "---" inside a description, which does not close the
+// block, a quoted key, and a repeated key any occurrence of which is not a
+// bare false; so is a definition at the type's path whose name the reader
+// cannot match (another name, a name only indented, uniformly indented
+// frontmatter, no name), whatever its omitClaudeMd; absent and false under a
+// matching name, with or without a comment or repeated, are read as loading
+// them. Method: each row writes one definition and asks
+// agentOmitsInstructions, so a reader that took one occurrence of a repeated
+// key, read an indented line as a key or as the closing line, kept a key's
+// quotes or compared the raw text would turn a row red.
+// PREVENTS: an agent that starts without the instruction files given no ban
+// because its definition spells the value in another valid way.
+func TestAgentOmitsInstructionsReadsTheFrontmatterTheHarnessReads(t *testing.T) {
+	const key = omitInstructionsKey
+	tests := []struct {
+		name        string
+		frontmatter string
+		omits       bool
+	}{
+		{"comment-after-true", "name: ze-read\n" + key + ": true # see the spec\n", true},
+		{"capitalised-true", "name: ze-read\n" + key + ": True\n", true},
+		{"quoted-true", "name: ze-read\n" + key + ": \"true\"\n", true},
+		{"quoted-name", "name: \"ze-read\"\n" + key + ": true\n", true},
+		{"single-quoted-name", "name: 'ze-read'\n" + key + ": true\n", true},
+		{"indented-name-in-description", "name: ze-read\ndescription: |\n  Reads.\n  name: x\n" + key + ": true\n", true},
+		{"indented-false-in-description", key + ": true\nname: ze-read\ndescription: >\n  Reads.\n  " + key + ": false\n", true},
+		{"tab-indented-false", "name: ze-read\n" + key + ": true\n\t" + key + ": false\n", true},
+		{"repeated-key-true-then-false", "name: ze-read\n" + key + ": true\n" + key + ": false\n", true},
+		{"repeated-key-false-then-true", "name: ze-read\n" + key + ": false\n" + key + ": true\n", true},
+		{"indented-closing-line-in-description", "name: ze-read\ndescription: |\n  a\n  ---\n" + key + ": true\n", true},
+		{"quoted-key", "name: ze-read\n\"" + key + "\": true\n", true},
+		{"single-quoted-key", "name: ze-read\n'" + key + "': true\n", true},
+		{"repeated-false", "name: ze-read\n" + key + ": false\n" + key + ": false\n", false},
+		{"crlf-lines", "name: ze-read\r\n" + key + ": true\r\n", true},
+		{"absent", "name: ze-read\n", false},
+		{"false", "name: ze-read\n" + key + ": false\n", false},
+		{"false-with-comment", "name: ze-read\n" + key + ": false # loads them\n", false},
+		// A definition at the type's path whose name the reader cannot match
+		// cannot be read for sure, so it takes the side that sends the rule set.
+		{"name-differs", "name: other\n" + key + ": false\n", true},
+		{"indented-name-only", "description: |\n  name: ze-read\n" + key + ": false\n", true},
+		{"uniformly-indented-frontmatter", "  name: ze-read\n  " + key + ": true\n", true},
+		{"no-name", key + ": false\n", true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeAgentDefinition(t, "ze-read", test.frontmatter)
+			omits, err := agentOmitsInstructions(root, "ze-read")
+			if err != nil {
+				t.Fatalf("agentOmitsInstructions: %v", err)
+			}
+			if omits != test.omits {
+				t.Errorf("agentOmitsInstructions = %v, want %v for:\n%s", omits, test.omits, test.frontmatter)
+			}
+		})
+	}
+}
+
+// TestValidAgentTypeAdmitsOnlyAFileName holds the guard that keeps a payload's
+// agent type from naming a path outside the mirror.
+//
+// VALIDATES: letters, digits, '-' and '_' up to agentTypeLengthMax are
+// admitted; a dot segment, a separator, a plugin scope, non-ASCII, one
+// character over the bound and the empty type are refused.
+// PREVENTS: a hostile agent type reading a file outside .claude/agents, or a
+// type the harness could not report reaching the reader.
+func TestValidAgentTypeAdmitsOnlyAFileName(t *testing.T) {
+	tests := []struct {
+		agentType string
+		valid     bool
+	}{
+		{"ze-read", true},
+		{"ze_work2", true},
+		{"ZE-Read", true},
+		{strings.Repeat("a", agentTypeLengthMax), true},
+		{"", false},
+		{strings.Repeat("a", agentTypeLengthMax+1), false},
+		{"..", false},
+		{"ze.read", false},
+		{"../ze-read", false},
+		{"agents/ze-read", false},
+		{"ze\\read", false},
+		{"plugin:ze-read", false},
+		{"zé-read", false},
+		{"ze read", false},
+	}
+	for _, test := range tests {
+		if got := validAgentType(test.agentType); got != test.valid {
+			t.Errorf("validAgentType(%q) = %v, want %v", test.agentType, got, test.valid)
+		}
+	}
+}
+
+// TestSubagentStartNamesTheFilesWhenTheDefinitionCannotBeRead drives the hook
+// for an agent type whose definition path is a directory, which exists and
+// cannot be read as a file.
+//
+// VALIDATES: the start text says it cannot read the definition and names the
+// hard bans section and the three files to read, and carries no rule set.
+// PREVENTS: an unreadable definition read as an agent that loads the files,
+// so the agent starts with no ban and no pointer.
+func TestSubagentStartNamesTheFilesWhenTheDefinitionCannotBeRead(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ruleset.AgentDefinitionsDir, "ze-read.md"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
+	for _, want := range []string{
+		"Cannot read your agent definition (",
+		"read its \"# " + ruleset.HardBansHeading + "\" section",
+		ruleset.InstructionsFile, ruleset.CoreFile, ruleset.TriggersFile, ruleset.DecisionsFile,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("start text missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "# "+agentRuleSetHeading) {
+		t.Errorf("start text carries a rule set read from no definition:\n%s", text)
+	}
+}
+
+// Begin and end lines of the hard bans block in an agent definition body.
+const (
+	agentBansBegin = "<!-- hard-bans: begin"
+	agentBansEnd   = "<!-- hard-bans: end -->"
+)
+
+// TestAgentDefinitionsCarryTheHardBansOfTheInstructions reads every
+// definition under ai/agents that omits the instruction files (R-1).
+//
+// VALIDATES: every definition's frontmatter name, as the hook's reader reads
+// it, equals its file stem, so a definition the reader cannot read fails
+// rather than being skipped as one that loads the files; and each definition
+// that omits them holds one block between the begin and end
+// lines, and the block equals the "# Hard Bans" section of ai/INSTRUCTIONS.md;
+// its body names the start text's rule-set heading (agentRuleSetHeading) and
+// the three files the rule set has the agent read, which is the fallback a
+// start with no hook text follows; and its frontmatter name equals its file
+// stem, because the harness reports the name and the hook reads the file the
+// name predicts. At least one definition omits the files, so the test cannot
+// pass empty.
+// PREVENTS: the copy a hookless start relies on drifting from the bans, a
+// fallback that names a heading the hook no longer writes, and a definition the
+// hook never finds because its name and its file disagree.
+func TestAgentDefinitionsCarryTheHardBansOfTheInstructions(t *testing.T) {
+	repository, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	section, err := ruleset.HardBans(repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bans := strings.TrimSpace(section.Text)
+	definitions, err := filepath.Glob(filepath.Join(repository, "ai", "agents", "*.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	omitting := 0
+	for _, definition := range definitions {
+		body, err := os.ReadFile(definition)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fields := frontmatterFields(string(body))
+		// Every definition is judged here, before the omit filter: one whose
+		// name the reader cannot read (indented frontmatter, an unclosed
+		// block) also yields no omitClaudeMd, so the filter would skip it.
+		if stem := strings.TrimSuffix(filepath.Base(definition), ".md"); len(fields["name"]) != 1 || frontmatterUnquoted(fields["name"][0]) != stem {
+			t.Errorf("%s: the hook's frontmatter reader reads name %q, not the file stem %q, so the hook cannot tell whether this agent loads the instruction files", definition, fields["name"], stem)
+			continue
+		}
+		if !frontmatterOmits(fields[omitInstructionsKey]) {
+			continue
+		}
+		omitting++
+		// The body wraps at any space, so the fallback is judged with its line
+		// breaks read as spaces.
+		prose := strings.Join(strings.Fields(string(body)), " ")
+		for _, want := range []string{agentRuleSetHeading, ruleset.CoreFile, ruleset.TriggersFile, ruleset.DecisionsFile} {
+			if !strings.Contains(prose, want) {
+				t.Errorf("%s omits the instruction files and its fallback does not name %q", definition, want)
+			}
+		}
+		_, rest, found := strings.Cut(string(body), "\n"+agentBansBegin)
+		if !found {
+			t.Errorf("%s omits the instruction files and has no %q line", definition, agentBansBegin)
+			continue
+		}
+		_, rest, _ = strings.Cut(rest, "\n")
+		block, _, found := strings.Cut(rest, "\n"+agentBansEnd)
+		if !found {
+			t.Errorf("%s has no %q line after its begin line", definition, agentBansEnd)
+			continue
+		}
+		if strings.TrimSpace(block) != bans {
+			t.Errorf("%s: hard bans block differs from the %q section of %s; copy the section between the two lines", definition, ruleset.HardBansHeading, ruleset.InstructionsFile)
+		}
+	}
+	if omitting == 0 {
+		t.Fatalf("no definition under ai/agents sets %s: true", omitInstructionsKey)
 	}
 }
 

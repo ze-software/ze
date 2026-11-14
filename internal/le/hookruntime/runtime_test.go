@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func runHook(t *testing.T, root, kind string, payload any) (int, string, string) {
@@ -169,6 +171,28 @@ func TestBashRuntimeBlocksAnAgentWithNoSessionID(t *testing.T) {
 		code, output, errOutput := runHook(t, root, "pretool-bash", payload)
 		if code != 0 || output != "" {
 			t.Fatalf("main thread, fork variable set, session_id %v: code=%d output=%q message=%q, want exit 0 unprefixed", payload["session_id"], code, output, errOutput)
+		}
+	}
+}
+
+// VALIDATES: both refusals of an id that cannot name a file state the id rule
+// with its length bound, so an id of valid characters one byte past the bound
+// is told why it was refused.
+// PREVENTS: a refusal that cites only the character set, a rule the refused
+// id satisfies (review round 4).
+func TestBashRuntimeRefusalOfAnOverLongIDStatesTheBound(t *testing.T) {
+	root := t.TempDir()
+	over := strings.Repeat("a", idLengthMax(t)+1)
+	for _, payload := range []map[string]any{
+		{"session_id": over, "agent_id": "agent-1", "tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+		{"session_id": "parent-17", "agent_id": over, "tool_name": "Bash", "tool_input": map[string]any{"command": "echo ok"}},
+	} {
+		code, _, errOutput := runHook(t, root, "pretool-bash", payload)
+		if code != 2 {
+			t.Fatalf("over-long id in %v: code=%d, want exit 2", payload, code)
+		}
+		if !strings.Contains(errOutput, lepath.IDRule()) {
+			t.Errorf("over-long id: message %q lacks the id rule %q", errOutput, lepath.IDRule())
 		}
 	}
 }

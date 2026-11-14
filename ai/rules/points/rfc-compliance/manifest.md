@@ -9,6 +9,7 @@ directives ## Directives
   keep-a-quoted-rfc-sentence-byte-exact
   count-conformance-on-the-whole-stack
   name-who-implements-each-rfc
+  name-the-implementer-and-test-what-ze-installs
   a-requirement-list-is-a-claim-until-it-is-walked
   quote-each-requirement-row-verbatim
   treat-conformance-as-non-negotiable

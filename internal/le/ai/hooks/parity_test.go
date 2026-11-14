@@ -1,8 +1,8 @@
 // Related: parity.go -- every typed dispatcher row is judged in Go
 // Related: fixtures.go -- typed fixtures and actual-hook drift contracts
 //
-// VALIDATES: the native hook selftest owns all 219 dispatcher rows, all 406
-// Results.check sites, and their 551 concrete runtime fixture identities from
+// VALIDATES: the native hook selftest owns all 219 dispatcher rows, all 408
+// Results.check sites, and their 553 concrete runtime fixture identities from
 // the typed native catalog.
 // PREVENTS: missing categories, fixtures, messages, exits, or hook source drift.
 package aihooks
@@ -315,10 +315,10 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 		identities[identity] = struct{}{}
 		names[fixture.name]++
 	}
-	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 286, 0: 173, 1: 12, 2: 80}) {
+	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 286, 0: 175, 1: 12, 2: 80}) {
 		t.Fatalf("fixture exit populations = %v", exitCounts)
 	}
-	wantMessages := map[string]int{"contains": 86, "not-contains": 11, "equals": 3, "suffix": 6}
+	wantMessages := map[string]int{"contains": 88, "not-contains": 12, "equals": 3, "suffix": 6}
 	if !reflect.DeepEqual(messageCounts, wantMessages) {
 		t.Fatalf("fixture message populations = %v, want %v", messageCounts, wantMessages)
 	}

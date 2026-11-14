@@ -5,8 +5,10 @@
 
 Every rule under `ai/rules/`, one line each. When a trigger matches the work
 in hand, READ that rule's file before acting. A row marked `always-on` is
-already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
-rule's body is one Read away at the path in its row.
+already loaded (`ai/rules/CORE.md`) and needs no read, except that its core
+block may end with a line naming situations: the points for those situations
+are in the rule file, so read it when one of them matches. Every other rule's
+body is one Read away at the path in its row.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|

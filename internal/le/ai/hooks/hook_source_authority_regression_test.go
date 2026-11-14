@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 	"github.com/ze-software/ze/internal/le/arch/tier"
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
@@ -55,6 +56,10 @@ func hookAuthorityPackages(t *testing.T, checkout string) []string {
 		// bashSubagentHeavy and the raw-job guard consume the heavy-tool
 		// definition (Program, Split, LeWords, Linter).
 		heavytool.Program,
+		// hookSubagentContext sends an agent whose definition omits the
+		// instruction files the hard bans and the every-agent decisions
+		// range this package reads, and names its rule file paths.
+		ruleset.HardBans,
 	}
 	packages := make(map[string]bool)
 	for _, producer := range producers {

@@ -9,6 +9,7 @@ package airules
 import (
 	"encoding/json"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 )
 
 // digestTree writes a fixture checkout and answers its root. Paths are
@@ -66,6 +68,128 @@ func digestCorpus() map[string]string {
 		"ai/rules/completion.md": "# Completion\n\n" +
 			"**When:** before claiming any gokrazy qdisc work done\n" +
 			"**Severity:** blocking\n\n## Directives\n\n- MUST finish it.\n",
+	}
+}
+
+// situatedCorpus is digestCorpus with rfc-compliance, a core member, also
+// carried as points: one point shown everywhere, and one that declares the
+// situation applies names, or declares none when applies is empty.
+func situatedCorpus(applies string) map[string]string {
+	files := digestCorpus()
+	files["ai/rules/rfc-compliance.md"] = "# RFC Compliance\n\n" +
+		"**When:** writing protocol code for any RFC ze implements\n" +
+		"**Severity:** blocking\n\n## Directives\n\n- MUST conform.\n\n- MUST walk the requirement list.\n"
+	files["ai/rules/points/rfc-compliance/manifest.md"] = "---\ntitle: RFC Compliance\n" +
+		"when: writing protocol code for any RFC ze implements\nseverity: blocking\n---\n" +
+		"directives ## Directives\n  conform\n  walk\n"
+	files["ai/rules/points/rfc-compliance/directives/conform.md"] =
+		"---\nkind: directive\nlevel: MUST\nstage:\n---\n- MUST conform.\n"
+	head := "---\nkind: directive\nlevel: MUST\nstage:\n"
+	if applies != "" {
+		head += "applies: " + applies + "\n"
+	}
+	files["ai/rules/points/rfc-compliance/directives/walk.md"] = head + "---\n- MUST walk the requirement list.\n"
+	return files
+}
+
+// coreBlockOf answers the block CORE.md shows for the rule titled title.
+func coreBlockOf(t *testing.T, root, title string) string {
+	t.Helper()
+	core, err := os.ReadFile(filepath.Join(root, "ai", "rules", "CORE.md"))
+	if err != nil {
+		t.Fatalf("reading CORE.md: %v", err)
+	}
+	for block := range strings.SplitSeq(string(core), "\n\n---\n\n") {
+		if strings.HasPrefix(block, "## "+title+"\n") {
+			return block
+		}
+	}
+	t.Fatalf("CORE.md shows no block for %q: %s", title, core)
+	return ""
+}
+
+func TestTheCoreRefusesASituationsLineOverItsBound(t *testing.T) {
+	// Goal: the line a core block ends with is bounded like a trigger row, and
+	// one over the bound is refused naming the rule, never cut. Method: a
+	// situation that fills the line exactly is accepted, one character more is
+	// refused.
+	room := maxSituationsLine - runeLen(situationsLine("ai/rules/rfc-compliance.md", nil))
+	if _, err := Digest(digestTree(t, situatedCorpus(strings.Repeat("x", room))), false); err != nil {
+		t.Fatalf("a line exactly at the bound was refused: %v", err)
+	}
+	_, err := Digest(digestTree(t, situatedCorpus(strings.Repeat("x", room+1))), false)
+	if err == nil {
+		t.Fatalf("a line over the bound was accepted")
+	}
+	for _, want := range []string{"rfc-compliance.md", "-character bound", "Fix: "} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q: %v", want, err)
+		}
+	}
+}
+
+func TestTheCoreLeavesOutAPointThatDeclaresItsSituation(t *testing.T) {
+	// Goal: AC-6. A core member's point that declares `applies` is left out of
+	// the core, and the member's block ends with one line naming the rule file
+	// and the situation; the point stays in the rule file and the rule in the
+	// trigger index. Method: generate over a tree whose rfc-compliance points
+	// mark one of two directives.
+	root := digestTree(t, situatedCorpus("walking a requirement list"))
+	if _, err := Digest(root, false); err != nil {
+		t.Fatalf("Digest: %v", err)
+	}
+	block := coreBlockOf(t, root, "RFC Compliance")
+	if !strings.Contains(block, "- MUST conform.") {
+		t.Errorf("the point with no situation left the core: %q", block)
+	}
+	if strings.Contains(block, "walk the requirement list") {
+		t.Errorf("the point that declares its situation is still in the core: %q", block)
+	}
+	shown := strings.TrimSuffix(strings.TrimSuffix(block, "\n"), "\n\n<!-- always-on: precedence rung 1/2 -->")
+	lines := strings.Split(shown, "\n")
+	closing := "**Read `ai/rules/rfc-compliance.md` before acting when:** walking a requirement list"
+	if lines[len(lines)-1] != closing {
+		t.Errorf("the block does not end with the line naming the file and the situation: %q", block)
+	}
+	rule, err := os.ReadFile(filepath.Join(root, "ai", "rules", "rfc-compliance.md"))
+	if err != nil || !strings.Contains(string(rule), "MUST walk the requirement list.") {
+		t.Errorf("the point left the rule file: %v %q", err, rule)
+	}
+	triggers, err := os.ReadFile(filepath.Join(root, "ai", "rules", "TRIGGERS.md"))
+	if err != nil || !strings.Contains(string(triggers), "| `ai/rules/rfc-compliance.md` | blocking, always-on |") {
+		t.Errorf("the rule left the trigger index: %v %q", err, triggers)
+	}
+}
+
+func TestTheCoreShowsAPointWithNoSituation(t *testing.T) {
+	// Goal: AC-5. A point with no `applies` is shown in the core as today, so
+	// an absent field never narrows the core. Method: the core generated from a
+	// tree whose points declare no situation is byte-identical to the core of
+	// the same tree with no points at all, and it shows both directives.
+	withPoints := digestTree(t, situatedCorpus(""))
+	plain := situatedCorpus("")
+	for rel := range plain {
+		if strings.HasPrefix(rel, "ai/rules/points/") {
+			delete(plain, rel)
+		}
+	}
+	without := digestTree(t, plain)
+	for _, root := range []string{withPoints, without} {
+		if _, err := Digest(root, false); err != nil {
+			t.Fatalf("Digest: %v", err)
+		}
+	}
+	block := coreBlockOf(t, withPoints, "RFC Compliance")
+	for _, want := range []string{"- MUST conform.", "- MUST walk the requirement list."} {
+		if !strings.Contains(block, want) {
+			t.Errorf("a point with no situation left the core, %q: %q", want, block)
+		}
+	}
+	if strings.Contains(block, "before acting when") {
+		t.Errorf("a block with no situated point names situations: %q", block)
+	}
+	if coreBlockOf(t, without, "RFC Compliance") != block {
+		t.Errorf("points with no situation changed the core block")
 	}
 }
 
@@ -132,15 +256,15 @@ func TestTheRuleParseSeparatesTitleMetadataAndBody(t *testing.T) {
 		// The rendered metadata LINE is the third of the block, and it carries
 		// the canonical keys only. The non-canonical one is body, so it is
 		// rendered as the bold directive line it now is.
-		block := strings.Split(ruleBlock(rule), "\n")
+		block := strings.Split(ruleBlock(rule, nil), "\n")
 		if len(block) < 3 {
 			t.Fatalf("the rendered block has %d lines: %q", len(block), block)
 		}
 		if strings.Contains(block[2], "**Note:**") {
 			t.Errorf("the metadata line carries a key that is not one: %q", block[2])
 		}
-		if !strings.Contains(ruleBlock(rule), "**Note:** this key is not canonical") {
-			t.Errorf("the non-canonical key was dropped rather than left as body: %q", ruleBlock(rule))
+		if !strings.Contains(ruleBlock(rule, nil), "**Note:** this key is not canonical") {
+			t.Errorf("the non-canonical key was dropped rather than left as body: %q", ruleBlock(rule, nil))
 		}
 	}
 }
@@ -735,9 +859,13 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 		t.Errorf("the page does not name the absent file: %q", report.Text())
 	}
 
+	// A complete payload carries the three headings the agent rule set is cut
+	// at, so neither measurement is missing a part.
+	instructions := "# Hard Bans\ninstructions\n"
+	decisions := "# Rules for every agent\ndecisions\n# Rules for the main session\n"
 	whole, err := Payload(digestTree(t, map[string]string{
-		"ai/INSTRUCTIONS.md":   "instructions\n",
-		"ai/META-DECISIONS.md": "decisions\n",
+		"ai/INSTRUCTIONS.md":   instructions,
+		"ai/META-DECISIONS.md": decisions,
 		"ai/rules/TRIGGERS.md": "triggers\n",
 		"ai/rules/CORE.md":     "core\n",
 	}))
@@ -747,8 +875,101 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 	if whole.Failed() {
 		t.Errorf("a complete payload failed: %+v", whole)
 	}
-	if whole.Chars != len("instructions\n")+len("decisions\n")+len("triggers\n")+len("core\n") {
+	if whole.Chars != len(instructions)+len(decisions)+len("triggers\n")+len("core\n") {
 		t.Errorf("chars = %d", whole.Chars)
+	}
+}
+
+func TestThePayloadMeasuresTheAgentRuleSet(t *testing.T) {
+	// Goal: AC-12. The payload report measures the agent rule set beside the
+	// main payload, each against its own budget, and the agent set holds only
+	// the hard bans and the every-agent decisions, cut at their headings.
+	// Method: a checkout whose instructions and decisions each carry text
+	// outside the agent's parts, then the budget boundary, then a missing
+	// heading.
+	bans := "# Hard Bans\n\nNever push.\n"
+	agentPart := "# " + ruleset.DecisionsAgentPartHeading + "\n\n- Commit through le.\n"
+	files := map[string]string{
+		"ai/INSTRUCTIONS.md":   "# Ze\n\nintro\n\n" + bans + "\n# Finding the Rule\n\nmap\n",
+		"ai/META-DECISIONS.md": "# Owner Meta Decisions\n\nopening\n\n" + agentPart + "\n# " + ruleset.DecisionsMainPartHeading + "\n\n- Report to the owner.\n",
+		"ai/rules/TRIGGERS.md": "triggers\n",
+		"ai/rules/CORE.md":     "core\n",
+	}
+	report, err := Payload(digestTree(t, files))
+	if err != nil {
+		t.Fatalf("Payload: %v", err)
+	}
+	if report.Failed() {
+		t.Fatalf("a complete checkout failed: %+v", report)
+	}
+	if report.Budget != tokenBudget || report.Agent.Budget != agentTokenBudget || tokenBudget == agentTokenBudget {
+		t.Errorf("the two sets are not each against their own budget: %d and %d", report.Budget, report.Agent.Budget)
+	}
+	want := runeLen(bans+"\n") + runeLen(agentPart+"\n") + len("triggers\n") + len("core\n")
+	if report.Agent.Chars != want {
+		t.Errorf("agent chars = %d, want %d: the cut is not at the headings", report.Agent.Chars, want)
+	}
+	parts, err := readAgentRuleSet(digestTree(t, files))
+	if err != nil {
+		t.Fatalf("readAgentRuleSet: %v", err)
+	}
+	joined := ""
+	for _, part := range parts {
+		joined += part.Text
+	}
+	for _, kept := range []string{"Never push.", "Commit through le.", "triggers", "core"} {
+		if !strings.Contains(joined, kept) {
+			t.Errorf("the agent set lost %q: %q", kept, joined)
+		}
+	}
+	for _, dropped := range []string{"intro", "map", "opening", "Report to the owner."} {
+		if strings.Contains(joined, dropped) {
+			t.Errorf("the agent set carries %q, which is outside its parts: %q", dropped, joined)
+		}
+	}
+	for _, line := range []string{"agent rule set:", "ai/META-DECISIONS.md (" + ruleset.DecisionsAgentPartHeading + "): ", "always-loaded payload:"} {
+		if !strings.Contains(report.Text(), line) {
+			t.Errorf("the page does not show %q: %q", line, report.Text())
+		}
+	}
+
+	// The boundary: one token under the budget is MET, the budget itself is
+	// EXCEEDED. The padding brings the agent set to exactly that many tokens.
+	for _, tc := range []struct {
+		tokens int
+		met    bool
+	}{{agentTokenBudget - 1, true}, {agentTokenBudget, false}} {
+		padded := map[string]string{}
+		maps.Copy(padded, files)
+		padded["ai/rules/CORE.md"] = "core\n" + strings.Repeat("x", tc.tokens*bytesPerToken-want)
+		at, err := Payload(digestTree(t, padded))
+		if err != nil {
+			t.Fatalf("Payload: %v", err)
+		}
+		if at.Agent.Tokens != tc.tokens || at.Agent.Met != tc.met {
+			t.Errorf("at %d tokens: measured %d, met %v, want met %v", tc.tokens, at.Agent.Tokens, at.Agent.Met, tc.met)
+		}
+	}
+}
+
+func TestAnAgentRuleSetWithoutItsHeadingIsIncomplete(t *testing.T) {
+	// Goal: a decisions file without the every-agent heading leaves the agent
+	// set incomplete rather than smaller, and the report names the heading it
+	// looked for. Method: a checkout complete but for that heading.
+	partial, err := Payload(digestTree(t, map[string]string{
+		"ai/INSTRUCTIONS.md":   "# Hard Bans\n\nNever push.\n",
+		"ai/META-DECISIONS.md": "# Owner Meta Decisions\n\n- Report to the owner.\n",
+		"ai/rules/TRIGGERS.md": "triggers\n",
+		"ai/rules/CORE.md":     "core\n",
+	}))
+	if err != nil {
+		t.Fatalf("Payload: %v", err)
+	}
+	if !partial.Failed() || len(partial.Agent.Missing) != 1 || len(partial.Missing) != 0 {
+		t.Errorf("a missing heading did not leave only the agent set incomplete: %+v", partial)
+	}
+	if !strings.Contains(partial.Text(), "0 headings \""+ruleset.DecisionsAgentPartHeading+"\"") {
+		t.Errorf("the page does not name the heading it looked for: %q", partial.Text())
 	}
 }
 

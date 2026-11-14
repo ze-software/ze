@@ -56,9 +56,9 @@ and stays permitted, and so does a Write to a free slug.
 
 ## The frontmatter fields
 
-Every point declares three fields, and two are usually empty. Two more are
+Every point declares three fields, and two are usually empty. Three more are
 optional: they are written only when they carry a value, because the split
-cannot derive either one and an empty line would claim the point was examined.
+cannot derive any of them and an empty line would claim the point was examined.
 
 | Field | Values | Notes |
 |-------|--------|-------|
@@ -67,10 +67,14 @@ cannot derive either one and an empty line would claim the point was examined.
 | `stage` | empty | Reserved. It will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | Where the record of WHY this instruction exists lives: a `plan/learned/NNNN-*.md` summary, or an `ai/rationale/*.md` file |
 | `excepted-by` | one or more point ids, comma-separated, or the line absent | The point or points that carve an exception out of this one |
+| `applies` | the situation the point applies in, phrased like a trigger, or the line absent | Only on a point of an always-on rule. The point is left out of `ai/rules/CORE.md`, and the rule's core block ends with a line naming the rule file and each such situation. An absent line means the point is shown. Refused on a point that states a prohibition (`level: MUST NOT`, or a negative keyword in any case, "do not", "don't", "never", "forbidden" or "none ... MUST" in its body; "The body budget" below names what is skipped), on a point of a rule that is not always-on, and with an empty value, by `update condensed`, `render` and `check metadata` alike. The closing line is refused over 400 characters (`maxSituationsLine`), never cut |
+<!-- source: internal/le/ai/rules/points.go -- parsePoint, situate -->
+<!-- source: internal/le/ai/rules/artifacts.go -- coreViews, ruleBlock -->
 
-Both optional fields are HEADER fields, so neither reaches the body and the
-rendered rule is byte-identical whether a point carries one or not. Both are
-also links, so both fail the gate map when they name nothing:
+The three optional fields are HEADER fields, so none reaches the body and the
+rendered rule is byte-identical whether a point carries one or not.
+`rationale` and `excepted-by` are also links, so both fail the gate map when
+they name nothing:
 
     ---
     kind: directive
@@ -217,7 +221,23 @@ under its own trigger. `coreMembers` derives eagerness from the precedence
 ladder, so a procedure written inside a rung-1 rule is loaded in full by every
 session that will never carry it out. The ban earns its permanent seat because
 acting without it is unrecoverable, and the how-to is one Read away for the
-session that reaches the work.
+session that reaches the work. A procedure point that stays inside an
+always-on rule declares `applies` with its situation, which takes it out of the
+core and leaves it in the rule file. A point that states a prohibition never
+does: a `level: MUST NOT`, or anywhere in its body, whatever its kind and
+inside a code span, a blockquote or a fence too, a MUST NOT, SHALL NOT, SHOULD
+NOT or NOT RECOMMENDED in any case, "do not" or "don't", the word "never" or
+"forbidden", or "none" with a keyword after it in one sentence ("none of them
+MUST wait"). The body decides, because a body holding both polarities may
+carry either label. No text is skipped: a quote counts as stated, a
+double-quoted phrase and an RFC sentence quoted in the citation form
+`RFC NNNN Section X.Y: "..."` included, because nothing checks a quote against
+the text it claims to come from. A point that quotes an RFC prohibition
+therefore cannot carry `applies`, and when the refusal cannot be sure, the
+point stays in the core. Such a point is split at a blank line, the prohibition into a point with
+no `applies` line so it stays shown. Where the prohibition shares a paragraph
+with the procedure, no split reproduces the rendered rule, and the point stays
+shown whole.
 
 ### Write so the directive reaches the digest
 
@@ -283,7 +303,7 @@ agents work and what is in scope.
 | Artifact | Holds |
 |----------|-------|
 | `ai/rules/TRIGGERS.md` | One routing line per rule: its path, its severity, and its `**When:**` trigger. Every rule appears, so none is ever invisible |
-| `ai/rules/CORE.md` | The condensed directives of the always-on rules only |
+| `ai/rules/CORE.md` | The condensed directives of the always-on rules only, less each point that declares `applies`; a block that left a point out ends with a line naming the rule file and the situations |
 
 <!-- source: internal/le/ai/rules/digest.go -- coreMembers -->
 Core membership is derived, never listed. A rule is always-on when the ladder in
@@ -291,7 +311,22 @@ Core membership is derived, never listed. A rule is always-on when the ladder in
 when it has no routable trigger, or when no past task description in `plan/`
 would surface it. `./le ai rules report router` prints that last set and the corpus
 it read, and `./le ai rules report payload` measures what a session loads against a
-40,000-token budget.
+40,000-token budget. Beside it, the same report measures the agent rule set
+against a 12,000-token budget: the `Hard Bans` section of `ai/INSTRUCTIONS.md`
+(up to the next heading of the same or a higher level), the part of
+`ai/META-DECISIONS.md` from its `Rules for every agent` heading to the line
+before its `Rules for the main session` heading, `TRIGGERS.md` and `CORE.md`.
+Headings match by their text at any level, and a heading inside a code fence
+is not one. A part whose file is absent, or whose heading is absent, repeated
+or out of order, is reported missing with the reason, and the report then exits
+nonzero, because an absent part is not a smaller set. The subagent start hook
+finds the same parts through the same reader, the child package
+`internal/le/ai/rules/ruleset`: it sends the hard bans that `HardBans` reads,
+and names the every-agent range that `AgentDecisions` answers, so the range it
+names to an agent is the text this report measures. The hook source seal
+watches that package, not the generator around it.
+<!-- source: internal/le/ai/rules/artifacts.go -- Payload, readAgentRuleSet, agentRuleSetParts -->
+<!-- source: internal/le/ai/rules/ruleset/ruleset.go -- HardBans, AgentDecisions, DecisionsAgentPartHeading, DecisionsMainPartHeading -->
 
 ## Binding a check to a point
 

@@ -11,6 +11,10 @@ rather than being dropped from both artifacts, and so does a blocking rule
 that no past task description in `plan/` would surface
 (`./le ai rules report router` prints that set and the corpus it read).
 
+A block shows every point of its rule except a point that declares the
+situation it applies in. Such a block ends with a line naming the rule file
+and each situation: when one matches, read that file before acting.
+
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
@@ -46,10 +50,11 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 **Where the hunk is unsafe to carry, deferring is a claim about a future you MUST verify: that somebody else will commit it.** Two sessions both reading "leave another session's work alone" defer on the same file, and the change then belongs to nobody. Show the holder is still running, by its `tmp/session/<YYYY-MM-DD>-<HHMMSS>/` directory still being written: the directory whose `.session-id` file holds the holder's session id. Where the holder is gone, the work lands anyway; where the hunks trace to nobody, ask the owner. "Modified by someone else" is the reason to look, never the answer.
 **A branch MUST NOT be changed, created, deleted, renamed or integrated from a tool call, except for the same-branch `git pull --rebase` that "Never edit behind the upstream" requires of a branch behind its upstream: stay on the branch you started on and ask the user to move it.** When the user integrates a worktree branch it lands on main via `git rebase <branch>`, never `git merge`, so history stays linear.
 **`--no-gpg-sign`, `-c commit.gpgsign=false` and `--no-verify` MUST NOT be used, and a hook MUST NOT be disabled to make a commit pass.** What to do when signing fails is `docs/contributing/committing.md`.
-**Pull requests and issues MUST go through `gh`:** `gh pr list`, `gh pr create`, `gh issue list`, `gh issue create`. The repository is only at github.com/ze-software/ze, so `tea`, the Gitea client, does not reach it.
 ## Before Destructive Actions
 **The destructive git verbs MUST NOT be run.** `ai/INSTRUCTIONS.md`, "Destructive git commands are FORBIDDEN", carries the list into every session, so it is not restated here.
 **Before anything destructive you MUST save a patch, write the destructive commands to `tmp/delete-SESSION.sh`, tell the user, and stop.** The patch is `git diff > backups/work-$(date +%Y%m%d-%H%M%S).patch`.
+
+**Read `ai/rules/git-safety.md` before acting when:** opening, listing or reading a pull request or an issue
 
 <!-- always-on: precedence rung 1/2 -->
 
@@ -143,13 +148,6 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 **A gap and an exclusion MUST remain distinct, with the RFC's actual obligation level and applicability preserved.** An applicable requirement that the stack does not meet is a conformance gap even when its implementation is outside the agreed session scope. An exclusion requires evidence that the obligation does not bind Ze; absence of code alone is insufficient.
 **`binds-another-role` MUST identify the role and show that neither Ze nor a layer acting on its behalf fills it.** The reason MUST cite the relevant implementation and RFC condition. Unfinished or unreachable code alone proves neither implementation nor role applicability.
 **An OPTIONAL feature outside the owner's agreed scope MUST be recorded as an implementation gap, and obligations conditional on that absent feature MUST be excluded from the conformance count.** Use `excluded-kind: feature-out-of-scope`; the reason MUST quote the RFC condition and optionality and name the scope decision. An unconditional MUST MUST NOT be relabeled optional or inapplicable because its feature is absent.
-**Every summary MUST declare who implements the document, and a document Ze does not implement in Go MUST leave the conformance count and name what implements it instead.** The ledger answers one question: does Ze's Go code do what the RFC says. Four kinds answer it, and every summary declares exactly one.
-| Kind | What it says | Counted |
-|------|--------------|---------|
-| `ze` | Ze implements the document's obligations in Go | yes |
-| `mixed` | Ze implements part in Go and another layer performs the rest | Ze's part only |
-| `third-party` | a layer under or beside Ze performs it and Ze holds no Go code for it | no |
-| `foundation` | the document defines, registers or describes, and obliges no implementer | no |
 **A `third-party` or `mixed` declaration MUST name the implementer, and MUST NOT stop at "the kernel".** Name the component and the mechanism a reader can go and check: Linux XFRM for the ESP and AH datapath, the Linux TCP stack for the transport, the Go standard library for the cipher. An unnamed implementer is the claim without the showing, and on the public page it reads as work nobody owns.
 **A requirement out of the count MUST still carry a test wherever Ze can observe the behavior.** Ze installs the state the layer below acts on, so the boundary Ze owns stays testable where the packet handling is not: assert the selector, the security association, the socket option or the kernel counter Ze produced. Leaving the count is a statement about whose code it is. It is never a license to prove nothing.
 **This qualifies the whole-stack directive above; it MUST NOT be read as voiding it.** That one governs a requirement whose role Ze fills and which Ze meets by configuring a layer below: it stays met, stays counted, and still owes its test. This one governs a document Ze does not write Go for at all. Where both could apply the requirement-level ruling wins, because a document Ze configures is a document Ze implements part of, which is `mixed`.
@@ -170,6 +168,8 @@ Core reasons: no past task would surface it, precedence rung 1/2, the ladder its
 **A question the RFC text answers MUST NOT be put to the owner.** Where the RFC is silent or unclear, the goal is interoperability: Ze MUST work with BIRD and FRR, so read their source, choose what lets Ze interoperate with both, and report the quoted evidence. Ask only when claiming a Linux implementation limit, when proposing a scope exception beyond that release timing, or when the RFC is silent and FRR and BIRD disagree.
 **Prior owner decisions MUST remain in force until the owner changes them, and existing unfinished code MUST be preserved.**
 **A false public support claim MUST be corrected immediately on the surface that carries it to the status the evidence supports.** Reports MUST distinguish implemented-and-tested, implemented-but-unverified and unimplemented capabilities, and name the behavior exercised and any missing proof. Correcting the claim MUST NOT wait for the new tests or the missing implementation that will later make it true.
+
+**Read `ai/rules/rfc-compliance.md` before acting when:** writing or changing an RFC summary's implementer kind
 
 <!-- always-on: precedence rung 1/2 -->
 

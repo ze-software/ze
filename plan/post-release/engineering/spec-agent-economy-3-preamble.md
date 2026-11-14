@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P1 |
 | Release reason | Release-independent development tooling: it changes which instruction text an agent loads and changes no shipped binary. |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -76,8 +76,8 @@ unchanged.
 
 Pages and files, read whole or by structure:
 - `ai/INSTRUCTIONS.md` (10KB): the hard bans, the pointer to the owner's decisions, the map to the rules, the architecture summary; three `@` include lines.
-- `ai/META-DECISIONS.md` (34KB): twelve topic sections. It says every main session loads it.
-- `ai/rules/CORE.md` (45KB): rfc-compliance 14.5KB, rule-precedence 9.2KB, git-safety 6.5KB, principles 5.6KB, interop 3.6KB, never-destroy-work 2.6KB, documentation 1.1KB, two small rules.
+- `ai/META-DECISIONS.md` (45,169 bytes on 2026-11-14; 34KB when this spec was written): twelve topic sections. It says every main session loads it.
+- `ai/rules/CORE.md` (45,561 bytes on 2026-11-14): rfc-compliance 14.5KB, rule-precedence 9.2KB, git-safety 6.5KB, principles 5.6KB, interop 3.6KB, never-destroy-work 2.6KB, documentation 1.1KB, two small rules.
 - `docs/contributing/ze-go-style.md` (51KB): "The rules a reader applies" 38KB in thirteen subsections, "The rules a tool enforces" 6.3KB, "Where Ze differs from standard Go" 5.7KB.
 - `ai/agents/ze-read.md`, `ai/agents/ze-work.md`: frontmatter `name`, `description`, `tools`; both tool lists hold `Skill`.
 
@@ -100,7 +100,7 @@ Pages and files, read whole or by structure:
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
-| Subagent start text | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Adds a short constraint text to every subagent | Extends: for an agent whose definition omits the project instruction files, the same hook appends the agent rule set |
+| Subagent start text | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Adds a short constraint text to every subagent | Extends: for an agent whose definition omits the project instruction files, the same hook appends the hard bans and names the three files of the agent rule set to read |
 | Derived core | `internal/le/ai/rules/artifacts.go`, `ruleBlock`, `buildCore` | Renders each member rule whole | Extends: a member's point that declares `applies` is left out of its block and its situation is listed on the block's closing line |
 | Point header fields | `internal/le/ai/rules/points.go`, `Point`; `docs/contributing/rule-authoring.md` | Optional header fields that never reach the rendered rule (`rationale`, `excepted-by`) | Extends: `applies` joins them, with the same parsing and the same refusal of a misspelled key |
 | Situation-scoped rules design | `plan/post-release/engineering/spec-rules-situation-index.md` | Proposes `applies` on every point and views over it | Extends: this spec lands the predicate and the core view only; that spec keeps the trigger-index and stage views |
@@ -118,7 +118,7 @@ Pages and files, read whole or by structure:
 ### Transformation Path
 1. `./le ai rules update condensed` renders the core and the trigger index from the rule points, leaving out of each core block the points that declare `applies`.
 2. `./le ai sync update` mirrors the agent definitions.
-3. At a phase agent's start the hook reads that agent's mirrored definition. When it declares that the project instruction files are omitted, the hook appends the agent rule set: the hard bans section of `ai/INSTRUCTIONS.md`, the every-agent part of `ai/META-DECISIONS.md`, `ai/rules/TRIGGERS.md` and `ai/rules/CORE.md`.
+3. At a phase agent's start the hook reads that agent's mirrored definition. When it declares that the project instruction files are omitted, the hook appends the agent rule set: the text of the hard bans section of `ai/INSTRUCTIONS.md`, and an instruction naming three files to read before any other action, `ai/rules/CORE.md` and `ai/rules/TRIGGERS.md` whole and the every-agent part of `ai/META-DECISIONS.md` by its line range. The three are named, never sent: the harness caps a hook's added context at 10,000 characters, and they are several times that.
 4. The agent's definition body tells it what to read if that set is absent from its context.
 
 ### Boundaries Crossed
@@ -164,8 +164,8 @@ writer and readers in the repository.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A subagent definition can start without the project instruction files, rules files included | Harness documentation for subagents, quoted in Design Insights | D-1 falls back to shrinking the files themselves, which D-2 and the two-part file still deliver for every agent | Phase 1 probe: a fresh session spawns the agent and its first-turn context is measured | unvalidated |
-| A-2 | The start hook's additional context can carry the agent rule set (about 30KB) | The same documentation gives no size limit | The hook passes the hard bans and names three files; the agent reads them in one turn | Phase 1 probe: the agent reports the last line of the set | unvalidated |
+| A-1 | A subagent definition can start without the project instruction files, rules files included | Harness documentation for subagents, quoted in Design Insights. Key name confirmed 2026-11-14: `omitClaudeMd: true` in the frontmatter, "Requires Claude Code v2.1.271 or later" (the local harness is 2.1.325) | D-1 falls back to shrinking the files themselves, which D-2 and the two-part file still deliver for every agent | Phase 1 probe: a fresh session spawns the agent and its first-turn context is measured | unvalidated |
+| A-2 | The start hook's additional context can carry the agent rule set (about 30KB) | The same documentation gives no size limit | The hook passes the hard bans and names three files; the agent reads them in one turn | Phase 1 probe: the agent reports the last line of the set | broken (2026-11-14): the hooks reference says "A hook's `additionalContext`, `systemMessage`, and `initialUserMessage` strings, and its plain stdout, are capped at 10,000 characters", and over the cap "Claude Code saves the output to a file in the session directory. It replaces the output with the file path and a preview of up to the first 2,000 characters". The "If wrong" route is built |
 | A-3 | Removing `Skill` from a phase agent's tools removes the skill listing from its start | Not documented either way | The listing stays; the saving is lost, nothing breaks | Phase 1 probe: first-turn context with and without it | unvalidated |
 | A-4 | An agent can follow a skill by reading its file | Skills are plain files under `ai/skills/`, and briefs already say "read that skill" | Phase agents keep `Skill` | The probe agent runs one skill from its file | unvalidated |
 | A-5 | The owner's global instruction file holds nothing a phase agent must have | Read: prose rules for text sent under a person's name, the question tool, agent counts, dictation | A phase agent writing prose for the owner misses a rule | The brief for such an agent names the writing skill, which carries those rules | unvalidated |
@@ -201,7 +201,7 @@ writer and readers in the repository.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | A phase agent's start, in a session begun after the change | Its context holds the hard bans, the every-agent part of the owner's decisions, the trigger index and the core, and none of the main-thread part | The agent's own definition, the start text of child 1 and the brief: they are the agent's contract |
+| AC-1 | A phase agent's start, in a session begun after the change | Its context holds the hard bans at start, and the trigger index, the core and the every-agent part of the decisions after its first read turn, and none of the main-thread part | The agent's own definition, the start text of child 1 and the brief: they are the agent's contract |
 | AC-2 | The same start when the hook did not run | The agent's definition tells it to read the three files before acting, and it holds the hard bans from the definition | None |
 | AC-3 | An agent whose definition does not omit the instruction files | Receives no rule set from the hook: it already loads the files | Every agent type other than the two phase agents, until its definition changes |
 | AC-4 | `ai/META-DECISIONS.md` | Holds two parts under two headings, every bullet of the old file present once with unchanged wording, and an opening that says how a new rule chooses its part | The main session and every other harness load the whole file |
@@ -213,7 +213,7 @@ writer and readers in the repository.
 | AC-10 | `docs/contributing/ze-go-style.md` | At most 16KB; every heading of the old page present with its rule stated; each moved body linked as a sibling page under `docs/contributing/go-style/` | None dropped: every sentence is in the core page or one sibling |
 | AC-11 | A Go edit by an agent that read the shortened page whole | Passes the style gate, with no change to the gate's code | An agent that read nothing is still refused |
 | AC-12 | `./le ai rules report payload` | Reports the main payload and the agent rule set, each against its own budget | None |
-| AC-13 | A phase agent's first turn, measured | At most 35k tokens | The system prompt and tool schemas, which the repository does not control |
+| AC-13 | A phase agent's context after its first read turn (the reads the start text names), measured | At most 35k tokens; a subdirectory instruction file or path-scoped rule can still load when the agent works with files there, and the measurement names any that did | The system prompt and tool schemas, which the repository does not control |
 | AC-14 | A harness that reads `AGENTS.md` alone | Loads the same files as before, the decisions file whole | None |
 
 ## 🧪 TDD Test Plan
@@ -221,7 +221,7 @@ writer and readers in the repository.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions` | `internal/le/hookruntime/lifecycle_test.go` | AC-1: the four parts present, the main-thread part absent | |
+| `TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions` | `internal/le/hookruntime/lifecycle_test.go` | AC-1: the hard bans sent, the core, the trigger index and the decisions range named, the main-thread parts absent | |
 | `TestSubagentStartAddsNoRuleSetForAnAgentThatLoadsTheInstructions` | `internal/le/hookruntime/lifecycle_test.go` | AC-3 | |
 | `TestSubagentStartSurvivesAMissingRuleFile` | `internal/le/hookruntime/lifecycle_test.go` | R-1: the hook answers, names the file it could not read, and the fallback sentence is present | |
 | `TestTheCoreLeavesOutAPointThatDeclaresItsSituation` | `internal/le/ai/rules/digest_test.go` | AC-6 | |
@@ -320,6 +320,7 @@ every test and every generator.
    - Tests: `TestTheCoreLeavesOutAPointThatDeclaresItsSituation`, `TestTheCoreShowsAPointWithNoSituation`, `TestAppliesIsRefusedOnAProhibitionAndOutsideTheCore`
    - Files: `points.go`, `artifacts.go`, `docs/contributing/rule-authoring.md`, then the point files of the three large members
    - Verify: `./le ai rules update condensed`; every rule file is byte-identical; AC-8
+   - → Constraint: the owner's condition is that no rule's wording changes. A point split adds a blank line to the rendered rule, so the check is a word-level comparison of each rule file, not a byte comparison. Rule files changed in this phase only where two stale pointers were corrected.
 4. **Phase: The payload measure**
    - Tests: `TestThePayloadMeasuresTheAgentRuleSet`
    - Files: `artifacts.go`
@@ -375,6 +376,8 @@ agent; phase 1 probes each before the design relies on it):
 - "`omitClaudeMd`: Set to `true` to start this subagent without the user, project, and local CLAUDE.md files in its initial context ... Use it for subagents that take everything they need from the delegation prompt." With it, "a subdirectory's `CLAUDE.md` and matching path-scoped rules still load when the subagent works with files there."
 - "SubagentStart hooks receive `agent_id` with the unique identifier for the subagent and `agent_type` with the agent name that the matcher filters on", and may return "`additionalContext` | String added to the subagent's context at the start of its conversation, before its first prompt."
 - "To prevent a subagent from invoking skills entirely, omit `Skill` from the `tools` list". Whether that also removes the listing is not documented.
+- Read 2026-11-14: for a custom subagent the SubagentStart `agent_type` "is the `name` field from the agent's frontmatter, not the filename". The hook therefore validates the type as a file name, reads `.claude/agents/<type>.md`, and requires its frontmatter `name` to equal the type.
+- Read 2026-11-14: SubagentStart also runs when a subagent is resumed, and "When the hook runs again for the same subagent, Claude Code injects the returned context only when the subagent's context doesn't already hold the copy from an earlier run". After auto-compaction discards the copy, the next run's context is injected again.
 - A project setting can hide named skills from the listing, and plugin skills are managed by the user, not the project. Those are the owner's settings and are not changed here.
 
 ## Owned journal rows
@@ -395,6 +398,43 @@ agent; phase 1 probes each before the design relies on it):
 - The skill listing for the main session is the owner's setting (which bundled and plugin skills his account lists). This spec changes only what a phase agent carries.
 - The system door (11KB, read by every editing agent) is left whole: the door gate exists because agents designed from habit, and a shortened door risks the failure the gate stops. Revisit only with the umbrella's measurement after this child lands.
 - The trigger-index and per-stage views of `plan/post-release/engineering/spec-rules-situation-index.md` are not built here.
+- R-6 says `./le ai sync check` reports the agent payload per definition. That report is not built; it is owed in this spec before closure.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded yet: `./le spec review record` runs after the last round |
+| `./le spec review check` | not run |
+| Rounds | 5 run; the loop ended at round 5, and the seal was refreshed after it |
+| Reviewer lenses used | logic at the producer; what an agent or a hostile payload can make it do |
+
+| Round | Scope | Result |
+|-------|-------|--------|
+| 1 | the whole uncommitted diff of phases 1, 3 and 4 | 0 BLOCKER, 7 ISSUE, 4 NOTE |
+| 2 | the fixes of round 1 and the call sites they touch | 0 BLOCKER, 4 ISSUE, 2 NOTE |
+| 3 | the fixes of round 2 and the call sites they touch | 0 BLOCKER, 2 ISSUE, 2 NOTE |
+| 4 | the fixes of round 3 and the call sites they touch | 0 BLOCKER, 1 ISSUE, 4 NOTE |
+| 5 | the fixes of round 4 and the call sites they touch | 0 BLOCKER, 0 ISSUE, 3 NOTE |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The frontmatter reader read a commented, capitalised or quoted `omitClaudeMd`, a quoted `name`, and an indented key inside a multi-line description as an agent that loads the instruction files | `internal/le/hookruntime/lifecycle.go`, `frontmatterFields`, `agentOmitsInstructions` | Indented lines skipped, first occurrence kept, comment stripped, name unquoted, any value but `false` omits; `TestAgentOmitsInstructionsReadsTheFrontmatterTheHarnessReads` |
+| 2 | ISSUE | `statedProhibition` missed "never", "forbidden", "none ... MUST", SHOULD NOT, NOT RECOMMENDED, and a prohibition in a code span, blockquote, fence, note or table; two marked points hid one | `internal/le/ai/rules/points.go`, `statedProhibition`; two point files | Every form refused in every kind, an RFC quote included (its exemption was deleted in round 3); the two `applies` lines removed; `TestAppliesIsRefusedOnEveryProhibitionForm` |
+| 3 | ISSUE | `validAgentType` had no test that went red without it | `internal/le/hookruntime/lifecycle.go` | `TestValidAgentTypeAdmitsOnlyAFileName` |
+| 4 | ISSUE | The definitions' fallback was unpinned | `ai/agents/*.md` | `TestAgentDefinitionsCarryTheHardBansOfTheInstructions` holds the heading, the three files and name equal to stem |
+| 5 | ISSUE | The cap test measured no claimed spec and branch `unknown`; the unresolved-claim line was unbounded | `lifecycle_test.go`, `hookSubagentContext` | Realistic start under the cap less `subagentContextReserve`; `startTextBounded`; `TestSubagentStartBoundsAnUnresolvableClaim` |
+| 6 | ISSUE | No hook fixture covered the new branch | `internal/le/ai/hooks/fixture_catalog.go` | Two subagent-context sites, run by `TestSubagentRuleSetSitesMatchTheHook` |
+| 7 | ISSUE | The unreadable-definition arm and the `refuseRoutedApplies` call in `RenderAll` were untested | `lifecycle.go`, `render.go` | `TestSubagentStartNamesTheFilesWhenTheDefinitionCannotBeRead`, `TestRenderRefusesAppliesOnARoutedRule` |
+
+### Notes left as is
+| Round | Severity | Finding | Location | Why it stays |
+|-------|----------|---------|----------|--------------|
+| 4 | NOTE | `agentCallBudgetCheck` takes its "not counted" arm for an agent id past the id length bound | `internal/le/hookruntime/budget.go` | Nothing is unguarded by it: the Bash hook refuses every command of such an agent, and a code edit is refused through the read marker |
+| 5 | NOTE | N1: with an agent id, no `session_id`, a resolved id and `lepath.SessionForID` failing, the start text prints no identity text at all | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Safe: no line is printed and the Bash refusal explains. Fixing it edits sealed source after the review ended; owed with phase 2, which edits the same hook |
+| 5 | NOTE | N2: the default arm of `hookSubagentContext` still prints "exactly as printed" before a text that prints no line | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Same reason as N1; owed with phase 2 |
+| 5 | NOTE | N3: the spec package's name check (`safeSessionID`) has no length bound, while `lepath`'s id check has 96 | `internal/le/spec/model.go` | Harmless: every id that reaches a claim or a written file name comes through `lepath`; the check also judges spec stems, so it stays |
 
 ## Checklist
 

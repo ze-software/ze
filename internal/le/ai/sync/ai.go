@@ -43,6 +43,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/skillstub"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 )
 
 // area is the word this command is typed as, and the prefix leaction removes
@@ -62,7 +63,7 @@ const (
 	claudeSkills       = ".claude/skills"
 	codexSkills        = ".codex/skills"
 	agentsSkills       = ".agents/skills"
-	claudeAgents       = ".claude/agents"
+	claudeAgents       = ruleset.AgentDefinitionsDir
 	agentsInstructions = "AGENTS.md"
 )
 

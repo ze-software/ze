@@ -114,9 +114,9 @@ var reportActions = leaction.New(reportArea,
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
-	leaction.Action{Verb: "payload", Does: doesReport, Summary: "measure loaded instructions against their token budget", Why: "what a session loads before it reads anything else, measured against the " +
-		"token budget. A MEASUREMENT, except that a payload file which is not there " +
-		"fails: an absent file is not a smaller one",
+	leaction.Action{Verb: "payload", Does: doesReport, Summary: "measure loaded instructions against their token budget", Why: "what a session loads before it reads anything else, and the agent rule set " +
+		"a phase agent starts with, each measured against its own token budget. A MEASUREMENT, " +
+		"except that a file or part which is not there fails: an absent part is not a smaller one",
 		Answer: payloadAnswer},
 	leaction.Action{Verb: "router", Does: doesReport, Summary: "report blocking rules no past task would surface", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
 		"and exit 0: each name it prints is a candidate for the always-on core. " +
@@ -292,7 +292,8 @@ func condensedAnswer(check bool) (any, int) {
 	return report, 0
 }
 
-// payloadAnswer measures the always-loaded payload against its budget.
+// payloadAnswer measures the always-loaded payload and the agent rule set,
+// each against its own budget.
 //
 // The script always answers 0, and an absent file contributes zero characters.
 // Thus, deletion of ai/rules/CORE.md makes the budget look MET. This function

@@ -160,8 +160,32 @@ func resolveSessionID(root string, process sessionProcess) (string, error) {
 	return mintSessionID(root, process)
 }
 
+// sessionIDLengthMax bounds, in bytes, a session id and an agent id. The
+// harness's ids are 36 bytes (a session UUID) and 17 (an agent id), so 96
+// leaves more than twice their length for a harness that grows them. The
+// longest file name this package joins from both ids, the commit namespace
+// file "commit-session-id-" + session + "+" + agent, then stays under a file
+// name's 255 bytes (211 at the bound; 118 is where it would pass 255). The
+// bound also sits under the hook start text's 240-byte echo bound, so that
+// text prints a valid id whole and never cuts one.
+const sessionIDLengthMax = 96
+
+// IDRule states, as one sentence for a message that refuses an id, the set
+// safeSessionID accepts: its characters and its length bound, the number read
+// from sessionIDLengthMax so the text cannot drift from the check.
+func IDRule() string {
+	return "An id holds only letters, digits, '.', '_' and '-', at most " + strconv.Itoa(sessionIDLengthMax) + " bytes."
+}
+
+// safeSessionID reports whether id can name one file: at most
+// sessionIDLengthMax bytes of letters, digits, '.', '_' and '-', and not a dot
+// segment. It is the one check behind ValidSessionID and ValidAgentID, so
+// every consumer of an id accepts the same set.
 func safeSessionID(id string) bool {
 	if id == "" || id == "." || id == ".." {
+		return false
+	}
+	if len(id) > sessionIDLengthMax {
 		return false
 	}
 	for index := range len(id) {

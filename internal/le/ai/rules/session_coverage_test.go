@@ -191,7 +191,7 @@ func TestSessionCoverageReadsTheNativeCoreRendererShape(t *testing.T) {
 		Severity:   "blocking",
 		CoreReason: "the ladder itself",
 	}}
-	if err := os.WriteFile(filepath.Join(fixture.rulesDir, "CORE.md"), []byte(buildCore(core)), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(fixture.rulesDir, "CORE.md"), []byte(buildCore(core, nil)), 0o600); err != nil {
 		t.Fatalf("fixture rendered core: %v", err)
 	}
 	var errOut bytes.Buffer

@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	fixtureSitesExpected       = 406
-	fixtureChecksExpected      = 551
-	fixtureUniqueNamesExpected = 551
+	fixtureSitesExpected       = 408
+	fixtureChecksExpected      = 553
+	fixtureUniqueNamesExpected = 553
 	fixtureCategoriesExpected  = 24
 )
 
@@ -82,11 +82,18 @@ var (
 	// with the typed command, and two exit-0 lines that start nothing heavy.
 	// 401 sites are 406. No existing site changed. Sealed after the
 	// independent review, which was the closure review of that spec.
+	// Re-sealed 2026-11-14 for spec-agent-economy-3-preamble: two
+	// subagent-context sites join for the agent rule set, one for an agent
+	// type whose mirrored definition omits the instruction files (the start
+	// text carries the rule set) and one whose definition loads them (it
+	// carries none), each run through the hook by
+	// TestSubagentRuleSetSitesMatchTheHook. 406 sites are 408. No existing site
+	// changed. Sealed after five independent reviews.
 	fixtureSiteDigest = [sha256.Size]byte{
-		0x5c, 0xa4, 0x6d, 0x22, 0x52, 0xb3, 0x62, 0x3d,
-		0xbf, 0x0d, 0x07, 0xbb, 0x3a, 0xb5, 0xae, 0x62,
-		0xcb, 0x17, 0xba, 0xea, 0xb4, 0x30, 0x9d, 0x6d,
-		0xc2, 0x7b, 0x60, 0xc0, 0x2f, 0xfe, 0x68, 0x4a,
+		0x29, 0xf7, 0xa6, 0xac, 0xf4, 0x3a, 0xeb, 0x9a,
+		0x18, 0x56, 0x4a, 0x31, 0x2a, 0xfc, 0x1c, 0xb6,
+		0xf2, 0xee, 0xfd, 0x36, 0x99, 0x0b, 0x02, 0x70,
+		0xd0, 0x6f, 0xc9, 0xb2, 0x50, 0xb5, 0xc7, 0x04,
 	}
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: it hashes the site and
 	// category text above, which name the subject-first commands.
@@ -126,11 +133,14 @@ var (
 	// every fixture after them moves five sites down. 546 fixtures are 551.
 	// Sealed after the independent review, which was the closure review of
 	// that spec.
+	// Re-sealed 2026-11-14 for spec-agent-economy-3-preamble: the same two
+	// subagent rule-set sites as fixtureSiteDigest expand to their fixtures.
+	// Sealed after five independent reviews.
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0x57, 0x90, 0x1e, 0x53, 0x2a, 0xd0, 0x01, 0x6b,
-		0xa8, 0x4d, 0x28, 0x50, 0x67, 0x6f, 0x2f, 0xfd,
-		0xd4, 0x85, 0x1a, 0xbd, 0x49, 0x2e, 0xd8, 0x37,
-		0xc4, 0xac, 0x1b, 0x1e, 0xaa, 0xd3, 0xa7, 0xfd,
+		0xbe, 0x19, 0xa3, 0x87, 0x23, 0x8a, 0xa7, 0x27,
+		0x35, 0x38, 0x86, 0x79, 0x63, 0xd2, 0x84, 0xf4,
+		0x71, 0x7d, 0xdd, 0xae, 0xc6, 0xeb, 0xb9, 0x34,
+		0xd3, 0x0b, 0x00, 0xdf, 0xbe, 0x2b, 0x84, 0xd6,
 	}
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
@@ -512,11 +522,17 @@ var (
 	// two validate-spec rows still match the refusal. Sealed after two
 	// independent reviews; the first removed a shorthand resolution that
 	// would have excused planned daemon code.
+	//
+	// Re-sealed 2026-11-14 for spec-agent-economy-3-preamble: the subagent
+	// start hook carries the agent rule set (hookSubagentContext,
+	// agentOmitsInstructions), session and agent ids are bounded in length
+	// (lepath sessionIDLengthMax, IDRule), and internal/le/ai/rules/ruleset
+	// joins the watched packages. Sealed after five independent reviews.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x62, 0xa6, 0x67, 0x8a, 0x7b, 0x80, 0x66, 0x9f,
-		0x7e, 0xf8, 0xce, 0x11, 0xbb, 0x1f, 0xa2, 0x44,
-		0xbd, 0x87, 0xdb, 0xbe, 0x6d, 0x33, 0x8b, 0xec,
-		0x28, 0xde, 0x01, 0xd2, 0x91, 0x9b, 0x14, 0xf5,
+		0x6d, 0x3b, 0xab, 0x9f, 0x99, 0xbd, 0x51, 0x71,
+		0x89, 0x7f, 0x74, 0xbd, 0x85, 0xd7, 0x7d, 0x54,
+		0xd1, 0x37, 0x1b, 0xd5, 0x1c, 0xa9, 0xda, 0x3d,
+		0xa3, 0x9f, 0x82, 0xcb, 0x48, 0x0c, 0xc2, 0xe7,
 	}
 )
 
@@ -620,6 +636,12 @@ var fixtureProducerBoundaries = [...]fixtureProducerBoundary{
 // authority packages, not their recursive import closure. Discovery includes
 // all platforms' non-test Go files; a new authority package needs a disposition.
 var hookSourcePackages = [...]string{
+	// The agent rule set reader: the hard bans section, the every-agent
+	// decisions range, the rule file paths and the agent definitions mirror
+	// that hookSubagentContext sends or names to an agent that omits the
+	// instruction files. Only this child package is listed, not the rules
+	// generator internal/le/ai/rules that also reads it for the payload report.
+	"internal/le/ai/rules/ruleset",
 	"internal/le/arch/tier",
 	// The test-first category asks the commit gate's test-coverage refusal.
 	"internal/le/commit",

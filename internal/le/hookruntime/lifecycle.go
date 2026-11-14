@@ -5,17 +5,22 @@ import (
 	"bytes"
 	stdcontext "context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
 	lecommit "github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/gitenv"
@@ -493,11 +498,16 @@ func hookEndSummary(ctx context, errOut io.Writer) {
 	}
 }
 
+// noPayloadSessionID is the start text of an agent whose payload carries no
+// session_id: it says what bashAgentIdentity's refusal says for that payload.
+const noPayloadSessionID = "\nThis start payload names an agent but carries no session id, so you have no identity line: " +
+	"the Bash hook refuses every command, readers included. Next: stop and report the payload's session_id to the main thread.\n"
+
 func hookSubagentContext(ctx context, out io.Writer) int {
+	// A payload session id that cannot name a file (lepath.ValidSessionID,
+	// which bounds its length too) answers "" and is never echoed.
 	id, present := payloadSessionID(ctx.payload)
-	if present && id == "" {
-		id = ""
-	} else if !present {
+	if !present {
 		id = resolvedSessionID(ctx)
 	}
 	branch := "unknown"
@@ -509,7 +519,7 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 	}
 	cancelBranch()
 	var text textbuf.Buffer
-	text.Reset().Str("Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Third parties hook in: pkg/ is a public API, and any plugin (ours included) may run as an external process, so a direct Go call into another component silently does nothing\n- Before your first code edit (.go, .yang, .templ), read ai/doors/system.md and the door covering the file, each in full: the write hook refuses the edit until you have (index: ai/doors/README.md)\n- Rules: ai/rules/\n- Branch: ").Str(branch).Byte('\n')
+	text.Reset().Str("Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:\n- Zero-copy, buffer-first encoding: WriteTo(buf, off) int -- no make/append in encoding\n- Registration pattern: init() in register.go, never direct imports between components\n- YANG required for all RPCs -- no command module category\n- Lazy over eager: pass raw bytes, offset iterators, no intermediate structs\n- JSON keys: kebab-case\n- Goroutines: long-lived workers on channels, never per-event\n- Third parties hook in: pkg/ is a public API, and any plugin (ours included) may run as an external process, so a direct Go call into another component silently does nothing\n- Before your first code edit (.go, .yang, .templ), read ai/doors/system.md and the door covering the file, each in full: the write hook refuses the edit until you have (index: ai/doors/README.md)\n- Rules: ai/rules/\n- Branch: ").Str(startTextBounded(branch)).Byte('\n')
 	if id != "" {
 		paths, err := lepath.SessionForID(ctx.root, id)
 		if err == nil {
@@ -517,16 +527,18 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			if claim != "" && claim != specUnassigned {
 				relative, err := specpath.Find(ctx.root, claim)
 				if err != nil {
-					text.Str("\nCannot resolve the session's claimed spec ").Str(claim).
-						Str(": ").Str(err.Error()).
+					text.Str("\nCannot resolve the session's claimed spec ").Str(startTextBounded(claim)).
+						Str(": ").Str(startTextBounded(err.Error())).
 						Str("\nAsk the parent session to correct the spec placement or use ./le spec claim to update its claim before acting.\n")
 				} else {
-					text.Str("\nSpec claimed by the session that spawned you: ").Str(relative).
+					text.Str("\nSpec claimed by the session that spawned you: ").Str(startTextBounded(relative)).
 						Str("\nRead it before acting. Its acceptance criteria are what your work is judged against.\n")
 				}
 			}
+			// The id passed lepath.ValidSessionID: no line break, and no longer
+			// than startTextErrorMax, so it is printed whole.
 			text.Str("\nParent session ID: ").Str(id).
-				Str("\nParent session scratch: ").Str(paths.Scratch)
+				Str("\nParent session scratch: ").Str(startTextBounded(paths.Scratch))
 			// The line is the one bashAgentIdentity compares a command with,
 			// and it exists only for a payload that names an agent. A start
 			// payload with no agent id gets none: the Bash hook judges a call
@@ -537,24 +549,58 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			// line then. An agent id that cannot name a file owns no line
 			// either: bashAgentIdentity refuses every command, readers
 			// included, with stop-and-report, at the AgentFingerprint error
-			// before it reads the reader set.
+			// before it reads the reader set. A payload with no session_id
+			// key owns no line either, though id was resolved for it:
+			// bashAgentIdentity reads the payload's own session id and
+			// refuses every command of an agent that carries none.
 			const typeTheLine = "\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n"
 			agent := ctx.payload.AgentID
 			switch {
 			case agent == "":
 				text.Str("\nThis start payload names no agent id, so you have no identity line to type here. " +
 					"The Bash hook asks for one only on a call whose payload names an agent, and its refusal then prints the exact line.\n")
+			case !present:
+				text.Str(noPayloadSessionID)
 			case lepath.ValidAgentID(agent):
+				// Both ids passed the one id check, which bounds their length
+				// under startTextErrorMax, so the line is printed whole: a cut
+				// id would make a line the Bash hook refuses.
 				text.Str(typeTheLine).Str(identityLine(agent, id)).Byte('\n')
 			default:
 				text.Str(typeTheLine).
-					Str("This start payload's agent id cannot name a file, so you have no identity line: the Bash hook refuses every command, readers included. " +
+					Str("This start payload's agent id cannot name a file: ").Str(lepath.IDRule()).
+					Str(" So you have no identity line: the Bash hook refuses every command, readers included. " +
 						"Next: stop and report the agent id to the main thread.\n")
 			}
 		}
 	}
+	// A subagent whose payload session id is absent or cannot name a file has
+	// no identity line: bashAgentIdentity refuses its every command, readers
+	// included, with stop-and-report. The start text says so rather than
+	// print a line built from an id the hook rejects, or say nothing. An
+	// absent id that no session resolved for lands here too.
+	if id == "" && ctx.payload.AgentID != "" {
+		if present {
+			text.Str("\nThis start payload's session id cannot name a file: ").Str(lepath.IDRule()).
+				Str(" So you have no parent session and no identity line: the Bash hook refuses every command, readers included. " +
+					"Next: stop and report the payload's session id to the main thread.\n")
+		} else {
+			text.Str(noPayloadSessionID)
+		}
+	}
 	subagentCallRules(&text)
 	text.Str("\nYou are a subagent under ai/rules/planning.md. Report grounded facts, read routed rules before acting, never weaken tests, and write scratch only under ./le session scratch ensure.\n")
+	omits, err := agentOmitsInstructions(ctx.root, ctx.payload.AgentType)
+	switch {
+	case err != nil:
+		text.Str("\nCannot read your agent definition (").Str(startTextBounded(err.Error())).
+			Str("), so this start text cannot tell whether you loaded the project instruction files. If ").
+			Str(ruleset.InstructionsFile).Str(" is not in your context, read its \"# ").Str(ruleset.HardBansHeading).
+			Str("\" section, ").Str(ruleset.CoreFile).Str(", ").Str(ruleset.TriggersFile).Str(" and ").Str(ruleset.DecisionsFile).
+			Str(" before acting.\n")
+	case omits:
+		agentRuleSet(&text, ctx.root)
+	}
 	response := map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": "SubagentStart", "additionalContext": text.String()}}
 	_ = json.NewEncoder(out).Encode(response)
 	return 0
@@ -578,6 +624,212 @@ func subagentCallRules(text *textbuf.Buffer) {
 		Str("- Commit only a change that owes no execution (prose, spec bookkeeping, a blocked hand-back). The main thread commits code.\n").
 		Str("- A ").Str(budgetedAgentType).Str(" agent's budget is ").Int(agentCallBudget).
 		Str(" hooked calls (Bash, Write, Edit). A call a hook refuses is not counted.\n")
+}
+
+// agentRuleSetHeading is the heading of the start text that carries the agent
+// rule set. The agent definitions' fallback paragraph names it: an agent whose
+// start text lacks it reads the files itself. The files, the part headings and
+// their reader are internal/le/ai/rules/ruleset's, the same reader the payload
+// report measures with.
+const agentRuleSetHeading = "Agent rule set"
+
+// omitInstructionsKey is the frontmatter key the harness reads to start a
+// subagent without the project instruction files. The definitions it is read
+// from are the mirror `./le ai sync update` writes (ruleset.AgentDefinitionsDir).
+const omitInstructionsKey = "omitClaudeMd"
+
+// omitInstructionsLoads is the one omitClaudeMd value read as an agent that
+// loads the instruction files. Every other value, quoted, capitalised or
+// unknown, is read as omitting: the rule set sent to an agent that did load the
+// files costs it a few thousand characters, while nothing sent to one that did
+// not leaves it with no ban.
+const omitInstructionsLoads = "false"
+
+// agentTypeLengthMax bounds an agent type joined to a path. Every definition
+// name in ai/agents is far shorter.
+const agentTypeLengthMax = 64
+
+// startTextErrorMax bounds, in bytes, a value the start text echoes that a
+// payload or the checkout chooses: a claim, an error naming a path, the branch,
+// the spec path. The session and agent ids are not cut: lepath.ValidSessionID
+// and lepath.ValidAgentID bound them below this, and a cut id would print an
+// identity line the Bash hook refuses. The start text shares the
+// harness's 10,000-character cap with the rule set, so an unbounded echo could
+// push the bans past it.
+const startTextErrorMax = 240
+
+// startTextBounded answers value on one line, each carriage return and line
+// feed replaced by a space so an echoed value adds no line to the start text,
+// cut to startTextErrorMax bytes on a rune boundary, marked "..." when it was
+// cut.
+func startTextBounded(value string) string {
+	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+	if len(value) <= startTextErrorMax {
+		return value
+	}
+	end := startTextErrorMax
+	for end > 0 && !utf8.RuneStart(value[end]) {
+		end--
+	}
+	return value[:end] + "..."
+}
+
+// agentOmitsInstructions reports whether the agent the start payload names
+// starts without the project instruction files: its definition in the mirror
+// names that agent in its frontmatter and sets omitClaudeMd to any value other
+// than false. The harness reports a custom agent's type as its frontmatter
+// name, not its file name, so the two must match; a definition at the type's
+// path whose frontmatter names no such agent, as this reader reads it, is
+// read as omitting, the side that sends the rule set.
+//
+// It sees only the mirror this checkout writes. A type that cannot name a file
+// there (a plugin agent's scoped name, a path) and a type with no definition
+// in it (a built-in agent, or a user-level or plugin agent defined outside the
+// checkout) answer false: this start text adds no rule set for them, whether
+// or not their own definition sets omitClaudeMd. A definition that exists and
+// cannot be read is an error: the caller cannot tell which start the agent had.
+func agentOmitsInstructions(root, agentType string) (bool, error) {
+	if !validAgentType(agentType) {
+		return false, nil
+	}
+	path := filepath.Join(root, ruleset.AgentDefinitionsDir, agentType+".md")
+	body, err := os.ReadFile(path) //nolint:gosec // agentType is validated as a file name above
+	// refuse-by-default: guards hookSubagentContext -- a type with no definition in the mirror gets no rule set; the definitions this checkout writes are the only ones it can read
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	fields := frontmatterFields(string(body))
+	// A definition at the type's path whose name the reader cannot match
+	// (another name, frontmatter indented as a whole, no closed block) cannot
+	// be read for sure, so it takes the side that sends the rule set.
+	if !slices.ContainsFunc(fields["name"], func(name string) bool { return frontmatterUnquoted(name) == agentType }) {
+		return true, nil
+	}
+	return frontmatterOmits(fields[omitInstructionsKey]), nil
+}
+
+// frontmatterOmits reports whether the omitClaudeMd values a definition sets
+// read as an agent that omits the instruction files: any occurrence other
+// than the bare loading value. A repeated key cannot be read for sure, so it
+// takes the side that sends the rule set. No occurrence reads as loading.
+func frontmatterOmits(values []string) bool {
+	return slices.ContainsFunc(values, func(value string) bool { return value != omitInstructionsLoads })
+}
+
+// validAgentType reports whether an agent type can name a file in the mirror:
+// letters, digits, '-' and '_' only, so no separator, dot segment or plugin
+// scope (a plugin agent's type holds a colon) reaches the path.
+func validAgentType(agentType string) bool {
+	if agentType == "" {
+		return false
+	}
+	if len(agentType) > agentTypeLengthMax {
+		return false
+	}
+	for _, char := range agentType {
+		switch {
+		case 'a' <= char && char <= 'z':
+		case 'A' <= char && char <= 'Z':
+		case '0' <= char && char <= '9':
+		case char == '-', char == '_':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// frontmatterFields reads the top-level key: value lines between a
+// definition's opening and closing "---" lines, each value with its trailing
+// " #" comment removed and its quotes kept, and every occurrence of a key kept
+// in file order. A key is read without one pair of quotes around it. An
+// indented line belongs to the value above it (a multi-line description), so
+// it is never read as a key and never closes the block. A definition with no
+// closed frontmatter has no fields, so an unterminated block is never read as
+// configuration.
+func frontmatterFields(body string) map[string][]string {
+	fields := map[string][]string{}
+	lines := strings.Split(body, "\n")
+	if strings.TrimSpace(lines[0]) != "---" {
+		return fields
+	}
+	for _, line := range lines[1:] {
+		line = strings.TrimRight(line, "\r")
+		if line == "" || line[0] == ' ' || line[0] == '\t' {
+			continue
+		}
+		if strings.TrimSpace(line) == "---" {
+			return fields
+		}
+		key, value, found := strings.Cut(line, ":")
+		if !found {
+			continue
+		}
+		key = frontmatterUnquoted(strings.TrimSpace(key))
+		fields[key] = append(fields[key], frontmatterValue(value))
+	}
+	return map[string][]string{}
+}
+
+// frontmatterValue answers a frontmatter value without its surrounding blanks
+// and its trailing comment: a '#' at the value's start or after a blank opens
+// a YAML comment.
+func frontmatterValue(raw string) string {
+	value := strings.TrimSpace(raw)
+	if strings.HasPrefix(value, "#") {
+		return ""
+	}
+	for at := range len(value) {
+		if value[at] == '#' && (value[at-1] == ' ' || value[at-1] == '\t') {
+			return strings.TrimSpace(value[:at])
+		}
+	}
+	return value
+}
+
+// frontmatterUnquoted answers a value without one pair of matching quotes
+// around it, as YAML reads "ze-read" and 'ze-read' as ze-read.
+func frontmatterUnquoted(value string) string {
+	if len(value) < 2 {
+		return value
+	}
+	first, last := value[0], value[len(value)-1]
+	if first == last && (first == '"' || first == '\'') {
+		return value[1 : len(value)-1]
+	}
+	return value
+}
+
+// agentRuleSet writes what an agent that starts without the project
+// instruction files needs at its first turn: the hard bans, read from
+// ai/INSTRUCTIONS.md at each start, and the one read that brings the rest.
+// The rest is named, never sent: the harness caps a hook's additionalContext
+// at 10,000 characters and replaces a longer one with a file path it never
+// asks the agent to read, and the core, the trigger index and the decisions
+// are several times that.
+func agentRuleSet(text *textbuf.Buffer, root string) {
+	text.Str("\n# ").Str(agentRuleSetHeading).
+		Str("\nYour definition omits the project instruction files, so this start text carries the hard bans and names the rules to read.\n\n")
+	bans, err := ruleset.HardBans(root)
+	if err != nil {
+		text.Str("Cannot read the hard bans: ").Str(startTextBounded(err.Error())).
+			Str("\nRead the \"# ").Str(ruleset.HardBansHeading).Str("\" section of ").Str(ruleset.InstructionsFile).Str(" before acting.\n")
+	} else {
+		text.Str(strings.TrimSpace(bans.Text)).Byte('\n')
+	}
+	text.Str("\nBefore any other action, read with the Read tool ").Str(ruleset.CoreFile).Str(" and ").Str(ruleset.TriggersFile).Str(" whole, and ")
+	part, err := ruleset.AgentDecisions(root)
+	if err != nil {
+		text.Str(ruleset.DecisionsFile).Str(" whole: its every-agent part cannot be found, because ").Str(startTextBounded(err.Error())).Str(".\n")
+		return
+	}
+	text.Str(ruleset.DecisionsFile).Str(" lines ").Int(part.First).Byte('-').Int(part.Last).
+		Str(" (offset ").Int(part.First).Str(", limit ").Int(part.Last - part.First + 1).
+		Str("), the part headed \"").Str(ruleset.DecisionsAgentPartHeading).
+		Str("\". The rest of that file binds the main session only.\n")
 }
 
 // readToolLineCap is how many lines the Read tool returns when a call names no

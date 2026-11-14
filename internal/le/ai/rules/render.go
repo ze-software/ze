@@ -374,6 +374,15 @@ func RenderAll(tree, rulesDir, pointsDir string, check bool) (RenderReport, erro
 			return report, err
 		}
 	}
+	// A point that renders can still declare `applies` on a routed rule. The
+	// refusal reads the rendered rules, so it runs once every rule rendered.
+	if len(report.Failures) > 0 {
+		return report, nil
+	}
+	if err := refuseRoutedApplies(tree, rulesDir, pointsDir); err != nil {
+		tb.Reset()
+		report.Failures = append(report.Failures, tb.Err(err).String())
+	}
 	return report, nil
 }
 

@@ -11,6 +11,7 @@ package airules
 import (
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -197,6 +198,240 @@ func TestAPointFileRoundTripsThroughItsFrontmatter(t *testing.T) {
 	if !strings.Contains(bare, "\nlevel:\n") || !strings.Contains(bare, "\nstage:\n") {
 		t.Errorf("a derived field was not written empty: %s", bare)
 	}
+}
+
+func TestAppliesRoundTripsThroughThePointFile(t *testing.T) {
+	// Goal: `applies` is a header field like rationale: written only when it
+	// carries a value, read back unchanged, never part of the body.
+	point := Point{Slug: "p", Kind: kindDirective, Level: levelMust,
+		Body: []string{"- **MUST do it.**"}, Applies: "preparing a commit"}
+	text := formatPoint(point)
+	back, err := parsePoint(text, "p")
+	if err != nil {
+		t.Fatalf("ParsePoint: %v", err)
+	}
+	if back.Applies != point.Applies {
+		t.Errorf("applies changed: %q", back.Applies)
+	}
+	if strings.Join(back.Body, "\n") != "- **MUST do it.**" {
+		t.Errorf("the body changed: %v", back.Body)
+	}
+	if bare := formatPoint(Point{Slug: "p", Kind: kindNote, Body: []string{"x"}}); strings.Contains(bare, keyApplies) {
+		t.Errorf("a point with no situation wrote an applies line: %s", bare)
+	}
+}
+
+func TestAnEmptyAppliesLineIsRefused(t *testing.T) {
+	// Goal: an `applies:` line with no situation is refused, because it claims
+	// the point was scoped and scopes nothing.
+	_, err := parsePoint("---\nkind: directive\nlevel: MUST\napplies:  \n---\n- **MUST x.**\n", "p")
+	if err == nil {
+		t.Fatalf("an empty applies line was accepted")
+	}
+	if !strings.Contains(err.Error(), "names no situation") || !strings.Contains(err.Error(), "Fix:") {
+		t.Errorf("the refusal does not say what is wrong and how to fix it: %v", err)
+	}
+}
+
+func TestAppliesIsRefusedOnAProhibitionAndOutsideTheCore(t *testing.T) {
+	// Goal: AC-7. `applies` on a point that states a prohibition, by its label
+	// or by its body, or on a point of a rule that is not always-on, is
+	// refused, naming the point and the reason. Method: the same field is
+	// accepted on a MUST point of a core member, so each refusal is tied to its
+	// condition and not to the field. A body holding a MUST and a MUST NOT may
+	// carry either label, so the MUST-labeled one proves the body decides.
+	for _, test := range []struct {
+		name, level, body, keyword string
+	}{
+		{"labeled", "MUST NOT", "- **MUST NOT push.**", "MUST NOT"},
+		{"must-label-must-not-body", "MUST", "- **MUST push by SHA, and MUST NOT push a branch.**", "MUST NOT"},
+		{"shall-not-body", "MUST", "- **MUST push by SHA.** It SHALL NOT force.", "SHALL NOT"},
+	} {
+		_, err := parsePoint("---\nkind: directive\nlevel: "+test.level+"\napplies: pushing\n---\n"+test.body+"\n", "never-push")
+		if err == nil {
+			t.Fatalf("%s: applies on a prohibition was accepted", test.name)
+		}
+		for _, want := range []string{"never-push", "states the prohibition " + test.keyword, "split the point", "Fix: "} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: the refusal does not say %q: %v", test.name, want, err)
+			}
+		}
+	}
+	// A prohibition the body quotes in an RFC citation is read as stated: no
+	// check holds the quote to an RFC's text, so the citation form could carry
+	// any prohibition out of the always-on core (review round 3, N4).
+	for _, body := range []string{
+		"- **MUST push by SHA.** RFC 4271 Section 6.3: \"The speaker MUST NOT force it.\"",
+		"- **MUST push by SHA.** RFC 1 Section 1: \"Agents MUST NOT push.\"",
+	} {
+		if _, err := parsePoint("---\nkind: directive\nlevel: MUST\napplies: pushing\n---\n"+body+"\n", "quoted"); err == nil ||
+			!strings.Contains(err.Error(), "states the prohibition MUST NOT") {
+			t.Errorf("a MUST NOT quoted in an RFC citation kept its applies line: %v\n%s", err, body)
+		}
+	}
+	accepted, err := parsePoint("---\nkind: directive\nlevel: MUST\napplies: pushing\n---\n- **MUST push by SHA.**\n", "push-by-sha")
+	if err != nil || accepted.Applies != "pushing" {
+		t.Fatalf("applies on a MUST point was refused or lost: %v %q", err, accepted.Applies)
+	}
+
+	routed := digestCorpus()
+	routed["ai/rules/points/completion/manifest.md"] = "---\ntitle: Completion\n" +
+		"when: before claiming any gokrazy qdisc work done\nseverity: blocking\n---\n" +
+		"directives ## Directives\n  finish\n"
+	routed["ai/rules/points/completion/directives/finish.md"] =
+		"---\nkind: directive\nlevel: MUST\napplies: closing a spec\n---\n- MUST finish it.\n"
+	routedTree := digestTree(t, routed)
+	_, err = Digest(routedTree, false)
+	if err == nil {
+		t.Fatalf("applies on a routed rule's point was accepted")
+	}
+	for _, want := range []string{"completion/directives/finish", "not an always-on rule", "Fix: remove the `applies` line"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q: %v", want, err)
+		}
+	}
+	// `check metadata` refuses the same point file, through the same walk, so
+	// no route accepts what another refuses.
+	lint, err := Lint(routedTree)
+	if err != nil {
+		t.Fatalf("Lint: %v", err)
+	}
+	if !lint.Failed() || !strings.Contains(lint.Text(), "not an always-on rule") {
+		t.Errorf("check metadata accepted applies on a routed rule's point: %+v", lint)
+	}
+	if err := refuseRoutedApplies(routedTree, rulesDir(routedTree), pointsDir(routedTree)); err == nil {
+		t.Errorf("the refusal render and check metadata share accepted applies on a routed rule's point")
+	}
+	if _, err := Digest(digestTree(t, situatedCorpus("walking a requirement list")), false); err != nil {
+		t.Errorf("applies on a core member's MUST point was refused: %v", err)
+	}
+}
+
+func TestAppliesIsRefusedOnEveryProhibitionForm(t *testing.T) {
+	// Goal: every prohibition form the rule format allows keeps its point in the
+	// always-on core, in every point kind and inside a code span, a blockquote
+	// or a fence. Method: each refused row is paired with an accepted control
+	// that differs only in the condition the refusal turns on (the positive
+	// keyword, the word quoted or inflected, "none" in another sentence), so a
+	// refusal that fired on every point turns a control red. A prohibition
+	// quoted in an RFC citation is refused like any other.
+	point := func(kind, level, body string) string {
+		return "---\nkind: " + kind + "\nlevel: " + level + "\napplies: pushing\n---\n" + body + "\n"
+	}
+	for _, test := range []struct {
+		name, refused, accepted, says string
+	}{
+		{"should-not-body", point(kindDirective, levelMust, "- **MUST push.** It SHOULD NOT force."),
+			point(kindDirective, levelMust, "- **MUST push.** It SHOULD tag."), "SHOULD NOT"},
+		{"not-recommended", point(kindDirective, levelShould, "- **Forcing is NOT RECOMMENDED.**"),
+			point(kindDirective, levelShould, "- **Tagging is RECOMMENDED.**"), "NOT RECOMMENDED"},
+		{"never", point(kindDirective, levelMust, "- **MUST push by SHA,** never a branch."),
+			point(kindDirective, levelMust, "- **MUST push by SHA.** Nevertheless, push now."), "never"},
+		{"never-capitalised", point(kindDirective, levelMust, "- **MUST push.** Never force."),
+			point(kindDirective, levelMust, "- **MUST push.** Push now."), "Never"},
+		{"is-forbidden", point(kindDirective, levelMust, "- **MUST push.** Forcing is forbidden."),
+			point(kindDirective, levelMust, "- **MUST push.** Forbiddance names nothing here."), "forbidden"},
+		{"none-must", point(kindDirective, levelMust, "- **MUST push,** and none of them MUST wait."),
+			point(kindDirective, levelMust, "- **MUST push.** None remain. Each MUST be tagged."), "none ... MUST"},
+		{"code-span", point(kindDirective, levelMust, "- **MUST push.** Read it as `MUST NOT force`."),
+			point(kindDirective, levelMust, "- **MUST push.** Read it as `MUST tag`."), "MUST NOT"},
+		{"blockquote", point(kindNote, "", "> Agents MUST NOT force."),
+			point(kindNote, "", "> Agents MUST tag."), "MUST NOT"},
+		{"fence", point(kindFence, "", "```\nagents MUST NOT force\n```"),
+			point(kindFence, "", "```\nagents MUST tag\n```"), "MUST NOT"},
+		{"note", point(kindNote, "", "Agents MUST NOT force a push."),
+			point(kindNote, "", "Agents MUST tag a push."), "MUST NOT"},
+		{"table", point(kindTable, "", "| Case | Rule |\n|---|---|\n| push | MUST NOT force |"),
+			point(kindTable, "", "| Case | Rule |\n|---|---|\n| push | MUST tag |"), "MUST NOT"},
+		{"rfc-quote", point(kindDirective, levelMust, "- **MUST push.** RFC 4271 Section 6.3: \"The peer MUST NOT force it.\""),
+			point(kindDirective, levelMust, "- **MUST push.** RFC 4271 Section 6.3: \"The peer MUST tag it.\""), "MUST NOT"},
+		{"never-in-quotes", point(kindDirective, levelMust, "- **MUST push by SHA;** the rule is \"never push a branch\"."),
+			point(kindDirective, levelMust, "- **MUST push by SHA;** the rule is \"push by SHA\"."), "never"},
+		{"quotes-paired-across-unquoted-text", point(kindDirective, levelMust, "- **MUST push.** The \"rule\" holds, then\" never \"again."),
+			point(kindDirective, levelMust, "- **MUST push.** The \"rule\" holds, then\" now \"again."), "never"},
+		{"do-not", point(kindDirective, levelMust, "- **MUST push.** Do not force."),
+			point(kindDirective, levelMust, "- **MUST push.** Do nothing else."), "Do not"},
+		{"dont", point(kindDirective, levelMust, "- **MUST push.** Don't force."),
+			point(kindDirective, levelMust, "- **MUST push.** The donor tags it."), "Don't"},
+		{"lowercase-must-not", point(kindDirective, levelMust, "- **MUST push.** Agents must not force."),
+			point(kindDirective, levelMust, "- **MUST push.** Agents must tag."), "must not"},
+		{"lowercase-should-not", point(kindNote, "", "Agents should not force a push."),
+			point(kindNote, "", "Agents should tag a push."), "should not"},
+	} {
+		_, err := parsePoint(test.refused, "p")
+		if err == nil {
+			t.Errorf("%s: applies on a prohibition was accepted:\n%s", test.name, test.refused)
+		} else if !strings.Contains(err.Error(), "states the prohibition "+test.says) {
+			t.Errorf("%s: the refusal does not name %q: %v", test.name, test.says, err)
+		}
+		if _, err := parsePoint(test.accepted, "p"); err != nil {
+			t.Errorf("%s: the control was refused, so the refusal is not tied to its condition: %v", test.name, err)
+		}
+	}
+}
+
+func TestRenderRefusesAppliesOnARoutedRule(t *testing.T) {
+	// Goal: `./le ai rules update render` (RenderAll) refuses `applies` on a
+	// point of a rule that is not always-on, through refuseRoutedApplies, as
+	// Digest and check metadata do. Method: RenderAll refuses a rule with no
+	// point directory before it reaches the refusal, so every fixture rule is
+	// carried as points: completion's by hand, the other three split from
+	// their own text. The routed corpus then reports the refusal and nothing
+	// else, in the refusal's own words, and the same corpus without the field
+	// reports no failure. Deleting the refuseRoutedApplies call from RenderAll
+	// leaves the routed corpus with no failure, so the first check goes red.
+	routed := digestCorpus()
+	routed["ai/rules/points/completion/manifest.md"] = "---\ntitle: Completion\n" +
+		"when: before claiming any gokrazy qdisc work done\nseverity: blocking\n---\n" +
+		"directives ## Directives\n  finish\n"
+	finish := "ai/rules/points/completion/directives/finish.md"
+	routed[finish] = "---\nkind: directive\nlevel: MUST\napplies: closing a spec\n---\n- MUST finish it.\n"
+	tree := pointedTree(t, routed)
+	report, err := RenderAll(tree, rulesDir(tree), pointsDir(tree), false)
+	if err != nil {
+		t.Fatalf("RenderAll: %v", err)
+	}
+	refusal := "completion/directives/finish: declares `applies`, and completion is not an always-on rule;"
+	fix := "Fix: remove the `applies` line from the point file"
+	if len(report.Failures) != 1 || !strings.HasPrefix(report.Failures[0], refusal) || !strings.HasSuffix(report.Failures[0], fix) {
+		t.Errorf("render did not refuse applies on a routed rule's point, and only that: %+v", report.Failures)
+	}
+	routed[finish] = "---\nkind: directive\nlevel: MUST\n---\n- MUST finish it.\n"
+	clean := pointedTree(t, routed)
+	report, err = RenderAll(clean, rulesDir(clean), pointsDir(clean), false)
+	if err != nil {
+		t.Fatalf("RenderAll: %v", err)
+	}
+	if len(report.Failures) != 0 {
+		t.Errorf("render failed a corpus with no applies line: %+v", report.Failures)
+	}
+}
+
+// pointedTree writes files as a fixture checkout, then splits each rule under
+// ai/rules/ that files carries no points for into its point directory, so
+// RenderAll finds every rule generated from points. The split of a rule
+// renders back byte-identical (RoundTrip), so the render rewrites no rule.
+func pointedTree(t *testing.T, files map[string]string) string {
+	t.Helper()
+
+	tree := digestTree(t, files)
+	for rel, text := range files {
+		if path.Dir(rel) != "ai/rules" || path.Ext(rel) != ".md" {
+			continue
+		}
+		stem := strings.TrimSuffix(path.Base(rel), ".md")
+		if _, carried := files["ai/rules/points/"+stem+"/manifest.md"]; carried {
+			continue
+		}
+		split, err := splitRule(text, stem)
+		if err != nil {
+			t.Fatalf("splitting fixture rule %s: %v", rel, err)
+		}
+		if err := writeSplit(split, pointsDir(tree)); err != nil {
+			t.Fatalf("writing fixture points for %s: %v", rel, err)
+		}
+	}
+	return tree
 }
 
 func TestAPointBodyMayOpenWithTheDelimiter(t *testing.T) {

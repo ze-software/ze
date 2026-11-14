@@ -33,6 +33,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 )
 
 // severities is the closed set that `**Severity:**` can name.
@@ -147,7 +148,6 @@ var (
 	pointMatter    = regexp.MustCompile(`(?s)\A---\n(.*?)\n---\n(.*)\z`)
 	pointKindLine  = regexp.MustCompile(`(?m)^kind:[ \t\n\r\f\v]*(\S*)`)
 	pointLevelLine = regexp.MustCompile(`(?m)^level:[^\S\n]*(.*)$`)
-	fenceOpen      = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})([^\n]*)$")
 	blockquote     = regexp.MustCompile(`(?m)^[ \t]{0,3}>.*$`)
 )
 
@@ -264,6 +264,16 @@ func Lint(tree string) (LintReport, error) {
 	}
 	report.Points = count
 	report.PointViolations = violations
+	// The `applies` refusals (a prohibition, a routed rule) are judged here too,
+	// through the walk render and Digest use, so the three routes agree. A tree
+	// the point pass already refused is not read twice for the same defect.
+	if len(violations) > 0 {
+		return report, nil
+	}
+	if err := refuseRoutedApplies(tree, rulesDir, pointsDir); err != nil {
+		report.PointViolations = append(report.PointViolations,
+			LintProblems{File: relTo(tree, pointsDir), Problems: []string{err.Error()}})
+	}
 	if count == 0 {
 		report.Empty = append(report.Empty,
 			"no rule point file under ai/rules/points/; the RFC 2119 pass read nothing and must not report success")
@@ -637,34 +647,15 @@ func stripQuoted(body string) string {
 	return codeSpan.ReplaceAllString(body, "")
 }
 
-// stripFences removes Markdown fenced blocks, fence markers included.
-//
-// A fence closes only on the marker character it opened with, and only on a run
-// at least as long as the opening one. An opening line whose info string
-// carries a backtick is not a fence at all: it is inline code.
+// stripFences removes Markdown fenced blocks, fence markers included, by the
+// rule set's one fence rule (ruleset.Fence), so the lint and the part reader
+// agree on what is code.
 func stripFences(text string) string {
 	var out textbuf.Buffer
-	fenceChar := byte(0)
-	fenceLength := 0
+	var fence ruleset.Fence
 	for _, line := range linesKeepingEnds(text) {
-		bare := strings.TrimRight(line, "\r\n")
-		if fenceChar != 0 {
-			candidate := strings.TrimLeft(bare, " ")
-			indent := len(bare) - len(candidate)
-			marker := strings.TrimRight(candidate, " \t")
-			if indent <= 3 && len(marker) >= fenceLength && marker == strings.Repeat(string(fenceChar), len(marker)) {
-				fenceChar = 0
-				fenceLength = 0
-			}
+		if fence.Covers(strings.TrimRight(line, "\r\n")) {
 			continue
-		}
-		if opened := fenceOpen.FindStringSubmatch(bare); opened != nil {
-			mark, info := opened[1], opened[2]
-			if mark[0] != '`' || !strings.Contains(info, "`") {
-				fenceChar = mark[0]
-				fenceLength = len(mark)
-				continue
-			}
 		}
 		out.Str(line)
 	}

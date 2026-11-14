@@ -96,14 +96,19 @@ var headerKeys = [...]string{keyTitle, keyWhen, keySeverity, keyRelated}
 // `rationale` is a repo-relative path to the record that explains the point.
 // `excepted-by` names points that create exceptions to THIS point. A general
 // instruction must include its exception, or readers can stop at a misleading
-// statement. No other gate sees this required repetition. Both values are
-// HEADER fields, so the rendered body remains byte-identical.
-var pointKeys = [...]string{"kind", "level", "stage", wordRationale, "excepted-by"}
+// statement. No other gate sees this required repetition. `applies` names the
+// situation a point of an always-on rule applies in, which takes the point out
+// of `ai/rules/CORE.md`. All three values are HEADER fields, so the rendered
+// body remains byte-identical.
+var pointKeys = [...]string{"kind", "level", "stage", wordRationale, exceptedBy, keyApplies}
 
 // exceptedBy is the key naming this point's exceptions. One general instruction
 // can have several, and performance/banned-patterns is the measured case with
 // two.
 const exceptedBy = "excepted-by"
+
+// keyApplies is the key naming the situation a point applies in.
+const keyApplies = "applies"
 
 var (
 	pointsH1 = regexp.MustCompile(`^# (\S.*)$`)
@@ -142,6 +147,10 @@ type Point struct {
 	Rationale string
 	// ExceptedBy is the comma-separated ids of the points that except this one.
 	ExceptedBy string
+	// Applies is the situation this point applies in, or empty. An empty value
+	// means the point is shown wherever its rule is shown: an absent field never
+	// narrows what a session loads.
+	Applies string
 }
 
 // Section describes one `##` section: its directory, exact heading, and points.
@@ -671,9 +680,9 @@ func frontmatter(text, what string) (map[string]string, []string, error) {
 // formatPoint always writes kind, level, and stage, including empty values. The
 // split derives all three. An absent line would make the write lossy.
 //
-// It writes rationale and excepted-by ONLY when they carry a value. The split
-// cannot derive these fields. An empty line would falsely claim that the point
-// was examined but has no link.
+// It writes rationale, excepted-by and applies ONLY when they carry a value.
+// The split cannot derive these fields. An empty line would falsely claim that
+// the point was examined but has no link or no situation.
 func formatPoint(point Point) string {
 	var tb textbuf.Buffer
 	head := []string{delim}
@@ -694,6 +703,10 @@ func formatPoint(point Point) string {
 	if point.ExceptedBy != "" {
 		tb.Reset()
 		head = append(head, tb.Str(exceptedBy).Str(": ").Str(point.ExceptedBy).String())
+	}
+	if point.Applies != "" {
+		tb.Reset()
+		head = append(head, tb.Str(keyApplies).Str(": ").Str(point.Applies).String())
 	}
 	head = append(head, delim)
 	head = append(head, point.Body...)
@@ -732,12 +745,188 @@ func parsePoint(text, slug string) (Point, error) {
 	if len(body) == 0 {
 		return Point{}, errors.New(tb.Str(slug).Str(": has an empty body").String())
 	}
+	applies, declared := fields[keyApplies]
+	applies = strings.TrimSpace(applies)
+	if declared && applies == "" {
+		return Point{}, errors.New(tb.Str(slug).
+			Str(": the `applies` line names no situation, so it claims the point was scoped and scopes nothing.").
+			Str(" Fix: name the situation the point applies in, or remove the `applies` line").String())
+	}
+	// A prohibition stays in the always-on core: an agent breaks it by its own
+	// action before it knows the situation, so it cannot wait for that situation.
+	// The body decides, not the label: a body stating both a MUST and a MUST NOT
+	// may carry either `level:` (levelTiers), so a label test alone is bypassed
+	// by choosing MUST.
+	if applies != "" {
+		if prohibition := statedProhibition(level, body); prohibition != "" {
+			return Point{}, errors.New(tb.Str(slug).Str(": declares `applies` and states the prohibition ").
+				Str(prohibition).Str("; a prohibition stays in the always-on core, because an agent breaks it before it knows the situation.").
+				Str(" Fix: split the point at a blank line, the prohibition into a point with no `applies` line so it stays shown,").
+				Str(" or remove the `applies` line from the point file").String())
+		}
+	}
 	return Point{
 		Slug: slug, Kind: kind, Level: level, Stage: fields["stage"],
 		Body: body, Start: 0, End: len(body),
 		Rationale:  strings.TrimSpace(fields["rationale"]),
 		ExceptedBy: strings.TrimSpace(fields[exceptedBy]),
+		Applies:    applies,
 	}, nil
+}
+
+var (
+	// negativePhrase matches a negative keyword in any case, and "do not" and
+	// "don't", as whole phrases.
+	negativePhrase = regexp.MustCompile(`(?i)\b(?:(?:must|shall|should)\s+not|not\s+recommended|do\s+not|don['’]t)\b`)
+	// prohibitionWord matches the plain-English prohibitions the rule format
+	// allows beside the RFC keywords, as whole words in any case.
+	prohibitionWord = regexp.MustCompile(`(?i)\b(?:never|forbidden)\b`)
+	// noneWord matches "none", which with a positive keyword later in its
+	// sentence ("none of them MUST wait") states a prohibition.
+	noneWord = regexp.MustCompile(`(?i)\bnone\b`)
+	// sentenceEnd splits a body into sentences: a terminator then a blank, or
+	// a blank line.
+	sentenceEnd = regexp.MustCompile(`[.!?:;]\s+|\n\s*\n`)
+)
+
+// statedProhibition answers the prohibition a point states, or "" when it
+// states none. It reads the `level:` label (MUST NOT; `levels` admits no SHOULD
+// NOT label), then the whole body of any point kind, code spans, blockquotes
+// and fences included, for a negative keyword of the lint's own set (MUST NOT,
+// SHALL NOT, SHOULD NOT, NOT RECOMMENDED), for the same keywords in any case
+// and "do not" or "don't" as phrases, for "never" or "forbidden" as a word,
+// and for "none" followed by a keyword in one sentence. It skips no text: a
+// phrase quoted from an RFC, or quoted any other way, is read as stated,
+// because nothing checks a quote against the text it claims to come from, and
+// when the reader cannot be sure, the point stays in the core.
+func statedProhibition(level string, body []string) string {
+	if level == levelMustNot {
+		return level
+	}
+	text := strings.Join(body, "\n")
+	for _, keyword := range rfcKeyword.FindAllString(text, -1) {
+		if canon := levelCanon[keyword]; canon == levelMustNot || canon == levelShouldNot {
+			return keyword
+		}
+	}
+	if phrase := negativePhrase.FindString(text); phrase != "" {
+		return phrase
+	}
+	if word := prohibitionWord.FindString(text); word != "" {
+		return word
+	}
+	for _, sentence := range sentenceEnd.Split(text, -1) {
+		at := noneWord.FindStringIndex(sentence)
+		if at == nil {
+			continue
+		}
+		if keyword := rfcKeyword.FindString(sentence[at[1]:]); keyword != "" {
+			var tb textbuf.Buffer
+			return tb.Str(sentence[at[0]:at[1]]).Str(" ... ").Str(keyword).String()
+		}
+	}
+	return ""
+}
+
+// readRulePoints reads one rule's point directory into its manifest header and
+// its sections, in reading order, through the same walk the renderer uses.
+func readRulePoints(ruleDir string) (map[string]string, []Section, error) {
+	stem := filepath.Base(ruleDir)
+	raw, err := os.ReadFile(filepath.Join(ruleDir, manifestName)) // #nosec G304 -- a path derived from the checkout
+	if err != nil {
+		return nil, nil, err
+	}
+	header, listed, err := parseManifest(string(raw), stem)
+	if err != nil {
+		return nil, nil, err
+	}
+	sections := make([]Section, 0, len(listed))
+	for _, spec := range listed {
+		section, err := readSection(ruleDir, stem, spec)
+		if err != nil {
+			return nil, nil, err
+		}
+		sections = append(sections, section)
+	}
+	return header, sections, nil
+}
+
+// refuseRoutedApplies refuses `applies` on a point of a rule that is not
+// always-on, through the same core derivation and the same situate walk Digest
+// uses, so `render`, `check metadata` and `update condensed` refuse the same
+// point files. Core membership needs the precedence ladder and the task corpus,
+// so the derivation runs only when some point declares `applies`: a tree with
+// none has nothing to refuse.
+func refuseRoutedApplies(tree, rulesDir, pointsDir string) error {
+	marked := false
+	for _, dir := range pointDirs(pointsDir) {
+		_, sections, err := readRulePoints(dir)
+		if err != nil {
+			return err
+		}
+		for _, section := range sections {
+			for _, point := range section.Points {
+				if point.Applies != "" {
+					marked = true
+				}
+			}
+		}
+	}
+	if !marked {
+		return nil
+	}
+	rules, err := loadRules(rulesDir)
+	if err != nil {
+		return err
+	}
+	tasks, err := loadCorpus(tree)
+	if err != nil {
+		return err
+	}
+	core, err := coreMembers(rules, taskCorpus{Read: true, Tasks: tasks}, nil)
+	if err != nil {
+		return err
+	}
+	_, err = coreViews(pointsDir, coreNames(core))
+	return err
+}
+
+// situate answers a rule's sections without the points that declare `applies`,
+// and the situations those points name, each once, in reading order. A section
+// left with no point is dropped, so the core shows no heading with nothing
+// under it.
+//
+// A point of a rule that is not always-on is refused: `applies` takes a point
+// out of the core, and a routed rule has no core block to take it out of, so
+// the line would claim a scoping that nothing performs.
+func situate(stem string, sections []Section, alwaysOn bool) ([]Section, []string, error) {
+	var situations []string
+	kept := make([]Section, 0, len(sections))
+	for _, section := range sections {
+		points := make([]Point, 0, len(section.Points))
+		for _, point := range section.Points {
+			if point.Applies == "" {
+				points = append(points, point)
+				continue
+			}
+			if !alwaysOn {
+				var tb textbuf.Buffer
+				return nil, nil, errors.New(tb.Str(stem).Byte('/').Str(section.Slug).Byte('/').Str(point.Slug).
+					Str(": declares `applies`, and ").Str(stem).
+					Str(" is not an always-on rule; `applies` takes a point out of ai/rules/CORE.md, and a routed rule's points are never in it.").
+					Str(" Fix: remove the `applies` line from the point file").String())
+			}
+			if !slices.Contains(situations, point.Applies) {
+				situations = append(situations, point.Applies)
+			}
+		}
+		if len(points) == 0 {
+			continue
+		}
+		section.Points = points
+		kept = append(kept, section)
+	}
+	return kept, situations, nil
 }
 
 // exceptionRefs answers the point ids an `excepted-by` value names, in the

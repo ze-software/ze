@@ -323,13 +323,13 @@ func bashAgentIdentity(ctx context) *verdict {
 		return &verdict{2, red + bold + "BLOCKED: this subagent's hook payload carries no usable session id" + reset +
 			"\n  agent " + strconv.Quote(agent) + " arrived with a session_id that is absent or not a file name." +
 			"\n  With no identity line to type, the command would act as the main thread and share its commit namespace and spec claim." +
-			"\n  Next: stop and report the payload's session_id to the main thread. An id holds only letters, digits, '.', '_' and '-'."}
+			"\n  Next: stop and report the payload's session_id to the main thread. " + lepath.IDRule()}
 	}
 	if _, err := lepath.AgentFingerprint(session, agent); err != nil {
 		return &verdict{2, red + bold + "BLOCKED: this subagent's identity cannot name its own files" + reset +
 			"\n  " + err.Error() +
 			"\n  With no identity line to type, the command would act as the main thread and share its commit namespace and spec claim." +
-			"\n  Next: stop and report the agent id to the main thread. An id holds only letters, digits, '.', '_' and '-'."}
+			"\n  Next: stop and report the agent id to the main thread. " + lepath.IDRule()}
 	}
 	command := stringInput(ctx.input, "command")
 	own := identityLine(agent, session)
