@@ -466,6 +466,7 @@ Gates each phase owes, run by the main thread: the scoped package tests (`./le j
 | `unwired-feature.md` | 2026-11-10 | plugin hub binds only the first configured server |
 | `guard-added-to-one-half-of-a-pair.md` | 2026-11-12 | managed hub rejection record keeps raw ack text and rows of clients a reload removed |
 | `identity-default-hides-a-mapping.md` | 2026-11-13 | daemon `show doctor` judges the store's default-named config, not the file `ze start` loaded |
+| `identity-default-hides-a-mapping.md` | 2026-11-14 | effect of that row: the FlowSpec not-configured report and its withdrawal beside a daemon running a live mitigation |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
