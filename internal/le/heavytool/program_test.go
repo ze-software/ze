@@ -49,6 +49,14 @@ func TestStartedReadsThroughWhatStandsInFrontOfTheProgram(t *testing.T) {
 		{"go --C=d build ./...", "go build", true},
 		{"/usr/local/go/bin/go -C d vet ./...", "go vet", true},
 		{"env go -C d test ./...", "go test", true},
+		// The shell builtins that run the program after them.
+		{"command go test ./x", "go test", true},
+		{"command -p go vet ./x", "go vet", true},
+		{"builtin gofmt -l .", "gofmt", true},
+		{"exec -a name go test ./x", "go test", true},
+		{"exec -cl go build ./x", "go build", true},
+		{"command -v go test", "", false},
+		{"command -pV gofmt", "", false},
 		// Light programs behind the same words stay light.
 		{"go version", "", false},
 		{"env FOO=1 go version", "", false},

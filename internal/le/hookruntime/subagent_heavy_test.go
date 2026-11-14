@@ -51,6 +51,18 @@ var heavyToolLines = []string{
 	// expansion, cannot be read before it runs, so it is handed back.
 	`bash -c "$X"`,
 	`sh -c '"$@"' _ go test ./x`,
+	// A handed line whose program runs text as shell (eval, source, `.`)
+	// runs what the hook never reads, so it is handed back, through a
+	// nested env -S line too.
+	`bash -c 'eval "go test ./..."'`,
+	`sh -c '. ./run.sh'`,
+	`bash -c 'source x.sh'`,
+	`bash -c 'env -S "eval go-test"'`,
+	// The builtins that run the program after them are read through.
+	`bash -c 'command eval "go test ./..."'`,
+	`bash -c 'builtin eval x'`,
+	`bash -c 'command go test ./x'`,
+	`bash -c 'exec go test ./x'`,
 }
 
 // heavyActionLines is one line per way an le line is heavy (AC-4): an area
@@ -338,6 +350,8 @@ func TestSubagentLightCommandsPass(t *testing.T) {
 		// line, so a light one passes, its inner expansion included.
 		identityLineOfAgent + `bash -c 'go version'`,
 		identityLineOfAgent + `bash -c 'echo $HOME'`,
+		identityLineOfAgent + `bash -c 'echo eval'`,
+		identityLineOfAgent + `bash -c 'command -v go'`,
 	} {
 		code, output, message := runSubagentBash(t, command)
 		if strings.Contains(message, handBackHeader) {

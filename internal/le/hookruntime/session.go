@@ -93,10 +93,27 @@ func identityMentions(text string) int {
 // variables, run text as shell, or run a command under another environment
 // or user. After the agent's identity line any of them is refused, whatever
 // names it carries, because a name built from pieces (`ZE_AGENT_""ID`,
-// `"${n}_ID"`) hides from a literal match.
-var environmentTools = map[string]bool{
+// `"${n}_ID"`) hides from a literal match. The commands that run text as
+// shell are shellTextTools, declared once and joined in here.
+var environmentTools = joinedTools(map[string]bool{
 	"export": true, "declare": true, "typeset": true, "readonly": true, "local": true, "unset": true,
-	"env": true, "exec": true, "sudo": true, "eval": true, "source": true, ".": true, "set": true,
+	"env": true, "exec": true, "sudo": true, "set": true,
+}, shellTextTools)
+
+// shellTextTools are the commands that run text as shell in this shell: the
+// string eval is given, the file source and `.` read. The identity guard
+// refuses them (environmentTools), and the heavy-work check cannot read what
+// they run, so a subagent's line handed to a shell that runs one is handed
+// back (unreadProgram).
+var shellTextTools = map[string]bool{"eval": true, "source": true, ".": true}
+
+// joinedTools answers tools with every name of more added. It writes into
+// tools, which it owns: it is called once, to initialize a package table.
+func joinedTools(tools, more map[string]bool) map[string]bool {
+	for name := range more {
+		tools[name] = true
+	}
+	return tools
 }
 
 // The wrappers that run the command after their options and arguments.

@@ -40,6 +40,11 @@ func Split(words []string) (prefix, program []string) {
 		}
 		count := launcherArguments(head, words[at+1:])
 		arguments := words[at+1 : at+1+count]
+		if head == commandBuiltin && describesOnly(arguments) {
+			// `command -v go` prints where go is and runs nothing, so command
+			// is the program here, never a launcher in front of one.
+			break
+		}
 		at += 1 + count
 		if _, hands := handedBy(head, arguments); hands {
 			break
@@ -197,6 +202,24 @@ func splitString(word string, separate bool) (string, bool) {
 	return "", false
 }
 
+// commandBuiltin is the shell's `command`, which runs the program after its
+// options unless an option asks it only to describe that program.
+const commandBuiltin = "command"
+
+// describesOnly reports whether command's options hold `-v` or `-V`, alone or
+// in a cluster (`-pv`), which make it print what the name is and run nothing.
+func describesOnly(options []string) bool {
+	for _, option := range options {
+		if strings.HasPrefix(option, "--") {
+			continue
+		}
+		if strings.HasPrefix(option, "-") && strings.ContainsAny(option, "vV") {
+			return true
+		}
+	}
+	return false
+}
+
 // envLauncher is env, which runs its `-S` string as a command line.
 const envLauncher = "env"
 
@@ -320,6 +343,13 @@ var launcherValueOptions = map[string]map[string]bool{
 	"nice":    {"-n": true, "--adjustment": true},
 	"env":     {"-C": true, "-S": true, "-u": true, "--chdir": true, "--split-string": true, "--unset": true},
 	"timeout": {"-k": true, "-s": true, "--kill-after": true, "--signal": true},
+	// The shell builtins that run the program after them: `command` (with
+	// `-p`; `-v` and `-V` run nothing, describesOnly), `builtin`, and `exec`
+	// (with `-a name`, `-c`, `-l`), which a handed line can hold as its
+	// first word (`bash -c 'exec go test ./x'`).
+	"command": {},
+	"builtin": {},
+	"exec":    {"-a": true},
 }
 
 // launcherArguments answers how many of words, the words after the launcher

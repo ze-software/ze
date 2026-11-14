@@ -8,6 +8,7 @@ package hookruntime
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
@@ -267,7 +268,9 @@ func unreadHandedLine(parsed parsedCommand, launcher string, first, end int) str
 
 // unreadProgram names a command of a line handed to the launcher within whose
 // program word the hook cannot read before it runs (`sh -c '"$@"' _ go test`,
-// `bash -c '$X'`), and answers "" for one whose program it read exactly, or
+// `bash -c '$X'`), or whose program runs text as shell (shellTextTools: `bash
+// -c 'eval "go test ./..."'`, `sh -c '. ./run.sh'`), and answers "" for one
+// whose program it read exactly and runs no such text, or
 // for the line the agent typed (an empty within), where the identity guard
 // already refuses a program word the shell expands.
 func unreadProgram(parsed parsedCommand, within string) string {
@@ -278,10 +281,21 @@ func unreadProgram(parsed parsedCommand, within string) string {
 	if len(parsed.assigns) >= len(parsed.tokens) {
 		return ""
 	}
-	if exactToken(parsed, len(parsed.assigns)) {
+	if !exactToken(parsed, len(parsed.assigns)) {
+		return "a command in a line handed to `" + within + "` whose program the hook cannot read before it runs, which may start heavy work"
+	}
+	// A program that runs text as shell (eval, source, `.`) runs what the hook
+	// never reads: a quoted string, or a file. The identity guard refuses one
+	// on the line as typed, never inside a handed line, so it is judged here.
+	program := heavytool.Program(parsed.tokens)
+	if len(program) == 0 {
 		return ""
 	}
-	return "a command in a line handed to `" + within + "` whose program the hook cannot read before it runs, which may start heavy work"
+	// refuse-by-default: guards handsBackHeavy -- a program that runs no text as shell is judged by heavyTool, and the empty name is the caller's "not handed back"
+	if !shellTextTools[filepath.Base(program[0])] {
+		return ""
+	}
+	return "`" + program[0] + "` in a line handed to `" + within + "`, which runs text the hook cannot read before it runs, which may start heavy work"
 }
 
 // exactToken reports whether the hook read parsed's token at, its value

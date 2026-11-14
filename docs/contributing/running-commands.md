@@ -2422,7 +2422,8 @@ way, with the words after it appended. A handed line is read by the hook,
 which parses it, when the launcher stands on the line itself. When the outer
 shell expands a word the line is read from (`bash -c "$X"`, `bash -c "echo
 $HOME"`), or a command in the line runs an expansion as its program (`sh -c
-'"$@"' _ go test`), the hook cannot read what runs, and a subagent's line is
+'"$@"' _ go test`) or runs text as shell (`eval`, `source`, `.`: `bash -c
+'eval "go test ./..."'`), the hook cannot read what runs, and a subagent's line is
 handed back; a single-quoted line (`bash -c 'echo $HOME'`) is read exactly
 and judged as its own line. `./le exec` holds no shell parser, so a shell it
 carries with `-c` (`./le exec bash -c '<line>'`), or an env with `-S`, is
@@ -2454,6 +2455,7 @@ program: `./le exec go version` runs, `./le exec go test ./x/` is handed back.
 <!-- source: internal/le/exec/register.go -- carriesHeavy -->
 <!-- source: internal/le/heavytool/program.go -- Started, StartedUnread, Split, ShellCommand, Assignment -->
 <!-- source: internal/le/hookruntime/subagent_heavy.go -- heavyWork, unreadHandedLine, unreadProgram -->
+<!-- source: internal/le/hookruntime/session.go -- shellTextTools -->
 <!-- source: internal/le/job/job.go -- forwardSignals, insideParent, parentRunning -->
 <!-- source: internal/le/le/root/heavy.go -- RegisterCarrierJudge -->
 

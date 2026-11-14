@@ -58,6 +58,7 @@ func TestSubagentExecIsJudgedByItsProgram(t *testing.T) {
 		{"./le exec bash -c 'go test -count=1 ./...'", true},
 		// env's `-S` string is a handed line, heavy through exec too.
 		{"./le exec env -S 'go test ./x'", true},
+		{`./le exec bash -c 'eval "go test ./..."'`, true},
 	} {
 		code, output, message := runSubagentBash(t, identityLineOfAgent+row.command)
 		handed := strings.Contains(message, handBackHeader)
