@@ -8,9 +8,9 @@
 | Blocked by | - |
 | Scope | tooling \| docs |
 | Depends | `spec-session-editor-file-mode-parity` (closed 2026-10-10); Linux kernel/VPN runtime proof before recording. Full `spec-appliance-kernel-vpn-modules` closure is no longer a sequencing prerequisite; its Mac acceptance remains owed |
-| Phase | 3/7 — WebP screenshots and terminal playback cutover; editorial acceptance and closure remain open |
+| Phase | 7/7, closure: every phase is committed, the owner ordered the close on 2026-11-14, and the closure evidence runs are owed |
 | Handoff | - |
-| Updated | 2026-10-27 |
+| Updated | 2026-11-14 |
 
 ## Task
 
@@ -52,16 +52,23 @@ full-size previews, the 21:47 showcase and the 0:36 SSH player. Desktop, mobile,
 light/dark, keyboard, no-JavaScript, reduced-motion and native 200% zoom checks
 are recorded in the session's `scratch/site-webp-acceptance.json`. No encoded
 video remained in the generated checkout. The README screenshot is 10,788 bytes;
-its image and local player destination resolved. The public site has not been
-updated, so this is local acceptance, not deployment evidence or AC-17 closure.
+its image and local player destination resolved. That check was local
+acceptance, made before any push, and it is not AC-17 closure.
+
+Publication state read from git on 2026-11-14: `dead7450b3` is contained in
+`origin/main` and `github/main`, and `65b28095fa` is contained in
+`origin/gh-pages` and `github/gh-pages`, so both commits have since been
+pushed. Later site commits followed (`a3e417a32d`, 2026-10-28, the slower topic
+recordings; `181fedd396`, 2026-11-09, a republish). This spec's closure pushes
+and deploys nothing.
 
 The source cutover landed as `dead7450b3`. The generated presentation landed
 separately as `65b28095fa` in `../gh-pages`: recordings, transcripts, WebP
 screenshots, their page embeds and the corresponding search entries. Partial
 commits preserved unrelated generated news, statistics, RFC and protocol-page
 changes outside that publication. Obsolete browser video and superseded media
-were removed through the native commit script. Neither commit authorizes a
-push or proves the public site changed.
+were removed through the native commit script. Neither commit was a push
+order; the pushes that later carried them are recorded above.
 
 The fresh screenshot-only renderer image subsequently built in 1,446 seconds.
 A direct producer smoke inside that image verified the `ffmpeg` executable was
@@ -117,15 +124,30 @@ AC-2 here owns recording staging and before/after validators only. Its supported
 | Recordings, publication, shared fragments/validators and demonstration AC-2 presentation plus AC-3..17; preserve existing moved-out13/14 owners. | `plan/post-release/engineering/spec-terminal-demo-showcase.md` |
 | Original AC-1 and AC-2 supported-product behavior; release evidence reconciliation for diagnosis findings, not recording production. | `plan/release/validation/spec-showcase-live-config-proof.md` |
 
+## Existing Mechanisms (MANDATORY)
+
+Added at closure (2026-11-14): the spec predates the section. Each row was read
+at the named symbol on that date.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Tape include | `internal/le/site/terminaldemo/pty.go` `tapeLines` | Expands a `Source` directive, nested, and refuses a file sourced twice in one tape | Extends: a topic fragment is a plain tape under `demos/terminal/topics/`, sourced by its topic tape and by the showcase tape. No second tape dialect is added |
+| Demo dispatch | `internal/le/site/terminaldemo/scenarios.go` `runScenario`, `registry.go` `scenarioRegistry.add` and `lookup` | Was a switch over demo ids beside a literal validator map | Replaces: both lists are gone, and each scenario registers its runner and validator from a `register_*.go` file |
+| Recording digests | `internal/le/site/terminaldemo/manifest.go` `Engine.sourceDigest`, `Engine.definitionDigest` | Decide whether a published recording is stale | Extends: both follow the Source closure, so an edited shared fragment stales every recording that sources it |
+| Session-mode load and commit confirmed | `internal/component/cli/editor_load.go`, `docs/guide/config-editor.md` | Load-merge a section into a running daemon's candidate over SSH, and commit with a rollback window | Does not change it: the recordings consume it, and `spec-session-editor-file-mode-parity` (closed) built it |
+| Config transaction callbacks | `pkg/plugin/sdk/sdk_callbacks.go` `OnConfigVerify`, `OnConfigApply` | Deliver a live commit to a running plugin | Extends by use: `bgp-filter-irr` gained the pair (`internal/component/bgp/plugins/filter_irr/config_tx.go` `irrConfigTx`), so a live IRR edit applies |
+| Homepage hero mount | `internal/le/site/home.go` `homeHeroSlots` | Mounts the hero recording on the home page | Extends: the hero is `siteterminaldemo.HeroDemo` plus its manifest entry, and `homebody.go` names no demo |
+| Feature-page placement | `internal/le/site/terminaldemo/types.go` `Demo` (`page`, `anchor`) | Places a recording on a guide page | Does not change it: each topic recording uses it as it is |
+
 ## Work Not Done
 
-| Scope | Current owner |
-|---|---|
-| Original AC-1 and AC-2 supported-product behavior; release evidence reconciliation for diagnosis findings, not recording production. | `plan/release/validation/spec-showcase-live-config-proof.md` |
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Original AC-1 and AC-2 supported-product behavior; release evidence reconciliation for diagnosis findings, not recording production | The owner split the product proof from the presentation work (Implementation Ownership above) | `plan/release/validation/spec-showcase-live-config-proof.md` |
 
 ## Historical planning record
 
-The following is the complete pre-migration planning body. Its old Task, criteria, implementation steps and bucket statements are retained as history, not a second current implementation contract. The current sections above assign every obligation; original owner decisions, constraints, evidence and pauses remain authoritative. Heading levels alone are demoted for that distinction.
+The following is the complete pre-migration planning body. Its old Task, criteria, implementation steps and bucket statements are retained as history, not a second current implementation contract. The current sections above assign every obligation; original owner decisions, constraints, evidence and pauses remain authoritative. Heading levels are demoted for that distinction, except the sections the spec validator requires at the top level (Required Reading, Current Behavior, Data Flow, Wiring Test, TDD Test Plan, Files to Modify, Implementation Steps, Checklist), restored at closure on 2026-11-14 because `validateSpecText` (`internal/le/hookruntime/lifecycle.go`) refused the spec without them.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -242,7 +264,7 @@ commands (`ze-debug`), `show capture` (`ze-diag`), `show config history` (editor
 new version in the store; no path from it to a running daemon's reload was read, and it
 is not an editor verb, so it does not meet the owner's direction.
 
-#### Required Reading
+## Required Reading
 
 - [ ] `docs/guide/terminal-demonstrations.md`, `docs/contributing/gh-pages.md` - demo commands, image, assets. Silent on scenario design, validators and the README SVG.
   → Constraint: the gallery is a list of `<!-- terminal-demo: <id> -->` markers under headings. A topic recording that replaces a demo under the same id keeps its marker; a new id needs a heading and a marker.
@@ -276,7 +298,7 @@ is not an editor verb, so it does not meet the owner's direction.
 - A released BFD session stays AdminDown about 9 s before it retires (RFC 5880 Section 6.8.1).
 - The `demoWalkthrough` branches of runBFD/runOSPF/runTraffic/runVRRP print canned `$ ze show ...` lines that are not command output; do not reuse them.
 
-#### Current Behavior
+## Current Behavior
 
 **Source files read:**
 - [ ] `internal/le/site/terminaldemo/render.go` - `containerCommand` builds the docker run; `--privileged` comes from the manifest; `--hostname` is `demoInstance`
@@ -367,7 +389,7 @@ below are kept as asked.
 | Appliance kernel carries esp4, xfrm_interface, wireguard | Implemented; `docs/architecture/appliance/kernel-profiles.md` |
 | WireGuard runtime test, interop and demo | `plan/release/validation/spec-wireguard-runtime-proof.md` |
 
-#### Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ##### Entry Point
 - Recording: `./le site terminal-demo render name <demo-id>` (one demo) or the render-all action, reading `demos/terminal/manifest.json`. Format: a tape file (`demo.tape`) of directives, executed by the native recorder in the renderer container.
@@ -424,9 +446,9 @@ below are kept as asked.
 | A-1 | Adding `plugin internal bgp-filter-irr` plus the IRR policy in ONE live commit starts the filter with its config (Stage 2 delivery to a new process) | the existing `irr-filter` tape declares the plugin explicitly; reload path for a newly declared plugin not read | the first-add IRR topic also fails, and AC-1's fix must cover the start path as well as edits | Work Plan step 1 probe; then AC-1's `.ci` | confirmed (2026-10-10), with a correction: no `plugin` line is needed. `getConfigPathPlugins` (`startup_autoload.go`) starts every plugin whose ConfigRoots is present at boot, so `bgp-filter-irr` runs in any base lab with a `bgp` block, and a first IRR block is a `bgp` edit reaching `irrConfigTx.apply`. `test/reload/bgp-filter-irr-first-add-live.ci` is red with the apply handler removed and green with it |
 | A-2 | The `vrrp` plugin is running when the base config holds `interface` but no `vrrp` block, so a live VRRP commit reaches its `OnConfigApply` | `ConfigRoots` is `interface` (`internal/plugins/vrrp/groups.go`), which the base config carries | the VRRP topic commit is accepted and does nothing: a defect fixed under AC-2 | Work Plan step 1 probe | confirmed at the producer (2026-10-10): `getConfigPathPlugins` starts `vrrp` at boot whenever `interface` is present, and `internal/plugins/vrrp/register.go` registers `OnConfigVerify` and `OnConfigApply` ("OnConfigure does not fire on reload; OnConfigApply is the commit step"). The runtime proof needs VRRP raw sockets on Linux, so it is the VRRP topic validator's absence-then-proof check (AC-2), run in the renderer container |
 | A-3 | `commit confirmed <n>` and its automatic rollback behave in the SSH editor as in the file editor | the `commit-confirmed` demo proves the file editor only | the safety-net topic needs a fix or a different editor path; the owner decision rules out the latter | Work Plan step 1 probe | confirmed (2026-10-10): `spec-session-editor-file-mode-parity` landed it; `test/plugin/session-editor-commit-confirmed-accept.ci` (a window accepted, then an unaccepted window reverting, over SSH on a running daemon) and its siblings |
-| A-4 | Two Ze daemons can run in one container (the shown one, and the hidden IKE far end in its own netns) with separate `ZE_CONFIG_DIR`, SSH port and instance name | `demoInstance` is the container hostname `ze`; the scenario code runs one daemon per demo | the IPsec topic needs a second container or a different instance naming | Work Plan step 2, lab bring-up | unvalidated |
-| A-5 | A 7-minute super fits the time budget with every topic typed live at 125 ms per character | storyboard length; typing speed is one value per tape | the super runs long (R-8) | measure the super's typed characters at step 3 | unvalidated |
-| A-6 | eBPF traffic usage attaches inside the privileged renderer container on the colima 6.8 kernel | the `traffic-anomaly` demo records today with `privileged` | the traffic topic cannot run in the shared lab | the existing demo's validator passes; re-check in the shared lab | unvalidated |
+| A-4 | Two Ze daemons can run in one container (the shown one, and the hidden IKE far end in its own netns) with separate `ZE_CONFIG_DIR`, SSH port and instance name | `demoInstance` is the container hostname `ze`; the scenario code runs one daemon per demo | the IPsec topic needs a second container or a different instance naming | Work Plan step 2, lab bring-up | confirmed at the producer (2026-11-14): the lab starts the far-end Ze with `ip netns exec` in its own namespace under its own `ZE_CONFIG_DIR` (`showcaseVPNEnv` and the far-end fixture, `scenarios_showcase_network.go`). The run-time proof is the `ipsec` validator, whose closure re-run is owed |
+| A-5 | A 7-minute super fits the time budget with every topic typed live at 125 ms per character | storyboard length; typing speed is one value per tape | the super runs long (R-8) | measure the super's typed characters at step 3 | broken: the continuous recording measures 1,307.333538 seconds (21 minutes 47 seconds), three times the seven-minute target. The owner then selected the **Complete 22-minute showcase** (Current presentation decision), so the length stands by his decision. Mistake Log and Deviations carry it |
+| A-6 | eBPF traffic usage attaches inside the privileged renderer container on the colima 6.8 kernel | the `traffic-anomaly` demo records today with `privileged` | the traffic topic cannot run in the shared lab | the existing demo's validator passes; re-check in the shared lab | confirmed by record, not re-observed at closure: `traffic-anomaly` is a live topic of the shared lab (`registerLiveTopic`, `register_network.go`) and its recording was validated and published with the others (Current presentation decision). The closure re-run of its validator is owed |
 
 ##### Risks
 The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by the probe (Probe Results). New failure modes:
@@ -450,7 +472,7 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | How is it reverted? | Recordings and site: one commit revert plus a gh-pages re-publish. IRR fix: one commit revert, no config migration |
 | Who else touches this path? | `internal/le/site/terminaldemo/` (any demo work), `internal/le/site/home*.go`, `README.md`; `filter_irr` is shared with `test/plugin/*irr*.ci`. Kernel contract: `docs/architecture/appliance/kernel-profiles.md`. Sibling spec: `plan/release/validation/spec-wireguard-runtime-proof.md` |
 
-#### Wiring Test (MANDATORY -- NOT deferrable)
+## Wiring Test (MANDATORY -- NOT deferrable)
 
 <!-- BLOCKING: proves the feature is reachable from its intended entry point.
      Without it the feature exists in isolation: unit tests pass, nothing calls it.
@@ -459,8 +481,8 @@ The R-1 to R-5 rows of the earlier `## Risks` table stand; R-2 is resolved by th
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le site terminal-demo` validate mode, any manifest id | → | scenario registry lookup replacing `runScenario` and `demoValidators` | `TestEveryManifestDemoHasARegisteredScenario` |
-| `ze-demo run showcase-lab start` from a topic tape | → | shared lab runner (FRR multi-daemon, RTR, IRR, keepalived, far-end Ze) | `validateShowcaseLab` (runtime, Linux, `ze-demo validate showcase-lab` under the renderer container), with `TestShowcaseLabFixturesReportReadyOnOutput` and `TestShowcaseLabFilesMatchItsFixtures` checking the declaration without root |
-| A topic fragment sourced by its topic tape and by the showcase tape | → | `parseTape` / `tapeLines` + `sourceDigest` / `definitionDigest` | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase`, `TestSourceDigestFollowsSourcedTapes` |
+| `ze-demo run showcase-lab start` from a topic tape | → | shared lab runner (FRR multi-daemon, RTR, IRR, keepalived, far-end Ze) | `validateShowcaseLab` (runtime, Linux, `ze-demo validate showcase-lab` under the renderer container). Without root, `TestShowcaseRefusesUnobservableFixture`, `TestShowcaseRefusesEmptyReadinessTarget` and `TestShowcaseRefusesMissingReadinessCommand` (`readiness_test.go`) prove `startFixtures` and `awaitReadiness` refuse a fixture that reports ready on anything but observed output, and `TestShowcaseBaseTreeAcceptsActualBaseline` with `TestShowcaseBaseTreeRejectsPreconfiguredTopics` (`validate_showcase_base_test.go`) judge the real base config. Corrected at closure (2026-11-14): this row named `TestShowcaseLabFixturesReportReadyOnOutput` and `TestShowcaseLabFilesMatchItsFixtures`, which were never written. No unit test compares the lab's files with its fixtures: a missing lab file fails `validateShowcaseLab` at run time |
+| A topic fragment sourced by its topic tape and by the showcase tape | → | `parseTape` / `tapeLines` + `sourceDigest` / `definitionDigest` | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`, written at closure on 2026-11-14, its first run owed), `TestSourceDigestFollowsSourcedTapes`. At run time `showcaseTopicOrder` (`validate_showcase_topics.go`) refuses a showcase tape that misses or repeats a live topic's fragment |
 | SSH editor `commit` adding IRR config to a running daemon | → | `bgp-filter-irr` verify/apply handlers | `test/reload/bgp-filter-irr-added-live.ci` |
 | SSH editor `commit` adding each topic's config to a daemon started without it | → | each topic's plugin apply path | each topic validator: `validateTopicRPKI`, `validateTopicIRR`, `validateTopicBFD`, `validateTopicOSPF`, `validateTopicIPsec`, `validateTopicVRRPTracking`, `validateTopicTrafficUsage`, `validateTopicCommitConfirmed` |
 | Site build home page | → | `heroMount` with `homeHeroDemo` = `showcase`, caption and anchor from the manifest | `TestHomeHeroDerivesFromTheManifest` |
@@ -495,15 +517,15 @@ super follow them (AC-17). Read AC-2's absence check and AC-15's failure asserti
 the light of decision 4: they guard against wrong output on screen, nothing more.
 | AC-16 | VRRP and OSPF recordings | VRRP shows tracked-link demotion AND master failover with Ze staying up; OSPF shows neighbour, database and routes. Nothing an old demo showed is lost |
 
-#### 🧪 TDD Test Plan
+## 🧪 TDD Test Plan
 
-##### Unit Tests
+### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEveryManifestDemoHasARegisteredScenario` | `internal/le/site/terminaldemo/scenarios_test.go` | AC-6: every manifest id resolves to one registration; an unregistered id is refused by name | |
 | `TestScenarioRegistrationRefusesADuplicateId` | `internal/le/site/terminaldemo/scenarios_test.go` | AC-6: two registrations under one id panic at init | |
 | `TestSourceDigestFollowsSourcedTapes` | `internal/le/site/terminaldemo/terminaldemo_test.go` | AC-5: editing a fragment outside the demo dir changes source and definition digests | |
-| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | `internal/le/site/terminaldemo/tape_wait_test.go` | AC-7: each topic fragment is in its topic tape's and the showcase tape's Source closure, exactly once | |
+| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | `internal/le/site/terminaldemo/topic_fragment_test.go` | AC-7: each topic fragment is named by exactly one Source line of one topic tape and one of the showcase tape, and each sourcing demo resolves to a live topic whose one check both validators call | written at closure 2026-11-14, first run owed |
 | `TestTapeWaitsAreNotSatisfiedByTheTypedCommand` (existing) | `internal/le/site/terminaldemo/tape_wait_test.go` | extended over the expanded Source closure so fragment waits are checked | |
 | `TestCardCoversTheScreenThenRepaintsIt` | `internal/le/site/terminaldemo/tapecard_test.go` | D-9: the card's bytes reach the cast on a cleared screen, output written under the card is held back, and the repaint replays the screen since its last erase | pass 2026-10-11; red with the replay dropped from the repaint |
 | `TestRecorderShowsACardOverARunningProgram` | `internal/le/site/terminaldemo/tapecard_test.go` | D-9: through a real PTY, the card follows the program's output, the next event repaints that output, and the program answers after it | pass 2026-10-11; red with the replay dropped |
@@ -565,7 +587,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 |----------|-----------|-------------|----------------|--------|
 | N-A | | | No wire-visible change. The IRR fix changes when config is applied, not what is sent; the demos run against FRR and keepalived already, and the existing interop suites cover the protocols | |
 
-#### Files to Modify
+## Files to Modify
 - `internal/le/site/terminaldemo/scenarios.go` - delete the `runScenario` switch; dispatch through the scenario registry
 - `internal/le/site/terminaldemo/validate_runtime.go` - delete the `demoValidators` map; existing validators register beside their runners; replaced demos' validators deleted
 - `internal/le/site/terminaldemo/scenarios_routing.go`, `scenarios_network.go` - register existing scenarios; delete the replaced runners; generalise `startFRRPair` to several FRR daemons
@@ -630,7 +652,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | from `./le spec citation anchors`: `website/AI.md` (declared by `home.go`, updated: hero is `showcase`); `docs/guide/irr-filtering.md` (mentions `filter_irr.go`, updated under row 6) |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | the typed config of each topic fragment is checked against the guide page's example; a guide example that the topic cannot type verbatim is corrected on that page |
 
-#### Implementation Steps
+## Implementation Steps
 
 1. **Phase: Wiring** -- scenario registry and digest closure
    - Tests: `TestEveryManifestDemoHasARegisteredScenario`, `TestScenarioRegistrationRefusesADuplicateId`, `TestSourceDigestFollowsSourcedTapes`
@@ -892,7 +914,7 @@ the light of decision 4: they guard against wrong output on screen, nothing more
 
 N-A: no protocol code is added. The IRR fix changes when the filter's config is applied, not any RFC-governed behaviour.
 
-#### Checklist
+## Checklist
 
 ##### Pre-Spec Verification (before the design is presented)
 - [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
@@ -911,7 +933,7 @@ N-A: no protocol code is added. The IRR fix changes when the filter's config is 
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] The scoped runs of what this work reaches pass, run by the main thread in the main checkout: `./le test unit pkg path ./internal/le/site/terminaldemo/`, `./le test unit pkg path ./internal/le/site/` and the demo validators of Pre-Commit Verification. No agent runs a whole-tree verification: GitHub CI verifies the pushed commit (`ai/META-DECISIONS.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -933,3 +955,191 @@ N-A: no protocol code is added. The IRR fix changes when the filter's config is 
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Closure State (2026-11-14)
+
+The owner ordered the close on 2026-11-14, in his words: "close
+terminal-demo-showcase". He gave the order after being told that the only owner
+act left was his acceptance of the eight topic recordings and the showcase
+(AC-17), so it is recorded here as that acceptance.
+
+What the order does not give: AC-17's text says the recordings are "Reviewed by
+watching the recording" and that the vendor mapping is "verified, not guessed".
+The order says neither that he watched all nine recordings nor who verified the
+vendor mapping. `cards.json` names another vendor on 21 lines, which shows a
+mapping is present and does not show it is verified. The closure records the
+order as given and leaves that distinction visible.
+
+Closure is not finished. The sections below hold what was read at source on
+2026-11-14, and the runs that are owed before the Review Gate and the two
+closure commits. The closing agent wrote one test (AC-7), so the Review Gate
+needs a context that did not write it.
+
+## Implementation Summary
+
+### What Was Implemented
+- A scenario registry (`registry.go` `scenarioRegistry.add`, `lookup`) replacing the `runScenario` switch and the `demoValidators` map. `runScenario` (`scenarios.go`) is now one registry lookup.
+- Eight topic recordings (`rpki`, `irr-filter`, `bfd-failover`, `ospf-adjacency`, `ipsec`, `vrrp-tracking`, `traffic-anomaly`, `commit-confirmed`) and the continuous `showcase`, each topic's load and demonstration written once under `demos/terminal/topics/<topic>/` and sourced by both tapes.
+- One shared lab (`showcase-lab`) and one check per topic, bound to both validators by `registerLiveTopic` (`register_topics.go`); the showcase reads its chapter order from its own Source lines (`showcaseTopicOrder`, `validate_showcase_topics.go`).
+- Digests over the Source closure (`manifest.go` `Engine.sourceDigest`, `Engine.definitionDigest`).
+- The homepage hero derived from `siteterminaldemo.HeroDemo` (`home.go` `homeHeroSlots`); the README WebP screenshot linked to the site player.
+- Gallery and feature-page markers for every topic recording and the showcase.
+
+### Bugs Found/Fixed
+- IRR live edits were accepted and not applied (D-5): `irrConfigTx`, covered by `test/reload/bgp-filter-irr-added-live.ci` and `TestFilterIRRAppliesAReloadedAsSet`.
+- A new nested config root reached no plugin section (d789fb00d2): `test/reload/traffic-usage-added-live.ci`, `TestBuildDiffSectionsFilesAChangedAncestorUnderItsDeclaredRoot`.
+- `load ... merge` refused bracket leaf-lists (bebb94bb48) and the member-state defects nine review rounds found after it: the tests of the Functional Tests table.
+
+### Documentation Updates
+- The pages named in the Documentation Update Checklist were edited with the code that changed them. `./le doc check all` at closure is owed (Pre-Commit Verification).
+
+### Deviations from Plan
+- The showcase is 21 minutes 47 seconds, not about seven (A-5 broken); the owner selected the complete recording.
+- The README carries a WebP screenshot linked to the player; the SVG and video carrier probe was superseded by the owner.
+- No `failure.tape` fragment exists: each topic's failure and diagnosis beats live in its `show.tape`.
+- `TestShowcaseLabFixturesReportReadyOnOutput` and `TestShowcaseLabFilesMatchItsFixtures` were never written; the Wiring Test row now names the tests that exist and says what no unit test covers.
+- `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` was written at closure, not in Phase 4.
+- The topic validators are registered as `checkTopic<Name>` functions through `registerLiveTopic`, not as eight `validateTopic<Name>` functions.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5 assumed a seven-minute showcase | The complete recording measures 1,307 seconds | The artifact's measured duration | The owner selected the complete 22-minute showcase |
+| approach | The Wiring Test and TDD tables named three tests as if they existed | Two were never written and one (AC-7) was absent until closure | A closure audit against the package's test files | Rows corrected; the AC-7 test written; a spec row names a test only once the file holds it |
+| approach | The spec said the public site was not updated | `dead7450b3` and `65b28095fa` are on the pushed branches | `git branch -r --contains` at closure | Wording corrected to what git shows |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One recording per topic, chapters 2 to 9 | Done | `demos/terminal/manifest.json` (eight topic ids), `demos/terminal/topics/` | Freshness of the published artifacts is an owed check |
+| One continuous super-recording, recorded on its own | Done | `demos/terminal/showcase/demo.tape` | 21m47s by owner decision |
+| Placement: feature page, gallery, hero, README | Done | markers in the guide pages, `home.go` `homeHeroSlots`, `README.md` | |
+| Nothing an old demo showed is lost | Recorded, not re-observed | `topics/vrrp/show.tape`, `topics/ospf/show.tape` | AC-16; the validator re-run is owed |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-3, AC-4, AC-11, AC-15, AC-16 | Recorded, re-run owed | topic and showcase validators in the renderer container | The recorded validation predates tape and lab edits of 2026-10-28 to 2026-11-04 |
+| AC-5 | Done, run owed | `TestSourceDigestFollowsSourcedTapes` (`terminaldemo_test.go`) | |
+| AC-6 | Done | `registry.go`, `scenarios.go` `runScenario`, `TestEveryManifestDemoHasARegisteredScenario`, `TestScenarioRegistrationRefusesADuplicateId` | No `demoValidators` symbol remains |
+| AC-7 | Done, first run owed | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` (`topic_fragment_test.go`); `registerLiveTopic` | |
+| AC-8 | Done, run owed | `home.go` `homeHeroSlots`; `TestHomeHeroDerivesFromTheManifest` | |
+| AC-9 | Done | `README.md` hero block: `docs/demos/showcase.webp` linked to `#continuous-live-configuration-showcase` | The image sits two lines below the line the criterion names; 10,788 bytes as recorded |
+| AC-10 | Done | markers in `terminal-demonstrations.md` and each feature page, `ipsec.md` included | |
+| AC-12 | Done | the manifest holds no replaced id (`vrrp-failover` is gone) | Removal of the published assets is as the spec records it, not re-read |
+| AC-13, AC-14 | Moved out | `spec-session-editor-file-mode-parity` (closed) | |
+| AC-17 | Owner's closure order | Closure State above | The order's limits are stated there |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests of the Unit Tests table | Present | files named there | `TestFilterIRR*` live in `config_tx_test.go`, not `filter_irr_test.go` |
+| `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | Written at closure | `topic_fragment_test.go` | First run owed |
+| `ddos-parent-config-removed` (changed) | Never run | `test/plugin/ddos-parent-config-removed.ci` | Its changed expectations need a Linux run with net-admin and bpf; owed |
+| `./le test unit pkg path ./internal/le/site/` | Last result was a ten-minute timeout | Current presentation decision | Not a pass; owed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `registry.go`, `validate_topics.go`, `scenarios_showcase.go` | Present | |
+| `demos/terminal/topics/<topic>/configure.tape`, `show.tape` | Present for all eight topics | |
+| `demos/terminal/showcase/demo.tape`, `transcript.txt`; `demos/terminal/showcase-lab/` | Present | |
+| `test/reload/bgp-filter-irr-added-live.ci` | Present | |
+
+### Audit Summary
+- **Total items:** 4 requirements, 13 open criteria, 4 file groups.
+- **Done:** every criterion has its implementation; five criteria and three test runs wait on owed commands.
+- **Partial:** none claimed.
+- **Skipped:** none.
+- **Changed:** recorded in Deviations.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A recording per topic, each typed into a running daemon | functional | the eight topic validators (absence before the commit, proof after), re-run owed; the `*-added-live.ci` test of each topic under `test/reload/` |
+| An independent continuous showcase on one daemon | functional | `validateShowcase`: one process id across every chapter (`requireShowcasePID`), re-run owed |
+| The five beats, with a real diagnosis | functional | each topic check asserts the failure's diagnostic and the recovery (AC-15), re-run owed |
+| Placement on the site, the gallery and the README | structural | page markers, `TestHomeHeroDerivesFromTheManifest`, the README hero block |
+| Tone, vendor mapping and a flawless run | owner review | the owner's closure order of 2026-11-14, with its limits (Closure State) |
+| No demonstration lost | functional | VRRP and OSPF checks (AC-16), re-run owed |
+
+## Review Gate
+
+Not run. The closing agent wrote `topic_fragment_test.go`, so a context that
+did not write it runs `/ze-review` over the change set and records the
+artifact with `./le spec review record`.
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded |
+| `./le spec review check` | not run |
+| Rounds | 0 |
+| Reviewer lenses used | none yet |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `configure.tape` and `show.tape` in each of the eight folders under `demos/terminal/topics/` | Yes | `ls`, 2026-11-14 |
+| `demos/terminal/showcase/demo.tape`, `demos/terminal/showcase-lab/ze.conf` | Yes | `ls`, 2026-11-14 |
+| `internal/le/site/terminaldemo/registry.go`, `validate_topics.go`, `scenarios_showcase.go`, `topic_fragment_test.go` | Yes | `ls`, 2026-11-14 |
+| `test/reload/bgp-filter-irr-added-live.ci` and the seven other `-added-live` tests | Yes | `grep -l` over `test/reload`, 2026-11-14 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-6 | No switch, no map | `runScenario` is `scenarios.lookup(id)` then `sc.run`; a grep for `demoValidators` finds nothing in the package |
+| AC-7 | Each fragment sourced once by its topic tape and once by the showcase | a grep for `Source` lines in every `demo.tape`: sixteen fragment lines in the showcase, two in each topic tape |
+| AC-10 | One marker per recording, on the gallery and the feature page | a grep for `terminal-demo:` finds the marker in `rpki.md`, `irr-filtering.md`, `bfd.md`, `ospf.md`, `ipsec.md`, `vrrp.md`, `traffic-usage.md`, `config-editor.md`, and nine topic and showcase markers in the gallery |
+| AC-3, 4, 5, 8, 11, 15, 16 | As the audit states | OWED: the runs listed under Owed runs |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| SSH editor `commit` adding IRR config | `test/reload/bgp-filter-irr-added-live.ci` | File present; run recorded in the Functional Tests table, not re-run |
+| Manifest id to registered scenario | `TestEveryManifestDemoHasARegisteredScenario` | Read: it looks every manifest `validate` id up in the registry |
+| Topic fragment to both tapes | `TestTopicFragmentIsSourcedByItsTopicAndTheShowcase` | Written; first run owed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2, A-3 | confirmed | the Assumptions table |
+| A-4 | confirmed at the producer | `scenarios_showcase_network.go` `showcaseVPNEnv`; `ipsec` validator re-run owed |
+| A-5 | broken | 1,307 seconds measured; owner selected the complete showcase |
+| A-6 | confirmed by record | `traffic-anomaly` validator re-run owed |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Gallery and feature-page markers (rows 6 and 10) | the `terminal-demo:` grep above | Yes |
+| Every other row | `./le doc check all` | OWED |
+
+### Owed runs
+The main thread runs these, one heavy job at a time. Each line is the evidence
+the row above waits on.
+
+| Command | Proves | Expected |
+|---------|--------|----------|
+| `./le test unit pkg path ./internal/le/site/terminaldemo/` | AC-5, AC-6, AC-7 and the readiness tests | pass, the new AC-7 test included |
+| `./le go lint run scope "./internal/le/site/terminaldemo/"` | the new test file is lint clean | 0 issues |
+| `./le test unit pkg path ./internal/le/site/` | AC-8 and the package whose last run timed out | pass |
+| `./le site terminal-demo check` with the property and name keywords `./le help site terminal-demo check` prints | whether the published recordings are stale after the edits of 2026-10-28 to 2026-11-04 | current, or the stale ids named |
+| the validate form of `./le site terminal-demo` for each of the nine ids, in the renderer container | AC-3, AC-4, AC-11, AC-15, AC-16 | pass |
+| `./le test functional plugin` selecting `ddos-parent-config-removed`, on Linux with net-admin and bpf | the expectations changed with d789fb00d2 | pass |
+| `./le doc check all` | the Documentation checklist | clean |
+
+Citations to repoint in commit A, before commit B removes this file:
+`plan/release/validation/spec-wireguard-runtime-proof.md`,
+`plan/release/validation/spec-showcase-live-config-proof.md`,
+`plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md`.
