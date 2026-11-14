@@ -113,7 +113,7 @@ func checkManualEORRequested(ctx context.Context, check *interoplab.CheckContext
 	if err != nil {
 		return fail(err)
 	}
-	if err := requireNoManualEORMarker(before, zeAddress, manualEORFirstPrefix); err != nil {
+	if err := requireNoManualEORMarker(before, zeAddress); err != nil {
 		return fail(err)
 	}
 	if err := requireManualEORGeneration(ctx, check.Lab, zeAddress, 1); err != nil {
@@ -165,7 +165,7 @@ func checkManualEORRequested(ctx context.Context, check *interoplab.CheckContext
 	if err != nil {
 		return fail(err)
 	}
-	if err := requireOneManualEORMarkerAfterRoute(tail, zeAddress, manualEORSecondPrefix); err != nil {
+	if err := requireOneManualEORMarkerAfterRoute(tail, zeAddress); err != nil {
 		return fail(err)
 	}
 	if err := requireManualEORGeneration(ctx, check.Lab, zeAddress, 2); err != nil {

@@ -39,46 +39,46 @@ func manualEORCheckerBranches(t *testing.T) {
 	marker := manualEORTestMarker(manualEORTestPeer)
 
 	t.Run("first session", func(t *testing.T) {
-		if err := requireNoManualEORMarker(manualEORTestLog(first), manualEORTestPeer, manualEORFirstPrefix); err != nil {
+		if err := requireNoManualEORMarker(manualEORTestLog(first), manualEORTestPeer); err != nil {
 			t.Fatalf("a route and no marker was refused: %v", err)
 		}
 		other := manualEORTestMarker("172.30.0.22")
 		embedded := "noise " + manualEORMarkerMessage(manualEORTestPeer)
-		if err := requireNoManualEORMarker(manualEORTestLog(first, other, embedded), manualEORTestPeer, manualEORFirstPrefix); err != nil {
+		if err := requireNoManualEORMarker(manualEORTestLog(first, other, embedded), manualEORTestPeer); err != nil {
 			t.Fatalf("another neighbor's marker or unenveloped text was counted as ze's: %v", err)
 		}
-		if err := requireNoManualEORMarker(manualEORTestLog(first, marker), manualEORTestPeer, manualEORFirstPrefix); err == nil {
+		if err := requireNoManualEORMarker(manualEORTestLog(first, marker), manualEORTestPeer); err == nil {
 			t.Fatal("an unrequested marker on the first session was accepted")
 		}
-		if err := requireNoManualEORMarker(manualEORTestLog(manualEORTestLine("bgpd started")), manualEORTestPeer, manualEORFirstPrefix); err == nil {
+		if err := requireNoManualEORMarker(manualEORTestLog(manualEORTestLine("bgpd started")), manualEORTestPeer); err == nil {
 			t.Fatal("a log with no route from ze passed as ze withholding the marker")
 		}
 		longer := manualEORTestRoute("110.84.1.0/24")
-		if err := requireNoManualEORMarker(manualEORTestLog(longer), manualEORTestPeer, manualEORFirstPrefix); err == nil {
+		if err := requireNoManualEORMarker(manualEORTestLog(longer), manualEORTestPeer); err == nil {
 			t.Fatal("a longer prefix passed as the first session's route")
 		}
 	})
 
 	t.Run("second session", func(t *testing.T) {
-		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(second, marker), manualEORTestPeer, manualEORSecondPrefix); err != nil {
+		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(second, marker), manualEORTestPeer); err != nil {
 			t.Fatalf("a route then one marker was refused: %v", err)
 		}
 		if !manualEORRequestedReady(manualEORTestLog(second, marker), manualEORTestPeer, manualEORSecondPrefix) {
 			t.Fatal("a route then a marker was not ready")
 		}
-		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(second), manualEORTestPeer, manualEORSecondPrefix); err == nil {
+		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(second), manualEORTestPeer); err == nil {
 			t.Fatal("a dropped marker was accepted")
 		}
-		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(second, marker, marker), manualEORTestPeer, manualEORSecondPrefix); err == nil {
+		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(second, marker, marker), manualEORTestPeer); err == nil {
 			t.Fatal("a second marker was accepted")
 		}
-		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(marker, second), manualEORTestPeer, manualEORSecondPrefix); err == nil {
+		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(marker, second), manualEORTestPeer); err == nil {
 			t.Fatal("a marker before the route was accepted")
 		}
 		if manualEORRequestedReady(manualEORTestLog(marker, second), manualEORTestPeer, manualEORSecondPrefix) {
 			t.Fatal("a marker before the route was ready")
 		}
-		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(marker), manualEORTestPeer, manualEORSecondPrefix); err == nil {
+		if err := requireOneManualEORMarkerAfterRoute(manualEORTestLog(marker), manualEORTestPeer); err == nil {
 			t.Fatal("a marker with no route was accepted")
 		}
 	})

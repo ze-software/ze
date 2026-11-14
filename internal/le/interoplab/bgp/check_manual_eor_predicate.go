@@ -60,14 +60,15 @@ func readManualEOR(log, peer, prefix string) manualEORReading {
 	return reading
 }
 
-// requireNoManualEORMarker judges the first session: FRR decoded prefix, which
-// proves the log read holds this session's UPDATEs, and decoded no End-of-RIB.
-// The route is the positive half: a log FRR never wrote, or a read of another
+// requireNoManualEORMarker judges the first session: FRR decoded
+// manualEORFirstPrefix, the only route that session announces, which proves
+// the log read holds this session's UPDATEs, and decoded no End-of-RIB. The
+// route is the positive half: a log FRR never wrote, or a read of another
 // file, holds no marker either, and it must not pass as Ze withholding one.
-func requireNoManualEORMarker(log, peer, prefix string) error {
-	reading := readManualEOR(log, peer, prefix)
+func requireNoManualEORMarker(log, peer string) error {
+	reading := readManualEOR(log, peer, manualEORFirstPrefix)
 	if !reading.routeSeen {
-		return errors.New("FRR's log holds no decode of " + prefix + " from " + peer + ", so it cannot show what Ze sent on the first session")
+		return errors.New("FRR's log holds no decode of " + manualEORFirstPrefix + " from " + peer + ", so it cannot show what Ze sent on the first session")
 	}
 	if len(reading.markers) != 0 {
 		return fmt.Errorf("FRR decoded %d End-of-RIB markers from %s on the first session, where nothing asked for one: a manual-eor peer must receive no automatic marker", len(reading.markers), peer)
@@ -92,14 +93,15 @@ func manualEORRequestedReady(log, peer, prefix string) bool {
 }
 
 // requireOneManualEORMarkerAfterRoute judges the second session's stretch of
-// the log: FRR decoded prefix, then exactly one End-of-RIB, the one the
-// process asked for. No marker means the request was dropped; a marker before
-// the route means it overtook the route the same process announced first; a
-// second marker means Ze added an automatic one.
-func requireOneManualEORMarkerAfterRoute(log, peer, prefix string) error {
-	reading := readManualEOR(log, peer, prefix)
+// the log: FRR decoded manualEORSecondPrefix, the route that session
+// announces, then exactly one End-of-RIB, the one the process asked for. No
+// marker means the request was dropped; a marker before the route means it
+// overtook the route the same process announced first; a second marker means
+// Ze added an automatic one.
+func requireOneManualEORMarkerAfterRoute(log, peer string) error {
+	reading := readManualEOR(log, peer, manualEORSecondPrefix)
 	if !reading.routeSeen {
-		return errors.New("FRR's log holds no decode of " + prefix + " from " + peer + " on the second session")
+		return errors.New("FRR's log holds no decode of " + manualEORSecondPrefix + " from " + peer + " on the second session")
 	}
 	if len(reading.markers) == 0 {
 		return errors.New("FRR decoded no End-of-RIB from " + peer + " on the second session, where the process asked for one inside the initial sync: the requested marker was dropped")
@@ -108,7 +110,7 @@ func requireOneManualEORMarkerAfterRoute(log, peer, prefix string) error {
 		return fmt.Errorf("FRR decoded %d End-of-RIB markers from %s on the second session, want exactly the one the process asked for: a manual-eor peer must receive no automatic marker", len(reading.markers), peer)
 	}
 	if reading.markers[0] < reading.routeLine {
-		return errors.New("FRR decoded the End-of-RIB from " + peer + " before " + prefix + ", which the process announced before it asked for the marker")
+		return errors.New("FRR decoded the End-of-RIB from " + peer + " before " + manualEORSecondPrefix + ", which the process announced before it asked for the marker")
 	}
 	return nil
 }
