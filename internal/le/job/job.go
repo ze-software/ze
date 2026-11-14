@@ -510,7 +510,7 @@ func (t *Ticket) Release(code int) {
 // one followed, and that job's log has already been replayed to Out.
 //
 // A parent is found through ParentKey, which names an entry file. Two callers
-// put it there. Run gives it to the child it starts (childEnviron). A caller
+// put it there. Run gives it to the child it starts (ChildEnviron). A caller
 // that holds a slot and starts its nested work itself names its own entry in
 // its environment for the length of that work, so the processes it starts
 // inherit it (NameParent, central.go: Hold does it for a centrally admitted
@@ -820,7 +820,7 @@ func (a *Admission) runClaimed(ctx context.Context, ticket *Ticket, argv []strin
 	}
 
 	a.reportPrevious(ticket.Label)
-	code := a.stream(ctx, argv, a.runDir(dir), a.childEnviron(environ, ticket), logFile)
+	code := a.stream(ctx, argv, a.runDir(dir), a.ChildEnviron(environ, ticket), logFile)
 	if err := logFile.Close(); err != nil {
 		a.note(errorLine(err))
 	}
@@ -837,8 +837,11 @@ func (a *Admission) runDir(dir string) string {
 	return a.Root
 }
 
-// childEnviron gives the child this job's entry. Thus, a wrapped stage in the
-// child uses this slot and does not wait behind its parent.
+// ChildEnviron gives the child this job's entry. Thus, a wrapped stage in the
+// child uses this slot and does not wait behind its parent. Run calls it for
+// the child it starts, and a holder that starts its own children from an
+// environment it took before its claim (`le go lint run`, whose plan holds
+// each pass's environment) calls it on each one, with the ticket it claimed.
 //
 // The entry path is absolute because a stage can run outside the checkout root.
 // Registry paths are relative to the root. If a nested job cannot find its
@@ -851,7 +854,7 @@ func (a *Admission) runDir(dir string) string {
 // the grandparent's entry is gone, the child queues, finds this job running
 // over its own inputs, and attaches to it: the parent waits for its child and
 // the child follows its parent's log until the budget kills both.
-func (a *Admission) childEnviron(environ []string, ticket *Ticket) []string {
+func (a *Admission) ChildEnviron(environ []string, ticket *Ticket) []string {
 	if environ == nil {
 		environ = os.Environ()
 	}

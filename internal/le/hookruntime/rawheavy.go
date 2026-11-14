@@ -3,6 +3,7 @@
 // Related: lossypipe.go -- goTest, goVet and the short package form both refusals name
 // Related: parsedcommands.go -- everyCommand, the parsed commands the tree judgment reads
 // Related: ../heavytool/heavytool.go -- LintRunsNoAnalysis, the linter's cheap subcommands the word judgment reads
+// Related: ../heavytool/program.go -- Split, the assignments and launchers in front of the program the word judgment reads
 package hookruntime
 
 import (
@@ -131,27 +132,16 @@ func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 	if len(tokens) == 0 {
 		return rawRefusal{}
 	}
-	// prefix holds each assignment and launcher word in front of the program:
-	// either one changes how the run behaves, so the short action, which
-	// carries neither, is not advised, and the long form keeps them.
-	var prefix []string
-	for len(tokens) != 0 {
-		head := tokens[0]
+	// prefix holds each assignment and launcher word in front of the program,
+	// read by the one reading the heavy-work check and `le exec` share
+	// (heavytool.Split): either one changes how the run behaves, so the short
+	// action, which carries neither, is not advised, and the long form keeps
+	// them.
+	prefix, tokens := heavytool.Split(tokens)
+	for _, head := range prefix {
 		if strings.HasPrefix(head, admitRawAssignment) && strings.Trim(strings.TrimPrefix(head, admitRawAssignment), "'\"") != "" {
 			return rawRefusal{}
 		}
-		if assignmentWord(head) {
-			prefix = append(prefix, head)
-			tokens = tokens[1:]
-			continue
-		}
-		if _, launcher := launcherValueOptions[head]; launcher {
-			skipped := 1 + launcherArguments(head, tokens[1:])
-			prefix = append(prefix, tokens[:skipped]...)
-			tokens = tokens[skipped:]
-			continue
-		}
-		break
 	}
 	if len(tokens) == 0 {
 		return rawRefusal{}
@@ -191,12 +181,6 @@ func rawHeavyWords(tokens, written, moves []string, root string) rawRefusal {
 // subagent_heavy.go).
 const admitRawAssignment = "ZE_ADMIT_RAW="
 
-// assignmentWord reports a word the shell reads as an assignment in front of
-// a program: a name, then `=`, before any `/`.
-func assignmentWord(word string) bool {
-	return strings.Contains(strings.Split(word, "/")[0], "=")
-}
-
 // keptArgv answers the argv the long admitted form runs for a segment, as
 // shell words, so it runs what the caller typed (review I1), and the
 // directory changes it could not carry, as typed, or "" when it carried them
@@ -220,7 +204,7 @@ func keptArgv(moves, prefix, written []string) ([]string, string) {
 			uncarried = strings.Join(moves, " && ")
 		}
 	}
-	if len(argv) == 0 && len(prefix) != 0 && assignmentWord(prefix[0]) {
+	if len(argv) == 0 && len(prefix) != 0 && heavytool.Assignment(prefix[0]) {
 		argv = append(argv, "env")
 	}
 	return append(argv, written...), uncarried
@@ -453,65 +437,10 @@ func shellWord(value string) (string, bool) {
 // literalWord matches a word the shell reads as it is written.
 var literalWord = regexp.MustCompile(`^[A-Za-z0-9_./:@%+=,-]+$`)
 
-// launcherNumber matches a launcher's numeric argument, a count or a duration
-// (`nice 10`, `timeout 60`, `timeout 1.5m`), which launcherArguments skips to
-// reach the program. It is compiled once, at package load, because both
-// launcher loops run on every Bash call. A negative value needs no sign here:
-// launcherArguments skips a word that starts with `-` before it asks this
-// pattern.
-var launcherNumber = regexp.MustCompile(`^\d+(?:\.\d+)?[smhd]?$`)
-
-// launcherValueOptions is the one declaration of the launchers the text
-// judgment reads through, rawHeavy's and programWords', each with the options
-// whose value is the next word. Its keys are the launchers. An option missing
-// from a launcher's set is skipped alone, so a value it takes would be read
-// as the program; one joined to its value (`--user=u`, `-uroot`) is one word
-// and needs no entry. A shell's `-c` and env's `-S` are left out on purpose:
-// their value is the command string, which the text judgment reads where the
-// program stands, so skipping it would read the word after it instead.
-var launcherValueOptions = map[string]map[string]bool{
-	"bash":         {"-o": true, "+o": true, "-O": true, "+O": true, "--rcfile": true, "--init-file": true},
-	"sh":           {"-o": true, "+o": true},
-	"perl":         {},
-	"ruby":         {"-C": true, "-E": true, "-I": true, "-r": true},
-	sudoCommand:    {"-C": true, "-D": true, "-g": true, "-p": true, "-R": true, "-r": true, "-T": true, "-t": true, "-U": true, "-u": true, "--chdir": true, "--chroot": true, "--close-from": true, "--command-timeout": true, "--group": true, "--host": true, "--other-user": true, "--prompt": true, "--role": true, "--type": true, "--user": true},
-	timeCommand:    {"-f": true, "-o": true, "--format": true, "--output": true},
-	niceCommand:    {"-n": true, "--adjustment": true},
-	"env":          {"-C": true, "-u": true, "--chdir": true, "--unset": true},
-	timeoutCommand: {"-k": true, "-s": true, "--kill-after": true, "--signal": true},
-}
-
-// The launchers launcherValueOptions names that other tables of the package
-// name too (environmentTools, identityWrappers).
+// Launchers the shared reading of a command's words reads through
+// (heavytool.Split) that other tables of the package name too
+// (environmentTools, identityWrappers).
 const (
 	sudoCommand = "sudo"
 	timeCommand = "time"
 )
-
-// launcherArguments answers how many of words, the words after the launcher
-// named, are the launcher's own: its options, the value of each option
-// launcherValueOptions names for it, and its numeric arguments. Both launcher
-// loops skip that many to reach the program, so they read one rule. The
-// count never exceeds len(words), and each step consumes a word, so the loop
-// is bounded by the line's length.
-func launcherArguments(launcher string, words []string) int {
-	values := launcherValueOptions[launcher]
-	at := 0
-	for at < len(words) {
-		word := words[at]
-		if values[word] {
-			at += 2
-			continue
-		}
-		if strings.HasPrefix(word, "-") {
-			at++
-			continue
-		}
-		if launcherNumber.MatchString(word) {
-			at++
-			continue
-		}
-		break
-	}
-	return min(at, len(words))
-}

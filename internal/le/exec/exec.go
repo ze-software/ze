@@ -12,6 +12,12 @@
 // action builds into. le changes its own environment and replaces itself with
 // the program (crashlog.Exec), so no le process stays behind and the
 // program's exit status is the caller's.
+//
+// A heavy tool (heavytool.StartedUnread: `go test`, `env go test`, `golangci-lint run`, `staticcheck`, `bash -c '...'`)
+// is the one exception: where it needs a job slot, le holds one and runs the
+// tool as its child, so le is still there to release the slot with the tool's
+// exit code (holdHeavy, job.HoldTool). A caller that must stay outside the
+// slots starts the tool Program resolves instead of the shim.
 package leexec
 
 import (
@@ -21,11 +27,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
+	"github.com/ze-software/ze/internal/le/heavytool"
+	"github.com/ze-software/ze/internal/le/job"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/scratch"
 )
@@ -96,6 +106,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return 1
 	}
+	if code, held := holdHeavy(args, program, job.HoldTool); held {
+		return code
+	}
 	err = replace(program)
 	var message textbuf.Buffer
 	message.Str("le exec: ").Str(program.program).Str(": the system refused to run it: ").Str(err.Error()).
@@ -136,6 +149,27 @@ func prepare(cwd string, args, environ []string, stderr io.Writer) (launch, erro
 		return launch{}, err
 	}
 	return launch{program: program, argv: args, environ: environ}, nil
+}
+
+// Program answers the tool `le exec` would run for args, without running it
+// and without asking for a job slot: the real program args[0] names, the le
+// shims on PATH skipped, its argv, and the environment `le exec` gives it, for
+// a caller working in cwd whose environment is environ. It is for work that
+// stays outside job admission and still needs the repository's caches and
+// GOROOT: the post-edit lint (internal/le/hookruntime, postLinter) starts the
+// answer itself rather than the shim, which would wait for a slot. The error
+// carries the refusal `le exec` would have printed, in its three lines.
+// args MUST NOT be empty.
+func Program(cwd string, args, environ []string) (job.Tool, error) {
+	if len(args) == 0 {
+		panic("BUG: leexec.Program called with no program")
+	}
+	var refusal bytes.Buffer
+	program, err := prepare(cwd, args, environ, &refusal)
+	if err != nil {
+		return job.Tool{}, errors.New(strings.TrimSpace(refusal.String()))
+	}
+	return job.Tool{Path: program.program, Argv: program.argv, Environ: program.environ}, nil
 }
 
 // programEnvironment is environ with the four cache variables pointed under
@@ -271,6 +305,37 @@ func refuse(stderr io.Writer, what, why, fix string) error {
 	message.Str(what).Byte('\n').Str(why).Byte('\n').Str(fix).Byte('\n')
 	_, _ = stderr.Write(message.Bytes()) //nolint:errcheck // stderr is the last channel; nothing remains to report a failure on
 	return errRefused
+}
+
+// holdTool runs a heavy tool inside one job slot, or answers false when it
+// needs none (job.HoldTool). A test passes its own.
+type holdTool func(commandName string, line []string, tool job.Tool) (int, bool)
+
+// holdHeavy runs program, the launch prepare built from args, as a child
+// inside one job slot when args start a heavy tool by the one reading and
+// definition the Bash hook applies (heavytool.Started: through assignments,
+// launchers and the Go toolchain's flag in front of its verb, so `env go
+// test` and `go -C dir test` hold one), and answers its code with true. A
+// shell handed a line with `-c` holds one too, whatever the line runs
+// (heavytool.StartedUnread): exec holds no shell parser to read it, and the
+// carrier judge gives the hook the same answer. The slot is held under
+// `exec` and the tool's name (`exec go test` holds `exec-go-test`, `exec
+// bash -c '...'` holds `exec-bash`); a carried le inside that line runs in
+// this slot, its parent. It answers false, having run nothing, for a light
+// program, which asks hold nothing and touches no registry, and for a heavy
+// tool hold says needs no slot: one inside a parent's (`le go lint run`
+// starting the linter) or outside a checkout. The caller then replaces its
+// process, as for every program before this decision existed. A carried le
+// line is light here: that le admits its own line.
+func holdHeavy(args []string, program launch, hold holdTool) (int, bool) {
+	tool, heavy := heavytool.StartedUnread(args)
+	if !heavy {
+		return 0, false
+	}
+	var commandName textbuf.Buffer
+	commandName.Str(name).Byte(' ').Str(tool)
+	line := slices.Concat(strings.Fields(leaction.Program()), []string{name}, args)
+	return hold(commandName.String(), line, job.Tool{Path: program.program, Argv: program.argv, Environ: program.environ})
 }
 
 // replace becomes the program. It returns only when the execve was refused.

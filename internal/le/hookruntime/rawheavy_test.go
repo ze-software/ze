@@ -330,9 +330,10 @@ func TestRawRefusalAdvisesTheQuietForm(t *testing.T) {
 // piped-command guards with a launcher option that takes a value, beside the
 // same line without the option and its value.
 //
-// VALIDATES: AC-33 of spec-agent-economy-6-shell-parser. Both launcher loops
-// (rawHeavy, programWords) skip a value-taking option together with its one
-// value, read from launcherValueOptions, so each line gets the verdict of the
+// VALIDATES: AC-33 of spec-agent-economy-6-shell-parser. Both guards read
+// through launchers by the one shared reading (heavytool.Split, under
+// rawHeavy and programWords), which skips a value-taking option together with
+// its one value, so each line gets the verdict of the
 // line without the option; an option that takes no value is skipped alone,
 // as before. The `-c` rows of the criterion keep the verdict of their line
 // without the option, a pass: the text judgment reads the `-c` string as one

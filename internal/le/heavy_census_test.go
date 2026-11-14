@@ -132,7 +132,7 @@ func TestCensusActionsDeclareHeavy(t *testing.T) {
 		heavy bool
 	}{
 		{"chaos run", true},
-		{"exec", true},
+		{"exec", false},
 		{"build gokrazy", true},
 		{"test fail-syscall", true},
 		{"test scale", true},
@@ -173,7 +173,7 @@ func TestCensusActionsDeclareHeavy(t *testing.T) {
 		{"rfc check", true},
 		{"job run label x command echo", true},
 		{"job run label unit-pkg quiet command go version", true},
-		{"exec go version", true},
+		{"exec go version", false},
 		{"verify changed", true},
 		{"verify worktree commit HEAD keep", true},
 		{"verify deps unit-race-changed part 1 of 2", true},
@@ -253,10 +253,6 @@ var censusNoSlot = map[string]string{
 	"ai hooks unit":          "an in-process selftest of the hooks, single process, seconds",
 	"test integration clean": "removes containers and adds no load; queueing it protects nothing",
 	"setup docker host stop": "stops the Docker host and adds no load",
-	// The body never returns: le becomes the program, so a slot taken for it
-	// could not be released (spec-native-action-job-admission, C-1).
-	"exec": "it replaces its own process with the program it carries, so nothing remains to release a slot; " +
-		"it will be admitted by the program it carries",
 }
 
 // TestCensusHeavyActionsAreAdmitted asks whether every heavy line le holds
@@ -371,15 +367,23 @@ func TestCensusHeavyActionsAreAdmitted(t *testing.T) {
 	if central == 0 {
 		t.Error("the walk met no centrally admitted action: the composition root links none, or the slot reading answers central for nothing")
 	}
-	// `exec` replaces its process, so a slot the dispatcher took for it would
-	// be held by the carried program for its whole life. Whatever it carries,
-	// it is heavy for a subagent and takes no slot.
-	for _, line := range []string{"exec go version", "exec gopls", "exec golangci-lint run"} {
-		if slot := leroot.SlotOfLine(strings.Fields(line)); slot.Kind != leroot.SlotNone || slot.Command != "exec" {
-			t.Errorf("le %s has the slot reading %+v, want no slot under the command exec: its body never returns to release one", line, slot)
+	// `exec` is judged by the program it carries: a light program is a light
+	// line that asks for no slot, and a heavy tool is heavy for a subagent and
+	// admitted by exec itself, which holds the slot around its child.
+	for _, line := range []string{"exec go version", "exec gopls"} {
+		if slot := leroot.SlotOfLine(strings.Fields(line)); slot.Kind != leroot.SlotLight {
+			t.Errorf("le %s has the slot reading %+v, want a light line: the program it carries is no heavy tool", line, slot)
+		}
+		if leroot.HeavyLine(strings.Fields(line)) {
+			t.Errorf("le %s is heavy, want light: the program it carries is no heavy tool", line)
+		}
+	}
+	for _, line := range []string{"exec golangci-lint run"} {
+		if slot := leroot.SlotOfLine(strings.Fields(line)); slot.Kind != leroot.SlotSelf {
+			t.Errorf("le %s has the slot reading %+v, want a line that admits itself: exec holds the slot around the heavy tool it carries", line, slot)
 		}
 		if !leroot.HeavyLine(strings.Fields(line)) {
-			t.Errorf("le %s is not heavy, and a subagent is still handed it back", line)
+			t.Errorf("le %s is not heavy, want heavy: a subagent is handed a heavy carried tool back", line)
 		}
 	}
 	for _, name := range censusSelfAdmitting {

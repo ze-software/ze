@@ -139,7 +139,7 @@ func readTreeLossyPipe(command string, parse commandParse) (words, written []str
 	}
 	commands := everyCommand(command, parse.file.Stmts)
 	for index, candidate := range commands {
-		program := programTokens(candidate.tokens)
+		program := heavytool.Program(candidate.tokens)
 		if !expensiveWords(program) {
 			continue
 		}
@@ -148,7 +148,7 @@ func readTreeLossyPipe(command string, parse commandParse) (words, written []str
 				continue
 			}
 			if lossyFilter(later.commandWord()) {
-				// programTokens answers a suffix of the tokens, so the
+				// heavytool.Program answers a suffix of the tokens, so the
 				// program's written words are the same suffix of written.
 				return program, candidate.written[len(candidate.tokens)-len(program):], later.commandWord(), true
 			}

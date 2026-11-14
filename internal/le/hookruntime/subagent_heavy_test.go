@@ -207,7 +207,7 @@ func TestSubagentHeavyRefusalNamesTheResolvedAction(t *testing.T) {
 		{`./le test unit pkg path ./internal/core/hostload/`, "./le test unit pkg"},
 		// An area registered heavy as a whole, typed with trailing words.
 		{`./le heavy-probe-area statistics x`, "./le heavy-probe-area"},
-		{`./le exec go version`, "./le exec"},
+		{`./le exec go test ./x/`, "./le exec"},
 		{`./le test integration all`, "./le test integration"},
 	} {
 		code, _, message := runSubagentBash(t, identityLineOfAgent+row.command)
@@ -310,6 +310,7 @@ func TestSubagentLightCommandsPass(t *testing.T) {
 		identityLineOfAgent + `grep -n 'go build ./cmd/ze' f`,
 		identityLineOfAgent + `gopls symbols x.go`,
 		identityLineOfAgent + `go version`,
+		identityLineOfAgent + `./le exec go version`,
 		identityLineOfAgent + `go env GOFLAGS`,
 		identityLineOfAgent + `go list ./x`,
 		identityLineOfAgent + `go doc fmt`,

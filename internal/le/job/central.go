@@ -74,7 +74,7 @@ func centralLabelOf(commandName string) string {
 // starting `le test integration` on the host would otherwise wait for the slot
 // its own parent holds.
 //
-// childEnviron strips every spelling but one because a child that keeps an
+// ChildEnviron strips every spelling but one because a child that keeps an
 // older dotted value beside a newer underscore one reads the older. That
 // cannot arise here: both spellings are written by this one call with one
 // value and no third spelling survives it, so a reader gets this entry
@@ -242,14 +242,49 @@ func signalRoot() (context.Context, context.CancelFunc) {
 
 // admit is admitCentral over the point's sources.
 func (c centralPoint) admit(commandName string, line []string, body func() int) int {
+	adm, outcome, code := c.policyFor(line)
+	switch outcome {
+	case policyNoCheckout:
+		return body()
+	case policyRefused:
+		return code
+	case policyFound:
+		return c.hold(adm, commandName, line, body)
+	case policyUnspecified:
+		panic("BUG: job: the central policy reading answered no outcome")
+	default:
+		panic("BUG: job: the central policy reading answered an unknown outcome")
+	}
+}
+
+// policyOutcome is what policyFor found. The zero value is no reading.
+type policyOutcome uint8
+
+const (
+	// policyUnspecified is the zero value: no reading was made.
+	policyUnspecified policyOutcome = iota
+	// policyNoCheckout is a line run where no checkout exists, so there is
+	// no registry to share.
+	policyNoCheckout
+	// policyRefused is a line whose slot could not be asked for: the
+	// refusal is written, and the code beside it is the line's.
+	policyRefused
+	// policyFound is a checkout and its admission policy.
+	policyFound
+)
+
+// policyFor answers the admission policy of the checkout line runs in. The
+// policy is set exactly for policyFound, and the code exactly for
+// policyRefused, whose refusal it has written.
+func (c centralPoint) policyFor(line []string) (*Admission, policyOutcome, int) {
 	typed := strings.Join(line, " ")
 
 	root, err := c.root()
 	if errors.Is(err, lepath.ErrNoCheckout) {
-		return body()
+		return nil, policyNoCheckout, 0
 	}
 	if err != nil {
-		return c.refuse(opererr.Wrap(err,
+		return nil, policyRefused, c.refuse(opererr.Wrap(err,
 			typed+": the Ze checkout this command runs in could not be resolved",
 			"a heavy action takes a job slot in the checkout's "+JobsDir+", so it was not started",
 			"unset ZE_REPO_ROOT, cd into the Ze checkout and run the command again"))
@@ -257,12 +292,19 @@ func (c centralPoint) admit(commandName string, line []string, body func() int) 
 
 	adm, err := c.policy(root)
 	if err != nil {
-		return c.refuse(opererr.Wrap(err,
+		return nil, policyRefused, c.refuse(opererr.Wrap(err,
 			typed+": the job admission policy in the environment is out of range",
 			"a heavy action takes one of the job slots that policy counts, so it was not started",
 			"unset ZE_RUN_SLOTS ZE_JOB_STALL_SECONDS and run the command again"))
 	}
+	return adm, policyFound, 0
+}
 
+// hold is admit once the checkout's policy is known: the wait under the
+// signal root, the one slot, the body inside it, and the refusal when the
+// registry cannot be asked. It answers the line's exit code.
+func (c centralPoint) hold(adm *Admission, commandName string, line []string, body func() int) int {
+	typed := strings.Join(line, " ")
 	label := centralLabelOf(commandName)
 	if !validLabel(label) {
 		panic("BUG: job: the dispatcher admitted a line that resolved to no command name")

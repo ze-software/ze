@@ -21,6 +21,8 @@ import (
 	"time"
 
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
+	leexec "github.com/ze-software/ze/internal/le/exec"
+	"github.com/ze-software/ze/internal/le/job"
 	repopackagemap "github.com/ze-software/ze/internal/le/repo/packagemap"
 )
 
@@ -283,7 +285,8 @@ func TestAWriteRemovesADerivedDirectoryWhole(t *testing.T) {
 // revgrep `git status` while it held the lock, and the empty lock blocked
 // every session's git writes until someone removed it.
 func TestPostLintCommandTakesNoIndexLock(t *testing.T) {
-	command := postLintCommand(t.Context(), "/bin/golangci-lint", "/repo", "internal/le/x/y.go")
+	linter := job.Tool{Path: "/bin/golangci-lint", Argv: []string{"golangci-lint"}, Environ: os.Environ()}
+	command := postLintCommand(t.Context(), linter, "/repo", "internal/le/x/y.go")
 	if !slices.Contains(command.Env, "GIT_OPTIONAL_LOCKS=0") {
 		t.Errorf("lint environment lacks GIT_OPTIONAL_LOCKS=0")
 	}
@@ -468,5 +471,36 @@ func TestMainThreadEditStillLints(t *testing.T) {
 	}
 	if want := "package sample\n\nvar misaligned = 1\n"; string(body) != want {
 		t.Errorf("the edited file was not formatted:\n got %q\nwant %q", body, want)
+	}
+}
+
+// VALIDATES: the post-edit lint starts the real golangci-lint even when the le
+// shim comes first on PATH, as `le setup` arranges it, and still judges its
+// output. Method: a shim carrying leexec.ShimMarker, which leaves a marker of
+// its own, sits in a PATH entry ahead of the stand-in linter.
+// PREVENTS: the main thread's lint going through `le exec`, which waits for a
+// job slot (job.HoldTool) and spent the hook's 60s budget behind a test run.
+func TestMainThreadLintSkipsTheShim(t *testing.T) {
+	root, edited, marker := lintProbeFixture(t)
+	shims := t.TempDir()
+	shimMarker := filepath.Join(shims, "shim-started")
+	shim := "#!/bin/sh\n" + leexec.ShimMarker + "\n: > '" + shimMarker + "'\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(shims, "golangci-lint"), []byte(shim), 0o700); err != nil { //nolint:gosec // an executable stand-in the test itself wrote
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shims+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	code, message, found := Probe("postFormatGo", Payload{ToolName: "Edit", ToolInput: map[string]any{"file_path": edited}}, root)
+	if !found {
+		t.Fatal("postFormatGo is not registered in nativeHookActions")
+	}
+	if _, err := os.Stat(shimMarker); !os.IsNotExist(err) {
+		t.Errorf("the post-edit lint started the le shim (marker stat: %v)", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Errorf("the post-edit lint did not start the real linter behind the shim: %v", err)
+	}
+	if code != 2 || !strings.Contains(message, "1 issue(s) in pkg/x.go") {
+		t.Errorf("the real linter's issue in the edited file did not block (code %d): %q", code, message)
 	}
 }

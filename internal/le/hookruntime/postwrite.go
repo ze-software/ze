@@ -15,7 +15,10 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
+	leexec "github.com/ze-software/ze/internal/le/exec"
 	"github.com/ze-software/ze/internal/le/gitenv"
+	"github.com/ze-software/ze/internal/le/heavytool"
+	"github.com/ze-software/ze/internal/le/job"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
@@ -51,11 +54,30 @@ var generatedMarkerRE = regexp.MustCompile(`(?m)^// Code generated .* DO NOT EDI
 // refreshing the index, they left an empty .git/index.lock that blocked every
 // session's git writes (three times on 2026-10-23/24), so the environment tells
 // git to skip that optional refresh.
-func postLintCommand(timeout stdcontext.Context, binary, module, relative string) *exec.Cmd {
-	command := exec.CommandContext(timeout, binary, "run", "--allow-serial-runners", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // golangci-lint from PATH, run on the package the developer just edited
+//
+// linter is the real golangci-lint with the environment `le exec` gives it
+// (postLinter), never the shim, so the run is this hook's own child and its
+// budget's SIGKILL ends the linter itself.
+func postLintCommand(timeout stdcontext.Context, linter job.Tool, module, relative string) *exec.Cmd {
+	command := exec.CommandContext(timeout, linter.Path, "run", "--allow-serial-runners", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // the real golangci-lint from PATH, run on the package the developer just edited
 	command.Dir = module
-	command.Env = gitenv.ReadOnlyPatch(os.Environ())
+	command.Env = gitenv.ReadOnlyPatch(linter.Environ)
 	return command
+}
+
+// postLinter resolves the linter the post-edit lint runs, for the edited
+// module. The golangci-lint on PATH is most often the shim `le setup` writes,
+// and the shim starts `le exec golangci-lint`, which waits for a job slot and
+// runs the linter inside it (job.HoldTool). The post-edit lint stays outside
+// job admission: it is the main thread's own check of the file it just wrote,
+// bounded by postLintBudget and serialized by golangci-lint's machine-wide lock
+// (--allow-serial-runners), and a wait for a slot on every Go edit would spend
+// that budget behind a test run. So it resolves the tool the way `le exec`
+// does (leexec.Program: PATH with the shims skipped, the per-user caches, the
+// checkout's GOROOT) and runs it directly. The cost: this lint is never a row
+// of `./le job report`, and it can run beside a slot's work.
+func postLinter(module string) (job.Tool, error) {
+	return leexec.Program(module, []string{heavytool.Linter}, os.Environ())
 }
 
 // ze point: quality/linting/fix-lint-issues-never-disable-a-linter
@@ -103,12 +125,12 @@ func postFormatGo(ctx context) *verdict {
 	}
 	relative, _ := filepath.Rel(module, absolutePath(ctx))
 	pkg := "./" + filepath.ToSlash(filepath.Dir(relative)) + "/..."
-	binary, err := exec.LookPath("golangci-lint")
+	linter, err := postLinter(module)
 	if err != nil {
-		return lintNotRun(pkg, "golangci-lint is not on PATH", "", "./le setup tools")
+		return lintNotRun(pkg, "golangci-lint could not be resolved past the le shims", err.Error(), "./le setup tools")
 	}
 	timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), postLintBudget)
-	output, runErr := postLintCommand(timeout, binary, module, relative).CombinedOutput()
+	output, runErr := postLintCommand(timeout, linter, module, relative).CombinedOutput()
 	expired := timeout.Err() != nil
 	cancel()
 	return postLintVerdict(pkg, filepath.ToSlash(relative), string(output), runErr, expired)

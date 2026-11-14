@@ -71,8 +71,9 @@ var heavyAreas struct {
 // (RegisterAdmitted) or as heavy (RegisterHeavy), when the area or the area
 // and its verb registered as expensive (RegisterExpensive), when the area,
 // its verb and the word after it registered as a heavy selection
-// (RegisterHeavy), or when the line names an action row that declares Heavy,
-// alone or as one verb of a sweep. The piped-command guard asks it too
+// (RegisterHeavy), when the line names an action row that declares Heavy,
+// alone or as one verb of a sweep, or when the area is a carrier whose judge
+// names the program it carries heavy (RegisterCarrierJudge). The piped-command guard asks it too
 // (expensiveWords), beside CarrierLine: starting heavy work and printing the
 // verdict a filter would truncate are two questions.
 //
@@ -200,6 +201,58 @@ var carrierAreas struct {
 	byName map[string]bool
 }
 
+// CarrierJudge reports whether carried, the words a carrier area's line
+// names from the program on, start heavy work. It is called on any goroutine
+// and MUST read memory only.
+type CarrierJudge func(carried []string) bool
+
+// RegisterCarrierJudge records how the carrier area name (RegisterCarrier)
+// judges the program it carries: its line is heavy exactly when judge names
+// the carried words heavy, so `le exec go version` is light and `le exec go
+// test ./x/` is heavy, and the hook, the census and the slot reading read one
+// answer. The area then takes its own slot for a heavy line (SlotSelf):
+// the carrier decides at run time whether the program needs one, which the
+// dispatcher cannot, because a carrier that replaces its process never
+// returns to release a slot. The area MUST NOT also register its whole name
+// heavy (RegisterHeavy), which would make every line heavy whatever it
+// carries. It panics on a nil judge, on an area that is not a carrier yet,
+// and on a second judge, because each is a Ze defect at init. MUST be called
+// from init, after RegisterCarrier.
+func RegisterCarrierJudge(name string, judge CarrierJudge) {
+	if judge == nil {
+		panic("BUG: leroot.RegisterCarrierJudge: nil judge for " + name)
+	}
+	if !Carries(name) {
+		panic("BUG: leroot.RegisterCarrierJudge: " + name + " is not a carrier; call leroot.RegisterCarrier first")
+	}
+	carrierJudges.Lock()
+	defer carrierJudges.Unlock()
+	if carrierJudges.byName == nil {
+		carrierJudges.byName = make(map[string]CarrierJudge, 2)
+	}
+	if carrierJudges.byName[name] != nil {
+		panic("BUG: leroot.RegisterCarrierJudge: a second judge for " + name + ", and one line has one verdict")
+	}
+	carrierJudges.byName[name] = judge
+}
+
+// carrierJudgeOf answers the judge the area name registered, and false for
+// an area that registered none.
+func carrierJudgeOf(name string) (CarrierJudge, bool) {
+	carrierJudges.RLock()
+	defer carrierJudges.RUnlock()
+	judge, registered := carrierJudges.byName[name]
+	return judge, registered
+}
+
+// carrierJudges holds the judge of every carrier area that registered one.
+// Registration runs in init() and the hook reads it on any goroutine, so the
+// map is guarded. Safe for concurrent use.
+var carrierJudges struct {
+	sync.RWMutex
+	byName map[string]CarrierJudge
+}
+
 // CarrierLine reports whether words, the words typed after `le`, resolve to
 // an action that runs a program the line itself names: the area registered as
 // a carrier (RegisterCarrier), or the action row the line opens with declares
@@ -271,6 +324,13 @@ func heavyInTable(name string, list leaction.List, rest []string) (string, bool)
 		// program prints its own help and starts no work.
 		if len(rest) != 0 && isHelpArg(rest[len(rest)-1]) {
 			return "", false
+		}
+		if judge, judged := carrierJudgeOf(name); judged {
+			// A carrier is heavy by the program it carries, and only then.
+			if !judge(rest) {
+				return "", false
+			}
+			return name, true
 		}
 		if !heavyByName(name) {
 			return "", false
@@ -428,7 +488,7 @@ const (
 	// every heavy line whose own declaration says nothing else.
 	SlotCentral
 	// SlotSelf is a heavy line whose body takes its own slot
-	// (leaction.Action.AdmitsItself, RegisterAdmitted).
+	// (leaction.Action.AdmitsItself, RegisterAdmitted, RegisterCarrierJudge).
 	SlotSelf
 	// SlotNone is a heavy line that takes no slot, with the reason its
 	// declaration gives (leaction.Action.NoSlot, RegisterNoSlot).
@@ -459,7 +519,8 @@ type Slot struct {
 // registers says otherwise. The default is the safe side: an action whose
 // author declared nothing is admitted. In order: a name registered as taking
 // no slot (RegisterNoSlot), for the area or for the command the line resolved
-// to, is SlotNone; an area registered as admitted (RegisterAdmitted) is
+// to, is SlotNone; an area registered as admitted (RegisterAdmitted), or a
+// carrier heavy by the program it carries (RegisterCarrierJudge), is
 // SlotSelf; then the rows the line names decide. A sweep names several verbs,
 // and it is SlotCentral when any heavy verb it names is, so a self-admitting
 // verb named first cannot carry a central one past admission: that verb then
@@ -490,6 +551,11 @@ func slotOf(line typedLine) Slot {
 		return Slot{Kind: SlotNone, Command: command, Reason: reason}
 	}
 	if Admits(line.area) {
+		return Slot{Kind: SlotSelf, Command: command}
+	}
+	if _, judged := carrierJudgeOf(line.area); judged {
+		// The carrier takes the slot itself, or none inside a parent's
+		// (RegisterCarrierJudge).
 		return Slot{Kind: SlotSelf, Command: command}
 	}
 	if !line.declared {

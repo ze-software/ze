@@ -1,15 +1,16 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 // Related: session.go -- fromSubagent, the caller predicate this check opens with
-// Related: rawheavy.go -- the launcher reading this judgment reuses
 // Related: ../heavytool/heavytool.go -- Name, the one definition of a heavy tool this judgment and `le exec` read
+// Related: ../heavytool/program.go -- Started, Program and ShellCommand, the reading of a command's words this judgment and `le exec` share
 // Related: parsedcommands.go -- everyCommand, the parsed commands the tree judgment reads
 // Related: ../le/root/heavy.go -- HeavyCommand, which reads an le line from what its area declared and names its command
 package hookruntime
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
+
+	"mvdan.cc/sh/v3/syntax"
 
 	"github.com/ze-software/ze/internal/le/heavytool"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
@@ -161,15 +162,7 @@ func (ctx context) heavyHandBack() handBack {
 	return ctx.call.handBack.result
 }
 
-// handBackOf is the heavy-work judgment of one command line: the first
-// command of the parsed line, in source order and at any depth
-// (everyCommand), that starts heavy work (heavyTool), written from its parsed
-// words; and, on a line that does not parse or whose tree holds none, the
-// first such segment of the quote-blind split (commandSegments). The text
-// judgment is kept so this verdict covers every line the raw-job guard
-// refuses: that guard is silent for a line refused here, and a line it would
-// refuse and this judgment passed would hand a subagent its admitted-form
-// advice.
+// handBackOf is the heavy-work judgment of one command line (heavyWork).
 //
 // The command handed back is the whole line as the agent typed it, after its
 // identity line (identity), which is the agent's own and not the main
@@ -190,41 +183,134 @@ func handBackOf(command string, parse commandParse, identity string) (refusal ha
 			}
 		}
 	}()
-	if parse.parsed() {
-		for _, parsed := range everyCommand(command, parse.file.Stmts) {
-			if what := heavyTool(parsed.tokens); what != "" {
-				return handBack{what: what, command: typed}
-			}
-		}
-	}
-	for _, segment := range commandSegments(command) {
-		if what := heavyTool(shellWords(segment)); what != "" {
-			return handBack{what: what, command: typed}
-		}
+	if what := heavyWork(command, parse); what != "" {
+		return handBack{what: what, command: typed}
 	}
 	return handBack{}
 }
 
+// heavyWork names the first heavy work a command line starts, and answers ""
+// when it starts none. On a line that parses it is the first command of the
+// tree, in source order and at any depth (everyCommand), that starts heavy
+// work (heavyTool), or whose shell is handed a line with `-c` that does
+// (heavytool.ShellCommand, judged here as a line of its own); and else the
+// first such segment of the split that cuts only outside the tree's quoted
+// parts (unquotedSegments), which reads a here-document's lines. On a line
+// that does not parse it is the first such segment of the quote-blind split
+// (commandSegments), there being nothing else to read.
+//
+// A quoted argument of another program is data, never a command: the
+// quote-blind split cut `grep "le exec\|/le exec"` at its quoted bars and
+// read `/le exec"` as an le line, so a reader's pattern was handed back.
+// The raw-job guard's own text judgment still splits quote-blind; a line it
+// refuses that is not handed back here reads that guard's text for a
+// subagent (withoutHandedBackAdvice), which names no route a subagent lacks.
+//
+// The recursion into a shell's line is bounded by the line's length: the
+// line handed to the shell is one word of the command, shorter than it.
+func heavyWork(command string, parse commandParse) string {
+	if !parse.parsed() {
+		for _, segment := range commandSegments(command) {
+			if what := heavyTool(shellWords(segment)); what != "" {
+				return what
+			}
+		}
+		return ""
+	}
+	for _, parsed := range everyCommand(command, parse.file.Stmts) {
+		if what := heavyTool(parsed.tokens); what != "" {
+			return what
+		}
+		line, handed := heavytool.ShellCommand(parsed.tokens)
+		if !handed {
+			continue
+		}
+		if what := heavyWork(line, parseCommandLine(line)); what != "" {
+			return what
+		}
+	}
+	for _, segment := range unquotedSegments(command, parse.file) {
+		if what := heavyTool(shellWords(segment)); what != "" {
+			return what
+		}
+	}
+	return ""
+}
+
+// unquotedSegments is commandSegments for a line that parsed into file: it
+// cuts at a separator only where the separator stands outside every quoted
+// part of the tree, a single-quoted or a double-quoted one, so a quoted
+// argument stays inside the segment of the command it belongs to. The
+// offsets of file are offsets into command, its source.
+func unquotedSegments(command string, file *syntax.File) []string {
+	var quoted [][2]uint
+	syntax.Walk(file, func(node syntax.Node) bool {
+		_, single := node.(*syntax.SglQuoted)
+		_, double := node.(*syntax.DblQuoted)
+		if !single && !double {
+			return true
+		}
+		// A quoted part's children are inside it, so the walk stops there.
+		quoted = append(quoted, [2]uint{node.Pos().Offset(), node.End().Offset()})
+		return false
+	})
+	var segments []string
+	start := 0
+	for _, cut := range segmentSeparator.FindAllStringIndex(command, -1) {
+		if insideQuoted(quoted, uint(cut[0])) {
+			continue
+		}
+		segments = appendSegment(segments, command[start:cut[0]])
+		start = cut[1]
+	}
+	return appendSegment(segments, command[start:])
+}
+
+// insideQuoted reports whether offset lies within one of the quoted spans,
+// each a start offset and the end offset past it.
+func insideQuoted(quoted [][2]uint, offset uint) bool {
+	for _, span := range quoted {
+		if offset >= span[0] && offset < span[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// appendSegment appends part, trimmed, to segments unless it is blank, as
+// commandSegments keeps its pieces.
+func appendSegment(segments []string, part string) []string {
+	trimmed := strings.TrimSpace(part)
+	if trimmed == "" {
+		return segments
+	}
+	return append(segments, trimmed)
+}
+
 // heavyTool names the heavy work tokens, one command's words, start, and
 // answers "" when they start none. The assignments and launchers in front of
-// the program are read through (programTokens, over launcherValueOptions), a
-// stated reason to run raw among them. The program is then judged by name.
+// the program, a stated reason to run raw among them, and the Go toolchain's
+// flag in front of its verb are read through by the reading `le exec` shares
+// (heavytool.Started, heavytool.Program). The program is then judged by name.
 // An external program, which cannot register, is heavy when the shared
 // definition names it (heavytool.Name, which holds the Go toolchain's
-// executing verbs, the linters and the formatters, and which `le exec` reads
-// too, so this function holds no list of them). le, typed as `le` or as the
-// `ze le` personality (leWords), is heavy when the area or the action its
-// line names declared so (leroot.HeavyCommand, which also answers the
-// command the line resolved to), so this function names no le area.
+// executing verbs, the linters and the formatters, so this function holds no
+// list of them). le, typed as `le` or as the
+// `ze le` personality (heavytool.LeWords), is heavy when the area or the
+// action its line names declared so (leroot.HeavyCommand, which also answers
+// the command the line resolved to), so this function names no le area. A
+// carrier area's line is heavy by the program it carries, as the carrier's
+// own judge reads it (leroot.RegisterCarrierJudge): `./le exec go version`
+// runs and `./le exec go test ./x/` is handed back, with no branch here.
 func heavyTool(tokens []string) string {
-	program := programTokens(tokens)
+	program := heavytool.Program(tokens)
 	if len(program) == 0 {
 		return ""
 	}
-	if name, heavy := heavytool.Name(program); heavy {
+	if name, heavy := heavytool.Started(tokens); heavy {
 		return "`" + name + "`"
 	}
-	words, typed := leWords(program)
+	words, typed := heavytool.LeWords(program)
 	// refuse-by-default: guards handsBackHeavy -- a program that is neither a heavy tool nor an le line starts no heavy work, and the empty name is what the caller reads as "not handed back"
 	if !typed {
 		return ""
@@ -238,20 +324,4 @@ func heavyTool(tokens []string) string {
 	// to, which holds no keyword or value typed after it.
 	launcher := strings.Join(program[:len(program)-len(words)], " ")
 	return "the `./le` action `" + launcher + " " + command + "`"
-}
-
-// leWords answers the words typed after le when program, a command's words
-// from its program on, runs le: as `le`, `./le` or a path ending in `/le`,
-// or as the `ze le` personality of a binary whose name starts with `ze`. It
-// answers false for any other program. MUST be called with at least one
-// word.
-func leWords(program []string) ([]string, bool) {
-	base := filepath.Base(program[0])
-	if base == "le" {
-		return program[1:], true
-	}
-	if strings.HasPrefix(base, "ze") && len(program) > 2 && program[1] == "le" {
-		return program[2:], true
-	}
-	return nil, false
 }

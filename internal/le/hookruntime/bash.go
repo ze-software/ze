@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/heavytool"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -421,7 +422,7 @@ func expensiveWords(tokens []string) bool {
 	if base == lintCommand {
 		return true
 	}
-	words, typed := leWords(tokens)
+	words, typed := heavytool.LeWords(tokens)
 	if !typed {
 		return false
 	}
@@ -440,28 +441,7 @@ func expensiveWords(tokens []string) bool {
 // refusal shows these words, so the command it advises is the one the guard
 // judged.
 func programWords(segment string) []string {
-	return programTokens(shellWords(segment))
-}
-
-// programTokens answers words from their program on: programWords over
-// words already read, a text segment's or a parsed command's tokens
-// (parsedCommand.tokens). It returns a subslice of tokens.
-func programTokens(tokens []string) []string {
-	for len(tokens) != 0 {
-		head := tokens[0]
-		if strings.Contains(strings.Split(head, "/")[0], "=") && !strings.HasPrefix(head, "-") {
-			tokens = tokens[1:]
-			continue
-		}
-		if _, launcher := launcherValueOptions[head]; !launcher {
-			break
-		}
-		tokens = tokens[1+launcherArguments(head, tokens[1:]):]
-	}
-	for len(tokens) != 0 && strings.HasPrefix(tokens[0], "-") {
-		tokens = tokens[1:]
-	}
-	return tokens
+	return heavytool.Program(shellWords(segment))
 }
 
 // beforeRedirection answers the words up to the first redirection. The
@@ -559,7 +539,7 @@ func textLossyPipe(command string) (filter, segment string, found bool) {
 // quotes included, which is the text judgment a guard keeps for any line
 // that is not a reader line (ctxReaderLine).
 func commandSegments(command string) []string {
-	parts := regexp.MustCompile(`&&|\|\||;|\n|\|&?|&`).Split(command, -1)
+	parts := segmentSeparator.Split(command, -1)
 	out := parts[:0]
 	for _, part := range parts {
 		if strings.TrimSpace(part) != "" {
@@ -568,6 +548,12 @@ func commandSegments(command string) []string {
 	}
 	return out
 }
+
+// segmentSeparator matches the operators the text judgments cut a line at:
+// commandSegments, quote-blind, and unquotedSegments, outside the quoted
+// parts of a parsed line. It is compiled once, at package load, because both
+// run on every Bash call.
+var segmentSeparator = regexp.MustCompile(`&&|\|\||;|\n|\|&?|&`)
 
 // admittedCommand writes the job-admission form of a command a refusal
 // advises: `./le job run label <label> quiet command <argv>`. Every refusal

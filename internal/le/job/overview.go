@@ -44,11 +44,14 @@ import (
 //
 // A heavy le action holds a slot, a Docker lab and a QEMU guest included (the
 // dispatcher admits it, central.go), unless its declaration says it takes none
-// (leroot.RegisterNoSlot, leaction.Action.NoSlot): `le exec`, which becomes
-// the program it carries, and the few actions that add no load. Those, and the
-// work that never passed through this checkout's le, are outside the count.
+// (leroot.RegisterNoSlot, leaction.Action.NoSlot): the few actions that add no
+// load. `le exec` holds one for a heavy tool it carries (HoldTool), and none
+// for a light program, which becomes the process. Those light programs, the
+// slot-free actions, the main thread's post-edit lint (it starts the real
+// linter past the shim, internal/le/hookruntime postLinter), and the work that
+// never passed through this checkout's le, are outside the count.
 const slotsNotice = "the slots count only jobs admitted through this checkout's registry (" + JobsDir +
-	"): commands run under the raw-admission escape (ZE_ADMIT_RAW), le exec and the few actions declared slot-free," +
+	"): commands run under the raw-admission escape (ZE_ADMIT_RAW), light programs le exec carries, the few actions declared slot-free, the post-edit lint," +
 	" work started outside ./le and other checkouts appear only in the machine readings"
 
 // commandShown bounds how much of a recorded command line one row prints. The

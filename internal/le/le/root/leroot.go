@@ -280,10 +280,11 @@ var admittedAreas struct {
 }
 
 // RegisterExpensive records an le action whose run a caller judges by its
-// whole output, as it judges a test suite, while the action takes no slot
-// through the job registry (RegisterAdmitted marks the runs that do): a
-// selftest such as `ai hooks unit`, whose last lines are a summary and whose
-// failing rows print before it. HeavyLine (heavy.go) reads the registration
+// whole output, as it judges a test suite: a selftest such as `ai hooks unit`,
+// whose last lines are a summary and whose failing rows print before it. The
+// mark makes the line heavy, so the dispatcher admits it into one slot like
+// any heavy line (SlotOfLine), unless its declaration says it takes none, as
+// `ai hooks unit` does (RegisterNoSlot, leaction.Action.NoSlot). HeavyLine (heavy.go) reads the registration
 // for a line that resolves to the registered area and names the verb, and
 // the pretool hook asks HeavyLine: piping such a line through a filter that
 // drops lines is refused (bashLossyPipe), and a subagent's line is handed

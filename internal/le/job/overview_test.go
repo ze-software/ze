@@ -218,7 +218,7 @@ func TestReportShowsACentralHolder(t *testing.T) {
 	if strings.Contains(view.Notice, "Docker") {
 		t.Errorf("the notice is %q, and a Docker lab now holds a slot", view.Notice)
 	}
-	for _, want := range []string{"ZE_ADMIT_RAW", "le exec", "declared slot-free", "outside ./le", "other checkouts"} {
+	for _, want := range []string{"ZE_ADMIT_RAW", "le exec", "declared slot-free", "post-edit lint", "outside ./le", "other checkouts"} {
 		if !strings.Contains(view.Notice, want) {
 			t.Errorf("the notice is %q, want it to name %q as outside the count", view.Notice, want)
 		}

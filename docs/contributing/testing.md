@@ -496,7 +496,7 @@ silent for that long. That is the linter in a queue, not a hang.
 
 ### The post-edit lint takes no index lock
 
-<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand, postLinter -->
 <!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch -->
 
 After each Go edit the post-write hook lints the edited package with
@@ -508,7 +508,9 @@ hook therefore runs the linter with `GIT_OPTIONAL_LOCKS=0`, which stops
 `git status` refreshing the index, and `diff.autoRefreshIndex=false`, which
 stops `git diff` writing the refresh back. The patch the linter reads is the
 same either way. le's other `git status` queries under a deadline carry the
-first setting through `gitenv.ReadOnly`.
+first setting through `gitenv.ReadOnly`. The hook starts the real linter, not
+the `golangci-lint` shim, so the kill at the hook's 60 second budget ends the linter
+itself and no `le exec` waits for a job slot on an edit (`postLinter`).
 
 ### Post-tool hooks block only on the author's own files
 

@@ -671,7 +671,7 @@ func TestAClaimedJobsChildRunsInsideThatJob(t *testing.T) {
 			ticket := &Ticket{Label: "suite", Kind: KindClaimed, Entry: adm.rel(own)}
 			inherited := []string{"PATH=/bin", ParentKey + "=" + step.earlier(t, root)}
 
-			for _, pair := range adm.childEnviron(inherited, ticket) {
+			for _, pair := range adm.ChildEnviron(inherited, ticket) {
 				if len(env.Without([]string{pair}, ParentKey)) == 0 {
 					name, value, _ := strings.Cut(pair, "=")
 					t.Setenv(name, value)
@@ -1274,7 +1274,6 @@ func TestTheTreesTheLintLabelIgnoresDoNotVoidItsShare(t *testing.T) {
 		t.Error("a file beside a Go package left the fingerprint alone, so the trees above prove nothing")
 	}
 }
-
 
 // TestALabelThatDeclaresNoInputsIsFingerprintedOverTheWholeCheckout pins the
 // default, which is the direction that fails closed. A label nobody described

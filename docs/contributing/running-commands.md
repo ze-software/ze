@@ -2363,7 +2363,7 @@ machine:
   disk free, tmp and Go build cache (one volume): 412.3 GiB
   le test processes: 1
   go test processes: 9
-the slots count only jobs admitted through this checkout's registry (tmp/.ze-jobs): commands run under the raw-admission escape (ZE_ADMIT_RAW), le exec and the few actions declared slot-free, work started outside ./le and other checkouts appear only in the machine readings
+the slots count only jobs admitted through this checkout's registry (tmp/.ze-jobs): commands run under the raw-admission escape (ZE_ADMIT_RAW), light programs le exec carries, the few actions declared slot-free, the post-edit lint, work started outside ./le and other checkouts appear only in the machine readings
 ```
 
 | Part | What it says |
@@ -2372,7 +2372,7 @@ the slots count only jobs admitted through this checkout's registry (tmp/.ze-job
 | `holders` | One row per entry whose process is running: its label, PID, age, the session and the agent that asked for it, the entry file, and its command on the next line. An entry that could not be read is a row marked `unreadable`, and it occupies a slot, as admission counts it |
 | `waiters` | One row per job queued for a slot, with how long it has waited and who asked for it |
 | `machine` | The core count, the 1, 5 and 15 minute load averages with the 1 minute load per core, available and total memory, the free space on the volumes that hold `tmp/` and the Go build cache (one line when they are one volume), and the number of `le test` and Go test processes running on the whole machine |
-| The last line | What the slots leave out: commands run under the raw-admission escape, `./le exec` and the few actions declared slot-free, work started outside `./le`, and other checkouts |
+| The last line | What the slots leave out: commands run under the raw-admission escape, the light programs `./le exec` carries, the few actions declared slot-free, the main thread's post-edit lint, work started outside `./le`, and other checkouts |
 
 An entry or a waiter record whose process has ended is in no row and no
 count, because it holds nothing. A reading that failed prints `unavailable`
@@ -2388,17 +2388,51 @@ memory and disk in bytes, and `| yaml` and `| table` render that document.
 The slots count only the jobs admitted through this checkout's registry. The
 dispatcher takes one slot for every heavy `./le` action before its body runs,
 so a Docker interop lab holds one slot for its whole run, as a QEMU guest
-does. Four kinds of work take no slot here: a command run under the
-raw-admission escape (`ZE_ADMIT_RAW`), `./le exec` and the few actions
-declared slot-free, work started outside `./le`, and a job in another
-checkout. `./le exec` takes none because it replaces its own process with the
-program it carries, so nothing remains to release a slot. Free slots therefore
-do not mean a free machine. Such work shows only in the machine readings: the
-load, the memory and the process counts.
+does. Five kinds of work take no slot here: a command run under the
+raw-admission escape (`ZE_ADMIT_RAW`), a light program `./le exec` carries
+and the few actions declared slot-free, the main thread's post-edit lint,
+work started outside `./le`, and a job in another checkout. The post-edit
+lint is the hook's own check of the Go file just written, bounded by its 60
+second budget and serialized by golangci-lint's machine-wide lock. It resolves
+the real `golangci-lint` the way `./le exec` does, shims skipped, with the
+same caches and GOROOT, and runs it directly, so it never waits for a slot on
+an edit and is never a row of the report. Free slots therefore do not
+mean a free machine. Such work shows only in the machine readings: the load,
+the memory and the process counts.
 <!-- source: internal/le/job/central.go -- admitCentral -->
 <!-- source: internal/le/job/overview.go -- slotsNotice -->
-<!-- source: internal/le/exec/register.go -- noSlotReason -->
+<!-- source: internal/le/hookruntime/postwrite.go -- postLinter -->
+<!-- source: internal/le/exec/exec.go -- Program -->
 <!-- source: internal/le/le/root/heavy.go -- RegisterNoSlot, SlotOfLine -->
+
+`./le exec` takes a slot by the program it carries, judged by the definition
+the Bash hook applies to a raw command (the Go toolchain's executing verbs,
+the linters, the formatters), read the way the hook reads one: through the
+assignments and launchers in front of the program (`env`, `nice -n 5`,
+`timeout 600`) and the toolchain's `-C dir` in front of its verb, so
+`./le exec env go test ./x/` and `./le exec go -C d test ./...` are heavy on
+both sides. A line handed to a shell with `-c` is read by the hook, which
+parses it, when the shell stands on the line itself. `./le exec` holds no
+shell parser, so a shell it carries with `-c` (`./le exec bash -c '<line>'`)
+is heavy whatever the line runs: it takes a slot as `exec-bash`, a carried
+`./le` inside runs in that slot, and the hook hands it back to a subagent,
+`./le exec sh -c 'echo hi'` included. A light program (`gopls`, `go version`,
+`golangci-lint config verify`) replaces the `le` process as it always did, and
+reads no registry. A heavy tool (`go test`, `golangci-lint run`, `staticcheck`,
+and so a `golangci-lint` or `staticcheck` shim) waits for a slot as a heavy
+action does, holds it as `exec-` and the tool's name (`exec-go-test`), and
+runs as `le`'s child, because a process that replaced itself could not release
+the slot. The child keeps `le`'s terminal, SIGINT and SIGTERM sent to `le`
+reach it, and `le` exits with its code. Inside a parent's slot (`./le go lint
+run` starting the linter, a verify stage) and outside a checkout, a heavy tool
+replaces the process too, and holds nothing. A carried `./le` line is admitted
+by that `le`. A subagent's `./le exec <program>` is judged by the same
+program: `./le exec go version` runs, `./le exec go test ./x/` is handed back.
+<!-- source: internal/le/job/tool.go -- HoldTool -->
+<!-- source: internal/le/exec/exec.go -- holdHeavy -->
+<!-- source: internal/le/exec/register.go -- carriesHeavy -->
+<!-- source: internal/le/heavytool/program.go -- Started, StartedUnread, Split, ShellCommand -->
+<!-- source: internal/le/le/root/heavy.go -- RegisterCarrierJudge -->
 
 The main thread reads the report before it starts a heavy job. The report
 states readings and no verdict, and admission still queues whatever is
@@ -2434,12 +2468,12 @@ or attach; the child's exit status is preserved, so the command inside remains t
 command being judged. The child runs inside that job's slot: its environment names
 the job's entry as `ZE_RUN_JOB`, with every other spelling of `ze.run.job` the
 caller carried removed, because `env.Get` prefers a dotted spelling and a child
-that read an older parent would queue behind its own (`childEnviron`). A cheap subcommand of a heavy tool needs no admission:
+that read an older parent would queue behind its own (`ChildEnviron`). A cheap subcommand of a heavy tool needs no admission:
 `golangci-lint config verify` runs no analysis. A one-off that must not queue
 states its reason in the command, as `ZE_ADMIT_RAW="<reason>"`. An empty reason
 admits nothing, and the reason that is there lands in the transcript, which is
 what makes the escape auditable by reading the session.
-<!-- source: internal/le/job/job.go -- Admission.childEnviron -->
+<!-- source: internal/le/job/job.go -- Admission.ChildEnviron -->
 
 ## The Bash guard matches your command text
 

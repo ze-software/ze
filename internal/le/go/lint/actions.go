@@ -146,6 +146,13 @@ func runHere(arguments leaction.Arguments) (any, int) {
 	if ticket.Kind == job.KindAttached {
 		return Report{Code: ticket.Code, FailingPaths: shared.paths()}, ticket.Code
 	}
+	if ticket.Kind == job.KindClaimed {
+		// Each pass's environment was taken when the plan was made, before
+		// this claim, so it names the slot now: the linter its shim starts
+		// through `le exec` then runs inside this slot (job.HoldTool) and
+		// does not wait for a second one behind it.
+		plan.nameParent(func(environ []string) []string { return admission.ChildEnviron(environ, ticket) })
+	}
 
 	// The slot's log is opened before the run and closed after it, because
 	// Release removes the file: a writer still holding it would keep the bytes
@@ -167,6 +174,16 @@ func runHere(arguments leaction.Arguments) (any, int) {
 	payload, code := runner.runPlan(plan, nil)
 	ticket.Release(code)
 	return payload, code
+}
+
+// nameParent replaces the environment of every pass of plan with the one
+// named answers for it: the same environment with the claimed slot named as
+// the parent of the pass's linter (job.Admission.ChildEnviron). A skipped
+// pass starts nothing, and naming its environment too costs nothing.
+func (plan *LintPlan) nameParent(named func(environ []string) []string) {
+	for index := range plan.Passes {
+		plan.Passes[index].Environment = named(plan.Passes[index].Environment)
+	}
 }
 
 // jobArgv is what the registry fingerprints as this job's work. A full run and

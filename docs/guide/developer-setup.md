@@ -153,6 +153,18 @@ folder (`~/Library/Caches` on macOS). It sets four variables, creates their
 directories, and then replaces itself with the program, so the program's exit
 status is the caller's and every argument after the path reaches it untouched.
 
+A heavy tool that needs a job slot is the exception: `go test`, `golangci-lint
+run`, `staticcheck` and the formatters, judged as the Bash hook judges a raw
+command. In a checkout, `le exec` waits for a slot, then runs the tool as its
+child on the same terminal, forwards SIGINT and SIGTERM to it, releases the
+slot and exits with the tool's code. Inside a parent's slot (`./le go lint run`
+starting the linter) or outside a checkout it holds nothing and replaces
+itself, as for any other program. The main thread's post-edit lint goes past
+the shim on purpose and takes no slot
+(`docs/contributing/running-commands.md`, "Waiting for another session's job").
+<!-- source: internal/le/job/tool.go -- HoldTool -->
+<!-- source: internal/le/exec/exec.go -- holdHeavy, Program -->
+
 | Variable | Directory under the per-user cache |
 |----------|------------------------------------|
 | `GOCACHE` | `go-cache` |
