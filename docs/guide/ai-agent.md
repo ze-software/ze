@@ -10,6 +10,14 @@ whether the daemon answers, and where the configuration is.
 
 Ze is pre-release software. Give the agent a lab, not a live network.
 
+## Before you start
+
+`ze` must be installed on the machine the agent runs on, and on the path the
+agent sees: the skill and the hook both run `ze`. To build and install it, see
+[Quick Start](quickstart.md#build). Check with `ze version`.
+<!-- source: internal/plugins/skills/agent_skill.go -- stubText -->
+<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand -->
+
 ## Set the agent up
 
 Run the command as the user who runs the agent, on the machine the agent runs
@@ -42,6 +50,28 @@ the shared skill and says so. The command exits 1 when a row is refused, and
 the row names the fix.
 <!-- source: internal/plugins/skills/agent_skill.go -- harnesses, placeOf, localRun.note, exitCode -->
 
+## Trust the hook in Codex
+
+Codex does not run a new or changed hook until you trust it. Open Codex, run
+`/hooks`, and trust the hook that runs `ze show agent context`. Do this again
+when a later `ze create agent skill` updates the hook. Ze never writes Codex's
+trust store, so `ze show agent skill` can say the hook is installed, but it can
+not say whether Codex trusts it.
+<!-- source: internal/plugins/skills/agent_hook.go -- hookEditor.create, inspectHook -->
+
+## What to ask the agent first
+
+Ask it to use the ze skill, for example "use the ze skill and check my
+configuration". The agent reads the guide itself: the skill sends it to
+`ze show skill ze`, the guide built into your `ze`, which names the entry
+points (configuration validation, diagnostic codes, repair plans and the
+command reference from `ze help ai --json`). `ze show skills` lists the other
+guides the binary carries, and the agent loads the one its task needs with
+`ze show skill <name>`. The guides come from the binary, so they change when
+you upgrade it.
+<!-- source: internal/plugins/skills/data/ze.md -- Agent Entry Points -->
+<!-- source: internal/plugins/skills/main.go -- inventory, showSkills, showSkill -->
+
 ## What changed on your machine
 
 | File | What Ze put there |
@@ -52,19 +82,13 @@ the row names the fix.
 | `~/.codex/hooks.json` | The same session-start hook, for Codex |
 <!-- source: internal/plugins/skills/agent_skill.go -- harnesses, harness.stubPath, harness.hookPath -->
 
-When `CLAUDE_CONFIG_DIR` or `CODEX_HOME` is set, the Claude Code or Codex files
-are under that directory. Ze adds its hook at the end of the session-start
-list and keeps every other byte of the file, the hooks other tools wrote
-included. It refuses a file it does not fully understand, leaves it as it is,
-and says what it found. OpenCode and Pi get the skill only, because Ze knows no
-session-start hook format for them.
-<!-- source: internal/plugins/skills/agent_hook.go -- createHook, readLayout, settingsLayout.withGroup -->
-
-The skill is short. It tells the agent to run `ze show skill ze` and follow
-the guide it prints, and to run `ze help` if that command fails. Its first line
-after the frontmatter is Ze's marker, which is how Ze knows the file is its
-own.
-<!-- source: internal/plugins/skills/agent_skill.go -- stubText, stubMarker -->
+When `CLAUDE_CONFIG_DIR` is set, both Claude Code files are under that
+directory. When `CODEX_HOME` is set, only Codex's `hooks.json` moves there: the
+skill Codex reads stays at `~/.agents/skills/ze/SKILL.md`. Ze adds its hook to
+the settings file and leaves the rest of the file as it was. OpenCode and Pi
+get the skill only, because Ze knows no session-start hook format for them.
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, placeOf -->
+<!-- source: internal/plugins/skills/agent_hook.go -- createHook -->
 
 At each session start, the hook adds a few lines like these to the agent's
 context:
@@ -82,49 +106,32 @@ session starts as usual.
 <!-- source: internal/plugins/skills/agent_context.go -- dialBound, showAgentContextLocal, drawAgentContext -->
 <!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, hookTimeoutSeconds -->
 
-## Trust the hook in Codex
-
-Codex does not run a new or changed hook until you trust it. Open Codex, run
-`/hooks`, and trust the hook that runs `ze show agent context`. Do this again
-when a later `ze create agent skill` updates the hook. Ze never writes Codex's
-trust store, so `ze show agent skill` can say the hook is installed, but it can
-not say whether Codex trusts it.
-<!-- source: internal/plugins/skills/agent_hook.go -- hookEditor.create, inspectHook -->
-
-## Check and remove
+## Check the setup
 
 ```
 ze show agent skill
-ze delete agent skill
 ```
 
-`ze show agent skill` reports, for each harness Ze knows, whether Ze found it
-and the state of its skill and hook. It changes nothing. Run
-`ze create agent skill` again after you upgrade Ze: it rewrites what an older
-version wrote and leaves a current setup as it is.
+It reports, for each harness Ze knows, whether Ze found it and the state of its
+skill and hook. It changes nothing. Run `ze create agent skill` again after you
+upgrade Ze: it rewrites what an older version wrote and leaves a current setup
+as it is.
 <!-- source: internal/plugins/skills/agent_stub.go -- createStub, inspectStub -->
 <!-- source: internal/plugins/skills/agent_hook.go -- inspectHook -->
 
-`ze delete agent skill` removes only what Ze wrote. A `SKILL.md` without Ze's
-marker and every hook Ze did not add stay as they are. Without `agent` it acts
-on every harness Ze finds, as `agent all` does, and `agent <name>` limits it to
-one harness. When you name one harness, the shared skill
-under `~/.agents` stays while another harness on the machine still reads it.
+## Remove the setup
+
+```
+ze delete agent skill
+```
+
+It removes only what Ze wrote: a skill file Ze did not write and every hook Ze
+did not add stay as they are. Without `agent` it acts on every harness Ze
+finds, and `agent <name>` limits it to one. When you name one harness, the
+shared skill under `~/.agents` stays while another harness on the machine
+still reads it.
 <!-- source: internal/plugins/skills/agent_stub.go -- removeStub, keptSharedStub -->
 <!-- source: internal/plugins/skills/agent_hook.go -- deleteHook -->
-
-## What to ask the agent first
-
-Ask it to use the ze skill, for example "use the ze skill and check my
-configuration". The agent reads the guide itself: the skill sends it to
-`ze show skill ze`, the guide built into your `ze`, which names the entry
-points (configuration validation, diagnostic codes, repair plans and the
-command reference from `ze help ai --json`). `ze show skills` lists the other
-guides the binary carries, and the agent loads the one its task needs with
-`ze show skill <name>`. The guides come from the binary, so they change when
-you upgrade it.
-<!-- source: internal/plugins/skills/data/ze.md -- Agent Entry Points -->
-<!-- source: internal/plugins/skills/main.go -- inventory, showSkills, showSkill -->
 
 ## An agent that reaches a remote router
 
