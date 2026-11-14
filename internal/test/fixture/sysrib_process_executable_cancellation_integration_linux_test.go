@@ -60,6 +60,8 @@ func TestSysribExecutablePrivilegedCancellationJoinsRootChild(t *testing.T) {
 	done := make(chan commandResult, 1)
 	joined := false
 	pidfd := -1
+	// ownedGroup is the process group this test proved it owns, zero until then.
+	ownedGroup := 0
 	t.Cleanup(func() {
 		cancel()
 		if pidfd >= 0 {
@@ -76,6 +78,17 @@ func TestSysribExecutablePrivilegedCancellationJoinsRootChild(t *testing.T) {
 			}
 		}
 		if !joined {
+			if ownedGroup > 0 {
+				// sudo suspends itself when its command stops, so killing the
+				// root child alone leaves a stopped sudo that never exits and
+				// the reaper below never returns. The group's leader is this
+				// test's own unreaped descendant, so its number cannot be reused.
+				if err := unix.Kill(-ownedGroup, unix.SIGKILL); err != nil {
+					if !errors.Is(err, unix.ESRCH) {
+						t.Errorf("reclaim owned process group %d: %v", ownedGroup, err)
+					}
+				}
+			}
 			// Failure cannot leave the request goroutine owning the process.
 			// The controlled stopped child is killable through the pinned fd;
 			// after reclaiming it, the actual sole reaper MUST finish its join.
@@ -167,6 +180,7 @@ func TestSysribExecutablePrivilegedCancellationJoinsRootChild(t *testing.T) {
 	if root.Group != front {
 		t.Fatalf("sudo detached root PID %d into group %d, owned front PID is %d", root.PID, root.Group, front)
 	}
+	ownedGroup = root.Group
 	group, err := unix.Getpgid(root.PID)
 	if err != nil {
 		t.Fatal(err)
