@@ -2108,8 +2108,9 @@ A scenario may carry a `ze-sysctls` file: whitespace-separated `key=value`
 assignments, each passed as `--sysctl` to Ze's container, so the runtime writes it
 into the container's own network namespace before ze starts. Docker mounts
 `/proc/sys` read-only, so a value ze would otherwise write itself is refused
-there. `ospf-sr-anycast-nexthop-frr` uses it for `net.mpls.platform_labels`,
-which fib-kernel needs non-zero before it can install a label route. Only `net.*`
+there. `ospf-sr-anycast-nexthop-frr` and `ospf-sr-frr` use it for
+`net.mpls.platform_labels`, which fib-kernel needs non-zero before it can
+install a label route. Only `net.*`
 keys are accepted; any other key, a token without `=` or an empty value refuses
 the scenario before a container starts.
 <!-- source: internal/le/interoplab/bgp/prepare_ze_sysctls.go -- zeSysctlArguments -->
@@ -4420,11 +4421,16 @@ no neighbour to acknowledge the flush, Ze keeps its own copy at MaxAge,
 external` before FRR comes back. In the database exchange that follows, FRR
 hands Ze its newer instance. Ze must flush it at MaxAge with FRR's own
 sequence number, so the LSA must leave FRR's database and the default must
-leave `show ip route ospf`. A Ze that re-originates the withdrawn body at age 0
+leave `show ip route ospf json`, whose answer is `{}` once FRR's OSPF table is
+empty. The text form prints nothing then, and the lab never reads an empty
+answer as an absence. A Ze that re-originates the withdrawn body at age 0
 leaves both in place, and the absences time out. `opStop` returns only once
 Docker reports the container stopped, so the start that follows cannot race a
-container that is still shutting down.
-<!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations -->
+container that is still shutting down. Results on 2026-11-14 (arm64, QEMU
+docker-lab guest, FRR 10.7.1): with the `if local.Age.IsMaxAge()` branch removed
+from `(*LSDB).handleSelfReceived`, FAIL at assertion 21, the withdrawn LSA never
+leaving FRR's database; the real build passes (2m24s).
+<!-- source: internal/le/interoplab/bgp/check_ospf_self_flush.go -- ospfSelfLSAFlushOperations, ospfSelfFlushFRRRoutes -->
 <!-- source: internal/le/interoplab/bgp/check_engine.go -- opStop -->
 
 `ospf-gr-frr` and `ospf-gr-helper-broadcast-frr` prepare FRR 10.7.1 with
@@ -4453,7 +4459,12 @@ iproute2 command `ip -f mpls route show 16100`, not the absent `mpls -ls`
 utility. The destination filter selects label 16100; the existing content
 assertion still requires that label, so an empty successful query fails.
 Their 60-second label deadlines and adjacency assertions are unchanged.
+In `ospf-sr-frr`, FRR's Prefix-SID prefix 10.255.255.3/32 sits on FRR's
+loopback: FRR's `sr_prefix_sid` looks the prefix up on an interface and, when
+none holds it, defers the Prefix-SID without an error, so no label 16100 would
+reach Ze.
 <!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioExtras -->
+<!-- source: test/interop/scenarios/ospf-sr-frr/frr.conf -- interface lo, segment-routing prefix -->
 
 `ospf-sr-anycast-nexthop-frr` proves RFC 8665 Section 5's rule that a router
 "MUST take into account ... the E-, NP-, and M-Flags advertised by the next-hop
@@ -4468,12 +4479,44 @@ hop, and `frr-sink` (192.0.2.1) at cost 50. Ze reads Extended Prefix LSAs in
 LSDB key order, and both FRRs use the same Opaque ID, so 192.0.2.1 becomes the
 Originator and the next hop is the second advertiser. The checker first requires
 that order from Ze's `show ospf database opaque-area` (a lab where the next hop
-became the Originator passes either way, so it fails instead), then reads
-`ip -f mpls route show` in Ze's container: in-label 16100 MUST be popped toward
-the next hop. A Ze applying the flags only when the next hop is the Originator
-swaps 16100 to 17100, the next hop's SRGB base plus the index.
-<!-- source: internal/le/interoplab/bgp/check_ospf_sr_anycast.go -- checkOSPFSRAnycastNextHop, ospfSRAnycastOriginatorVerdict, ospfSRAnycastPopVerdict -->
+became the Originator passes either way, so it fails instead). It then reads
+`ip -f mpls route show` in Ze's container until in-label 16100 is popped toward
+the next hop, holds that pop for 15 seconds (three times OSPF's 5-second SPF
+hold ceiling), failing on the first read that is not the pop, and re-reads the
+LSDB order at the end. A single read cannot discriminate: the first pop can be
+the route Ze installed before the second advertiser's LSA reached its SR table,
+when the next hop was the binding's only advertiser, and a Ze applying only the
+Originator's flags pops then too. Such a Ze later swaps 16100 to 17100, the next
+hop's SRGB base plus the index. Results on 2026-11-14 (arm64, QEMU docker-lab
+guest, FRR 10.7.1): with the body of `(*srInstaller).forwarding` restored to its
+form before 19de202493, FAIL at assertion 3, "the pop held for 5.046s, then
+sample 5 found in-label 16100 is swapped, not popped: 16100 as to 17100"; the
+real build passes (1m49s).
+<!-- source: internal/le/interoplab/bgp/check_ospf_sr_anycast.go -- checkOSPFSRAnycastNextHop, ospfSRAnycastOriginatorVerdict, ospfSRAnycastPopVerdict, assertOSPFSRAnycastPop, holdOSPFSRAnycastPop -->
 <!-- source: test/interop/scenarios/ospf-sr-anycast-nexthop-frr/ -- configurations -->
+
+`ospf-ext-prefix-link-frr` is the Extended Prefix/Link scenario: it proves both
+directions of the RFC 7684 exchange. FRR enables `capability opaque` and
+`segment-routing on` inside `router ospf` and holds its Prefix-SID prefix on a
+loopback, so it originates Extended Prefix and Extended Link LSAs. Without the
+loopback FRR defers the Prefix-SID and originates no Extended Prefix LSA. Ze
+originates both types too, so a substring match on Ze's `show ospf database
+opaque-area` passes on Ze's own LSAs alone. The checker decodes that answer and
+binds each decoded row to its `advertising-router`: it requires an Extended
+Prefix row and an Extended Link row from FRR's router-id, and one of each from
+Ze's. On FRR's side it reads `show ip ospf database opaque-area json` and
+requires, under `areaLocalOpaqueLsa.areas`, an LSA whose Link State ID has
+opaque type 7 and one with opaque type 8, each with `advertisingRouter` equal
+to Ze's router id. A match on Ze's address alone is not enough, because FRR's
+own Extended Link LSA names Ze as its Link ID. The Ze read waits rather than
+reading once at Full, because FRR schedules each opaque type `min_ls_interval`
+after the previous once an opaque-capable neighbor appears
+(`ospf_opaque_lsa_originate_schedule`). Results on 2026-11-14 (arm64, QEMU
+docker-lab guest, FRR 10.7.1): with FRR's Prefix-SID on no loopback, FAIL at
+assertion 2, "no decoded Extended Prefix LSA advertised by 172.30.0.3"; with
+the fixture corrected, pass (1m13s).
+<!-- source: internal/le/interoplab/bgp/check_ospf_ext_prefix_link.go -- checkOSPFExtPrefixLink, waitOSPFExtFromFRR, ospfExtPrefixLinkVerdict, waitOSPFExtAtFRR, frrOSPFExtFromZeVerdict -->
+<!-- source: test/interop/scenarios/ospf-ext-prefix-link-frr/ -- configurations -->
 
 `bgp-graceful-restart-frr` retains its original session, route, GR and EOR
 checks and adds two strict input speakers with FRR as the independent receiver.
@@ -4639,11 +4682,11 @@ is not packet-forwarding evidence.
 | 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after an `ldplab` nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs `msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)` (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only `connection closed by remote end`. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
 | 53 | ldp-init-unknown-tlv-frr | Ze, FRR ldpd | RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an `ldplab` nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's `send_init` writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs `msg[in]: notification: ... status Unknown TLV`, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with `skipTLV` returning nil for every TLV: FRR logs no received `status Unknown TLV` Notification. Shares the `daemons` and the 172.30.0.250 transport address of `ldp-keepalive-expiry-frr` |
 | 66 | ldp-backoff-clear-frr | Ze, FRR ldpd | A session that reached OPERATIONAL leaves no setup backoff when it ends (RFC 5036 Section 2.5.3, "After such a configuration action, there is no further need to throttle subsequent session establishment attempts"). Once FRR has reported the session OPERATIONAL for 3 s, FRR runs `clear mpls ldp neighbor <ze's transport address>`: ldpd's `nbr_clear_ctl` calls `session_shutdown` with S_SHUTDOWN, so FRR sends a Shutdown Notification and closes the TCP connection while the adjacency stays. FRR holds the passive role and ze dials on each Hello FRR sends (`processDiscoveryPacket`, `startSessionForAdj`), every 1 s by `discovery hello interval 1`. FRR's `show mpls ldp neighbor json` must report ze OPERATIONAL again with an `upTime` no older than the clear (`nbr_to_ctl` restarts it on each entry to OPERATIONAL) within 8 s of the clear: the released backoff lands near 2 s, a recorded one forbids the dial for 15 s. ze's own log, read at info (`environment { log { ldp info } }`), must carry a new fatal Notification and a new session end, the proof that the clear reached ze and that info lines are read, and no new `ldp: session setup failed, next attempt delayed`. Red with the operational arm of `startSessionForAdj`'s session-end callback recording a setup failure (one line changed in the working tree for the run, because the ze image builds from the tree; image `sha256:3c4dee38ac2e` between greens `sha256:a218f6cd97d5` and `sha256:c58b3f2734ff`, 2026-11-13): `ze logged "ldp: session setup failed, next attempt delayed" 1 time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more (the probes ended 15.454s after the clear)`. Shares the `daemons` of `ldp-keepalive-expiry-frr`. The lab adds ze's 172.30.0.250 transport address in ze's prestart (`scenarioHostAddresses`), because ze dials from it on FRR's first Hello: added by the checker, the address could arrive after that dial, and each dial that fails to bind costs a backoff step of 15 s or more |
-| 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
-| 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then `ValidateAttribute` in `pkg/packet/bgp/validate.go` drops each repeat). Red on GoBGP v4.10.0 with the `largeCommunityRedundant` branch of the egress normalizer disabled: GoBGP still printed each value once, and the oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
-| 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
-| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.7.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does |
-| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.7.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is |
+| 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with `attrs[pos] &^= attrFlagsUnusedMask` deleted from `normalizeTransmittedUpdate`, FAIL after 2m41s at assertion 3, the route never reaching GoBGP; the real build passes (1m5s) |
+| 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then `ValidateAttribute` in `pkg/packet/bgp/validate.go` drops each repeat). Its `ze.conf` lists `bgp-filter-community:egress` in the export chain, which Ze requires since a965ee38fb. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with the `AttrLargeCommunity` branch of `normalizeTransmittedUpdate` disabled, FAIL after 3m8s at assertion 6, the oracle reporting "LARGE_COMMUNITY value 0000fde80000000100000001 transmitted twice in one UPDATE" and the same for 65000:2:2, while GoBGP's own view (assertion 4) still passed; the real build passes (1m42s) | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
+| 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with `recognizerFor` returning `nlritype.Keep` where it returned `Withdraw`, FAIL after 3m4s at assertion 4, the wait for the valid route sharing the UPDATE timing out; the real build passes (2m2s) |
+| 43 | bgp-role-rs-client-learned-not-upward-frr | Ze, FRR 10.7.1, raw injector | RFC 9234 Section 3.1: a route learned on a session where Ze is the Route Server never reaches FRR, Ze's Provider; Ze's own control route does. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with `\|\| srcRole == roleRS` removed from `OTCEgressFilter`, FAIL after 1m22s at assertion 4, FRR holding 10.10.0.0/24, which must be absent; the real build passes (48s) |
+| 44 | bgp-rfc7999-blackhole-readvertise-frr | Ze, BIRD, FRR 10.7.1 | RFC 7999 Section 3.1: a BLACKHOLE-tagged route from BIRD is never re-advertised to FRR, an eBGP neighbor with no agreement; the untagged control is. Results on 2026-11-14 (arm64, QEMU docker-lab guest): with `blackholeReadvertiseRefused` returning false, FAIL after 2m2s at assertion 5, FRR holding 10.200.0.1/32, which must be absent; the real build passes (1m34s) |
 | 45 | bgp-sr-policy-gobgp | Ze, GoBGP | RFC 9830: GoBGP's RIB, read through `gobgp-paths` (`Dockerfile.gobgp`, a gRPC ListPath reader, because no gobgp CLI release names an SR Policy family), holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Every policy must also carry the configured Route Target as GoBGP types it, `{"type":1,"subtype":2,"value":"172.30.0.5:0"}` (RFC 9830 Section 1, RFC 4360 Section 4). Red with `parseConfigRoute` writing sub-type 3 (Route Origin) into the community it appends: GoBGP still holds every policy and `String()` still prints `[172.30.0.5:0]`. Removing the append is not a red for this assertion, because the config parser then refuses the configured extended community and Ze never starts. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red |
 | 46 | bgp-sr-policy-malformed-receive-gobgp | Ze, GoBGP, raw injector | RFC 9830 Section 5: after policies A, B and control C reach GoBGP, A beside a 13-octet NLRI and then B without its Tunnel Encapsulation attribute are each treat-as-withdraw, so GoBGP loses A, then B, keeps C, and its session with Ze stays up: Ze's peer detail for GoBGP shows one connection established and none dropped (GoBGP resets a session that carries an SR Policy NLRI whose length is neither 96 nor 192 bits) |
 | 47 | bfd-link-local-frr | Ze, FRR bfdd | RFC 5881 Section 3: a BFD-plugin-pinned single-hop session to FRR's IPv6 link-local on `eth0` reaches Up, each side holding the other's discriminator. Acceptance, not discrimination (see "BFD over link-local") |
