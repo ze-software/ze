@@ -716,22 +716,35 @@ func peerStateUnheldRoles(s *pluginserver.Server, peer *plugin.PeerInfo, fed []*
 // addOpenRemovalObservers closes the lifetime opened by askOpenValidators:
 // every registered validator receives OPENs even without a peer attachment,
 // so its state subscription also receives the peer's removal. No other state
-// or message gains a grant, and subscription peer selectors still apply.
+// or message gains a grant, and subscription peer selectors still apply. A
+// validator with no matching state subscription gains nothing.
+//
+// A validator is a subscribed process whose own registration declares
+// WantsValidateOpen, the test askOpenValidators applies to each process it
+// asks. Reading each subscriber's registration keeps this path off the
+// process manager's lock: a removal captures its recipients under the
+// reactor's write lock (CapturePeerStateChange), and ProcessManager.Respawn
+// holds the manager's lock across the join of a process whose handler can be
+// waiting on that reactor lock, so listing the manager's processes here
+// stalled every reactor user until the join gave up, and recorded a false
+// restart overlap.
 func addOpenRemovalObservers(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*process.Process) []*process.Process {
-	pm := s.ProcessManager()
-	if pm == nil {
+	// No process manager means the plugin phase never ran, so
+	// broadcastStampedValidateOpen asked no validator any OPEN.
+	if s.ProcessManager() == nil {
 		return procs
 	}
-	var names []string
-	for _, proc := range pm.AllProcesses() {
-		if reg := proc.Registration(); reg != nil && reg.WantsValidateOpen {
-			names = append(names, proc.Name())
+	subscribers := s.SubscribedProcs(bgpNS(), events.LookupEventTypeID(bgpevents.EventState),
+		events.DirUnspecified, peer.AddrStr(), peer.Name)
+	extra := subscribers[:0]
+	for _, proc := range subscribers {
+		reg := proc.Registration()
+		if reg == nil {
+			continue
 		}
-	}
-	observers := s.SubscribedProcsNamed(bgpNS(), events.LookupEventTypeID(bgpevents.EventState),
-		events.DirUnspecified, peer.AddrStr(), peer.Name, names)
-	extra := observers[:0]
-	for _, proc := range observers {
+		if !reg.WantsValidateOpen {
+			continue
+		}
 		if !slices.Contains(procs, proc) {
 			extra = append(extra, proc)
 		}

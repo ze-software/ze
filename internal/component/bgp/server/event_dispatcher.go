@@ -93,6 +93,12 @@ func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.Ses
 //
 // The copied peer and recipient slices allocate only on the cold removal path,
 // not on UPDATE delivery. No process name or grant is looked up when it runs.
+//
+// Because the caller holds the reactor's lock, the capture takes only leaf
+// locks (the subscription manager's and the claims') and never the process
+// manager's: ProcessManager.Respawn holds that one across the join of a
+// process whose handler may be waiting on the reactor's lock
+// (addOpenRemovalObservers).
 func (d *EventDispatcher) CapturePeerStateChange(peer *plugin.PeerInfo, state rpc.SessionState, reason string) func() {
 	if d.server.ProcessManager() == nil {
 		return nil

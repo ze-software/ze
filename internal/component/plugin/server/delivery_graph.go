@@ -402,10 +402,9 @@ func (s *Server) PeerScopedProcs(ns events.NamespaceID, et events.EventTypeID, d
 // SubscribedProcsNamed returns the processes among names that subscribed to one
 // peer-scoped event, with no delivery-graph filter.
 //
-// It serves lifecycle deliveries the graph cannot answer: telling a process
-// that a peer stopped feeding it, and closing an OPEN validator's observation
-// lifetime when that peer is removed. The caller names the owning processes;
-// every other delivery still requires the operator's graph grant.
+// It serves lifecycle deliveries the graph cannot answer, such as telling a
+// process that a peer stopped feeding it. The caller names the owning
+// processes; every other delivery still requires the operator's graph grant.
 func (s *Server) SubscribedProcsNamed(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string, names []string) []*process.Process {
 	if s.subscriptions == nil {
 		return nil
@@ -418,4 +417,24 @@ func (s *Server) SubscribedProcsNamed(ns events.NamespaceID, et events.EventType
 		}
 	}
 	return kept
+}
+
+// SubscribedProcs returns every process that subscribed to one peer-scoped
+// event, with no delivery-graph filter, in a slice the caller owns.
+//
+// It serves a lifecycle delivery whose recipients the caller selects by what
+// each process declared rather than by name: closing an OPEN validator's
+// observation lifetime when its peer is removed. Every other delivery still
+// requires the operator's graph grant (PeerScopedProcs).
+//
+// It takes only the subscription manager's lock, which nothing holds across
+// another lock, so a caller that holds an engine lock (the BGP reactor's, for
+// a peer removal) may call it. It MUST stay free of the process manager's
+// lock: ProcessManager.Respawn holds that lock across the join of a process
+// whose handler can be waiting on the engine lock the caller holds.
+func (s *Server) SubscribedProcs(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*process.Process {
+	if s.subscriptions == nil {
+		return nil
+	}
+	return s.subscriptions.getMatching(ns, et, dir, peerAddr, peerName)
 }
