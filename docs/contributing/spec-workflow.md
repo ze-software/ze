@@ -591,7 +591,13 @@ Source-kind and test-only exemptions use that resolved identity, not the
 reference's spelling. A test-named or unsupported-extension link to production
 still owes its target's current read. Genuine canonical test/non-source
 subjects remain exempt; a lookup or confinement failure establishes no
-exemption.
+exemption, with one exception: a name whose confinement check fails and that
+resolves to a directory outside the checkout is no producer
+(`resolvesToDirectory`), so evidence prose naming `cache/go-cache` refuses no
+edit. A directory inside the checkout passes the confinement check and is then
+skipped as no source kind, unless its name carries a source extension (a
+directory named `x.go` refuses as not a regular file). A file or a missing
+path outside still refuses.
 
 The native Read PostToolUse result supplies the observed text and its returned
 line range. The existing per-context marker records that range's digest,
@@ -607,7 +613,7 @@ matched, and location-only LSP results grant no source freshness. Read the
 producer through a native Read that returns its source text and bounds.
 Subjectless drafts still owe one usable current source read. The backstop does
 not prove understanding or population completeness.
-<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, deletedInHistory, rootAnchored, trackedSuffixMatches, currentSourceReads, designEvidenceProblem -->
+<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, deletedInHistory, rootAnchored, trackedSuffixMatches, resolvesToDirectory, currentSourceReads, designEvidenceProblem -->
 
 The design admission judgment runs in the harness model through `/ze-spec`
 DESIGN, `/ze-design` and `/ze-review-spec`. It requires positive observable
@@ -816,10 +822,15 @@ These classifications use canonical checkout-relative identities, resolving
 symlinks through the nearest existing ancestor even for planned files. A raw
 tooling or test prefix cannot exempt a runtime target or turn an aliased
 non-test file into functional proof. An unresolvable or outside identity refuses.
+Every name is judged from the checkout root, so package-relative shorthand such
+as `bgp/run.go` is read as a root path and owes proof. The refusal names each
+path it judged as daemon code, as the spec wrote it, and gives both fixes: the
+functional test reference, or the full path of a file outside the daemon
+(`daemonProofRefusal`).
 `daemonProofProblem` is shared by the proposed-content pre-write check and
 post-write validation for Write, Edit and MultiEdit. A named test is a proof
 plan, not evidence that the entry point was exercised.
-<!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem, daemonProofExempt -->
+<!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem, daemonProofExempt, daemonProofRefusal -->
 <!-- source: internal/le/arch/tier/gates.go -- DisableableNonProdPrefixes -->
 <!-- source: internal/le/hookruntime/readgate.go -- checkoutRelative, resolveEvidencePath -->
 

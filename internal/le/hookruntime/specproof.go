@@ -29,7 +29,7 @@ func daemonProofProblem(root, text string) string {
 		return ""
 	}
 	changed := markdownSection(text, "## Files to Modify") + "\n" + markdownSection(text, "## Files to Create")
-	daemon := false
+	var daemon []string
 	for _, named := range specRepoPaths(root, changed) {
 		path, err := checkoutRelative(context{root: root, path: named})
 		if err != nil {
@@ -43,9 +43,9 @@ func daemonProofProblem(root, text string) string {
 		}
 		// Unknown source roots, including planned new files, owe proof.
 		// Inspect every named path before granting any exemption or proof.
-		daemon = true
+		daemon = append(daemon, named)
 	}
-	if !daemon {
+	if len(daemon) == 0 {
 		return ""
 	}
 	functional := false
@@ -69,7 +69,21 @@ func daemonProofProblem(root, text string) string {
 	if functional {
 		return ""
 	}
-	return "Daemon-path changes must reference a functional test file under test/ (.ci, .et or .wb); add the real entry-point proof to the test plan. A helper-only unit test does not prove the daemon path"
+	return daemonProofRefusal(daemon)
+}
+
+// daemonProofRefusal names each changed path the proof gate judged as daemon
+// code, as the spec wrote it, so the author sees which name drew the refusal.
+// A name is judged from the checkout root and never resolved as shorthand, so
+// the message gives both ways out: the functional test the daemon change owes,
+// or the full path of a file that is not daemon code.
+func daemonProofRefusal(daemon []string) string {
+	return "Daemon-path changes must reference a functional test file under test/ (.ci, .et or .wb). " +
+		"Judged as daemon code, from the checkout root: " + strings.Join(daemon, ", ") + ". " +
+		"Why: a helper-only unit test does not prove the daemon path. " +
+		"Fix: add the real entry-point proof (a test/ .ci, .et or .wb file) to the test plan; " +
+		"or, where a name is shorthand for a file outside the daemon (bgp/run.go for internal/le/interoplab/bgp/run.go), " +
+		"write that file's full path from the repository root"
 }
 
 // functionalTestFormat selects native proof kinds, without granting that a raw

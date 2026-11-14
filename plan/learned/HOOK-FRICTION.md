@@ -58,6 +58,7 @@ native owner of each hook family is listed in `.claude/hooks/README.md`.
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Retired 2026-08-28 | [F5](#retired-f5-c_throwaway_tests-blocks-legitimate-test-filenames-under-the-retired-scriptsdev-current-internalle) |
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Retired 2026-08-28 | [F9](#retired-f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
+| design-source gate locks a spec over `cache/go-cache`; daemon-proof refusal names no path | 1 (2026-11-14) | Fixed at the source 2026-11-14 | [entry](#a-cache-directory-locked-a-spec-and-the-proof-refusal-named-no-path-2026-11-14) |
 | `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11; live probe passed the same day, retired | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
 
 ### Renamed checks
@@ -2084,3 +2085,45 @@ HEAD and followed through moves, never taken from the working tree, which
 holds the author's own unfinished text. A baseline that follows moves is
 bounded to what the edit can reach, or one stray deletion anywhere becomes a
 lock everywhere.
+
+## A cache directory locked a spec, and the proof refusal named no path (2026-11-14)
+
+**What happened.** Every edit of
+`plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` was
+refused, so three citations of a closed and deleted spec could not be
+repointed. The smallest edit (one path in the metadata table) drew, verbatim:
+`cannot establish design source subjects: cache/go-cache: resolve producer:
+cache/go-cache resolves outside this checkout`, and `Daemon-path changes must
+reference a functional test file under test/ (.ci, .et or .wb)`.
+
+**Why.** `designSubjects` (`internal/le/hookruntime/designevidence.go`)
+resolved every path token in Current Behavior before asking whether it was a
+source file. `cache` is a symlink to `~/.cache/ze/`, so the evidence prose
+"an empty `cache/go-cache`" failed confinement and the current text refused
+before any edit could be judged. `daemonProofProblem`
+(`internal/le/hookruntime/specproof.go`) read the package-relative names
+`bgp/run.go` and `ipsec/ipsec.go`, which the Documentation Update Checklist
+under Files to Create uses for `internal/le/interoplab/...`, as root paths:
+not under `internal/le/`, so runtime code owing a `.ci`. That reading is
+correct: the spec does not say which file it means. The refusal was the
+defect, because it named neither the path it judged nor the way out.
+
+**Fix.** A name whose confinement check fails is skipped when it resolves to a
+directory outside the checkout (`resolvesToDirectory`); a file or a missing
+path outside still refuses. The proof gate refuses exactly as before, and its
+message (`daemonProofRefusal`) now names each path it judged as daemon code, as
+the spec wrote it, and gives both fixes: the functional test reference, or the
+file's full path from the repository root. The spec was repaired by writing
+full paths. Tests: `TestDesignEvidenceSkipsDirectoryOutsideCheckout`,
+`TestDaemonProofRefusalNamesEachJudgedPath`.
+
+**Abandoned approach.** Resolving shorthand over tracked files in the proof
+gate, as the design gate does, was reviewed out: the index alone cannot tell a
+planned untracked `internal/component/bgp/run.go` from the tracked
+`internal/le/interoplab/bgp/run.go`, so a name collision would excuse daemon
+code that owed proof.
+
+**General lesson.** A gate classifies what a name is before it demands that the
+name be confined, because confinement is a property of producers, not of
+prose. Where a name is ambiguous, the gate refuses and its message says which
+name and how to disambiguate, rather than guessing.

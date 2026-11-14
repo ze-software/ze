@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -139,7 +140,14 @@ func designSubjects(ctx context, repository *os.Root, current, proposed string) 
 				subject.path = named
 				path, err := checkoutRelative(subject)
 				if err != nil {
-					return nil, fmt.Errorf("%s: resolve producer: %w", named, err)
+					directory, statErr := resolvesToDirectory(subject)
+					if statErr != nil {
+						return nil, fmt.Errorf("%s: resolve producer: %w", named, errors.Join(err, statErr))
+					}
+					if !directory {
+						return nil, fmt.Errorf("%s: resolve producer: %w", named, err)
+					}
+					continue
 				}
 				if !sourceKind(path) || strings.HasSuffix(path, "_test.go") {
 					continue
@@ -196,6 +204,20 @@ func designSubjects(ctx context, repository *os.Root, current, proposed string) 
 		}
 	}
 	return subjects, nil
+}
+
+// resolvesToDirectory answers whether the path a spec names, with symlinks
+// followed, is a directory. A directory is no source file wherever it resolves,
+// so it names no producer: `cache/go-cache`, which reaches the user's cache
+// through the checkout's `cache` symlink, is evidence prose, not a subject. Only
+// a caller whose confinement check refused asks, so a file or a missing path
+// outside the checkout keeps that refusal.
+func resolvesToDirectory(ctx context) (bool, error) {
+	info, err := os.Stat(absolutePath(ctx))
+	if err != nil {
+		return false, err
+	}
+	return info.IsDir(), nil
 }
 
 // deletedInHistory answers whether the last commit that touched path deleted

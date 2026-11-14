@@ -496,11 +496,27 @@ var (
 	// from the reviewed logic in message text and comments only. No other
 	// session held an uncommitted edit in these packages, so the value is the
 	// digest of the working tree and of the commit alike.
+	//
+	// Re-sealed 2026-11-14: the design-evidence gate (designevidence.go
+	// designSubjects) skips a name whose confinement check fails when it
+	// resolves to a directory (resolvesToDirectory), so evidence prose naming
+	// `cache/go-cache`, a symlink out of the checkout, no longer refuses every
+	// edit. A file outside, a missing path outside and a failed stat refuse as
+	// before. The daemon-path proof (specproof.go daemonProofProblem) judges
+	// the same population and reaches the same verdicts: only its refusal text
+	// changed (daemonProofRefusal), which names each path judged as daemon
+	// code, as the spec wrote it, and both fixes. Pinned by
+	// TestDesignEvidenceSkipsDirectoryOutsideCheckout and
+	// TestDaemonProofRefusalNamesEachJudgedPath in
+	// hookruntime/specproof_resolution_test.go. No fixture row changed: the
+	// two validate-spec rows still match the refusal. Sealed after two
+	// independent reviews; the first removed a shorthand resolution that
+	// would have excused planned daemon code.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xa3, 0x87, 0x1f, 0x32, 0x3d, 0x7a, 0x9c, 0x73,
-		0x06, 0x74, 0x79, 0x9e, 0xbf, 0x25, 0x42, 0x38,
-		0x4d, 0x15, 0x52, 0xf7, 0x55, 0x33, 0x18, 0x29,
-		0xab, 0x34, 0xb2, 0x38, 0x36, 0x98, 0x73, 0xbe,
+		0x62, 0xa6, 0x67, 0x8a, 0x7b, 0x80, 0x66, 0x9f,
+		0x7e, 0xf8, 0xce, 0x11, 0xbb, 0x1f, 0xa2, 0x44,
+		0xbd, 0x87, 0xdb, 0xbe, 0x6d, 0x33, 0x8b, 0xec,
+		0x28, 0xde, 0x01, 0xd2, 0x91, 0x9b, 0x14, 0xf5,
 	}
 )
 
