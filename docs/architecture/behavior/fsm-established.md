@@ -192,7 +192,20 @@ Same behavior as described in the OpenSent runbook: a hold timer expiry
 always stops the session, per RFC 4271 Section 8.2.2, Event 10. Ze
 grants no reprieve to a CPU-congested daemon.
 
+The expiry drops the connection even when another writer holds the session's
+write path, which is the state of a peer that stopped reading while a route
+write to it was blocked. The NOTIFICATION waits for the path for one second.
+When the path stays held, no NOTIFICATION is sent, and the close does not wait
+for the path again: it expires the socket's write deadline, which fails the
+blocked write, and closes the socket. Ze logs at ERROR that the peer was not
+told and raises `doctor-bgp-write-path-held`. `Session.Run` returns
+`ErrHoldTimerExpired` and the FSM is Idle. The Send Hold Timer expiry (RFC
+9687) closes the same way. The routine is in
+[core design](../core-design.md#graceful-tcp-close-half-close).
+
 <!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- closeConnWithin, closeWait, dropConn -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired -->
 
 `Timers.HoldBudget` observes the actual arm's deadline using the same clock as
 the timer. It distinguishes **disabled**, **unarmed**, **armed** with a positive

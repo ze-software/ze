@@ -422,7 +422,9 @@ the FSM, and `runOnce`'s down (`sessionDown`) announces the down later, on the
 
 The down, on every exit from `runOnce`:
 
-1. When the FSM still reads Established, fire Event 18 so the leave arm runs.
+1. When the FSM still reads Established, fire the leave event so the leave arm
+   runs: Event 18, or the stop event of a teardown that began
+   (`Session.endEvent`).
 2. Close the delivery channel and wait for the delivery worker, so every
    UPDATE the session buffered is published before the down.
 3. When the FSM ever entered Established, wait on the leave signal, then on

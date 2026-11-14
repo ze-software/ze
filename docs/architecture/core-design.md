@@ -2175,7 +2175,20 @@ for the ownership and deadline contract.
 When closing a BGP connection, ze uses TCP half-close (`CloseWrite`) before `Close`. This sends a FIN instead of RST, ensuring the remote peer can read any pending NOTIFICATION message before the connection is fully torn down. A plain `Close()` sends RST when unread data is in the receive buffer, which can cause the remote kernel to discard outbound data before the application reads it.
 <!-- source: internal/component/bgp/reactor/session_connection.go -- closeConn -->
 
-The sequence is: flush `bufio.Writer` -> `CloseWrite` (FIN) -> drain unread data (100ms deadline) -> `Close`.
+Every close of a session connection runs one routine, `closeConnWithin`, and no close waits on a writer that the close itself would unblock. A writer blocked in a socket write holds the session's write path, and closing the socket is what ends that write, so the routine never waits for the path longer than a stated bound.
+
+| Step | What the routine does |
+|------|-----------------------|
+| 1 | Stops the Send Hold Timer |
+| 2 | Reads the connection under `s.mu` and releases `s.mu`. No connection, or one whose socket this routine already closed, is nothing to do: the close is idempotent per connection. It never seals the session, because an unsealed `Session` takes a second connection |
+| 3 | Waits for the write path with no session lock held: one second when a hold timer or a Send Hold Timer expiry ended the session and for the read task's panic guard, the control budget for every other close. It does not wait at all when the NOTIFICATION sent just before already found the path held, so a caller that holds `openMu` waits behind a stuck writer once, never twice |
+| 4, path free | Flushes what `bufio.Writer` holds with a one-second budget -> `CloseWrite` (FIN) -> drains unread data (100ms deadline) -> `Close`. The peer reads a NOTIFICATION that was written |
+| 4, path held | Logs at ERROR and raises the event `doctor-bgp-write-path-held`, expires the socket's write deadline, which fails a write blocked in the kernel, and closes the socket (`dropConn`). Nothing is flushed. When a NOTIFICATION was due, none was sent, and the line says so |
+| 5 | Clears the connection fields in the lock order `s.mu` then the write path, taking the path under `s.mu` only when it is free. When it is held, the routine waits one second for it with no lock held and tries once more: a writer blocked on the closed socket has failed by then. A writer that waits on a plugin outlasts it, and the fields then stay set, naming a closed socket |
+<!-- source: internal/component/bgp/reactor/session_connection.go -- closeConnWithin, closeWait, closeFlushed, dropConn, clearClosedConn, reportWritePathHeld -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendNotificationWithin, tryNotificationWithin -->
+
+A writer that holds the write path while it waits on a plugin, not on the socket, is not woken by the close. The socket closes and `Session.Run` returns, but the peer's session-end path joins work that waits on that writer, so the peer connects again only when the plugin takes its events or stops.
 
 Session teardown records its initiating close reason before attempting a
 NOTIFICATION. This applies to Hold and Send Hold expiry, collision resolution,
@@ -2184,15 +2197,28 @@ notification's write or flush fails, writer retirement still seals the writer
 and closes the transport, but `Session.Run` must not mistake the failed delivery
 for the cause of the teardown. The close reason is first-wins: an earlier
 recorded failure remains authoritative.
-<!-- source: internal/component/bgp/reactor/session_connection.go -- setCloseReason, CloseWithNotification, teardown -->
+
+An administrative or automatic teardown also records its FSM stop event before
+the NOTIFICATION, and delivers it after the close. The close holds no session
+lock, and the event runs the peer's leave arm, which can wait for the session's
+buffered UPDATEs to publish, so the socket never waits behind it. The read loop
+(on the peer's own close) or the peer's session end (once `Session.Run`
+returned) can therefore reach the FSM first: each delivers the recorded stop
+event in place of Event 18 (`Session.endEvent`), and the teardown's own
+delivery then finds Idle. The session leaves Established by the stop that ended
+it, whichever goroutine tells the FSM.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- setCloseReason, CloseWithNotification, teardown, teardownSession, beginTeardown, endTeardown, endEvent -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- handleConnectionCloseLocked -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- sessionDown -->
 <!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback, Run -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, retireWrite -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
 
 ### Send Hold Timer (RFC 9687)
 
-Ze implements the Send Hold Timer to detect when the local side cannot send data to a peer (e.g., the peer's TCP window is full). The timer starts when the session reaches Established and is reset on every successful write. On expiry, ze sends NOTIFICATION code 8 (Send Hold Timer Expired) and closes the session.
+Ze implements the Send Hold Timer to detect when the local side cannot send data to a peer (e.g., the peer's TCP window is full). The timer starts when the session reaches Established and is reset on every successful write. On expiry, ze tries to send NOTIFICATION code 8 (Send Hold Timer Expired) for no longer than one second, and closes the connection whether or not it was sent: RFC 9687 Section 5 makes the NOTIFICATION a MAY and the close a MUST. A writer is stuck by definition when this timer fires, and it usually holds the session's write path. The NOTIFICATION then finds the path held and is not sent, and the close fails that writer's socket write and closes the socket without waiting for the path again (see "Graceful TCP Close" above).
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, resetSendHoldTimer -->
+<!-- source: internal/component/bgp/reactor/session.go -- logNotifyErrWithin -->
 
 Duration: `max(8 minutes, 2x hold-time)`, or the per-peer `send-hold-time` when it is set. RFC 9687 Section 4.4 requires a configured value to be greater than the hold time, and `parsePeerFromTree` refuses a pairing that is not.
 
@@ -2209,7 +2235,7 @@ Every writer of a session socket takes the session's write path through one acqu
 |--------|-------------------------|---------------------|
 | UPDATE, raw message and ROUTE-REFRESH writers, forward pool batches included | until it is free | the session budget: 30 seconds, set by `ze.fwd.write.deadline` |
 | A request-scoped write (an API route batch) | until it is free or the request ends | the earlier of the request's deadline and the session budget; a canceled request expires the deadline at once |
-| KEEPALIVE, OPEN, NOTIFICATION | no longer than the control budget | the control budget: a third of the hold time, held between 10 and 30 seconds; one second for the hold-expiry NOTIFICATION |
+| KEEPALIVE, OPEN, NOTIFICATION | no longer than the control budget | the control budget: a third of the hold time, held between 10 and 30 seconds; one second for the NOTIFICATION of a hold timer or Send Hold Timer expiry and of the read task's panic guard |
 | The deferred flush of route-server fast-path writes | none: a busy path hands the flush to the destination's forward worker | the session budget |
 | A held run of messages (the initial sync's config routes and End-of-RIB) | until it is free, once for the run | the session budget, armed again for each message |
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendUpdateCounted, requestWriteDeadline, writeMessageWithin, controlWriteDeadline, flushFwdDirty, holdWrites, sendUpdateHeld -->
@@ -2225,7 +2251,7 @@ Every failed write ends in `retireWrite`, and that is the one place a budget exp
 <!-- source: internal/component/bgp/reactor/peer_stats.go -- recordWriteBudgetClose -->
 <!-- source: internal/component/bgp/reactor/register_diagnostic.go -- init -->
 
-A control message that finds the write path held for its whole budget is not sent and the session is not retired for it: a KEEPALIVE timer that fires behind a stuck writer gives up, and a NOTIFICATION sender is told nothing was sent.
+A control message that finds the write path held for its whole budget is not sent and the session is not retired for it: a KEEPALIVE timer that fires behind a stuck writer gives up, and a NOTIFICATION sender is told nothing was sent. The close that follows that NOTIFICATION does not wait for the path again: it interrupts the writer and closes the socket.
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeMessageWithin, errWritePathBusy -->
 
 The route-server fast path writes to a destination under a non-waiting take of the write path and arms no budget for that write: only its deferred flush carries one.

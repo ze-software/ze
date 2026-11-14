@@ -80,14 +80,20 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 // which bounds the wait for the write path and then the write. See
 // writeMessageWithin. When the path stayed held it answers errWritePathBusy:
 // nothing was sent, and the hook below still records the reason with
-// delivered=false, as it does for a refused write.
+// delivered=false, as it does for a refused write. It also leaves the mark the
+// close that follows takes (notifyMetBusyPath), so that close does not wait
+// for the same writer a second time.
 func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte, deadline time.Duration) error {
 	notif := &message.Notification{
 		ErrorCode:    code,
 		ErrorSubcode: subcode,
 		Data:         data,
 	}
-	return s.notificationWritten(code, subcode, s.writeMessageWithin(conn, notif, deadline))
+	err := s.writeMessageWithin(conn, notif, deadline)
+	if errors.Is(err, errWritePathBusy) {
+		s.notifyMetBusyPath.Store(true)
+	}
+	return s.notificationWritten(code, subcode, err)
 }
 
 // tryNotificationWithin is sendNotificationWithin for a caller that reports a
@@ -98,8 +104,10 @@ func (s *Session) tryNotificationWithin(conn net.Conn, code message.NotifyErrorC
 	notif := &message.Notification{ErrorCode: code, ErrorSubcode: subcode}
 	err := s.writeMessageWithin(conn, notif, deadline)
 	if errors.Is(err, errWritePathBusy) {
-		// Nothing was attempted, so the peer-last-error hook below does not fire:
-		// the caller logs that no NOTIFICATION was sent.
+		// Nothing was attempted, so the peer-last-error hook below does not fire.
+		// The mark tells the close that follows, which reports that no
+		// NOTIFICATION was sent and does not wait for the path again.
+		s.notifyMetBusyPath.Store(true)
 		return err
 	}
 	return s.notificationWritten(code, subcode, err)
@@ -374,6 +382,11 @@ func (s *Session) stopSendHoldTimerLocked() {
 // sendHoldTimerExpired is called when the RFC 9687 Send Hold Timer expires.
 // This means the local side has been unable to send any data for the
 // configured duration. Try to send NOTIFICATION, then close.
+//
+// A writer is stuck by definition when this timer fires, and it usually holds
+// the write path. So the NOTIFICATION and the close each take the one-second
+// bound of the hold expiry, never the control budget, and the close does not
+// wait again behind a writer the NOTIFICATION already waited for.
 func (s *Session) sendHoldTimerExpired() {
 	sessionLogger().Warn("send hold timer expired (RFC 9687)",
 		"peer", s.settings.Address,
@@ -392,11 +405,13 @@ func (s *Session) sendHoldTimerExpired() {
 	s.mu.RUnlock()
 
 	// Try to send NOTIFICATION (may fail if TCP is stuck -- that's expected).
+	// RFC 9687 Section 5
 	if conn != nil {
-		s.logNotifyErr(conn,
+		s.logNotifyErrWithin(conn,
 			message.NotifySendHoldTimerExpired,
 			0, // No subcode defined by RFC 9687
 			nil,
+			holdExpiryNotifyDeadline,
 		)
 	}
 
@@ -404,7 +419,9 @@ func (s *Session) sendHoldTimerExpired() {
 	// MUST fire without s.mu held.
 	s.logFSMEvent(fsm.EventHoldTimerExpires)
 
-	s.closeConn()
+	// RFC 9687 Section 5: the connection MUST be closed, NOTIFICATION or not
+	// (closeConnWithin, dropConn).
+	s.closeConnWithin(holdExpiryNotifyDeadline)
 
 	select {
 	case s.errChan <- ErrSendHoldTimerExpired:
@@ -1170,12 +1187,15 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 		if canceled := ctx.Err(); canceled != nil {
 			// A canceled write may have emitted only part of a BGP frame.
 			// Let the reader retire it rather than reusing a partial stream.
-			closeConnQuietly(conn)
+			// This writer holds the write path, so it takes the close
+			// routine's own step for a path that cannot be waited for; Run's
+			// close then finds the path free and clears the fields.
+			dropConn(conn)
 			return canceled
 		}
 		// The socket deadline can fire before the context timer goroutine.
 		if deadline, ok := ctx.Deadline(); ok && !s.clock.Now().Before(deadline) {
-			closeConnQuietly(conn)
+			dropConn(conn)
 			return context.DeadlineExceeded
 		}
 		return err
@@ -1248,9 +1268,10 @@ func (s *Session) releaseWrites() {
 // hold would cut a long sync to a peer that reads every one of them.
 //
 // It MUST NOT take s.mu. The caller already holds writeMu, and the lock
-// hierarchy orders s.mu BEFORE writeMu (see the Session type). closeConn takes
-// s.mu and then writeMu, so an RLock here waited on closeConn's s.mu while
-// closeConn waited on the writeMu this caller holds: a prefix-limit teardown
+// hierarchy orders s.mu BEFORE writeMu (see the Session type). A holder of s.mu
+// that waits for writeMu (connectionEstablished; closeConn did, until it
+// stopped holding s.mu across that wait) would make an RLock here wait on its
+// s.mu while it waited on the writeMu this caller holds: a prefix-limit teardown
 // that landed during the initial sync deadlocked the peer for good. The state
 // read needs no s.mu anyway: s.fsm is set once in NewSession and FSM.State
 // takes the FSM's own lock.

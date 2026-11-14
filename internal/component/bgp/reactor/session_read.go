@@ -781,8 +781,11 @@ func (s *Session) handleConnectionCloseLocked() {
 	}
 	s.transportFailed = true
 	// RFC 4271 Section 8.2.2: "If the TCP connection fails (Event 18), the local system checks the DelayOpenTimer."
-	// Deliver the event before teardown clears that timer.
-	s.logFSMEvent(fsm.EventTCPConnectionFails)
+	// Deliver the event before teardown clears that timer. When a teardown
+	// began on this session, the connection went because of it (the peer
+	// closes on the NOTIFICATION while the teardown is still in its close), so
+	// the FSM is told that teardown's stop event and not Event 18 (endEvent).
+	s.logFSMEvent(s.endEvent())
 	s.timers.StopAll()
 	s.closeConn()
 }

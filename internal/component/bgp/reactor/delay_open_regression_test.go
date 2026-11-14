@@ -6,25 +6,33 @@ import (
 	"errors"
 	"io"
 	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/network"
 )
 
 // TestDelayOpenExpiryWriteFailureDeliversOneEvent18 uses an actual outbound
 // TCP connection. Only its write half is shut; the Session reader stays live
 // until the failed delayed OPEN retires the transport and wakes it. The writer
-// then waits until cancellation enters closeConn, before delivering Event18.
+// then waits until a close of the session is waiting for the write path the
+// writer still holds, before delivering Event18.
 func TestDelayOpenExpiryWriteFailureDeliversOneEvent18(t *testing.T) {
 	entered := make(chan struct{})
 	writeReset := make(chan struct{})
 	resumeWrite := make(chan struct{})
 	releaseWriter := sync.OnceFunc(func() { close(resumeWrite) })
-	peer, session, _, clock := startDelayOpenPeer(t, false, 240*time.Second, func(peer *Peer) {
+	var pathWaits *delayOpenPathWaitClock
+	peer, session, _, timerClock := startDelayOpenPeer(t, false, 240*time.Second, func(peer *Peer) {
+		// The Session takes the Peer's clock (newSession), and the fixture
+		// then moves only the protocol timers to its fake clock.
+		pathWaits = &delayOpenPathWaitClock{Clock: peer.clock}
+		peer.SetClock(pathWaits)
 		peer.SetDialer(&delayOpenReadDialer{
 			Dialer: peer.dialer, entered: entered,
 			writeReset: writeReset, resumeWrite: resumeWrite,
@@ -49,7 +57,7 @@ func TestDelayOpenExpiryWriteFailureDeliversOneEvent18(t *testing.T) {
 	peer.connectRetryCounter.Increment()
 	expired := make(chan struct{})
 	go func() {
-		clock.Add(240 * time.Second)
+		timerClock.Add(240 * time.Second)
 		close(expired)
 	}()
 	t.Cleanup(func() {
@@ -69,17 +77,19 @@ func TestDelayOpenExpiryWriteFailureDeliversOneEvent18(t *testing.T) {
 	// writeMessageWithin resets the deadline after retireWrite closes TCP and
 	// signals errChan, but before releasing writeMu. delayOpenExpired also
 	// still owns openMu, so the awakened reader cannot deliver Event18.
-	// Only cancellation's closeConn can now take s.mu: it passes the early
-	// timer-cleanup position, then waits for writeMu. Observing that lock,
-	// rather than sleeping or winning a race, orders that position before
-	// the writer's Event18. closeConn need not finish until writeMu is free.
-	delayOpenAwait(t, func() bool {
-		if session.mu.TryRLock() {
-			session.mu.RUnlock()
-			return false
-		}
-		return true
-	})
+	// Only a close can now reach the write path: the cancel goroutine's, on
+	// the failure it took from errChan, or Run's own as the reader leaves.
+	// The close passes its early timer-cleanup position, holds no session
+	// lock, and waits for writeMu in LockWithin, which makes a timer of the
+	// close's wait on the Session clock only after its TryLock failed and
+	// directly before it blocks. Observing that timer, rather than sleeping
+	// or winning a race, orders that position before the writer's Event18.
+	// The close need not finish until writeMu is free.
+	closeWait := session.closeWait()
+	delayOpenAwait(t, func() bool { return pathWaits.waitedFor(closeWait) })
+	if !session.timers.IsDelayOpenTimerRunning() {
+		t.Fatal("a close stopped the DelayOpenTimer before the failed writer delivered Event18")
+	}
 	releaseWriter()
 	select {
 	case <-expired:
@@ -146,6 +156,33 @@ func (c *delayOpenReadConn) SetWriteDeadline(deadline time.Time) error {
 		<-c.resumeWrite
 	}
 	return err
+}
+
+// delayOpenPathWaitClock is the Peer's own clock, and it records the wait of
+// every timer made on it. sessionWriteMutex.LockWithin makes one, of the wait
+// its caller allows, only once another holder has to be waited for, and
+// directly before it blocks. A recorded wait equal to Session.closeWait
+// therefore shows a goroutine that reached the write path with that wait and
+// found it held. The fixture moves the protocol timers to a fake clock, so
+// none of them is recorded here. Safe for concurrent use.
+type delayOpenPathWaitClock struct {
+	clock.Clock
+	mu    sync.Mutex
+	waits []time.Duration
+}
+
+func (c *delayOpenPathWaitClock) NewTimer(wait time.Duration) clock.Timer {
+	c.mu.Lock()
+	c.waits = append(c.waits, wait)
+	c.mu.Unlock()
+	return c.Clock.NewTimer(wait)
+}
+
+// waitedFor reports whether a timer of exactly wait was made on this clock.
+func (c *delayOpenPathWaitClock) waitedFor(wait time.Duration) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Contains(c.waits, wait)
 }
 
 func delayOpenReadCollisionClose(t *testing.T, conn net.Conn) {

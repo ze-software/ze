@@ -621,7 +621,7 @@ included:
 
 | Step | What it does |
 |------|--------------|
-| 1 | When the FSM still reads Established (nothing else ended the session), fire `EventTCPConnectionFails`, so the leave arm runs |
+| 1 | When the FSM still reads Established (nothing else told it the session ended), fire the leave event, so the leave arm runs: the stop event of a teardown that closed the connection and has not delivered it yet, else `EventTCPConnectionFails` (`Session.endEvent`) |
 | 2 | Close the delivery channel and wait for the delivery worker, which publishes every buffered UPDATE first |
 | 3 | When the FSM's sticky entered-Established bit is set, wait on the leave signal, then on the BFD subscriber the arm released |
 | 4 | Derive the close once (`sessionCloseFor`, `peer_close.go`) from the leave record and from whether the receive publication failed, which is final only now; raise session-dropped when no NOTIFICATION was exchanged and the close reason is no write budget expiry (`sessionDroppedOwed`), announce the down (`announceDown`, `notifyPeerClosed`), log "session closed" and append the leave-Established history row with the same reason |

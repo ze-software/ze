@@ -756,6 +756,7 @@ errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 | error | `notification-received` | peer address | `code`, `subcode`, `direction=received` | `raiseNotificationError("received", ...)` in `reactor/session_prefix.go`, called from `Peer.IncrNotificationReceived` |
 | error | `session-dropped` | peer address | `reason` | `raiseSessionDropped` in `reactor/session_prefix.go`, called from `peer_run.go` FSM Established->Idle branch when no notification was exchanged |
 | error | `doctor-bgp-peer-not-reading` | peer address | `budget` | `Session.reportWriteBudgetExpiry` in `reactor/session_write_budget.go`, called from `retireWrite` when a write waited out its budget and that expiry is the session's close reason. Raised with a fix (`report.RaiseErrorFix`) |
+| error | `doctor-bgp-write-path-held` | peer address | `notification` or `waited` | `Session.reportWritePathHeld` in `reactor/session_connection.go`, called from the close routine (`closeConnWithin`) when the write path stayed held for the close's wait, or when the NOTIFICATION before it found the path held. Raised with a fix (`report.RaiseErrorFix`) |
 
 The `session-dropped` producer is suppressed when a NOTIFICATION was sent
 or received during the same session lifecycle: the operator already sees
@@ -763,8 +764,10 @@ that event in `show errors` so a duplicate session-dropped would be noise.
 Tracking is via `Peer.notificationExchanged atomic.Bool`, reset at the
 start of each `runOnce` iteration. It is suppressed the same way when the
 session's recorded close reason is a write budget expiry, which the session
-raised as `doctor-bgp-peer-not-reading` when it happened
-(`sessionDroppedOwed` in `reactor/peer_close.go`).
+raised as `doctor-bgp-peer-not-reading` when it happened, and when a close
+of the session met a held write path, which the close routine raised as
+`doctor-bgp-write-path-held` (`sessionDroppedOwed` and `leaveCause` in
+`reactor/peer_close.go`).
 <!-- source: internal/component/bgp/reactor/session_write_budget.go -- recordWriteFailure, reportWriteBudgetExpiry -->
 <!-- source: internal/component/bgp/reactor/peer_close.go -- sessionDroppedOwed -->
 

@@ -145,6 +145,7 @@ const (
 	CodeDoctorBFDPort                              = "doctor-bfd-port"
 	CodeDoctorBGPListen                            = "doctor-bgp-listen"
 	CodeDoctorBGPPeerNotReading                    = "doctor-bgp-peer-not-reading"
+	CodeDoctorBGPWritePathHeld                     = "doctor-bgp-write-path-held"
 	CodeDoctorImageListen                          = "doctor-image-listen"
 	CodeDoctorIPsecListen                          = "doctor-ipsec-listen"
 	CodeDoctorListenUnavailable                    = "doctor-listen-unavailable"
@@ -1456,6 +1457,19 @@ var builtinCodes = append([]CodeMeta{
 			"Remedy: on the peer, find why its BGP process stopped reading (CPU load, a stalled process, a full input queue). " +
 			"Raise ze.fwd.write.deadline only when the peer is known to be slow and healthy.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show bgp peer", "ze show diagnostic doctor-bgp-peer-not-reading"},
+	},
+	{
+		Code:  CodeDoctorBGPWritePathHeld,
+		Title: "BGP session closed while another writer held its write path",
+		Description: "ze had to close a BGP session, and a writer of that session still held the session's write path when the wait for it ran out. " +
+			"The wait is one second when a hold timer or a send hold timer expired, and the control budget (a third of the hold time, between 10s and 30s) for every other close. " +
+			"ze does not wait longer for a writer that the close itself would unblock: it fails that writer's socket write, closes the connection, and drops what the writer had not sent. " +
+			"When a NOTIFICATION was due and the write path was held for its whole wait, the peer is not told why the session ended. " +
+			"The usual cause is a peer that stopped reading with its connection open, so a route write to it was blocked. " +
+			"The other cause is a plugin that does not take the events ze delivers to it, which keeps a writer waiting: the peer then connects again only when that plugin drains or stops. " +
+			"Remedy: on the peer, find why its BGP process stopped reading (CPU load, a stalled process). When the peer reads normally, look for a plugin that stopped taking events with `ze show plugin list`.",
+		Examples:     []string{exampleShowDoctor, exampleShowErrors, "ze show bgp peer", "ze show diagnostic doctor-bgp-write-path-held"},
+		RelatedCodes: []string{CodeDoctorBGPPeerNotReading},
 	},
 	{
 		Code:        "doctor-bgp-md5",

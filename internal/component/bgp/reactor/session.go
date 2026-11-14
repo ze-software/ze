@@ -212,7 +212,10 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 //
 //  1. s.mu         — most fields (settings, conn, bufReader/Writer, peerOpen, sentMeta, ...)
 //  2. s.writeMu    — writeBuf and bufWriter; acquired AFTER s.mu when both are needed
-//     (see closeConn in session_connection.go and sendOpen in session_negotiate.go)
+//     (see connectionEstablished and clearClosedConn in session_connection.go).
+//     A close never holds s.mu across a WAIT for s.writeMu: a writer can hold
+//     the path for as long as its socket or a plugin takes, so the close takes
+//     the path under s.mu only when it is free (clearClosedConn)
 //  3. s.sendHoldMu — sendHoldTimer; acquired AFTER s.writeMu via resetSendHoldTimer,
 //     which Send* methods call from inside their writeMu critical section
 //
@@ -229,6 +232,7 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 // Atomics (no lock interaction needed):
 //
 //	tearingDown   — one-way seal; no further conn is published on this session
+//	stopEvent     — the FSM event of the teardown that began; first one wins
 //	paused        — fast-path pause check for the read loop
 //	closeReason   — first close reason wins (CompareAndSwap from nil)
 type Session struct {
@@ -241,6 +245,17 @@ type Session struct {
 	// (Peer.announceNegotiated), and the session end joins that callback, so
 	// the read loop's end never waits for openMu: it leaves its work owed
 	// (closeOwed, retireOwed) and every holder releases through unlockOpen.
+	//
+	// About twenty close sites hold it across a NOTIFICATION and the close that
+	// follows (handleOpen and its validators, processOpen, handleNotification,
+	// handleConnectionCloseLocked, connectionEstablished, closeCollision,
+	// handleBFDEvent, the hold timer callback). A holder waits for the write
+	// path ONCE, and never twice: the NOTIFICATION waits no longer than its
+	// deadline (the control budget, one second for the hold timer), and a
+	// NOTIFICATION that found the path held tells the close (notifyMetBusyPath),
+	// which then interrupts the writer without a second wait (closeConnWithin).
+	// So openMu is held behind a stuck writer for one bounded wait, plus the
+	// second the close gives that writer to fail and let go.
 	openMu sync.Mutex
 
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
@@ -338,7 +353,7 @@ type Session struct {
 	// (negotiateWith). It is an atomic so that no reader takes mu: the receive
 	// goroutine loads it after negotiation and so before the first UPDATE, and
 	// the relay rail loads it through advertisedLLGR under the reactor lock,
-	// where waiting on mu behind closeConn could stall the reactor. The RFC 9494
+	// where waiting on mu behind one of its holders could stall the reactor. The RFC 9494
 	// Section 4.3 ingress step and the relay rail's egress recovery read it
 	// through filterapi.PeerFilterInfo.LLGRAdvertised.
 	localLLGR atomic.Bool
@@ -470,6 +485,15 @@ type Session struct {
 	// accept rail; Accept used to, and that is the defect this wording replaces.
 	tearingDown atomic.Bool
 
+	// stopEvent is the FSM event of the teardown that began on this session,
+	// nil until one did. beginTeardown records it before the NOTIFICATION and
+	// the close, and the first teardown wins. The teardown delivers the event
+	// itself only after its close, and the close is what lets the read loop and
+	// Run go on, so a goroutine that gets to the FSM first delivers this event
+	// in place of Event 18 (endEvent): the session then leaves Established by
+	// the stop that ended it, whichever goroutine tells the FSM.
+	stopEvent atomic.Pointer[fsm.Event]
+
 	// Backpressure pause gate: pauses the read loop without closing the connection.
 	// When paused, TCP recv buffer fills → kernel shrinks window → sender throttles.
 	// Write path (KEEPALIVE) is independent and continues during pause.
@@ -487,6 +511,27 @@ type Session struct {
 	// distinguish close reasons after ReadFull returns an error.
 	// Only the first reason wins (CompareAndSwap from nil).
 	closeReason atomic.Pointer[error]
+
+	// notifyMetBusyPath records that a NOTIFICATION sender found the write path
+	// held for its whole wait, so nothing was sent (errWritePathBusy). The two
+	// senders set it (sendNotificationWithin, tryNotificationWithin), and the
+	// close that follows takes it: that close MUST NOT wait for the write path
+	// a second time (closeConnWithin).
+	notifyMetBusyPath atomic.Bool
+
+	// socketClosed names the connection whose socket the close routine closed
+	// behind a held write path, while s.conn still names it because the fields
+	// can be cleared only under writeMu. A later close of the same connection
+	// reads it and returns without waiting again. It is keyed on the connection,
+	// never on the session: an unsealed Session is used again for a second
+	// connection (a passive peer's Run and Accept). Cleared with the fields.
+	socketClosed atomic.Pointer[net.Conn]
+
+	// writePathHeldReported records that a close of this session met a held
+	// write path and reported it (reportWritePathHeld). The session end reads
+	// it through leaveCause, so that close raises no second event. It is never
+	// cleared: a Peer runs one Session per session end.
+	writePathHeldReported atomic.Bool
 
 	// onMessageReceived delivers semantically validated messages, including
 	// synthetic withdrawals. It is not a wire-observation boundary.
@@ -882,6 +927,14 @@ func NewSession(settings *PeerSettings) *Session {
 		// then a zero MUST be used". Hold Timer Expired defines none.
 		// The expiry caused this teardown. A failed NOTIFICATION retires the
 		// writer immediately, so record the cause before that I/O can fail.
+		//
+		// openMu is held across the send, so the send waits for the write path
+		// no longer than holdExpiryNotifyDeadline. When another writer kept the
+		// path that long, nothing is sent and the sender leaves its mark: the
+		// cancel goroutine's close then fails that writer's socket write and
+		// closes the socket without waiting for the path again, which is how
+		// the connection is dropped behind a peer that reads nothing
+		// (closeConnWithin, RFC 4271 Section 8.2.2).
 		s.setCloseReason(ErrHoldTimerExpired)
 		s.mu.RLock()
 		conn := s.conn
@@ -1353,8 +1406,24 @@ var ErrPolicyTeardown = errors.New("session teardown requested by import policy"
 
 // logNotifyErr sends a NOTIFICATION and logs if the send fails.
 // Used on error/shutdown paths where the connection may already be dead.
+// It waits for the write path no longer than the control budget, and a wait
+// that ran out tells the close that follows (sendNotificationWithin), so every
+// caller that sends and then closes is bounded with no edit of its own.
 func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) {
-	if err := s.sendNotification(conn, code, subcode, data); err != nil {
+	s.logNotifyOutcome(code, subcode, s.sendNotification(conn, code, subcode, data))
+}
+
+// logNotifyErrWithin is logNotifyErr with the deadline chosen by the caller.
+// The Send Hold Timer expiry passes holdExpiryNotifyDeadline: its writer is
+// stuck by definition, so it does not give it the control budget.
+func (s *Session) logNotifyErrWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte, deadline time.Duration) {
+	s.logNotifyOutcome(code, subcode, s.sendNotificationWithin(conn, code, subcode, data, deadline))
+}
+
+// logNotifyOutcome logs a NOTIFICATION that could not be sent; err is the
+// answer of its send, nil when it went out.
+func (s *Session) logNotifyOutcome(code message.NotifyErrorCode, subcode uint8, err error) {
+	if err != nil {
 		// Same LEVEL and same rendering as the success WARN in session_write.go. A
 		// send that failed is the worse news of the two -- the session is ending and
 		// the peer was never told why -- so an operator at the default level who sees
@@ -1458,8 +1527,9 @@ func (s *Session) Run(ctx context.Context) (runErr error) {
 	// cancel goroutine exits on <-s.done without closing, so on those paths nothing
 	// closed the socket at all. Per-site closeConn calls are the shape that produced
 	// this bug class; one defer covers current and future exits. closeConn is
-	// idempotent (nil-checked under s.mu), so the paths that already close are
-	// unaffected (spec-fixit-bgp-session-fsm-lifecycle AC-7 / D-8).
+	// idempotent per connection (a connection no longer installed, or one whose
+	// socket it already closed, is nothing to do), so the paths that already
+	// close are unaffected (spec-fixit-bgp-session-fsm-lifecycle AC-7 / D-8).
 	defer s.closeConn()
 
 	// The read task's panic boundary, once per session and never per message.

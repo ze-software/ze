@@ -44,8 +44,8 @@ func (s *Session) retainAdvertisedLLGR(localCaps []capability.Capability) {
 // Capability. Safe for concurrent use: localLLGR is an atomic, so it takes no
 // lock. The relay rail calls it for a source session from a goroutine that is
 // not that session's reader, while the reactor lock is held, so it MUST NOT take
-// s.mu: closeConn holds s.mu across a flush, a drain and Close, and a stuck
-// source would then stall the reactor.
+// s.mu: a holder of s.mu can wait for the session's write path
+// (connectionEstablished), and a stuck source would then stall the reactor.
 func (s *Session) advertisedLLGR() bool {
 	return s.localLLGR.Load()
 }

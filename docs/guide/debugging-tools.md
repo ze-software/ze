@@ -301,6 +301,19 @@ reading. Ze closed the connection with no NOTIFICATION, because the peer could
 not have read one, and connects again by itself. The routes are sent again
 when the session is Established.
 
+A hold timer, a send hold timer or an operator can end the session before the
+write budget passes. The blocked route write then still holds the session, and
+ze logs this line at ERROR instead, with the code `doctor-bgp-write-path-held`:
+
+```
+level=ERROR msg="no NOTIFICATION was sent to the peer: another writer held the session's write path, so the connection is closed without one" subsystem=bgp.reactor.session peer=192.0.2.1 fix="..." code=doctor-bgp-write-path-held
+```
+
+Ze did not wait for the blocked write: it failed that write, closed the
+connection and connects again by itself. The cause and the fix are the same as
+above. `ze show diagnostic doctor-bgp-write-path-held` names the second cause,
+a plugin that does not take its events.
+
 | Where | What it shows |
 |-------|---------------|
 | `ze show errors`, `ze show doctor` | One event per close, code `doctor-bgp-peer-not-reading`, with the peer and the budget that passed |

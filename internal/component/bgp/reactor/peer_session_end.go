@@ -173,9 +173,11 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 // started, so it runs on the runOnce goroutine on every exit, a read-goroutine
 // panic included. In order:
 //
-//  1. When the FSM still reads Established, nothing else ended the session
-//     (Session.Run returned on a body-read error or from its pause gate), so
-//     it fires the leave itself.
+//  1. When the FSM still reads Established, nothing else told it the session
+//     ended (Session.Run returned on a body-read error, from its pause gate,
+//     or behind a teardown that is still in its close), so it fires the
+//     leave itself: the stop event of that teardown, else Event 18
+//     (Session.endEvent).
 //  2. It closes deliverChan and waits for the delivery worker, which
 //     publishes every buffered UPDATE first.
 //  3. When the FSM ever entered Established, it waits on the leave signal:
@@ -194,8 +196,11 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 		// Without this event the leave arm, and so the down, would never
 		// run. A local teardown that moved the FSM to Idle after the read
 		// above leaves Idle in place, where this event changes nothing, so
-		// exactly one leave arm runs either way.
-		session.logFSMEvent(fsm.EventTCPConnectionFails)
+		// exactly one leave arm runs either way. A teardown that closed the
+		// connection and has not delivered its stop event yet has that event
+		// delivered here (Session.endEvent), so the leave records the stop
+		// that ended the session and not a transport failure.
+		session.logFSMEvent(session.endEvent())
 	}
 
 	close(deliverChan)
@@ -217,11 +222,11 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 	reason := closed.reason
 	leave.transition.Reason = reason
 	// Raise session-dropped on the report bus only when nothing else
-	// reported this close. If a NOTIFICATION was sent or received, or the
-	// session closed on a write budget expiry, the operator already sees
-	// that event in `ze show errors` and a duplicate session-dropped would
-	// be noise (sessionDroppedOwed).
-	if sessionDroppedOwed(leave.notified, leave.cause) {
+	// reported this close. If a NOTIFICATION was sent or received, the
+	// session closed on a write budget expiry, or its close met a held write
+	// path, the operator already sees that event in `ze show errors` and a
+	// duplicate session-dropped would be noise (sessionDroppedOwed).
+	if sessionDroppedOwed(leave.notified, leaveCause(session, leave.cause)) {
 		raiseSessionDropped(p.peerAddrLabel(), reason)
 	}
 

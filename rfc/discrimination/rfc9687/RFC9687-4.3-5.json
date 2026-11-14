@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9687-4.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_wedge_test.go::TestSendHoldExpiryClosesBehindStuckWriter",
+    "unit-sha": "1a0696e9887a08bd",
+    "claim-sha": "79d69f8017139157",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_connection.go::dropConn",
+    "producer-sha": "b5b570d4e65290cd",
+    "break": "body of dropConn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

@@ -22,8 +22,10 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/network"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // socketRecvBufSize is the SO_RCVBUF size for BGP sessions (256KB).
@@ -360,7 +362,7 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	// bufReader == nil" or similar and crash on io.ReadFull.
 	//
 	// s.writeMu is nested inside s.mu (lock ordering s.mu → s.writeMu, see
-	// closeConn below) to serialize the s.bufWriter assignment with concurrent
+	// clearClosedConn below) to serialize the s.bufWriter assignment with concurrent
 	// senders that read s.bufWriter while holding s.writeMu. Without this
 	// nesting, a sender inside writeMu racing a connectionEstablished would
 	// race on the s.bufWriter field (writer-reader mismatch on two separate
@@ -590,24 +592,46 @@ func (s *Session) teardownWith(notice teardownNotice, stopEvent fsm.Event) error
 // Connect/Active strict-mode configuration-change clauses. A nil notice means
 // the protocol explicitly calls for dropping TCP without a NOTIFICATION.
 func (s *Session) teardownSession(notice *teardownNotice, stopEvent fsm.Event) error {
-	conn := s.beginTeardown()
+	conn := s.beginTeardown(stopEvent)
 
 	if conn != nil && notice != nil {
 		s.logNotifyErr(conn, notice.code, notice.subcode, notice.data)
 	}
 
+	// The close comes BEFORE the stop event. The event runs the Peer's leave
+	// arm on this goroutine, and the arm can be held for as long as the
+	// session's buffered UPDATEs take to publish; a close behind it would
+	// leave the socket open and Run in its read for that long. The close holds
+	// no session lock, so the read loop and Run can reach the FSM ahead of
+	// this goroutine: they deliver the stop event beginTeardown recorded, never
+	// Event 18 (endEvent), and the event below then finds Idle, where the FSM
+	// ignores a stop (fsm.handleIdle).
 	s.closeConn()
 	s.endTeardown(stopEvent)
 	return nil
 }
 
+// endEvent is the FSM event a goroutine delivers when it finds the session's
+// connection gone and no teardown of its own: the read loop on a closed
+// connection, and the Peer's session end when Run returned with the FSM still
+// in Established. It is the stop event of the teardown that began, when one
+// did, because that teardown is why the connection went, and Event 18
+// (TcpConnectionFails) otherwise. Safe for concurrent use.
+func (s *Session) endEvent() fsm.Event {
+	if stop := s.stopEvent.Load(); stop != nil {
+		return *stop
+	}
+	return fsm.EventTCPConnectionFails
+}
+
 // ceaseAfterPanic ends the session after the panic boundary of its read task
 // (Session.Run) recovered a panic. It MUST NOT block: the write path may be
 // held by a writer that is itself stuck, so it waits for writeMu no longer
-// than holdExpiryNotifyDeadline (tryNotificationWithin), and when the lock
-// stays held it closes the socket without the NOTIFICATION and says so.
+// than holdExpiryNotifyDeadline (tryNotificationWithin), and when the path
+// stays held the close routine closes the socket without the NOTIFICATION and
+// says so (closeConnWithin).
 func (s *Session) ceaseAfterPanic() {
-	conn := s.beginTeardown()
+	conn := s.beginTeardown(fsm.EventAutomaticStop)
 	if conn == nil {
 		s.endTeardown(fsm.EventAutomaticStop)
 		return
@@ -624,37 +648,33 @@ func (s *Session) ceaseAfterPanic() {
 	// zero (Unspecific) value is used for the Error Subcode field."
 	err := s.tryNotificationWithin(conn, message.NotifyCease, message.NotifyCeaseUnspecific,
 		holdExpiryNotifyDeadline)
-	if errors.Is(err, errWritePathBusy) {
-		sessionLogger().Error("no NOTIFICATION was sent to the peer: another writer held the "+
-			"session's write path, so the connection is closed without one",
-			"peer", s.settings.Address,
-			"waited", holdExpiryNotifyDeadline,
-		)
-		// closeConn waits for writeMu to flush; closing the socket first makes
-		// the stuck writer's write fail, so it releases the lock and the
-		// closeConn deferred in Run completes.
-		if closeErr := conn.Close(); closeErr != nil {
-			sessionLogger().Debug("close after a contained panic", "peer", s.settings.Address, "error", closeErr)
-		}
-		s.endTeardown(fsm.EventAutomaticStop)
-		return
-	}
+	// A busy write path is not logged here: the sender left its mark, and the
+	// close below reports that no NOTIFICATION was sent and interrupts the
+	// writer without waiting for the path again.
 	if err != nil {
-		sessionLogger().Warn("notification send failed",
-			"peer", s.settings.Address,
-			"code", message.NotifyCease,
-			"subcode", notifySubcodeValue(message.NotifyCease, message.NotifyCeaseUnspecific),
-			"error", err,
-		)
+		if !errors.Is(err, errWritePathBusy) {
+			sessionLogger().Warn("notification send failed",
+				"peer", s.settings.Address,
+				"code", message.NotifyCease,
+				"subcode", notifySubcodeValue(message.NotifyCease, message.NotifyCeaseUnspecific),
+				"error", err,
+			)
+		}
 	}
-	s.closeConn()
+	s.closeConnWithin(holdExpiryNotifyDeadline)
 	s.endTeardown(fsm.EventAutomaticStop)
 }
 
-// beginTeardown seals the session, records ErrTeardown as the close reason and
-// stops the timers, then answers the connection the NOTIFICATION goes to, nil
-// when none is up. Every teardown MUST call endTeardown after it.
-func (s *Session) beginTeardown() net.Conn {
+// beginTeardown seals the session, records stopEvent as the event that ends it
+// and ErrTeardown as the close reason, and stops the timers, then answers the
+// connection the NOTIFICATION goes to, nil when none is up. The stop event is
+// recorded first, before anything can close the connection, so that whichever
+// goroutine tells the FSM the session ended tells it this event (endEvent).
+// Every teardown MUST call endTeardown with the same event after it.
+func (s *Session) beginTeardown(stopEvent fsm.Event) net.Conn {
+	// The first teardown wins, as the first close reason does.
+	s.stopEvent.CompareAndSwap(nil, &stopEvent)
+
 	// Seal first: a conn published after this point would carry a session the
 	// caller believes it has just ended.
 	s.seal()
@@ -670,6 +690,8 @@ func (s *Session) beginTeardown() net.Conn {
 
 // endTeardown delivers stopEvent to the FSM and wakes Run's cancel goroutine.
 // It MUST be called after beginTeardown and after the connection is closed.
+// The event finds Idle, and changes nothing, when the read loop or the Peer's
+// session end delivered it first (endEvent).
 func (s *Session) endTeardown(stopEvent fsm.Event) {
 	s.logFSMEvent(stopEvent)
 
@@ -682,69 +704,285 @@ func (s *Session) endTeardown(stopEvent fsm.Event) {
 	}
 }
 
-// closeConn closes the TCP connection.
-// Uses half-close (CloseWrite) when possible to send TCP FIN instead of RST.
-// This ensures the remote side can read any pending data (e.g., NOTIFICATION)
-// before the connection is fully closed.
+// closeClearWait is how long a close waits, once the socket is closed, for a
+// write path it could not take: a writer blocked on that socket has failed and
+// let go by then. Only a writer that waits on something else outlasts it.
+const closeClearWait = time.Second
+
+// closeFlushBudget is the write budget of a close's final flush: what
+// bufWriter still holds, a NOTIFICATION included, has this long to leave.
+const closeFlushBudget = time.Second
+
+// closeDrainWait is how long a close reads what the peer still sends after
+// the FIN, so that Close sends a FIN and no RST.
+const closeDrainWait = 100 * time.Millisecond
+
+// writePathHeldFix is what an operator does about a close behind a held write
+// path. The usual cause is on the peer, so no ze command clears it. It fits
+// report.FixMax.
+const writePathHeldFix = "on the peer, find why its BGP process stopped reading (CPU load, a stalled process); " +
+	"ze connects to it again by itself"
+
+// closeConn closes the session's connection through the one close routine
+// (closeConnWithin), waiting for the write path no longer than closeWait.
+// Safe for concurrent use, and a second close of one connection returns at
+// once. The caller MUST NOT hold s.mu or the write path.
 func (s *Session) closeConn() {
-	// Run and standalone readers share this terminal-completion wake. Register
-	// before the mu unlock defer so no admission waiter wakes under s.mu.
+	s.closeConnWithin(s.closeWait())
+}
+
+// closeWait is how long a close may wait for the write path: one second when
+// a hold timer or a Send Hold Timer expiry ended the session, because the
+// timer has already waited the peer out, and the control budget for every
+// other close, so a healthy session whose write path is busy for a moment
+// still gets its final flush.
+func (s *Session) closeWait() time.Duration {
+	if reason := s.closeReason.Load(); reason != nil {
+		if errors.Is(*reason, ErrHoldTimerExpired) {
+			return holdExpiryNotifyDeadline
+		}
+		if errors.Is(*reason, ErrSendHoldTimerExpired) {
+			return holdExpiryNotifyDeadline
+		}
+	}
+	return s.controlWriteDeadline()
+}
+
+// closeConnWithin is the one close routine of a session connection. No close
+// waits on a writer that the close itself would unblock:
+//
+//  1. It stops the Send Hold Timer.
+//  2. It reads the connection under s.mu and lets s.mu go. No connection, or
+//     one this routine already closed, is nothing to do: the close is
+//     idempotent per connection, and it never seals the session, because an
+//     unsealed Session takes a second connection (a passive peer's Run and
+//     Accept).
+//  3. It waits for the write path no longer than wait, with no session lock
+//     held. It does not wait at all when the NOTIFICATION sent just before
+//     already found the path held (notifyMetBusyPath): a holder of openMu
+//     then waits behind a stuck writer once, never twice.
+//  4. The path came free: closeFlushed flushes what bufWriter holds, sends
+//     the FIN, drains and closes, so the peer reads a NOTIFICATION that was
+//     written. The path stayed held: dropConn fails the writer's socket write
+//     and closes the socket, and the log says what the peer was not sent.
+//  5. It clears the connection fields in the recorded order, s.mu then the
+//     write path, taking the path under s.mu only when it is free. When the
+//     path is still held it waits for it closeClearWait with no lock held and
+//     tries once more. A writer that waits on a plugin outlasts that: the
+//     fields then stay set, socketClosed names the connection, and every
+//     reader of s.conn meets a closed socket.
+//
+// Safe for concurrent use. The caller MUST NOT hold s.mu or the write path.
+func (s *Session) closeConnWithin(wait time.Duration) {
+	// Run and standalone readers share this terminal-completion wake. It is
+	// deferred first, so it runs last and no admission waiter wakes under a
+	// session lock.
 	defer s.stopAdmission()
-	// Stop Send Hold Timer before acquiring s.mu to avoid lock ordering issues.
+	// The Send Hold Timer takes sendHoldMu, which no step below holds.
 	s.stopSendHoldTimer()
 	// Do not clear DelayOpen here: the cancel goroutine can close a failed
 	// writer's socket before Event 18 is delivered. Its failure owner must
 	// still see the running timer. Run's retireSessionTimers and the Peer's
 	// stopSessionTimers stop all protocol timers when the Session finishes.
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// Taken whether or not a connection is installed, so the mark never
+	// outlives the close it was left for.
+	notifyMissed := s.notifyMetBusyPath.Swap(false)
 
-	if s.conn != nil {
-		// Flush under writeMu to avoid racing with Send* methods that
-		// also access bufWriter under writeMu. Lock ordering: s.mu → s.writeMu.
-		if s.bufWriter != nil {
-			s.flushForClose()
-		}
-		// Graceful close: send FIN (not RST) so the remote side can read
-		// any pending NOTIFICATION before the connection is torn down.
-		// A plain Close() sends RST when unread data is in the receive
-		// buffer, which can cause the remote kernel to discard our
-		// outbound data before the application reads it.
-		if tcp, ok := s.conn.(*net.TCPConn); ok {
-			if cwErr := tcp.CloseWrite(); cwErr == nil {
-				// FIN sent. Drain unread data so Close() sends FIN instead of RST.
-				_ = tcp.SetReadDeadline(s.clock.Now().Add(100 * time.Millisecond))
-				if _, drainErr := io.Copy(io.Discard, tcp); drainErr != nil {
-					// Drain failure is expected (timeout or reset) -- proceed to Close.
-					_ = drainErr
-				}
-			}
-			// If CloseWrite failed, socket is already broken -- skip drain.
-		}
-		_ = s.conn.Close()
-		s.writeMu.Lock()
-		s.conn = nil
-		s.transport.Store(nil)
-		s.writeMu.Unlock()
-		// bufReader is NOT nilled here: Run() may have captured conn (non-nil)
-		// before this lock and will call readAndProcessMessage next. The stale
-		// bufReader wrapping the closed conn returns a proper read error,
-		// which readAndProcessMessage handles as ErrConnectionClosed.
-		// connectionEstablished() replaces bufReader and bufWriter on reconnection.
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+	if conn == nil {
+		return
 	}
+	if s.socketClosedIs(conn) {
+		// An earlier close closed this socket and found the write path held.
+		// Clear the fields if the path is free now, and never wait again.
+		s.clearClosedConn(conn)
+		return
+	}
+
+	pathWait := wait
+	if notifyMissed {
+		pathWait = 0
+	}
+	if s.writeMu.LockWithin(s.clock, pathWait) {
+		if notifyMissed {
+			s.reportWritePathHeld(wait, notifyMissed)
+		}
+		s.closeFlushed(conn)
+	} else {
+		// Reported before the socket closes: the line is the only record of
+		// what the peer was not sent.
+		s.reportWritePathHeld(wait, notifyMissed)
+		// Marked before the socket closes: the read loop wakes on the closed
+		// socket and closes too, and it must find the mark, not wait for the
+		// path this close has just given up on.
+		s.markSocketClosed(conn)
+		dropConn(conn)
+	}
+
+	if s.clearClosedConn(conn) {
+		return
+	}
+	// The write path is held. A writer blocked on the socket this close just
+	// closed fails and lets go within closeClearWait. No session lock is held
+	// across the wait.
+	if !s.writeMu.LockWithin(s.clock, closeClearWait) {
+		// The writer waits on something else than the socket (a plugin that
+		// does not take its events). The fields stay set: the socket is
+		// closed, so every later write and read on it fails.
+		return
+	}
+	s.writeMu.Unlock()
+	s.clearClosedConn(conn)
 }
 
-// flushForClose writes what bufWriter still holds before closeConn closes the
-// connection. The caller MUST hold s.mu (lock ordering s.mu → s.writeMu).
-// writeMu is released by defer: a panic in the writer would otherwise leave
-// it held, and every later writer of this session, a forward worker included,
-// would wait on it for good (lock audit A-1).
-func (s *Session) flushForClose() {
-	s.writeMu.Lock()
+// closeFlushed closes conn the way that lets the peer read what was written
+// to it: flush, FIN, drain, close. The caller MUST hold the write path and
+// MUST NOT hold s.mu; closeFlushed releases the path, by defer, so a panic in
+// the flush cannot leave it held for every later writer of this session.
+func (s *Session) closeFlushed(conn net.Conn) {
 	defer s.writeMu.Unlock()
-	_ = s.bufWriter.Flush()
-	s.commitAIGPWrites(false)
+	// Another close can have finished with this connection while this one
+	// waited for the write path. s.conn is read here under writeMu, one of the
+	// two locks it is written under.
+	if s.conn != conn {
+		return
+	}
+	if s.socketClosedIs(conn) {
+		return
+	}
+
+	if s.bufWriter != nil {
+		if s.bufWriter.Buffered() > 0 {
+			// A socket that refuses the budget is closed: nothing can be
+			// flushed to it. The flush is the last write before the FIN, and
+			// the connection closes whatever it answers.
+			if s.armWriteBudget(closeFlushBudget) == nil {
+				_ = s.bufWriter.Flush()
+			}
+		}
+		s.commitAIGPWrites(false)
+	}
+	// Graceful close: send FIN (not RST) so the remote side can read any
+	// pending NOTIFICATION before the connection is torn down. A plain Close
+	// sends RST when unread data is in the receive buffer, which can cause the
+	// remote kernel to discard our outbound data before the application reads
+	// it.
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		if cwErr := tcp.CloseWrite(); cwErr == nil {
+			// FIN sent. Drain unread data so Close sends FIN instead of RST.
+			// A refused read deadline ends the drain at once.
+			_ = tcp.SetReadDeadline(s.clock.Now().Add(closeDrainWait))
+			// The drain ends on its deadline or on a reset: its error is how
+			// it ends, and the close goes on either way.
+			_, _ = io.Copy(io.Discard, tcp)
+		}
+		// If CloseWrite failed, the socket is already broken: skip the drain.
+	}
+	// A socket that a failed write already closed answers an error here, and
+	// the connection is closed either way.
+	// RFC 4271 Section 8.2.2: "drops the TCP connection"
+	_ = conn.Close()
+	// The budget the flush armed ended with the socket: there is no deadline
+	// left for releaseWrites to clear, and none for the next taker to meet.
+	s.writeBudgetArmed = false
+	s.markSocketClosed(conn)
+	// bufReader is NOT nilled: Run may have captured conn before this close
+	// and will read next. The stale bufReader wrapping the closed conn returns
+	// a read error, which readAndProcessMessage handles as ErrConnectionClosed.
+	// connectionEstablished replaces bufReader and bufWriter on reconnection.
+}
+
+// writeDeadlinePassed is a write deadline in the past whatever clock a session
+// runs on: setting it fails a write blocked in the kernel on that socket.
+var writeDeadlinePassed = time.Unix(1, 0)
+
+// dropConn closes conn without the write path: the close step of a close
+// that found the path held by another writer, and of a writer that gives up
+// its own connection with a partial frame on it (sendUpdateCounted). It
+// expires the socket's write deadline first, which fails a write blocked in
+// the kernel on this socket, so that writer retires and lets the path go.
+// Nothing is flushed and no NOTIFICATION is sent. Safe for concurrent use.
+func dropConn(conn net.Conn) {
+	// RFC 9687 Section 5: "If the local system does not send any BGP messages
+	// within the period specified in SendHoldTime, then a NOTIFICATION message
+	// with the "Send Hold Timer Expired" Error Code MAY be sent and the BGP
+	// connection MUST be closed."
+	// The MAY is not taken here: the writer that holds the path is the reason
+	// nothing can be sent, and the MUST does not wait for it. A socket that
+	// refuses the deadline is closed already, which is the aim.
+	_ = conn.SetWriteDeadline(writeDeadlinePassed)
+	// RFC 4271 Section 8.2.2: "drops the TCP connection"
+	closeConnQuietly(conn)
+}
+
+// markSocketClosed records that this routine closed conn's socket, so a later
+// close of the same connection does not wait for the write path again.
+func (s *Session) markSocketClosed(conn net.Conn) {
+	s.socketClosed.Store(&conn)
+}
+
+// socketClosedIs reports whether this routine already closed conn's socket.
+// Safe for concurrent use.
+func (s *Session) socketClosedIs(conn net.Conn) bool {
+	closed := s.socketClosed.Load()
+	if closed == nil {
+		return false
+	}
+	return *closed == conn
+}
+
+// clearClosedConn clears the connection fields that name conn, whose socket is
+// closed, in the recorded order: s.mu, then the write path. It never waits for
+// the write path under s.mu: a writer holds that path for as long as its socket
+// or a plugin takes, and a dynamic peer's writer may want s.mu meanwhile. It
+// reports whether the fields no longer name conn. The caller MUST NOT hold
+// s.mu or the write path.
+func (s *Session) clearClosedConn(conn net.Conn) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.conn != conn {
+		return true
+	}
+	if !s.writeMu.TryLock() {
+		return false
+	}
+	s.conn = nil
+	s.transport.Store(nil)
+	s.socketClosed.Store(nil)
+	s.writeMu.Unlock()
+	return true
+}
+
+// reportWritePathHeld tells the operator a close met a write path another
+// writer held: one ERROR line and the same problem as an error event on the
+// report bus, which `show doctor` and `show errors` print. notifyMissed says a
+// NOTIFICATION was due and could not be sent for that reason; otherwise the
+// close itself waited wait for the path and gave up.
+func (s *Session) reportWritePathHeld(wait time.Duration, notifyMissed bool) {
+	s.writePathHeldReported.Store(true)
+	peerAddr := s.settings.Address.String()
+	if notifyMissed {
+		sessionLogger().Error("no NOTIFICATION was sent to the peer: another writer held the "+
+			"session's write path, so the connection is closed without one",
+			"peer", peerAddr,
+			"fix", writePathHeldFix, "code", diagnostic.CodeDoctorBGPWritePathHeld)
+		report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorBGPWritePathHeld, peerAddr,
+			"BGP session closed: no NOTIFICATION was sent to peer "+peerAddr+
+				", another writer held the session's write path",
+			writePathHeldFix, map[string]any{"notification": "not-sent"})
+		return
+	}
+	sessionLogger().Error("BGP connection closed while another writer held the session's write path: "+
+		"what that writer had not sent to the peer is dropped",
+		"peer", peerAddr, "waited", wait,
+		"fix", writePathHeldFix, "code", diagnostic.CodeDoctorBGPWritePathHeld)
+	report.RaiseErrorFix(reportSourceBGP, diagnostic.CodeDoctorBGPWritePathHeld, peerAddr,
+		"BGP session closed: another writer held the write path of the session to peer "+peerAddr+
+			" for "+wait.String()+"; what it had not sent is dropped",
+		writePathHeldFix, map[string]any{"waited": wait.String()})
 }
 
 // setCloseReason atomically stores why the connection is being closed.

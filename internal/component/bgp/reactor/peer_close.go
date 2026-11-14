@@ -44,6 +44,26 @@ func closeCause(session *Session) error {
 	return *cause
 }
 
+// ErrWritePathHeld marks the cause of a session whose close met a write path
+// another writer held, and reported it under its own code
+// (Session.reportWritePathHeld).
+var ErrWritePathHeld = errors.New("the session closed while another writer held its write path")
+
+// leaveCause answers cause, the close reason the leave recorded at its FSM
+// transition, joined with ErrWritePathHeld when a close of session reported a
+// held write path, so errors.Is answers for both. sessionDroppedOwed reads it.
+// It MUST be read after Session.Run returned: the close that reports a held
+// path runs after the transition (the hold timer fires its event first).
+func leaveCause(session *Session, cause error) error {
+	if !session.writePathHeldReported.Load() {
+		return cause
+	}
+	if cause == nil {
+		return ErrWritePathHeld
+	}
+	return errors.Join(cause, ErrWritePathHeld)
+}
+
 // sessionCloseFor derives the close of a session that left Established on
 // event. notified is true when a NOTIFICATION crossed the wire on this session,
 // in either direction (Peer.notificationExchanged). publicationFailed is true
@@ -117,12 +137,17 @@ func sessionCloseFor(notified, publicationFailed bool, event fsm.Event, cause er
 // sessionDroppedOwed reports whether the end of an Established session owes
 // the session-dropped event on the report bus. notified and cause are the
 // inputs sessionCloseFor reads. The event stands for a close nothing else
-// reported, so two closes owe none: one where a NOTIFICATION crossed the wire,
-// which raised its own event, and one whose recorded cause is a write budget
+// reported, so three closes owe none: one where a NOTIFICATION crossed the
+// wire, which raised its own event, one whose recorded cause is a write budget
 // expiry, which the session reported under its own code when it happened
-// (Session.reportWriteBudgetExpiry). One close gives one event.
+// (Session.reportWriteBudgetExpiry), and one that met a held write path, which
+// the close routine reported under its own code (Session.reportWritePathHeld,
+// carried here by leaveCause). One close gives one event.
 func sessionDroppedOwed(notified bool, cause error) bool {
 	if notified {
+		return false
+	}
+	if errors.Is(cause, ErrWritePathHeld) {
 		return false
 	}
 	return !errors.Is(cause, ErrWriteBudgetExpired)
