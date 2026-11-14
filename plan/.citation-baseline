@@ -80,4 +80,5 @@ plan/post-release/engineering/spec-le-one-verb-one-job.md
 plan/post-release/engineering/spec-inventory-fast-registry-checks.md
 plan/post-release/engineering/spec-tooling-one-off-defects.md
 plan/release/fixes/spec-single-owner-lifecycle-4-ike-unauthenticated-input.md
+plan/release/fixes/spec-single-owner-lifecycle-5-session-end-locals.md
 plan/release/validation/spec-doctor-coverage-12-plugin-infra.md
