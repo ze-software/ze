@@ -108,6 +108,7 @@ Pages and files, read whole or by structure:
 | Agent definitions and mirror | `ai/agents/`, `internal/le/ai/sync/ai.go` | Copied verbatim to the harness | Does not change the mirror: the new frontmatter line passes through as text |
 | Read gate | `internal/le/hookruntime/readgate.go`, `writeStyleGuideRead` | Requires a whole read of the style page | Does not change: the page it names becomes shorter |
 | On-demand rationale and sibling pages | `ai/rationale/`, `docs/contributing/` | Hold text a rule or page points at | Extends: the style page's detail moves to sibling pages it links |
+| Agent rule set reader and the start hook's reading list | `internal/le/ai/rules/ruleset`; `hookSubagentContext` | Finds the every-agent part of the decisions file by heading and names it, with the core and the index, as the files an agent reads | Extends (phase 6): one function answers the situational sections, found by heading, never a list of section names in Go; the reading list names each with its line range and situation |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -208,13 +209,14 @@ writer and readers in the repository.
 | AC-5 | A core member's point with no `applies` | Shown in the core as today | All of them until an author adds the field: absence never narrows |
 | AC-6 | A core member's point that declares `applies: <situation>` | Left out of the core; the member's block ends with one line naming the rule file and each such situation | The point stays in the rule file and the rule stays in the trigger index |
 | AC-7 | `applies` on a point whose level is MUST NOT, or on a point of a rule that is not a core member | The generator refuses, naming the point and the reason | A MUST NOT stays eager: a prohibition cannot wait for its situation |
-| AC-8 | The rendered core after the three large members are marked | At most 24KB, with every prohibition, the precedence ladder table and the directive to read the RFC's own text shown | The bans and the ladder: the owner's condition on D-2 |
+| AC-8 | The rendered core | Shows every point of an always-on rule except a point that declares its situation and states no prohibition in any form; its size is what that yields, 45.0KB on 2026-11-14 with two points marked. The 24KB figure is withdrawn by the owner (2026-11-14, on D-2 and AC-8: "keeping what is built") | Every prohibition is shown: most points hold a prohibition and a procedure in one paragraph, and a prohibition is never hidden, so those points are not split |
 | AC-9 | The trigger index header | Says an always-on rule's core block may name situations whose points are in the rule file | None |
 | AC-10 | `docs/contributing/ze-go-style.md` | At most 16KB; every heading of the old page present with its rule stated; each moved body linked as a sibling page under `docs/contributing/go-style/` | None dropped: every sentence is in the core page or one sibling |
 | AC-11 | A Go edit by an agent that read the shortened page whole | Passes the style gate, with no change to the gate's code | An agent that read nothing is still refused |
-| AC-12 | `./le ai rules report payload` | Reports the main payload and the agent rule set, each against its own budget | None |
-| AC-13 | A phase agent's context after its first read turn (the reads the start text names), measured | At most 35k tokens; a subdirectory instruction file or path-scoped rule can still load when the agent works with files there, and the measurement names any that did | The system prompt and tool schemas, which the repository does not control |
+| AC-12 | `./le ai rules report payload` | Reports the main payload and the agent rule set, each against its own budget. Met in form; the agent budget's number is not yet meaningful (Known Limitations) | None |
+| AC-13 | A phase agent's context after its first read turn (the reads the start text names), measured | A figure measured by the probe, against a target the owner decides then (the 35k-token figure was set before the 10,000-character cap and the placement count were known, and is owed from the probe); a subdirectory instruction file or path-scoped rule can still load when the agent works with files there, and the measurement names any that did | The system prompt and tool schemas, which the repository does not control |
 | AC-14 | A harness that reads `AGENTS.md` alone | Loads the same files as before, the decisions file whole | None |
+| AC-15 | The sections `Website design`, `Test systems and labs`, `ExaBGP compatibility` and `Developer tooling` of `ai/META-DECISIONS.md` | Sit outside the range the start hook hands every agent; each states its situation once directly under its heading; the start hook lists each with its line range and its situation; the payload measure counts them apart from the every-agent part; a main session still loads the whole file; every bullet's wording is unchanged | None. Not started |
 
 ## 🧪 TDD Test Plan
 
@@ -230,6 +232,7 @@ writer and readers in the repository.
 | `TestThePayloadMeasuresTheAgentRuleSet` | `internal/le/ai/rules/digest_test.go` | AC-12 | |
 | `TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts` | `internal/le/ai/rules/digest_test.go` | AC-4: both headings present and the hook's extract of the first part ends at the second heading | |
 | `TestTheStyleCoreKeepsEveryHeadingOfTheSplitPage` | `internal/le/doc/` (the doc-check package that owns page structure, named in phase 5) | AC-10: each sibling page is linked from the core | |
+| A test pinning which sections are situational (named in phase 6) | `internal/le/ai/rules/ruleset/` | AC-15: exactly the four sections, found by heading | not started |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -316,6 +319,7 @@ every test and every generator.
    - Tests: `TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts`
    - Files: `ai/META-DECISIONS.md`, `ai/INSTRUCTIONS.md`
    - Verify: the sorted bullet set is identical before and after; the strongest tier reviews each bullet's part against the test in Key Design Decisions
+   - Implemented 2026-11-14, uncommitted: the decisions file holds "Rules for every agent" then "Rules for the main session", the eleven main-session bullets moved whole under their source section names, 135 bullets before and after; the instruction sentence names both parts; the test; and review notes N1 and N2 of round 5 fixed in `hookSubagentContext`. Its review is round 1 of the new change in the Review Gate
 3. **Phase: The core shows always-on points (D-2)**
    - Tests: `TestTheCoreLeavesOutAPointThatDeclaresItsSituation`, `TestTheCoreShowsAPointWithNoSituation`, `TestAppliesIsRefusedOnAProhibitionAndOutsideTheCore`
    - Files: `points.go`, `artifacts.go`, `docs/contributing/rule-authoring.md`, then the point files of the three large members
@@ -329,6 +333,19 @@ every test and every generator.
    - Tests: `TestTheStyleCoreKeepsEveryHeadingOfTheSplitPage`
    - Files: `docs/contributing/ze-go-style.md`, the sibling pages, every page that links a section of it
    - Verify: `./le doc check all`; AC-10 and AC-11
+6. **Phase: Situational sections of the decisions file** (not started)
+   - Sections: `Website design`, `Test systems and labs`, `ExaBGP compatibility`, `Developer tooling`, about 10KB of the 41.6KB every-agent part
+   - Tests: a test that pins which sections are situational
+   - Files: `ai/META-DECISIONS.md` (a situation line under each of the four headings, no bullet reworded), `internal/le/ai/rules/ruleset` (one function answering the situational sections, found by heading), `hookSubagentContext` (the reading list), `artifacts.go` (the payload measure)
+   - Verify: AC-15; a strongest-tier review that no bullet in those sections binds an agent doing other work
+   - → Decision: owner, 2026-11-14: whole topic sections of `ai/META-DECISIONS.md` may be read only by an agent doing that work.
+   - → Constraint: this departs from the two-part design the owner approved on 2026-11-11 (D-1), and he approved the departure on 2026-11-14. The four were chosen because an agent cannot mistake whether it is editing the website, a lab, the ExaBGP bridge or `le`.
+
+### Remaining before closure
+- The probe: A-1, A-3, A-4
+- Phase 6 (AC-15)
+- The R-6 `./le ai sync check` report of the agent payload per definition
+- The agent rule set's budget value (AC-12) and the AC-13 figure, both from the probe
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -345,7 +362,7 @@ every test and every generator.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Phase agents start without the instruction files | the probe's first-turn context, recorded in this spec |
-| The core at most 24KB | `wc -c ai/rules/CORE.md` |
+| The core shows every point except one that declares its situation and states no prohibition (AC-8) | `./le ai rules update condensed` leaves `ai/rules/CORE.md` unchanged, and the generator's refusal tests pass |
 | The style core at most 16KB | `wc -c docs/contributing/ze-go-style.md` |
 | Both payloads within budget | `./le ai rules report payload` |
 
@@ -399,6 +416,8 @@ agent; phase 1 probes each before the design relies on it):
 - The system door (11KB, read by every editing agent) is left whole: the door gate exists because agents designed from habit, and a shortened door risks the failure the gate stops. Revisit only with the umbrella's measurement after this child lands.
 - The trigger-index and per-stage views of `plan/post-release/engineering/spec-rules-situation-index.md` are not built here.
 - R-6 says `./le ai sync check` reports the agent payload per definition. That report is not built; it is owed in this spec before closure.
+- The 24KB core target of AC-8 was set before the points were read: most points hold a prohibition and a procedure in one paragraph, so the target could not be met without hiding a prohibition. The owner withdrew it on 2026-11-14.
+- `./le ai rules report payload` reports the agent rule set at 23,772 tokens against a budget of 12,000, so it says EXCEEDED. The implementing agent chose 12,000 without a basis. The budget is owed a value with a basis, set when phase 6 lands and the probe has measured an agent's real first turn; until then AC-12's "each against its own budget" is met in form and its number is not meaningful.
 
 ## Review Gate
 
@@ -417,6 +436,13 @@ agent; phase 1 probes each before the design relies on it):
 | 4 | the fixes of round 3 and the call sites they touch | 0 BLOCKER, 1 ISSUE, 4 NOTE |
 | 5 | the fixes of round 4 and the call sites they touch | 0 BLOCKER, 0 ISSUE, 3 NOTE |
 
+Phase 2 is implemented and is a new change, so its review starts a new loop.
+Its scope is written before the round runs.
+
+| Round | Scope | Lenses | Result |
+|-------|-------|--------|--------|
+| 1 | the phase 2 diff: the decisions file, the instruction sentence, the test, and the two hook notes | is any moved bullet one a subagent can break by its own action; is any bullet's text changed or lost | 0 BLOCKER, 1 ISSUE, 6 NOTE. All eleven main-session placements confirmed against the placement test. The ISSUE (the generated `AGENTS.md` left stale after `ai/INSTRUCTIONS.md` changed) was fixed by `./le ai sync update` and judged by `./le ai sync check`, which is clean, so no second reading round was run for a regenerated file |
+
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
@@ -432,9 +458,11 @@ agent; phase 1 probes each before the design relies on it):
 | Round | Severity | Finding | Location | Why it stays |
 |-------|----------|---------|----------|--------------|
 | 4 | NOTE | `agentCallBudgetCheck` takes its "not counted" arm for an agent id past the id length bound | `internal/le/hookruntime/budget.go` | Nothing is unguarded by it: the Bash hook refuses every command of such an agent, and a code edit is refused through the read marker |
-| 5 | NOTE | N1: with an agent id, no `session_id`, a resolved id and `lepath.SessionForID` failing, the start text prints no identity text at all | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Safe: no line is printed and the Bash refusal explains. Fixing it edits sealed source after the review ended; owed with phase 2, which edits the same hook |
-| 5 | NOTE | N2: the default arm of `hookSubagentContext` still prints "exactly as printed" before a text that prints no line | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | Same reason as N1; owed with phase 2 |
 | 5 | NOTE | N3: the spec package's name check (`safeSessionID`) has no length bound, while `lepath`'s id check has 96 | `internal/le/spec/model.go` | Harmless: every id that reaches a claim or a written file name comes through `lepath`; the check also judges spec stems, so it stays |
+| Phase 2, 1 | NOTE | The opening's "A subagent is given only the first part." is true only for agent definitions that omit the instruction files | `ai/META-DECISIONS.md` | The others load the whole file, which loses nothing |
+| Phase 2, 1 | NOTE | Three `##` section names now appear once in each part, and `.claude/rules/session-start.md` cites one by name whose rule is in the first part | `ai/META-DECISIONS.md`, `.claude/rules/session-start.md` | The cited rule is in the part every agent reads, so the citation still finds it |
+| Phase 2, 1 | NOTE | The every-agent "Before the first edit in each checkout, `git fetch`" bullet binds the main session's check | `ai/META-DECISIONS.md` | It names its own subagent exception |
+| Phase 2, 1 | NOTE | No input reaches the arm where a session id resolves and `lepath.SessionForID` then fails | `internal/le/hookruntime/lifecycle.go`, `hookSubagentContext` | No input reaches it, so it has no test of its own |
 
 ## Checklist
 
@@ -452,7 +480,7 @@ agent; phase 1 probes each before the design relies on it):
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-14 all demonstrated
+- [ ] AC-1..AC-15 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name or the recorded probe, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: `./le ai hooks unit`, and the packages through `./le job run label unit-pkg quiet command go test -tags <the tags from feature-gates.txt> ./internal/le/hookruntime/ ./internal/le/ai/rules/`. No `./le test unit <group>` covers `internal/le`. No agent runs any `./le verify` command
 - [ ] Feature code integrated (`internal/*`), not library-only

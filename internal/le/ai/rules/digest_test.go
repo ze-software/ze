@@ -973,6 +973,130 @@ func TestAnAgentRuleSetWithoutItsHeadingIsIncomplete(t *testing.T) {
 	}
 }
 
+// mainSessionDecisions names, by its opening words and in file order, each
+// bullet of the main-session part of ai/META-DECISIONS.md: the rules only the
+// session that talks to the owner, spawns agents, plans or pushes can break,
+// so a subagent is never given them. A bullet moved into that part or out of
+// it turns TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts red until
+// this list moves with it, which is the moment its placement is judged.
+var mainSessionDecisions = []string{
+	"**Thomas requests subagent delegation as the default in",
+	"Some harness builds carry a guard:",
+	"An agent sent to find out how something",
+	"Every spec phase runs in a subagent through",
+	"The main thread supervises: it launches, verifies each",
+	"The main thread schedules heavy work. Before it",
+	"A serialized run never leaves agents idle. While",
+	"A report to the owner opens with what",
+	"Up to three spec closures may run at",
+	"A session runs one CPU-intensive job at a",
+	"When Thomas sets a goal that spans several",
+}
+
+// decisionBullets answers each bullet of lines whole, its continuation lines
+// joined to it with their newlines: a line that opens "- " starts one, and an
+// indented line continues the open one.
+func decisionBullets(lines []string) []string {
+	var bullets []string
+	open := false
+	for _, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "- "):
+			bullets = append(bullets, line)
+			open = true
+		case open && strings.HasPrefix(line, "  "):
+			bullets[len(bullets)-1] += "\n" + line
+		default:
+			open = false
+		}
+	}
+	return bullets
+}
+
+// VALIDATES: spec-agent-economy-3-preamble AC-4 and R-3, on the checkout's own
+// ai/META-DECISIONS.md: both part headings once and in order, the opening
+// naming both parts, the range ruleset.AgentDecisions hands the start hook
+// running from the first heading to the line before the second, the
+// main-session part holding exactly the bullets mainSessionDecisions names,
+// and no bullet in both parts or above the first one.
+// PREVENTS: a subagent given main-session rules, or denied a rule it can break,
+// because a bullet changed part unseen or the reader cut at the wrong line.
+// The test cannot know the committed file's earlier bullet set: a bullet
+// deleted or reworded in the every-agent part passes here, and the sorted
+// before-and-after comparison of the move is that check.
+func TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts(t *testing.T) {
+	root := filepath.Clean("../../../..")
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(ruleset.DecisionsFile)))
+	if err != nil {
+		t.Fatalf("read the decisions file: %v", err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+	headingAt := func(heading string) int {
+		t.Helper()
+		found, count := -1, 0
+		for index, line := range lines {
+			text := strings.TrimLeft(line, "#")
+			if len(text) < len(line) && strings.HasPrefix(text, " ") && strings.TrimSpace(text) == heading {
+				found = index
+				count++
+			}
+		}
+		if count != 1 {
+			t.Fatalf("%s holds %d headings %q, want exactly one", ruleset.DecisionsFile, count, heading)
+		}
+		return found
+	}
+	agentAt := headingAt(ruleset.DecisionsAgentPartHeading)
+	mainAt := headingAt(ruleset.DecisionsMainPartHeading)
+	if mainAt < agentAt {
+		t.Fatalf("the main-session heading (line %d) comes before the every-agent heading (line %d)", mainAt+1, agentAt+1)
+	}
+
+	opening := strings.Join(lines[:agentAt], "\n")
+	for _, heading := range []string{ruleset.DecisionsAgentPartHeading, ruleset.DecisionsMainPartHeading} {
+		if !strings.Contains(strings.Join(strings.Fields(opening), " "), "\""+heading+"\"") {
+			t.Errorf("the opening does not say when a new rule goes under %q", heading)
+		}
+	}
+	if above := decisionBullets(lines[:agentAt]); len(above) != 0 {
+		t.Errorf("%d bullets sit above the first part, in neither: %q", len(above), above)
+	}
+
+	part, err := ruleset.AgentDecisions(root)
+	if err != nil {
+		t.Fatalf("AgentDecisions: %v", err)
+	}
+	if part.First != int64(agentAt)+1 || part.Last != int64(mainAt) {
+		t.Errorf("the every-agent range is lines %d-%d, want %d-%d", part.First, part.Last, agentAt+1, mainAt)
+	}
+	if want := strings.Join(lines[agentAt:mainAt], "\n") + "\n"; part.Text != want {
+		t.Errorf("the every-agent text is not the file's lines %d-%d", agentAt+1, mainAt)
+	}
+
+	agentBullets := decisionBullets(lines[agentAt:mainAt])
+	mainBullets := decisionBullets(lines[mainAt:])
+	if len(mainBullets) != len(mainSessionDecisions) {
+		t.Fatalf("the main-session part holds %d bullets, want %d", len(mainBullets), len(mainSessionDecisions))
+	}
+	for index, words := range mainSessionDecisions {
+		if !strings.HasPrefix(mainBullets[index], "- "+words) {
+			t.Errorf("main-session bullet %d opens %q, want %q", index+1, strings.SplitN(mainBullets[index], "\n", 2)[0], words)
+		}
+	}
+	if len(agentBullets) == 0 {
+		t.Fatal("the every-agent part holds no bullet")
+	}
+	inAgentPart := make(map[string]bool, len(agentBullets))
+	for _, bullet := range agentBullets {
+		inAgentPart[bullet] = true
+	}
+	for _, bullet := range mainBullets {
+		if inAgentPart[bullet] {
+			t.Errorf("a bullet sits in both parts: %q", strings.SplitN(bullet, "\n", 2)[0])
+		}
+	}
+}
+
 func TestTheRouterSubtractsACoreDerivedWithoutTheCorpus(t *testing.T) {
 	files := digestCorpus()
 	files["plan/post-release/engineering/spec-thing.md"] = "# Spec\n\n## Task\n\nRewrite the gokrazy qdisc encoder.\n"

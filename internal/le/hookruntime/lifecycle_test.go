@@ -103,6 +103,7 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 	tests := []struct {
 		name    string
 		payload map[string]any
+		env     map[string]string
 		want    []string
 		absent  []string
 	}{
@@ -123,11 +124,13 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 		{
 			// Review N2: an agent id that cannot name a file gets no line to
 			// type; every command, readers included, is refused with
-			// stop-and-report (review I3), and the start text says so.
+			// stop-and-report (review I3), and the start text says so. It
+			// does not order a line typed "exactly as printed" when it
+			// prints none (round 5, N2).
 			name:    "payload-with-an-unusable-agent-id",
 			payload: map[string]any{"session_id": "context-parent", "agent_id": "a/b"},
 			want:    []string{"stop and report the agent id to the main thread", "refuses every command, readers included"},
-			absent:  []string{"ZE_AGENT_ID=", "first refusal"},
+			absent:  []string{"ZE_AGENT_ID=", "first refusal", "Start every Bash command", "exactly as printed"},
 		},
 		{
 			// Review round 3, I1: an agent id past the id length bound is one
@@ -136,7 +139,7 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 			name:    "payload-with-an-over-long-agent-id",
 			payload: map[string]any{"session_id": "context-parent", "agent_id": strings.Repeat("a", idLengthMax(t)+1)},
 			want:    []string{"stop and report the agent id to the main thread", "refuses every command, readers included", "Parent session ID: context-parent\n", lepath.IDRule()},
-			absent:  []string{"ZE_AGENT_ID=", "..."},
+			absent:  []string{"ZE_AGENT_ID=", "...", "Start every Bash command", "exactly as printed"},
 		},
 		{
 			// Review round 4: a payload that names an agent and carries no
@@ -147,7 +150,19 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 			name:    "payload-with-an-agent-id-and-no-session-id",
 			payload: map[string]any{"agent_id": "agent-1"},
 			want:    []string{"carries no session id", "refuses every command, readers included", "stop and report the payload's session_id to the main thread"},
-			absent:  []string{"ZE_AGENT_ID=", "CLAUDE_CODE_SESSION_ID="},
+			absent:  []string{"ZE_AGENT_ID=", "CLAUDE_CODE_SESSION_ID=", "Start every Bash command"},
+		},
+		{
+			// Round 5, N1: a payload that names an agent and carries no
+			// session_id key, where no parent session resolves either (an
+			// unsafe CLAUDE_CODE_SESSION_ID makes lepath refuse to resolve
+			// one). The start text still says stop and report, with no
+			// parent session and no line.
+			name:    "payload-with-an-agent-id-no-session-id-and-no-resolved-session",
+			payload: map[string]any{"agent_id": "agent-1"},
+			env:     map[string]string{"CLAUDE_CODE_SESSION_ID": "a/b"},
+			want:    []string{"carries no session id", "refuses every command, readers included", "stop and report the payload's session_id to the main thread"},
+			absent:  []string{"ZE_AGENT_ID=", "CLAUDE_CODE_SESSION_ID=", "Parent session ID", "Start every Bash command"},
 		},
 		{
 			// An over-long session id is neither echoed nor used in a line:
@@ -172,6 +187,9 @@ func TestSubagentStartCarriesTheIdentityLine(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			for key, value := range test.env {
+				t.Setenv(key, value)
+			}
 			code, output, diagnostics := runHook(t, t.TempDir(), "subagent-context", test.payload)
 			if code != 0 {
 				t.Fatalf("code = %d, want advisory context; stderr: %s", code, diagnostics)

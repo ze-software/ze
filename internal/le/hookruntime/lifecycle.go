@@ -550,42 +550,45 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 			// either: bashAgentIdentity refuses every command, readers
 			// included, with stop-and-report, at the AgentFingerprint error
 			// before it reads the reader set. A payload with no session_id
-			// key owns no line either, though id was resolved for it:
-			// bashAgentIdentity reads the payload's own session id and
-			// refuses every command of an agent that carries none.
-			const typeTheLine = "\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n"
+			// key owns no line either, though id was resolved for it: its
+			// text is written below, whether or not paths resolved. The
+			// sentence that orders the line typed is printed only where a
+			// line follows it.
 			agent := ctx.payload.AgentID
 			switch {
 			case agent == "":
 				text.Str("\nThis start payload names no agent id, so you have no identity line to type here. " +
 					"The Bash hook asks for one only on a call whose payload names an agent, and its refusal then prints the exact line.\n")
 			case !present:
-				text.Str(noPayloadSessionID)
+				// No line: the stop-and-report text is written below.
 			case lepath.ValidAgentID(agent):
 				// Both ids passed the one id check, which bounds their length
 				// under startTextErrorMax, so the line is printed whole: a cut
 				// id would make a line the Bash hook refuses.
-				text.Str(typeTheLine).Str(identityLine(agent, id)).Byte('\n')
+				text.Str("\nStart every Bash command that runs anything but readers (grep, sed, cat, a git read verb) with your identity line, exactly as printed. The Bash hook checks the line and never adds it:\n").
+					Str(identityLine(agent, id)).Byte('\n')
 			default:
-				text.Str(typeTheLine).
-					Str("This start payload's agent id cannot name a file: ").Str(lepath.IDRule()).
+				text.Str("\nThis start payload's agent id cannot name a file: ").Str(lepath.IDRule()).
 					Str(" So you have no identity line: the Bash hook refuses every command, readers included. " +
 						"Next: stop and report the agent id to the main thread.\n")
 			}
 		}
 	}
-	// A subagent whose payload session id is absent or cannot name a file has
-	// no identity line: bashAgentIdentity refuses its every command, readers
-	// included, with stop-and-report. The start text says so rather than
-	// print a line built from an id the hook rejects, or say nothing. An
-	// absent id that no session resolved for lands here too.
-	if id == "" && ctx.payload.AgentID != "" {
-		if present {
+	// A subagent whose payload carries no session_id key, or one that cannot
+	// name a file, has no identity line: bashAgentIdentity reads the payload's
+	// own session id and refuses its every command, readers included, with
+	// stop-and-report. The start text says so rather than print a line built
+	// from an id the hook rejects, or say nothing. A missing key says so
+	// whether a parent session resolved or not, and whether or not its paths
+	// did: the text depends on the payload alone, as the refusal does.
+	if ctx.payload.AgentID != "" {
+		switch {
+		case !present:
+			text.Str(noPayloadSessionID)
+		case id == "":
 			text.Str("\nThis start payload's session id cannot name a file: ").Str(lepath.IDRule()).
 				Str(" So you have no parent session and no identity line: the Bash hook refuses every command, readers included. " +
 					"Next: stop and report the payload's session id to the main thread.\n")
-		} else {
-			text.Str(noPayloadSessionID)
 		}
 	}
 	subagentCallRules(&text)

@@ -57,7 +57,8 @@ you have broken one, stop and tell the user.
 # Owner Meta Decisions
 
 `ai/META-DECISIONS.md` holds the rules Thomas set for how agents work and what is
-in scope, as plain rules grouped by topic. A question one of those rules
+in scope, as plain rules grouped by topic in two parts: "Rules for every agent",
+the part a subagent is given, and "Rules for the main session". A question one of those rules
 answers is never put to him. A harness that does not expand the include below
 reads that file before its first action.
 

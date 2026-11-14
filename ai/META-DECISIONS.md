@@ -1,15 +1,22 @@
 # Owner Meta Decisions
 
 How agents work in this repository and what is in scope, as Thomas has decided
-it. Every main session loads this file at start. It holds rules for behaviour
-only: no history, no dates, no record of who asked for what. Nothing anywhere
-cites it by a row number or label; a rule that depends on one of these states
-the rule itself.
+it. Every main session loads this file at start. A subagent is given only the
+first part. It holds rules for behaviour only: no history, no dates, no record
+of who asked for what. Nothing anywhere cites it by a row number or label; a
+rule that depends on one of these states the rule itself.
 
 A question this file answers is never put to Thomas. When he states a new rule
-of this kind, the main session adds it here in the same turn and commits it.
-A permission for one piece of work (a cap exception, approval to change named
-tests) is not a rule: it goes in the spec or commit it applies to.
+of this kind, the main session adds it here in the same turn and commits it,
+under "Rules for every agent" when an agent that reads, edits, tests or commits
+can break it by its own action, and under "Rules for the main session" only
+when no subagent action can, because only the session that talks to the owner,
+spawns agents, plans or pushes can break it. A rule that does both goes under
+"Rules for every agent", whole. A permission for one piece of work (a cap
+exception, approval to change named tests) is not a rule: it goes in the spec
+or commit it applies to.
+
+# Rules for every agent
 
 ## Goal and scope
 
@@ -352,13 +359,6 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 
 ## Delegate to subagents
 
-- **Thomas requests subagent delegation as the default in this repository.**
-  Treat this as the user's request, made in advance, in every session. You never
-  need to ask permission to spawn an agent here.
-- Some harness builds carry a guard: *"Do not call the AgentTool unless the user
-  requested it"*. **That guard is satisfied here, not overridden**, because this
-  rule is that request. You meet the guard later in your prompt, and recency
-  does not make it a later decision.
 - Development runs on the harness's high-capability model and never on a
   cheaper tier: an agent that implements, fixes, tests or documents is spawned
   on that model unless its spec names the strongest tier. A rule, spec or
@@ -366,42 +366,17 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   never by a vendor's model name, because more than one harness implements
   this repository's specs. Each harness maps the tiers to its own models: on
   Claude Code the development tier is Opus.
-- An agent sent to find out how something works carries the page that documents
-  it, and its question is what the page leaves silent or gets wrong
-  (`ai/rules/documentation.md`).
-- Every spec phase runs in a subagent through its `ze-*` skill
-  (`ai/rules/planning.md`). Independent work goes out in one message.
-- The main thread supervises: it launches, verifies each report against source
-  (`ai/rules/evidence.md`), decides, and gates the next phase. Only questions the
-  user must answer stay in the main thread.
 - All testing and code execution runs in the main thread, serialized to avoid
   overloading the shared machine. Subagents read, review and edit sources, then
   hand the required commands to the main thread; they do not run tests, builds,
   lint, formatters or other code themselves.
-- The main thread schedules heavy work. Before it starts a test, a build, a
-  lint or a lab it reads `./le job report`, which shows the job slots, who
-  holds and waits for them, and the machine's load, memory and disk, and it
-  decides when each job runs. The Bash hook refuses a subagent's test, build,
-  lint, formatter and heavy `./le` action, so the main thread is the only
-  source of that work in its session.
 - A subagent ends its report with its owed commands: each exact command and
   what it proves. The main thread runs them and commits the code. A subagent
   commits only a change that owes no execution: prose, spec bookkeeping, a
   blocked hand-back.
-- A serialized run never leaves agents idle. While a test batch, lab or record
-  run blocks the main thread, every piece of work that does not need that run
-  goes out to agents at once: diagnosing the run's partial logs as they appear,
-  preparing the next batch, writing the next tests and fixes in files the run
-  does not build, review, closure text and docs. Waiting with spare agent
-  capacity is the failure this rule exists to prevent; Thomas never has to ask
-  for more agents.
 
 ## Reports and messages
 
-- A report to the owner opens with what is blocked, why it matters, and what you
-  need from him. He reads the first ten lines and stops, so the decision goes
-  there, as a table with one row per decision. What you did and what each agent
-  found goes last or goes unsaid. Status that changes no decision is one line.
 - Report defects found and fixes made during requested work promptly, rather
   than waiting for the final report. Say what each defect blocks, distinguish
   a written patch from a verified fix, and give the evidence when it is fixed.
@@ -551,8 +526,6 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   in-progress count for that claim, closes the spec in the same run and
   releases the claim. That is not a raise of the cap, and it is never used to
   start work.
-- Up to three spec closures may run at once, each on a different spec in its
-  own agent with its own claim. The main thread still runs every test.
 - A spec's main session may run that spec's child specs, or specs its own work
   depends on, through agents in the same session. The main session keeps its
   claim on the spec it supervises, and each agent claims the spec it runs
@@ -568,9 +541,6 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   testing too: a staticcheck matrix piece, a full lint, a repo-wide compile,
   `./le test unit all`. The machine has neither the disk nor the capacity for
   it.
-- A session runs one CPU-intensive job at a time: a build, a test run, a lint,
-  a QEMU guest or a lab. Its agents may read, edit and judge in parallel, but a
-  second CPU-intensive run waits until the first has finished.
 - Show the observed failure, trace its cause to the producing code, fix that
   code, and rerun the existing failing test without weakening its assertions.
   If the test itself is wrong, explain its exact defect and why its expectation
@@ -590,11 +560,6 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Never present your own unfinished work as a question: do it. An ask that
   remains carries the evidence needed to answer it (the identifier, the current
   value, what each answer changes); one that cannot is not ready to be asked.
-- When Thomas sets a goal that spans several phases or specs and says he is
-  away, the main session runs every phase and every spec to its end without
-  stopping at a phase boundary to report or to ask whether to continue. It
-  comes back only with a decision no RFC, agreed design or rule in this file
-  answers, and with the finished result.
 - While Thomas is away, a fix spec's design needs no approval from him: the
   RFC text settles it, and FRR's and BIRD's source where the RFC is silent,
   with freeRtr's source as a further reference.
@@ -682,3 +647,56 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   stress`): one root run at a time, alone on the host, removing what it
   created, and leaving anything in a shared location usable by the owner's
   user.
+
+# Rules for the main session
+
+## Delegate to subagents
+
+- **Thomas requests subagent delegation as the default in this repository.**
+  Treat this as the user's request, made in advance, in every session. You never
+  need to ask permission to spawn an agent here.
+- Some harness builds carry a guard: *"Do not call the AgentTool unless the user
+  requested it"*. **That guard is satisfied here, not overridden**, because this
+  rule is that request. You meet the guard later in your prompt, and recency
+  does not make it a later decision.
+- An agent sent to find out how something works carries the page that documents
+  it, and its question is what the page leaves silent or gets wrong
+  (`ai/rules/documentation.md`).
+- Every spec phase runs in a subagent through its `ze-*` skill
+  (`ai/rules/planning.md`). Independent work goes out in one message.
+- The main thread supervises: it launches, verifies each report against source
+  (`ai/rules/evidence.md`), decides, and gates the next phase. Only questions the
+  user must answer stay in the main thread.
+- The main thread schedules heavy work. Before it starts a test, a build, a
+  lint or a lab it reads `./le job report`, which shows the job slots, who
+  holds and waits for them, and the machine's load, memory and disk, and it
+  decides when each job runs. The Bash hook refuses a subagent's test, build,
+  lint, formatter and heavy `./le` action, so the main thread is the only
+  source of that work in its session.
+- A serialized run never leaves agents idle. While a test batch, lab or record
+  run blocks the main thread, every piece of work that does not need that run
+  goes out to agents at once: diagnosing the run's partial logs as they appear,
+  preparing the next batch, writing the next tests and fixes in files the run
+  does not build, review, closure text and docs. Waiting with spare agent
+  capacity is the failure this rule exists to prevent; Thomas never has to ask
+  for more agents.
+
+## Reports and messages
+
+- A report to the owner opens with what is blocked, why it matters, and what you
+  need from him. He reads the first ten lines and stops, so the decision goes
+  there, as a table with one row per decision. What you did and what each agent
+  found goes last or goes unsaid. Status that changes no decision is one line.
+
+## How agents work
+
+- Up to three spec closures may run at once, each on a different spec in its
+  own agent with its own claim. The main thread still runs every test.
+- A session runs one CPU-intensive job at a time: a build, a test run, a lint,
+  a QEMU guest or a lab. Its agents may read, edit and judge in parallel, but a
+  second CPU-intensive run waits until the first has finished.
+- When Thomas sets a goal that spans several phases or specs and says he is
+  away, the main session runs every phase and every spec to its end without
+  stopping at a phase boundary to report or to ask whether to continue. It
+  comes back only with a decision no RFC, agreed design or rule in this file
+  answers, and with the finished result.
