@@ -23,15 +23,18 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const (
 	DefaultReferenceBandwidth = uint32(100000)
 	DefaultMaximumPaths       = uint8(8)
-	DefaultSPFDelayMS         = uint32(50)
-	DefaultSPFHoldMS          = uint32(200)
-	DefaultSPFMaxHoldMS       = uint32(5000)
+	// The SPF timer defaults are the SPF computer's own, declared once as durations in
+	// the spf package and expressed here in the milliseconds the `spf-*-ms` leaves use.
+	DefaultSPFDelayMS         = uint32(ospfspf.DefaultSPFDelay / time.Millisecond)
+	DefaultSPFHoldMS          = uint32(ospfspf.DefaultSPFHold / time.Millisecond)
+	DefaultSPFMaxHoldMS       = uint32(ospfspf.DefaultSPFMaxHold / time.Millisecond)
 	DefaultMinLSIntervalMS    = uint32(5000)
 	DefaultMinLSArrivalMS     = uint32(1000)
 	DefaultDefaultMetric      = uint32(1)

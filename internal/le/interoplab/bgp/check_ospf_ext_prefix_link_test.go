@@ -87,6 +87,11 @@ func TestFRROSPFExtFromZeVerdict(t *testing.T) {
 		`"linkStateId":"8.0.0.1","advertisingRouter":"172.30.0.2","lsaSeqNumber":"80000001","checksum":"6829","length":36,` +
 		`"opaqueType":"Extended Link Opaque LSA","opaqueId":1,"opaqueLength":16,"opaqueLengthValid":true,` +
 		`"opaqueValues":{"extendedLink":{"linkType":"0x1","linkID":"172.30.0.3","linkData":"172.30.0.2","adjacencySID":[]}}}`
+	// Ze's Router Information LSA, opaque type 4: Ze's LSA of another opaque type, which
+	// must not stand in for its Extended Prefix LSA.
+	const zeRI = `{"lsaAge":10,"options":"*|O|-|-|-|-|-|-","lsaFlags":6,"lsaType":"Area-Local Opaque-LSA",` +
+		`"linkStateId":"4.0.0.0","advertisingRouter":"172.30.0.2","lsaSeqNumber":"80000001","checksum":"5a1e","length":44,` +
+		`"opaqueType":"Router Information LSA","opaqueId":0,"opaqueLength":24,"opaqueLengthValid":true,"opaqueValues":{}}`
 	database := func(lsas ...string) string {
 		return `{"routerId":"172.30.0.3","areaLocalOpaqueLsa":{"areas":{"0.0.0.0":[` + strings.Join(lsas, ",") + `]}}}`
 	}
@@ -98,6 +103,7 @@ func TestFRROSPFExtFromZeVerdict(t *testing.T) {
 		{"only FRR's own LSAs, its Extended Link naming Ze as Link ID", database(frrRI, frrPrefix, frrLink), "no Extended Prefix LSA (opaque type 7) advertised by 172.30.0.2"},
 		{"Ze's Extended Prefix without its Extended Link", database(frrRI, zePrefix, frrPrefix, frrLink), "no Extended Link LSA (opaque type 8) advertised by 172.30.0.2"},
 		{"Ze's Extended Link without its Extended Prefix", database(frrRI, frrPrefix, frrLink, zeLink), "no Extended Prefix LSA (opaque type 7) advertised by 172.30.0.2"},
+		{"Ze's Router Information and Extended Link without its Extended Prefix", database(frrRI, zeRI, frrPrefix, frrLink, zeLink), "no Extended Prefix LSA (opaque type 7) advertised by 172.30.0.2"},
 		{"no areaLocalOpaqueLsa object", `{"routerId":"172.30.0.3"}`, "no areaLocalOpaqueLsa object"},
 		{"the text form", "OSPF Router with ID (172.30.0.3)\n  Advertising Router: 172.30.0.2\n  Opaque-Type 7 (Extended Prefix Opaque LSA)\n", "decode FRR's opaque-area database"},
 	}

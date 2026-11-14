@@ -38,7 +38,7 @@ const (
 	// (spf.Computer.TriggerArea, bumpDelayLocked doubles the hold up to that ceiling,
 	// and a run already under way leaves the LSA to the next one). The scenario's ze.conf
 	// sets no SPF timer, so the engine runs the config default ospf.DefaultSPFMaxHoldMS,
-	// the same 5000 ms as the computer's own default read here. The entry then still
+	// which config.go derives from the computer's own default read here. The entry then still
 	// crosses the mpls-fib bus to fib-kernel before netlink writes it. The other two
 	// ceilings cover that run, the bus and the kernel write on a loaded lab host. A single
 	// read cannot work: the read that follows assertion 2 can see the pop Ze installed
@@ -159,7 +159,7 @@ func waitOSPFSRAnycastOriginator(ctx context.Context, lab interoplab.CheckerLab)
 
 // ospfSRAnycastLabelTable is the command that lists Ze's kernel label routes.
 func ospfSRAnycastLabelTable() []string {
-	return []string{"ip", "-f", ipFamilyMPLS, ipObjectRoute, "show"}
+	return []string{"ip", "-f", ipFamilyMPLS, ipObjectRoute, ipActionShow}
 }
 
 // waitOSPFSRAnycastPop returns at the first read that shows the pop. That read alone

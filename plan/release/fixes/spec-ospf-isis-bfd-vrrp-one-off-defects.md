@@ -162,6 +162,7 @@ BFD `api.Service`, BGP-LS export, the durable store (boot count).
 | `field-carries-two-meanings` | 2026-10-11 | `show bfd sessions` profile |
 | `field-carries-two-meanings` | 2026-10-14 | `GroupSpec.IsOwner` |
 | `guard-added-to-one-half-of-a-pair` | 2026-08-29 | OSPFv3 `default-information originate` |
+| `declared-default-applied-by-each-consumer` | 2026-11-14 | OSPF SPF timer defaults declared in YANG, `config.go` and `spf/computer.go` |
 | `guard-added-to-one-half-of-a-pair` | 2026-10-02 | `srAttachedAdvertisers` |
 | `queued-request-waits-for-an-unrelated-trigger` | 2026-09-30 | IS-IS `receiveISH` |
 | `repeated-instance-read-past-the-first` | 2026-10-20 | `bgplsArea.extendedV3` |

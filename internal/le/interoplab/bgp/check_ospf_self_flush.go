@@ -93,7 +93,7 @@ var ospfSelfLSAFlushOperations = []operation{
 	{kind: opSignal, peer: "ze", argument: signalHUP},
 	{kind: opWaitContains, peer: "ze", command: zeCommand("show ospf database external"), contains: []string{ospfSelfFlushZeRouter, ospfSelfFlushZeWithdrawnSequence, ospfSelfFlushMaxAge}, timeout: 30 * time.Second},
 	// Step 5. FRR returns and hands Ze its newer instance in the exchange.
-	{kind: opExec, peer: peerFRR, command: []string{"ip", ipObjectLink, ipActionSet, containerInterface, "up"}},
+	{kind: opExec, peer: peerFRR, command: []string{"ip", ipObjectLink, ipActionSet, containerInterface, linkUp}},
 	{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	// The verdict. FRR's maxage remover runs on a timer, so the LSDB absence gets
 	// two minutes; the reverted build's live instance never leaves.
