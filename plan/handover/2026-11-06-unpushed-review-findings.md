@@ -213,7 +213,7 @@ The `readFrames` break survives only on two stale rows bound to `proxy_policy_dr
 Fix: record the `readFrames` mutant on the current unit and remove the stale rows. Unverified: whether `./le rfc check` flags orphans.
 Evidence: read.
 
-**27. ISSUE, afffcda999, bc121becf6: the RFC check result is open and unclassified.** `plan/handover/ci-41685742426-history-followthrough.md` says "No owned proof, judgment or metadata publication remains pending", and also records 76 check violations not all classified as unrelated.
+**27. ISSUE, afffcda999, bc121becf6: the RFC check result is open and unclassified.** The CI 41685742426 follow-through handover (removed once its spec closed in 4de8347db1; the classification it left open is now a row in `plan/handover/39-residuals-of-closed-handovers.md`) said "No owned proof, judgment or metadata publication remains pending", and also records 76 check violations not all classified as unrelated.
 That was a working-tree snapshot before the final audit commits. No later count is recorded, nobody owns the classification, and an RFC-check stage is in verify. `RFC2545-3-2` negative in `test/encode/new-v6.ci` is also still unproven and named as inherited.
 Evidence: read. Unverified: the current count. `./le rfc check` settles it.
 

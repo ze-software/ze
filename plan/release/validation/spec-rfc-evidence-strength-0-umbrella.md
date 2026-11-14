@@ -181,10 +181,48 @@ changed between `cb4801b4cc` and `3444b9d8f2`, and 14 on units changed only by o
 specs' producer commits (`82591173b6`, `69b67933a2`, `6019dd0675`, `dce906c381`).
 Separately, 230 of the 807 `enforced` verdicts in those stems (enforced before
 2026-09-28) carry no record at all and belong to this decision too. Per-tag list:
-rerun the method in `plan/handover/03-session-2026-10-18-linux-continue.md`,
-section "rfc-verdict-fix-bgp round-2 findings 1 and 2", and drop the 13 units named
-in that spec's Goal Validation row AC-C2 (the list written on the machine that
-measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
+rerun the method in "D-7 BGP transfer: rebuilding the per-tag list" below, and drop
+the 13 units it names (the list written on the machine that measured it, not
+portable, is the parent session's `scratch/r2meas/units.tsv`).
+
+#### D-7 BGP transfer: rebuilding the per-tag list
+
+The method that produced the 478, 424 and 54 figures above, as the
+`spec-rfc-verdict-fix-bgp` round-2 measurement ran it on 2026-10-21 at
+`3444b9d8f2`, so a successor can repeat it. The child spec is closed, so its
+inputs are written here.
+
+| Step | What to do | Input | Expected result (2026-10-21) |
+|------|-----------|-------|------------------------------|
+| 1 | Rebuild the 2026-09-28 population from the audit files as they stood at `cb4801b4cc`, read with `git show cb4801b4cc:rfc/audit/<stem>.json`, and keep the weak or wrong verdicts the filter below selects | the filter below, with the two pre-rename paths `internal/plugins/fib/kernel/nexthop_srv6_linux_test.go` and `internal/plugins/isis/bgpls_export_rfc9552_test.go` added to its package pattern | 360 ids over 60 stems |
+| 2 | Take the ids of step 1 that read `enforced` in `rfc/audit/<stem>.json` at HEAD, and join each of their tagged units to `rfc/discrimination/<stem>.json` on the pair (requirement id, unit), with the `#n` suffix stripped from the unit name | step 1's ids, the HEAD audit and discrimination files | 337 ids read `enforced` (RFC7296-2.4-2 included); 1541 unit tags, of which 722 miss on the exact audit key and 244 of those are `#n` second tags whose base unit carries a record, so 478 unrecorded tags over 320 distinct units |
+| 3 | For each unrecorded unit, compare its function body (the whole file for a `.ci` carrier) at `cb4801b4cc` and at HEAD, follow renames with `git log --follow --name-status -- <file>`, and name each commit whose change to that body it is | the 320 units of step 2 | 410 tags on units no commit changed; 14 tags on units changed only by other specs' producer commits (`82591173b6`, `69b67933a2`, `6019dd0675`, `dce906c381`); 54 tags (32 id-unit pairs, 13 units) on units the child changed, through 6 commits that name the child or carry its D-15 trailers (`af69577952`, `2537d86228`, `acc3725f45`, `a718a73607`, `4d6ce3df02`, `320f590011`) plus `a936e853c7`, which writes owned-stem audit files |
+| 4 | Drop the 13 units the child changed (listed below); what remains is the D-7 transfer | step 3's attribution | 424 tags (410 plus 14) |
+
+The filter of step 1, from the child's "Derived listing", is a `jq -r` program run
+over `rfc/audit/*.json` with three arguments. `pk` matches a tagged test path in
+the BGP group's packages:
+`^(internal/component/bgp/|internal/core/bgp/|internal/le/interoplab/bgp/|internal/mrt/|internal/plugins/mrt/|test/plugin/|test/reload/|internal/core/network/|internal/plugins/flowspec-firewall/|internal/component/sysrib/|internal/plugins/fib/kernel/rfc9252_nexthop_srv6_linux_test.go|internal/plugins/isis/rfc9552_router_id_test.go|internal/plugins/ospf/rfc9552_router_id_test.go)`.
+`own` adds owned stems tagged from another group's packages and is `^$`, which
+matches none. `fo` drops stems another group owns and is `^(rfc5882)$`. The program
+is:
+`input_filename as $f | ($f|ltrimstr("rfc/audit/")|rtrimstr(".json")) as $s | .requirements | to_entries[] | select(.value.verdict=="weak" or .value.verdict=="wrong") | select(.key|IN("RFC1071-1-4","RFC4303-2.1-1","RFC5882-4.4-1","RFC905-x-3","RFC905-x-4")|not) | select((($s|test($own)) or ([(.value.tests // {})|keys[]|test($pk)]|any)) and ($s|test($fo)|not)) | "\($s)\t\(.key)\t\(.value.verdict)"`.
+The five ids it drops are the parent's cross-group verdicts.
+
+The 13 units of step 4, with the ids they carry:
+
+| Unit | Ids |
+|------|-----|
+| `rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead` | 17 RFC9830 ids |
+| `rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs` | RFC9012-13-8 |
+| `rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged` | RFC9012-3.1-3, RFC9012-3.2.1-2 |
+| `rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation` | RFC9012-4.3-2 |
+| `rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent` | RFC7752-3.2-1 |
+| `nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved` | RFC7752-6.2.2-2 |
+| `nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected` | RFC9552-5.1-4, RFC9552-8.2.2-2, RFC9552-8.2.2-3 |
+| `rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref` | RFC4760-3-4 |
+| the four BGP-identifier units in `rib/rfc4271_bgp_identifier_test.go` and `rib/rfc4271_bgp_identifier_json_test.go` | RFC4271-9.1.2.2-1 |
+| `interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape` | RFC4271-5.1.2-3 |
 
 ### Required Reading
 
@@ -220,6 +258,26 @@ measured it, not portable, is the parent session's `scratch/r2meas/units.tsv`).
 **Behavior to preserve:** every existing ratchet, the change-scoped obligation, the published backlog lines, and the record schema's closed vocabulary.
 
 **Behavior to change:** see each child.
+
+## Existing Mechanisms (MANDATORY)
+
+A record of the mechanisms that already do part of this umbrella's job, read at
+their producers on 2026-11-14. The last column quotes what this spec's own text
+says it does with each one; it adds no design decision.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Recording one observed proof (`./le rfc record`) | `internal/le/rfc/actions.go`, the `record` action; `internal/le/rfc/discriminate_action.go`, `recordDiscrimination` | Applies a break through a Go overlay, runs the tagged unit, requires a failure that names it, and only then seals and writes the record; the route is taken from `request.route` as the caller gives it | Extends. Historical Task item 1: "A ratchet that moves discrimination proofs from `revert` to a targeted `mutant`. New tags use `mutant` or a documented stronger route." Key insights: "The route is chosen by the author today: `recordDiscrimination` takes `request.route` as given". Current Behavior: "Behavior to change: see each child" |
+| Storing a record in its requirement file | `internal/le/rfc/discriminate_action.go`, `mergeDiscrimination` | Rewrites only that requirement's file under `rfc/discrimination/<stem>/`, replacing any row with the same cover and sorting by unit key | Uses it as it stands. Key insights: "`mergeDiscrimination` replaces a record with the same cover, so an upgrade overwrites the revert record in place" |
+| The per-stem proof report (`./le rfc discriminate`) | `internal/le/rfc/actions.go`, the `discriminate` action | Reports what one stem or requirement id has proven and which tags carry no record | Not stated in this spec |
+| Re-verifying stored proofs and counting them | `internal/le/rfc/discriminate.go`, `verifyDiscrimination` and `discriminationRouteCounts` | Re-checks every record's fingerprints against the tree without executing anything, and counts proven and escaped records apart, with no split by route | Extends. Historical Task item 1: "The gate reports the route mix." Current Behavior lists `discriminationRouteCounts` as "(proven and escaped only, no split by route)". Required Reading: "nothing in `./le rfc check` starts a mutation run; the gate reads stored records only" |
+| The discrimination ratchet and the owed-proof refusal | `internal/le/rfc/check_ratchets.go`, `checkDiscriminationRatchet`, `discriminationOwedErrors`, `proofRouteFor`, `discriminationBacklog` | Refuses a tag the tip commit added without a proof, names the route its carrier admits (`proofRouteFor` offers `mutant` or `revert` to a unit carrier, `revert` with a citation to any other), and publishes the unpushed backlog as a measurement only | Extends. Historical Task item 1 (above). Current Behavior: "`proofRouteFor` (offers `revert` to a unit carrier)" and "Behavior to preserve: every existing ratchet, the change-scoped obligation, the published backlog lines, and the record schema's closed vocabulary" |
+| The escape refusal for a mutatable unit | `internal/le/rfc/discriminate_escape.go`, `escapeCheck.gomuCanBreak` | Refuses a `no-break` escape whatever its reason when the unit is a unit carrier whose producer resolves in a file gomu mutates | Key insights: "only the `no-break` escape is refused for a mutatable unit (`escapeCheck.gomuCanBreak`)". Whether this spec changes it is not stated in this spec |
+| The test-judge approval route (`./le rfc approve`) | `internal/le/rfc/actions.go`, the `approve` action | Records an independent ze-test-judge agent's approval of a change to one RFC-tagged unit, as a row the edit hook and `./le commit create` read, carried as an `RFC-approved:` trailer | Owner Decisions D-4, recommendation (a): "strengthen the test, which `writeWeakening` blocks until the owner approves each unit with `./le rfc approve`" |
+| Audit verdicts and their fingerprints (`./le rfc audit-stamp`, `./le rfc reseal`) | `internal/le/rfc/actions.go`, the `audit-stamp` and `reseal` actions | `audit-stamp` writes newly judged verdicts into `rfc/audit/<stem>/<requirement-id>.json` with computed fingerprints, and `mode rejudge` replaces a re-made verdict; `reseal` refreshes fingerprints a mechanical edit staled and refuses a verdict whose unit, producer or requirement text moved | Not stated in this spec |
+| The reverse arithmetic of a sign-off | `internal/le/rfc/signoff.go`, the `unsourced-ids` pass of the artifact check | Refuses an `unsourced-ids` entry that names no requirement of the summary, and a gated requirement that no site maps and no section lists as unsourced | Key insights: "The reverse arithmetic is enforced structurally (`signoff.go`: every gated row is mapped or listed in `unsourced-ids`), but an `unsourced-ids` entry needs no quote, so a fabricated row passes it". Historical Task item 3 gives the second walk to child 4; whether the check itself changes is not stated in this spec |
+| Enrolment and the rollup's "Enrollable now" sentence | `internal/le/rfc/meta.go`, `Meta.Enrolled` and `implementationCounts`; `internal/le/rfc/sections.go`, `renderRollup` | `Enrolled` gates a summary only when it declares `enrolled` and an implementation kind that counts; `renderRollup` orders and labels the per-RFC rollup | Execution Order step 2 (child 3): "It fixes a false ledger sentence". The Measured table names the sentence in `renderRollup`. A change to `Meta.Enrolled` is not stated in this spec |
+| The gate's page | `docs/contributing/rfc-conformance-gates.md`, "The discrimination record" and "Producing a record: the two proof routes" | Documents the record's fields, the `mutant`, `revert` and `no-break` routes, and the ratchets | Extends. Documentation Update Checklist row 10: "Test infrastructure changed? Yes: `docs/contributing/rfc-conformance-gates.md`, `docs/contributing/testing.md`, per child" |
 
 ### Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 

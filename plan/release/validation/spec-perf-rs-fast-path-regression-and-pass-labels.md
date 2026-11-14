@@ -91,7 +91,7 @@ pass, with the pass named in one declaration.
   → Decision: a pass that lost routes is left out of every rendering; a complete pass of the same DUT is still rendered. This spec keeps that and adds that both complete passes render
 - [ ] `docs/architecture/perf-round-3.md` - how earlier perf rounds proved their changes
   → Constraint: each change is proven by its own Go benchmark, not only by the end-to-end `le perf send` number, and preserves wire bytes byte for byte
-- [ ] `plan/handover/12-rs-replacement-phase-3-remaining.md`, `plan/handover/30-bgp-rfc8212-phase3.md` - why the ownership bookkeeping exists
+- [ ] closed `spec-bgp-rs-replacement-on-withdrawal` (closure record `7d5625139d`, spec removed in `f1d0477b3d`) and closed `spec-bgp-rfc8212-ebgp-default-reject` (closure record `95b0f9e933`, spec removed in `224746ef0e`) - why the ownership bookkeeping exists
   → Constraint: the owed-withdrawal, announcement election, tombstone and released-receipt records are the closed route-server replacement and RFC 8212 work; every behaviour they prove stays
 - [ ] `plan/learned/DESIGN-HISTORY.md` - "UPDATE delivery uses a bounded channel plus a goroutine PER PEER" and the engine invariants
   → Decision: moving the bookkeeping to another goroutine is rejected (Key Design Decisions)

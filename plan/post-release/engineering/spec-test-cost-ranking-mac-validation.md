@@ -29,8 +29,6 @@ Mac runs, whose resources the Mac guarantees (`ai/META-DECISIONS.md`: "A
 Linux-only harness is measured on the Mac inside a Linux QEMU guest"). The
 guest boots Ze's kernel, never a stock one.
 
-Handover for the Mac session: `plan/handover/37-test-cost-ranking-mac-validation.md`.
-
 ## Required Reading
 
 ### Architecture Docs
@@ -150,8 +148,8 @@ Handover for the Mac session: `plan/handover/37-test-cost-ranking-mac-validation
 - `docs/contributing/running-commands.md` - only if AC-2 changes what a reader may infer
 
 ## Implementation Steps
-1. On macOS: run the suite `BaselineSamplesMin` times, run the package with `-v` through the job route, run the cost report on each
-2. In a Linux QEMU guest on the Mac, booted with Ze's kernel: the same, with its own baseline
+1. On macOS: run the suite `BaselineSamplesMin` times, run the package with `-v` through the job route, run the cost report on each. The package run, for a package with at least twenty tests, is `tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"; ./le job run label unit-pkg quiet command go test -v -race -tags "$tags" <package>`, then `./le test cost report log <the log path it printed>`
+2. In a Linux QEMU guest on the Mac, booted with Ze's kernel: the same, with its own baseline. Never use `./le test qemu run` for this: it boots an Alpine guest even with `kernel`
 3. Compare the ranked names (AC-1); apply AC-2 if they differ
 
 ## Checklist

@@ -58,8 +58,8 @@ All paths in this section are under
 ## Remaining work, in order
 
 1. Inspect the committed Go checkpoint and coordinate the private-ABI move
-   with the netlink-series session. Its handover is
-   `plan/handover/2026-11-13-netlink-xfrm-upstream-series.md`; that session was
+   with the netlink-series session. Its spec is
+   `plan/post-release/engineering/spec-netlink-xfrm-upstream-series.md`; that session was
    waiting for the caller checkpoint before editing the same dataplane files.
 2. Compile and run fresh final guest binaries for dataplane, engine and
    trafficusage. Use the exact selections in `ipsec-close-validation.txt`,

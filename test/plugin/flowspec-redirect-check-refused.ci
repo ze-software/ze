@@ -20,7 +20,7 @@
 # PREVENTS:  the refusal living only in unit tests: an overlay of
 #            flowSpecRedirectRefused that always answers false makes the
 #            receiver get next hop C000024D and the community, and this file red
-#            (recorded in plan/handover/03-session-2026-10-18-linux-continue.md).
+#            (recorded in commit da23dcee89, which added this file).
 #            flowspec-redirect-check-disabled.ci is the same exchange with the
 #            switch off.
 

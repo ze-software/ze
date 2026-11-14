@@ -487,9 +487,9 @@ These failures remain open. No evaluator repair was part of this baseline.
 
 ## Reboot checkpoint and later scoped results
 
-The reboot handoff of 2026-11-06 is superseded by
-[the current continuation record](../../handover/35-tooling-one-off-actual-root-chain-2026-11-09.md);
-the old record stays in git history. Its inert source-only diagnostic and
+The reboot handoff of 2026-11-06 is superseded: the spec it served,
+`spec-tooling-one-off-defects`, closed in commit `46defccc0a` and was removed in
+`98c73556b9`, and the old record stays in git history. Its inert source-only diagnostic and
 unfinished-source assets now live in
 [tooling-one-off-reboot-assets](tooling-one-off-reboot-assets/README.md). Canonical inventory
 checkpoint `6abaa27aa6` retains the Git-only evaluator and direct consumers;

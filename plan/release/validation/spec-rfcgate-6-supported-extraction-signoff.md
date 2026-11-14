@@ -36,6 +36,8 @@ Status is `blocked` for that decision, rather than claiming the package is ready
 | RFC 7947 filtered Adj-RIB-In and extraction | `plan/release/fixes/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` supplies that slice |
 | RFC 5176 residual behaviour | The extraction signed on 2026-09-01. `plan/release/fixes/spec-rfc5176-remaining-defect-classes.md` owns atomic multi-change application and subscriber selector correctness; `plan/release/fixes/spec-lifecycle-invariants.md` owns applied-result reporting and PPPoE delivery. The signature does not close either |
 | Class A scope conflict | Thomas must resolve RFC 4301 and RFC 9582 explicitly before closure; all original obligations remain accounted for meanwhile |
+| RFC 7607 interop proof for AS 0 in an UPDATE's own AS_PATH | This spec. No scenario under `test/interop/scenarios/` proves it: `bgp-attr-set-included-as-set-frr-bird` carries AS 0 only inside an ATTR_SET. The scenario must have a raw injector send Ze an UPDATE whose AS_PATH holds AS 0, together with a control prefix, and assert that FRR receives the control prefix from Ze and never the prefix carried with AS 0 (`ai/rules/interop-and-goal-validation.md`), with the red recorded against a reverted AS 0 check |
+| RFC 2759 retry behind the `R=` flag | Open reading, never confirmed by the owner. Ze's peer acknowledges the MS-CHAPv2 Failure packet and terminates, and does not retry behind the fresh challenge (recorded at `handleMSCHAPv2Failure` in `internal/core/eap/peer.go`). The question as the 2026-08-30 session put it: "Ze's peer acknowledges the Failure packet and terminates; it does not RETRY behind the fresh `C=` challenge. RFC 2759 Section 6 mandates the field, not the retry, and a retry needs "the peer to prompt the user for new credentials", which an IKEv2 exchange in a router has not got. Confirm that reading before closure." |
 
 The original 39/7 class sizes and 52-signoff floor below remain dated acceptance
 baselines. They are not a fresh inventory or authority to omit proof. The
@@ -195,6 +197,8 @@ wrong, and that is the one sitting under a public promise.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/contributing/rfc-conformance-gates.md` - the gate, its ratchets, the extraction sign-off
+      and the discrimination record (the design page the spec's `internal/le/rfc` files declare)
 - [ ] `rfc/extraction/README.md` - the artifact contract, the three registers, the three
       denominators, the exclusion kinds, and the ratchets
   → Constraint: only dispositions, reasons and the two relocation fields are authored.
