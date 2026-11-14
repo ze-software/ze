@@ -17,7 +17,8 @@
                     {"label_only": "Learn"},
                     {"href": "architecture/", "icon": "🏗️", "title": "Architecture", "desc": "How the pieces fit together", "feature": true},
                     {"href": "features/bgp-configuration/", "icon": "⚙️", "title": "BGP configuration", "desc": "Peer settings, validation, inheritance, and policy"},
-                    {"href": "features/cli-commands/", "icon": "⌨️", "title": "CLI basics", "desc": "Diff, commit, history, and operator commands"}
+                    {"href": "features/cli-commands/", "icon": "⌨️", "title": "CLI basics", "desc": "Diff, commit, history, and operator commands"},
+                    {"href": "guides/ai-agent/", "icon": "🤖", "title": "Use Ze with an AI agent", "desc": "ze create agent skill sets up Claude Code and Codex"}
                 ]
             ]
         },

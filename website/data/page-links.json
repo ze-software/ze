@@ -1366,6 +1366,11 @@
               "desc": "Start from a minimal working setup."
             },
             {
+              "href": "guides/ai-agent/",
+              "label": "Use Ze with an AI agent",
+              "desc": "Let Claude Code or Codex drive Ze for you."
+            },
+            {
               "href": "guides/ubuntu-build-install/",
               "label": "Build on Ubuntu",
               "desc": "Install Ze, create the store, and start SSH."

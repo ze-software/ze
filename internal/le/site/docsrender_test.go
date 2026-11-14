@@ -178,9 +178,9 @@ func readSource(t *testing.T, source string) []byte {
 	return content
 }
 
-// publishedEyebrows answers the eyebrow each of this producer's 151 pages
+// publishedEyebrows answers the eyebrow each of this producer's 152 pages
 // carried at gh-pages 2fa8fa2ad, the last commit the retired renderers made.
-// legal/, project/ai-development/ and guides/docker/ are the pages added
+// legal/, project/ai-development/, guides/docker/ and guides/ai-agent/ are the pages added
 // since; each line is the eyebrow the first local build that rendered it
 // carried, so it guards against drift rather than answering from a published
 // page. guides/netlab/ took the line of labs/netlab/ when the netlab how-to
@@ -199,8 +199,8 @@ func publishedEyebrows(t *testing.T) map[string]string {
 		}
 		labels[destination] = label
 	}
-	if len(labels) != 151 {
-		t.Fatalf("the eyebrow fixture names %d pages, want the 148 recovered pages plus legal/, project/ai-development/ and guides/docker/", len(labels))
+	if len(labels) != 152 {
+		t.Fatalf("the eyebrow fixture names %d pages, want the 148 recovered pages plus legal/, project/ai-development/, guides/docker/ and guides/ai-agent/", len(labels))
 	}
 	return labels
 }

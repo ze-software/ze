@@ -995,7 +995,8 @@
       "bullets": [
         "**Self-describing** command catalogue from the live binary",
         "Every command is available to **automation**",
-        "Structured **diagnostics** and repair plans"
+        "Structured **diagnostics** and repair plans",
+        "`ze create agent skill` sets up **Claude Code** and **Codex**"
       ]
     },
     {

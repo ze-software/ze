@@ -45,6 +45,7 @@ features/mcp-integration/index.html	Feature
 features/srv6/index.html	Feature
 features/web-interface/index.html	Feature
 guides/add-path/index.html	Guide
+guides/ai-agent/index.html	Guide
 guides/anomaly/index.html	Guide
 guides/api/index.html	Guide
 guides/appliance/index.html	Guide

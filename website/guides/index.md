@@ -2,6 +2,8 @@
 
 Use these pages to install Ze, configure a network role, operate the system, and diagnose problems. Feature pages explain what Ze can do. Guides explain how to do it.
 
+To test Ze with an AI coding agent, start with [Use Ze with an AI agent](ai-agent/): `ze create agent skill` sets up Claude Code or Codex with the guide your installed `ze` serves.
+
 ## Start and install
 
 - [Quickstart](quickstart/): run two local BGP peers and verify a received route.
@@ -33,6 +35,7 @@ Use these pages to install Ze, configure a network role, operate the system, and
 
 ## Interfaces and automation
 
+- [Use Ze with an AI agent](ai-agent/): set up Claude Code, Codex, OpenCode or Pi with `ze create agent skill`.
 - [REST and gRPC](api/): use authenticated management APIs.
 - [gNMI](gnmi/): use Capabilities, Get, Set, and Subscribe.
 - [Web interface](web-interface/): edit configuration and run commands in the browser.

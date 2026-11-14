@@ -43,6 +43,14 @@
             "link": {"href": "guides/quickstart/", "label": "Quickstart", "sublabel": "two peer lab"}
         },
         {
+            "title": "Test with an AI agent",
+            "label": "AI agent",
+            "category": "automate",
+            "chips": ["Claude Code", "Codex"],
+            "body": "Use Claude Code or Codex to check a lab configuration and explore Ze's commands. ze create agent skill installs instructions that match your installed version.",
+            "link": {"href": "guides/ai-agent/", "label": "Use Ze with an AI agent", "sublabel": "ze create agent skill"}
+        },
+        {
             "title": "ExaBGP replacement",
             "label": "Migration",
             "category": "automate",

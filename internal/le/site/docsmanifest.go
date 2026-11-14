@@ -161,6 +161,7 @@ var docsManifest = []docsManifestRow{
 	{Source: "features/srv6.md", Category: categoryRouting},
 	{Source: "glossary.md", Category: ""},
 	{Source: "guide/add-path.md", Category: categoryRouting},
+	{Source: "guide/ai-agent.md", Category: categoryAutomate},
 	{Source: "guide/api.md", Category: categoryAutomate},
 	{Source: "guide/bgp-peering.md", Category: categoryRouting},
 	{Source: "guide/bgp-policy.md", Category: categoryRouting},

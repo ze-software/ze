@@ -74,9 +74,10 @@ func TestDocsManifestNamesEachSourceOnce(t *testing.T) {
 		}
 		seen[row.Source] = true
 	}
-	// 115 recovered rows, plus ai-development.md and the Docker deployment guide.
-	if len(docsManifest) != 117 {
-		t.Errorf("the manifest holds %d rows, want the 115 recovered rows plus ai-development.md and Docker", len(docsManifest))
+	// 115 recovered rows, plus ai-development.md, the Docker deployment guide and
+	// the AI agent guide.
+	if len(docsManifest) != 118 {
+		t.Errorf("the manifest holds %d rows, want the 115 recovered rows plus ai-development.md, Docker and guide/ai-agent.md", len(docsManifest))
 	}
 }
 
@@ -94,9 +95,10 @@ func TestEveryDocsProducerSourceExists(t *testing.T) {
 		t.Fatalf("pages: %v", err)
 	}
 	// 148 recovered pages, less project/roadmap/ and project/, which their
-	// dedicated producers own, plus legal/, project/ai-development/ and Docker.
-	if len(pages) != 149 {
-		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/ and Docker", len(pages))
+	// dedicated producers own, plus legal/, project/ai-development/, Docker and
+	// guides/ai-agent/.
+	if len(pages) != 150 {
+		t.Errorf("the docs producer publishes %d pages, want the 146 recovered pages plus legal/, project/ai-development/, Docker and guides/ai-agent/", len(pages))
 	}
 	destinations := map[string]string{}
 	for _, page := range pages {
@@ -178,8 +180,9 @@ func repositoryRoot(t *testing.T) string {
 // would run a different test, and the parity target is that COMMIT rather than
 // whatever the worktree holds now. Its 712 entries are the count `./le site
 // check` reported when phase 1 armed the coverage arithmetic, plus /legal/,
-// /project/ai-development/, /guides/docker/ and /guides/netlab/, the pages
-// added to the site since, which bring it to 716. /guides/netlab/ is the netlab
+// /project/ai-development/, /guides/docker/, /guides/netlab/ and
+// /guides/ai-agent/, the pages added to the site since, which bring it to 717.
+// /guides/netlab/ is the netlab
 // how-to that published at /labs/netlab/, which the authored lab page now
 // holds. A page added later is appended here by name
 // and counted, never by refreshing the list.
@@ -200,8 +203,8 @@ func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")
 	routes := strings.Split(strings.TrimSpace(content), "\n")
-	if len(routes) != 716 {
-		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/ and /guides/netlab/", len(routes))
+	if len(routes) != 717 {
+		t.Fatalf("the published route fixture holds %d routes, want the 712 at 2fa8fa2ad plus /legal/, /project/ai-development/, /guides/docker/, /guides/netlab/ and /guides/ai-agent/", len(routes))
 	}
 	return routes
 }
