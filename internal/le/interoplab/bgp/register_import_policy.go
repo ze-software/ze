@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/interop.md -- the IGP import-policy scenarios.
 // Related: check_import_policy.go -- the checkers this file registers.
+// Related: check_import_policy_reload.go -- the two reload checkers this file registers.
 // Related: prepare.go -- linkDeclarations, which hands these links to the core.
 package bgp
 
@@ -8,6 +9,9 @@ import "github.com/ze-software/ze/internal/le/interoplab"
 func init() {
 	specialCheckers[isisImportPolicyScenario] = checkISISImportPolicyInternal
 	specialCheckers[isisImportPolicyForkedScenario] = checkISISImportPolicyForked
+	// The reload scenarios run IS-IS on eth0 alone: one FRR, no declared link.
+	specialCheckers[isisImportReloadScenario] = checkISISImportReloadInternal
+	specialCheckers[isisImportReloadForkedScenario] = checkISISImportReloadForked
 	specialCheckers[ospfImportPolicyScenario] = checkOSPFImportPolicyInternal
 	specialCheckers[ospfImportPolicyForkedScenario] = checkOSPFImportPolicyForked
 	// FRR-A -- Ze -- FRR-B: Ze meets FRR-A on eth1 (VLAN 101) and FRR-B on

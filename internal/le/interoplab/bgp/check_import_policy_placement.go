@@ -122,7 +122,13 @@ func checkImportPolicyPlacement(ctx context.Context, check *interoplab.CheckCont
 }
 
 func checkISISImportPeerIdentity(ctx context.Context, check *interoplab.CheckContext) error {
-	for _, peer := range []string{peerFRR, peerFRRSink} {
+	return checkISISFRRIdentity(ctx, check, peerFRR, peerFRRSink)
+}
+
+// checkISISFRRIdentity refuses an IS-IS peer whose image or release is not
+// the FRR 10.7.1 the scenario's checks were read against.
+func checkISISFRRIdentity(ctx context.Context, check *interoplab.CheckContext, peers ...string) error {
+	for _, peer := range peers {
 		if _, err := check.Lab.PeerImage(ctx, peer); err != nil {
 			return err
 		}

@@ -1865,8 +1865,31 @@ wrapper reads BIRD's version and image identity. Checker unit tests exercise
 these predicates, but do not establish a successful live peer run.
 <!-- source: internal/le/interoplab/bgp/check_import_policy_placement.go -- checkOSPFImportCentral, checkISISImportPeerIdentity -->
 
+`isis-import-policy-reload-frr` and its `-forked` twin prove that a reload
+re-judges the IS-IS paths the Loc-RIB already holds. One FRR meets Ze on
+`eth0` and originates the same two prefixes; `ze.conf` carries the same
+rejecting chain and `ze-reload.conf` is that file without it. The checker
+reads the hidden verdict as above, then a settled reading of Ze's
+`show isis neighbor` (each adjacency up) and `show isis database` (each LSP's
+level, ID, sequence number and checksum, lifetime left out), taken once three
+reads 10 s apart agree. It reloads into `ze-reload.conf` and waits for the
+hidden prefix's path to be selected and the prefix to reach `show rib` and the
+kernel FIB, then reloads back into `ze.conf` and waits for it to be hidden
+again at every layer. After each reload the settled reading must equal the
+first. FRR's config never changes and a sequence number only grows, so that
+equality proves no LSP was originated again and no adjacency went down: the
+change came from the reload's re-judging (`locrib.PublishPolicy`), not from a
+fresh advertisement. Both scenarios passed on 2026-11-14 and each went red that
+day under one removed line of `dispatchReselected`, on a rebuilt Ze image: the
+plain scenario at its relaxed reload with the re-admission dispatch removed
+(the prefix never reached `show rib`), the forked one at its tightened reload
+with the hide dispatch removed (the prefix stayed installed).
+<!-- source: internal/le/interoplab/bgp/check_import_policy_reload.go -- checkISISImportReload, waitISISSettledState, parseISISRouterState, isisRouterStateMoved -->
+<!-- source: internal/le/interoplab/bgp/register_import_policy.go -- the reload specialCheckers entries -->
+
 Run one scenario on Ze's Docker-host system with the native action below.
 Select each of `isis-import-policy-frr`, `isis-import-policy-frr-forked`,
+`isis-import-policy-reload-frr`, `isis-import-policy-reload-frr-forked`,
 `ospf-import-policy-bird` and `ospf-import-policy-bird-forked` separately.
 Retain `isis-export-policy-frr` and `ospf-export-policy-frr` as export controls.
 
