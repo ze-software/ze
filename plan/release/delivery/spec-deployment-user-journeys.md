@@ -8,9 +8,9 @@
 | Release reason | Essential installation, appliance boot, and onboarding paths must work before users can evaluate a release. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | Labs, the both-architecture configuration-push proof, and the arm64 ISO install and image update proofs, and the AC-2 upgrade test on arm64 done, and the owner-reviewed deployment pages committed (`01d7ee17ef`); a clean site check and publication on the owner's order, a source-bound container recreation and preview bundle, Review Gate and closure remain open |
+| Phase | Closed on 2026-11-14. Every acceptance proof has a recorded pass: labs, ISO install, image update, configuration push, the AC-2 upgrade test, the committed Compose proof, the identified preview bundle and a clean site build and check. The Review Gate ended at 0 BLOCKER, 0 ISSUE. Publication of the site and of any artifact waits for the owner's order, as AC-10 states |
 | Handoff | `plan/handover/deployment-user-journeys-2026-11-13/README.md` |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-14 |
 
 ## Current continuation, 2026-11-13
 
@@ -25,9 +25,10 @@ pass, and the action passed on amd64 under KVM and on arm64 under HVF on
 
 This session's commits up to `6ad32587d3` are on `origin/main`, pushed by the
 owner or another session, not by this one. The Linux amd64 server checkout was
-still at `990f785bca` at 02:45 on 2026-11-14 and had not pulled. The
-source-bound preview bundles (AC-3, AC-5, AC-10) and the release-commit
-configuration-push run (AC-12) wait on that pull.
+still at `990f785bca` at 02:45 on 2026-11-14 and had not pulled. No proof waits
+on that pull any more: the preview bundle (AC-3, AC-10), the committed Compose
+proof (AC-5) and the configuration-push and image-update reruns (AC-8, AC-12)
+ran on the arm64 Mac on 2026-11-14, as their rows record.
 
 The IS-IS callback, daemon rollback, public quickstart, sparse preview and ISO
 builder repairs described in the historical entries below have landed. Their
@@ -430,21 +431,26 @@ supersedes the historical execution notes below. The specification remains
 in progress with the full scope open. Passing source, unit or filesystem-context checks is not a
 substitute for the outstanding actual deployment proofs.
 
+Evidence scope: a test runs once, on one machine, and no row below lists a
+second-architecture run or a rerun on each host as remaining work
+(`ai/META-DECISIONS.md`, "Test systems and labs", committed in `c6a1e51a1b`).
+Kernel work still uses the native architecture of the machine that builds it.
+
 | Criterion | Current evidence | Remaining proof or limit |
 |-----------|------------------|--------------------------|
 | AC-1: native installation and removal | Native implementation landed in `2213186915`. Actual systemd installation from fresh parents, authenticated management, repeat installation, retained state/account on ordinary removal and confined purge passed in `cd7be821`. | This is real distribution/systemd evidence. It is separate from the tmpfs functional stress evidence below. |
 | AC-2: upgrade, retention and refusal | Native trust, effective-unit, conflict, ownership and busy-store controls passed; real repeat installation retained configuration and unit identity. A different-version upgrade installed the selected bytes and retained configuration. | The earlier combined changed-version script timed out in its additional foreground bootstrap on 2026-11-11, before `9e3c0ab9c0` (2026-11-12) removed the folder fsync from `storage.lockStoreFile`, the wait the strace had located. That script was never committed and its text is lost, so it cannot be rerun as such. Its replacement is `test/ui/native-install-upgrade.ci`, fixture `ui/native-install-upgrade`, committed with the harness daemon `ze-upgrade` (the DUT under release stamp `99.12.31`). In Ze's arm64 Linux guest (docker-host image, runtime kernel 7.3.0-ze, HVF) on 2026-11-13 the draft passed once (1/1, 6.5 s), then `le test qemu all test test/draft/ui/native-install-upgrade.ci stress 80 stress-parallel 4` answered iterations=80 completed=80 executed=80, all phases passed. Red proof: with the `copyFile` in `internal/plugins/local/native.go` skipped for an existing prefix (temporary mutation, restored byte-exact, sha256 `675b2aaf7d7e`), the guest run failed with "ZE-OBSERVER-FAIL: after the upgrade: <prefix>/bin/ze does not hold ze-upgrade's bytes"; restored, it passed 1/1 again. The test was then promoted from `test/draft/`. The owner ruled on 2026-11-14 that the arm64 run is sufficient and no amd64 run of this test is owed: the test copies a file, renames it, takes a file lock and reads the configuration back through Go's standard library, with no assembly, no hand-built kernel structure and no concurrency, so nothing in it depends on the architecture, and arm64 has the weaker memory ordering. Limits: the test installs with `--no-service`, so it is not a real-distribution systemd upgrade. The refusal half of AC-2 (conflict, ownership, package-managed replacement) rests on the earlier native controls recorded in the evidence column. |
-| AC-3: source build and named executables | The patched-toolchain build path is implemented. All five shipped flavors compiled after the preview, OTA, container and phase-binding commits; committed-build job `98028` exited 0 with all five OK at HEAD `94e8a7de6383`. Kernel/build documentation landed in `be5381db9c`. | Each compilation result belongs to its recorded source revision. Recurrent foreign API changes caused earlier failed builds; a passed committed build does not establish the pending source-bound artifact bundle. |
+| AC-3: source build and named executables | The patched-toolchain build path is implemented. All five shipped flavors compiled after the preview, OTA, container and phase-binding commits; committed-build job `98028` exited 0 with all five OK at HEAD `94e8a7de6383`. Kernel/build documentation landed in `be5381db9c`. On 2026-11-14 at commit `961d5c714f`, `./le build preview run output <dir> images` and `./le build preview check path <dir>` both exited 0 and produced static Linux amd64 and arm64 binaries and archives (the AC-10 row). | Each compilation result belongs to its recorded source revision. The 2026-11-14 bundle is an identified preview of a dirty shared tree, not a release artifact (the AC-10 row). |
 | AC-4: supplied two-peer quickstart | Real basic route-exchange/authentication checks passed. The quickstart completed all 80 unchanged stress invocations in the approved private tmpfs context. Functional fixtures landed in `4c05449c18`; all three deployment tests also passed the live CI-path run associated with `eb28da8d95`. | This proves the supplied control-plane tutorial, with its explicit forwarding limits; it does not add production forwarding evidence. The whole-UI run was not green, as recorded below. |
-| AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. | This proves the authenticated edit/recreation path for the explicitly source-unbound runtime image. The combined job's separate netlab portion failed; it is not an overall runtime PASS. |
-| AC-6: live containerlab/netlab | Actual `37013` retained OSPF Full/BFD Up with missing routable loopbacks and learned host127, plus an IS-IS L1 adjacency under global L2 with no L2 neighbor edge or SPF routes. Private state diagnostics landed in `d8aa678cf4`; focused/full package checks and all five committed build flavors passed. Teardown/VM cleanup left nothing behind. New protocol regressions failed on both identified causes. On 2026-11-13 (Linux amd64, Ze kernel 7.2.9-ze, checkout `990f785bca`) `./le test qemu docker-lab lab "test netlab run"` on the committed template failed with three of six sourced loopback pings (r1->r2, r1->r3, r2->r1 passed; r2->r3 never succeeded): the render attached only bgp-rib and redistribute-orchestrator, so r1 did not pass r3's eBGP-learned loopback to r2. Commit `ef1a3cf33d` loads and attaches bgp-rs and bgp-adj-rib-in and sets `next-hop self` toward external peers; with it the same command passed all six sourced pings, each at the first attempt, `./le test netlab check` passed against goldens regenerated with netlab 26.10, and `test/plugin/netlab-lab-profile.ci` passed in the QEMU guest. | The pass is not on an unchanged render: the template had to change. The amd64 run had that change applied to `990f785bca` as an uncommitted patch identical in content to `ef1a3cf33d` (template sha256 prefix `d56574adeab0` on both sides). On 2026-11-14 the committed template passed on arm64 macOS under HVF: `ZE_LE_BUILD_NAME=deployment-user-journeys CGO_ENABLED=0 ./le --name deployment-user-journeys test qemu docker-lab lab "test netlab run" timeout 3600s` at HEAD `92ca4ce6e4` (contains `ef1a3cf33d`, no template patch, other sessions' uncommitted files in the tree but none under `contrib/netlab`) ran netlab 26.10 `up` and `initial`, all six sourced loopback pings (r1->r2, r1->r3, r2->r1, r2->r3, r3->r1, r3->r2) succeeded at the first attempt, `netlab down --cleanup` left nothing behind, and it answered check-exit 0, lab-exit 0 (log `tmp/session/2026-11-13-225555/scratch/job-netlab-lab-611d4b33.log`). No amd64 run from the committed template is recorded. The eBGP next-hop default that made `next-hop self` necessary is a product defect owned by `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md`. Plain transit still relies on bgp-rs forwarding every received UPDATE rather than advertising the elected best path; the owner ruled on 2026-11-13 that Ze passes its best route between peers by default, recorded in `docs/architecture/rib-transition.md` and owned by `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`. |
-| AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. The first arm64 run, on 2026-11-13 on macOS under HVF (QEMU 11.1.3), found three defects, each fixed and committed: `1d8017e6fd` builds `CONFIG_SCSI_VIRTIO` into the qemu and hardware installer kernel profiles (the arm64 ISO is a SCSI CD-ROM on virtio-scsi, and the installer had booted and failed with "ISO media not found"; red with the old kernel, green with the rebuilt one); `be52bcb019` makes the ISO and Ventoy proofs default to the host architecture instead of amd64 (an independently judged test replacement) and reads the UEFI vars file from QEMU's firmware descriptors instead of deriving it by renaming, which QEMU's bundled edk2 does not follow. At `c380ead49d` plus the kernel fix, with `ZE_INSTALL_ARCH=arm64` and a private firmware copy, and again at `be52bcb019` from the working tree with no architecture or firmware override (`./le --name deployment-user-journeys test qemu installer-iso`, `arch=arm64 accel=hvf`), the proof printed `INSTALL-ISO-QEMU: PASS`: the ISO-contained image hash equals the source image, the installer consumed the explicit `ze.target=/dev/vda`, wrote the embedded image and powered off safely (no reboot, no PXE zefs branch), the untargeted disk is unchanged byte for byte, the first four installed GPT entries match the source image, and the installed disk accepted an SSH login as the embedded-ZeFS power user and answered `show version`. The installer kernel was built natively with `./ze-host appliance kernel --target installer --arch arm64 --builder docker` (7.3, qemu profile). | macOS has no GRUB with `arm64-efi` modules, so the arm64 run put a session-private `grub-mkstandalone` on `PATH` that runs Debian trixie's GRUB 2.12-9+deb13u2 (`grub-common`, `grub-efi-arm64-bin`) in the lab Docker host (linux/arm64): the ISO was assembled by a Linux GRUB and booted natively. `ze-host appliance iso` cannot build an ISO on a stock macOS host. The scratch directory had to avoid a symlinked path component, which Ze's store refuses. The arm64 Ventoy proof was not run. The retained ISO image does not establish OTA credentials or update recovery. |
-| AC-8: appliance image update and recovery | Extended actual `87610` passed real image upload, reboot, live health after update and recovery, persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The health extension also passed semantic RED/GREEN checks, full QEMU-package race tests, independent source review and fixture judgment. On 2026-11-13, on arm64 macOS under HVF (QEMU 11.1.3), `ZE_INSTALL_QEMU_ACCEL=hvf ZE_INSTALL_KEEP=1 ./le test qemu appliance-ota` at source `6b8656ae9f` printed `APPLIANCE-OTA-QEMU: PASS real image upload, reboot, live health, persistent configuration and previous-slot recovery` and exited 0. | Native amd64/KVM and arm64/HVF evidence for the configured management seed. The arm64 run had other sessions' uncommitted files in the tree, so it is not release-artifact evidence; a run from the release commit is owed. Neither run establishes routing or VPN traffic. Private credentialed images remain local. |
-| AC-9: website deployment journeys | Latest canonical full build `61957` and check `74537` passed with 24 producers and 1,107 routes. Source digest is `8d3ee7697570617e091135286b0dbabd53ee1f67146dadb8bd58469393b14c35`; root inspected HTML/Markdown retirement, preview and snapshot guidance. Generated wiki catalog repair and targeted drift check `25018` also passed, with local wiki commit `1d7f8fd`. | No remote publication or push occurred. Latest broad doc check `50828` failed only the then-stale wiki catalog; its targeted rerun passed after repair. No unobserved whole-doc green is claimed. As reported by the main session, on 2026-11-13 `./le doc check all` reported 36 drift findings because the generated site under `../gh-pages` was older than the live command catalogue (for example the per-command surface of `request plugin restart` was missing), so a fresh `./le site build` and `./le site check` is owed before the earlier build's pass can stand for the current source. On 2026-11-14 the owner reviewed the deployment pages in the canonical `../gh-pages` checkout through his own web interface; the changes are committed as `01d7ee17ef`: an Upgrading section in the install guide, Update and Remove headings on the Linux build page, chooser links on every journey page and on the home page, the Start menu led by "Install Ze" naming the one command, the netlab how-to moved to `/guides/netlab/` with `/labs/netlab/` kept as a lab page, same-site links from a guide to a hand-written page (`authoredDocLinks`), the hero point "Self-contained" (owner ruling in `website/AI.md`) and the figures row laid out by constraint. `./le site build` then regenerated `../gh-pages` from that commit. `./le site check` exited 1 on findings outside these pages: `/guides/ai-agent/` unclaimed (left by an earlier working-tree build that included another session's uncommitted manifest row) and `tests.fuzz_display` plain figures on four pages. The eight site tests these changes own pass. The site package is red on five tests that wait on another session's uncommitted ai-agent guide wiring, and on three home tests and the shared-header golden, which were already red at HEAD. Nothing in `../gh-pages` is committed or pushed. Remaining: a clean `./le site check`, and publication on the owner's order. |
-| AC-10: identified preview delivery | Complete fresh preparation `52283` and separate retained checker `27968` passed: static Linux amd64/arm64 binaries and archives, native amd64 deployment/lab exports, manifest and checksums. Identity is `preview-c4e0e1d13892-ddebbea4677b-dirty`, source digest `ddebbea4677b8d475cfad0c910a62833bb3f89f739b79ca42ed99141adc8a000`; both actual images were version-probed by the producer. | This private bundle is source-bound at its captured revision. Earlier Compose proof used a different source-unbound runtime image; no current-image recreation proof, public artifact, release, push or publication is claimed. |
-| AC-11: production-evaluator guidance | The resumed chooser and update guidance distinguish demonstrated paths, tested architecture, source-unbound container evidence, pending live lab proof and unavailable public images. Independent source review cleared the selected guide and website changes. | Outstanding actual deployment evidence remains required; the work does not declare Ze production-ready. |
-| AC-12: named appliance configuration push | Runner repairs `ca9571e0e2`, `92b0b49dcc`, `e4bdb55d1e`, `8793b59939`; operator advice `929b1aec14`. `./le test qemu appliance-config-push` passed twice on 2026-11-13 on native amd64/KVM (QEMU 8.2.2, guest kernel 7.3.0-ze): the real host driver authenticated with the agent key and the pin read from the stopped disk, the daemon committed the previewed replacement, the stopped disk's selected source equalled it, a fresh boot of the same disk ran the same configuration with password and key logins retained, and malformed input, an authenticated observer's edit and a wrong host pin were each refused for their own cause with live and stored configuration unchanged. Host driver sha256 `6a206c758a08`, images `87260edcd5b2` and `7f21b0ebd810`. A third pass on 2026-11-13, on a Linux amd64 host running Ze's kernel (7.2.9-ze), ran from commit `990f785bca` with the tree clean when the run started: host driver sha256 `0973af0618ed`, image `5a5a86c2d672`. It also passed on 2026-11-13 on arm64, on macOS under HVF (QEMU 11.1.3, guest kernel 7.3.0-ze), from commit `9bf21a753a` with other sessions' uncommitted files in the tree: host driver sha256 `08000cc46d7f`, image `cdcd2df65929`, and all three boots ended in a machine restart. | The third pass's tree was clean at the start of the run and was not verified clean throughout: 21 uncommitted files of other sessions appeared in the checkout before it ended. The arm64 run's tree was not clean, so, like the amd64 runs, it is not release-artifact evidence, and a run from the release commit is owed with the preview artifacts. The Mac's lab Docker host first could not build the arm64 runtime kernel because its image defaulted to 16 GiB; `e2627d3e7b` makes the default 64 GiB and `995c46014d` has start pass Colima a root disk of the image's size. No automatic live rollback and no ISO installation is claimed by this proof. |
-| Source/runtime troubleshooting | Historical actual `68552` failed staging Linux LE during foreign IKE edits, with successful cleanup. In the resumed phase, a fresh named tool build first failed on activity/IKE declarations, then passed after those producers changed. | Documentation and site updates are complete locally. Fresh actual netlab and source-bound bundle checks remain required; older failures do not establish the current source result. |
+| AC-5: deployment container persistence | Container/netlab code landed in `ef6e1c9806`; runtime correction `adf359f08c` includes noninteractive import and `/tmp` mode `1777`. Actual Compose portion of finished job `84344` printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume`, including the corrected metadata-aware subtree oracle. Final outer cleanup stopped the VM and left nothing behind. That Compose step was a session script, so no committed proof existed. Commit `961d5c714f` adds `./le test deployment docker-compose` (`internal/le/test/deployment/compose.go`): from `docker/compose.yaml`, with only the image and a daemon-chosen loopback SSH port merged over it, it runs `init`, imports `docker/ze.conf`, starts the service, logs in over SSH and requires `environment log level warn` absent, commits that leaf through the SSH editor and waits for the running configuration to hold it, runs `down` and requires no container left and the named volume kept, starts again and requires a different container, then requires the same login and host key, the committed value running and a wrong password refused. Teardown removes only the run's own project, image and scratch, and a leftover object turns a pass into a failure. On 2026-11-14 (arm64 macOS, HVF, lab Docker on Ze's Docker-host image, Compose 5.7.1) it printed `DEPLOYMENT-COMPOSE: PASS authenticated edit retained across a new container on the same persistent volume` against a tree-built image. `break-volume` answered `DEPLOYMENT-COMPOSE: FAIL (counterfactual: no volume mounted) import: ...` and exited 1. After review, `6251e70acb` added `break-commit`, which imports the seed configuration again between the two containers: it failed at second-login ("holds environment log level = , not the committed warn"), so the persistence assertion itself has been seen red. `439f2e38b9` then made the leftover-volume notice offer a removal command only for a volume whose owner is shown gone. Against the preview bundle's deployment image `ze-preview-deployment:preview-961d5c714fa4-a34f3d2f4175-dirty` (image id `sha256:a15a25cd1613`, equal to the manifest's) it printed the same PASS line. Nothing of either run was left on the Docker host. | The preview image is built from a dirty shared tree (the AC-10 row), so this is not release-artifact evidence. The combined job's separate netlab portion of `84344` failed; AC-6 has its own proof. |
+| AC-6: live containerlab/netlab | Actual `37013` retained OSPF Full/BFD Up with missing routable loopbacks and learned host127, plus an IS-IS L1 adjacency under global L2 with no L2 neighbor edge or SPF routes. Private state diagnostics landed in `d8aa678cf4`; focused/full package checks and all five committed build flavors passed. Teardown/VM cleanup left nothing behind. New protocol regressions failed on both identified causes. On 2026-11-13 (Linux amd64, Ze kernel 7.2.9-ze, checkout `990f785bca`) `./le test qemu docker-lab lab "test netlab run"` on the committed template failed with three of six sourced loopback pings (r1->r2, r1->r3, r2->r1 passed; r2->r3 never succeeded): the render attached only bgp-rib and redistribute-orchestrator, so r1 did not pass r3's eBGP-learned loopback to r2. Commit `ef1a3cf33d` loads and attaches bgp-rs and bgp-adj-rib-in and sets `next-hop self` toward external peers; with it the same command passed all six sourced pings, each at the first attempt, `./le test netlab check` passed against goldens regenerated with netlab 26.10, and `test/plugin/netlab-lab-profile.ci` passed in the QEMU guest. | The pass is not on an unchanged render: the template had to change. The amd64 run had that change applied to `990f785bca` as an uncommitted patch identical in content to `ef1a3cf33d` (template sha256 prefix `d56574adeab0` on both sides). On 2026-11-14 the committed template passed on arm64 macOS under HVF: `ZE_LE_BUILD_NAME=deployment-user-journeys CGO_ENABLED=0 ./le --name deployment-user-journeys test qemu docker-lab lab "test netlab run" timeout 3600s` at HEAD `92ca4ce6e4` (contains `ef1a3cf33d`, no template patch, other sessions' uncommitted files in the tree but none under `contrib/netlab`) ran netlab 26.10 `up` and `initial`, all six sourced loopback pings (r1->r2, r1->r3, r2->r1, r2->r3, r3->r1, r3->r2) succeeded at the first attempt, `netlab down --cleanup` left nothing behind, and it answered check-exit 0, lab-exit 0 (log `tmp/session/2026-11-13-225555/scratch/job-netlab-lab-611d4b33.log`). The eBGP next-hop default that made `next-hop self` necessary is a product defect owned by `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md`. Plain transit still relies on bgp-rs forwarding every received UPDATE rather than advertising the elected best path; the owner ruled on 2026-11-13 that Ze passes its best route between peers by default, recorded in `docs/architecture/rib-transition.md` and owned by `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`. |
+| AC-7: installer ISO and installed disk | `66cc2f7abb` landed the ISO corrections. Actual native amd64/KVM proof passed optical boot, selected-disk installation, clean poweroff, unchanged extra disk, installed-disk boot and authenticated SSH/version. Final module-bound ISO assembly passed. The first arm64 run, on 2026-11-13 on macOS under HVF (QEMU 11.1.3), found three defects, each fixed and committed: `1d8017e6fd` builds `CONFIG_SCSI_VIRTIO` into the qemu and hardware installer kernel profiles (the arm64 ISO is a SCSI CD-ROM on virtio-scsi, and the installer had booted and failed with "ISO media not found"; red with the old kernel, green with the rebuilt one); `be52bcb019` makes the ISO and Ventoy proofs default to the host architecture instead of amd64 (an independently judged test replacement) and reads the UEFI vars file from QEMU's firmware descriptors instead of deriving it by renaming, which QEMU's bundled edk2 does not follow. At `c380ead49d` plus the kernel fix, with `ZE_INSTALL_ARCH=arm64` and a private firmware copy, and again at `be52bcb019` from the working tree with no architecture or firmware override (`./le --name deployment-user-journeys test qemu installer-iso`, `arch=arm64 accel=hvf`), the proof printed `INSTALL-ISO-QEMU: PASS`: the ISO-contained image hash equals the source image, the installer consumed the explicit `ze.target=/dev/vda`, wrote the embedded image and powered off safely (no reboot, no PXE zefs branch), the untargeted disk is unchanged byte for byte, the first four installed GPT entries match the source image, and the installed disk accepted an SSH login as the embedded-ZeFS power user and answered `show version`. The installer kernel was built natively with `./ze-host appliance kernel --target installer --arch arm64 --builder docker` (7.3, qemu profile). On 2026-11-14 `33f1ec1826` changed the firmware pairing again: an unparseable unrelated descriptor no longer stops the run, and a stateless descriptor boots from one read-only flash drive. The arm64 ISO proof passed after it. | macOS has no GRUB with `arm64-efi` modules, so the arm64 run put a session-private `grub-mkstandalone` on `PATH` that runs Debian trixie's GRUB 2.12-9+deb13u2 (`grub-common`, `grub-efi-arm64-bin`) in the lab Docker host (linux/arm64): the ISO was assembled by a Linux GRUB and booted natively. `ze-host appliance iso` cannot build an ISO on a stock macOS host. The scratch directory had to avoid a symlinked path component, which Ze's store refuses. The arm64 Ventoy proof was not run. The retained ISO image does not establish OTA credentials or update recovery. |
+| AC-8: appliance image update and recovery | Extended actual `87610` passed real image upload, reboot, live health after update and recovery, persistent UUID/configuration/login/hostname, previous-slot recovery and owned cleanup. The health extension also passed semantic RED/GREEN checks, full QEMU-package race tests, independent source review and fixture judgment. On 2026-11-13, on arm64 macOS under HVF (QEMU 11.1.3), `ZE_INSTALL_QEMU_ACCEL=hvf ZE_INSTALL_KEEP=1 ./le test qemu appliance-ota` at source `6b8656ae9f` printed `APPLIANCE-OTA-QEMU: PASS real image upload, reboot, live health, persistent configuration and previous-slot recovery` and exited 0. On 2026-11-14 it passed again at `a9a0eca4d3` (squashed into `c6a1e51a1b`, the same tree), with no uncommitted product source in the tree: the only uncommitted Go was under `internal/le/`. | Evidence for the configured management seed. No run establishes routing or VPN traffic. Private credentialed images remain local. |
+| AC-9: website deployment journeys | Latest canonical full build `61957` and check `74537` passed with 24 producers and 1,107 routes. Source digest is `8d3ee7697570617e091135286b0dbabd53ee1f67146dadb8bd58469393b14c35`; root inspected HTML/Markdown retirement, preview and snapshot guidance. Generated wiki catalog repair and targeted drift check `25018` also passed, with local wiki commit `1d7f8fd`. | No remote publication or push occurred. Latest broad doc check `50828` failed only the then-stale wiki catalog; its targeted rerun passed after repair. No unobserved whole-doc green is claimed. As reported by the main session, on 2026-11-13 `./le doc check all` reported 36 drift findings because the generated site under `../gh-pages` was older than the live command catalogue (for example the per-command surface of `request plugin restart` was missing), so a fresh `./le site build` and `./le site check` is owed before the earlier build's pass can stand for the current source. On 2026-11-14 the owner reviewed the deployment pages in the canonical `../gh-pages` checkout through his own web interface; the changes are committed as `01d7ee17ef`: an Upgrading section in the install guide, Update and Remove headings on the Linux build page, chooser links on every journey page and on the home page, the Start menu led by "Install Ze" naming the one command, the netlab how-to moved to `/guides/netlab/` with `/labs/netlab/` kept as a lab page, same-site links from a guide to a hand-written page (`authoredDocLinks`), the hero point "Self-contained" (owner ruling in `website/AI.md`) and the figures row laid out by constraint. `./le site build` then regenerated `../gh-pages` from that commit. `./le site check` exited 1 on findings outside these pages: `/guides/ai-agent/` unclaimed (left by an earlier working-tree build that included another session's uncommitted manifest row) and `tests.fuzz_display` plain figures on four pages. The eight site tests these changes own pass. The site package is red on five tests that wait on another session's uncommitted ai-agent guide wiring, and on three home tests and the shared-header golden, which were already red at HEAD. Nothing in that checkout is committed or pushed. After `86e0c57e04` (a round figure is a copy only beside its unit; two pages render the interop scenario count from site data), `./le site build` and `./le site check` on the canonical site checkout both exited 0 on 2026-11-14. Remaining: publication, which waits for the owner's order as AC-10 states. |
+| AC-10: identified preview delivery | Complete fresh preparation `52283` and separate retained checker `27968` passed: static Linux amd64/arm64 binaries and archives, native amd64 deployment/lab exports, manifest and checksums. Identity is `preview-c4e0e1d13892-ddebbea4677b-dirty`, source digest `ddebbea4677b8d475cfad0c910a62833bb3f89f739b79ca42ed99141adc8a000`; both actual images were version-probed by the producer. On 2026-11-14 at commit `961d5c714f`, `./le build preview run output <dir> images` and then `./le build preview check path <dir>` both exited 0: static Linux amd64 and arm64 binaries and archives, arm64 deployment and lab image exports, `manifest.json` and `SHA256SUMS`, version `preview-961d5c714fa4-a34f3d2f4175-dirty`, `published false`. The AC-5 proof ran against this bundle's deployment image. | The dirty flag is true because another session had eight uncommitted files under `internal/component/bgp/reactor/` in the shared checkout at build time: this is an identified preview of that tree, not a release artifact. The bundle is in `preview-961d5c714f/` under `ze-deployment-journeys` in the Mac's user cache directory, and is not committed or published; publication waits for the owner's order. |
+| AC-11: production-evaluator guidance | The resumed chooser and update guidance distinguish demonstrated paths, tested architecture, source-unbound container evidence, pending live lab proof and unavailable public images. Independent source review cleared the selected guide and website changes. | The deployment evidence the other rows record is now complete for this spec's criteria. The guides still state the limits those rows name, and the work does not declare Ze production-ready. |
+| AC-12: named appliance configuration push | Runner repairs `ca9571e0e2`, `92b0b49dcc`, `e4bdb55d1e`, `8793b59939`; operator advice `929b1aec14`. `./le test qemu appliance-config-push` passed twice on 2026-11-13 on native amd64/KVM (QEMU 8.2.2, guest kernel 7.3.0-ze): the real host driver authenticated with the agent key and the pin read from the stopped disk, the daemon committed the previewed replacement, the stopped disk's selected source equalled it, a fresh boot of the same disk ran the same configuration with password and key logins retained, and malformed input, an authenticated observer's edit and a wrong host pin were each refused for their own cause with live and stored configuration unchanged. Host driver sha256 `6a206c758a08`, images `87260edcd5b2` and `7f21b0ebd810`. A third pass on 2026-11-13, on a Linux amd64 host running Ze's kernel (7.2.9-ze), ran from commit `990f785bca` with the tree clean when the run started: host driver sha256 `0973af0618ed`, image `5a5a86c2d672`. It also passed on 2026-11-13 on arm64, on macOS under HVF (QEMU 11.1.3, guest kernel 7.3.0-ze), from commit `9bf21a753a` with other sessions' uncommitted files in the tree: host driver sha256 `08000cc46d7f`, image `cdcd2df65929`, and all three boots ended in a machine restart. On 2026-11-14 `33f1ec1826` made the refusal control match the device-refusal cause as a whole line, and at `c6a1e51a1b` (no uncommitted product source in the tree) it printed `APPLIANCE-CONFIG-PUSH-QEMU: PASS native SSH publication, same-disk retention and three refusal controls`. | The third 2026-11-13 pass's tree was clean at the start of the run and was not verified clean throughout: 21 uncommitted files of other sessions appeared in the checkout before it ended. The Mac's lab Docker host first could not build the arm64 runtime kernel because its image defaulted to 16 GiB; `e2627d3e7b` makes the default 64 GiB and `995c46014d` has start pass Colima a root disk of the image's size. No automatic live rollback and no ISO installation is claimed by this proof. |
+| Source/runtime troubleshooting | Historical actual `68552` failed staging Linux LE during foreign IKE edits, with successful cleanup. In the resumed phase, a fresh named tool build first failed on activity/IKE declarations, then passed after those producers changed. | Documentation and site updates are complete locally. The fresh netlab run (AC-6, `92ca4ce6e4`) and the identified bundle (AC-10, `961d5c714f`) have since passed; the older failures remain history. |
 
 Cross-cutting changes also landed: dependency-gate correction `b3da8d6b01`,
 coordination-lock correction `9e3c0ab9c0`, and contention-factor correction
@@ -516,9 +522,10 @@ research only. No implementation or measured improvement is claimed. Existing
 review records remain history; no final clean Review Gate or overall completion
 is recorded here.
 
-## Latest live topology finding, 2026-11-13
+## Live topology finding, 2026-11-13 (history)
 
-Both corrected FRR scenarios passed against fresh, identified images in Ze's
+The repairs this section asks for landed, and the full topology then passed:
+the AC-6 row of the acceptance table holds the result. Both corrected FRR scenarios passed against fresh, identified images in Ze's
 kernel guest. The full reference topology then reached established BGP peers,
 the expected IGP state and the first sourced ping, but r1's sourced ping to
 r3 failed. Diagnostics show neither router installed the opposite loopback
@@ -729,7 +736,11 @@ the tree for every run, so none is release-artifact evidence.
 | `./le --name deployment-user-journeys test qemu ci test test/draft/ui/native-install-upgrade.ci` in Ze's arm64 Linux guest | 1/1 PASS, 6.5 s. |
 | `le test qemu all test test/draft/ui/native-install-upgrade.ci stress 80 stress-parallel 4` in Ze's arm64 Linux guest (docker-host image, runtime kernel 7.3.0-ze) | iterations=80 completed=80 executed=80, all phases passed. |
 | Red proof: `copyFile` in `internal/plugins/local/native.go` skipped for an existing prefix, then restored byte-exact (sha256 `675b2aaf7d7e`) | Mutated: "ZE-OBSERVER-FAIL: after the upgrade: <prefix>/bin/ze does not hold ze-upgrade's bytes". Restored: 1/1 PASS. Then promoted to `test/ui/native-install-upgrade.ci`, committed with the harness daemon `ze-upgrade`. The owner ruled on 2026-11-14 that no amd64 run of it is owed (reason in the AC-2 row). |
-| `ZE_LE_BUILD_NAME=deployment-user-journeys CGO_ENABLED=0 ./le --name deployment-user-journeys test qemu docker-lab lab "test netlab run" timeout 3600s` at HEAD `92ca4ce6e4` on 2026-11-14, committed template (contains `ef1a3cf33d`, nothing uncommitted under `contrib/netlab`) | netlab 26.10 `up` and `initial`; all six sourced loopback pings succeeded at the first attempt; `netlab down --cleanup`, nothing left behind; accelerator hvf, check-exit 0, lab-exit 0. Log `tmp/session/2026-11-13-225555/scratch/job-netlab-lab-611d4b33.log`. No amd64 run from the committed template is recorded. |
+| `ZE_LE_BUILD_NAME=deployment-user-journeys CGO_ENABLED=0 ./le --name deployment-user-journeys test qemu docker-lab lab "test netlab run" timeout 3600s` at HEAD `92ca4ce6e4` on 2026-11-14, committed template (contains `ef1a3cf33d`, nothing uncommitted under `contrib/netlab`) | netlab 26.10 `up` and `initial`; all six sourced loopback pings succeeded at the first attempt; `netlab down --cleanup`, nothing left behind; accelerator hvf, check-exit 0, lab-exit 0. Log `tmp/session/2026-11-13-225555/scratch/job-netlab-lab-611d4b33.log`. |
+| `./le test deployment docker-compose` on 2026-11-14 (lab Docker on Ze's Docker-host image, Compose 5.7.1), commit `961d5c714f` | Tree-built image: `DEPLOYMENT-COMPOSE: PASS ...`. `break-volume`: `DEPLOYMENT-COMPOSE: FAIL (counterfactual: no volume mounted) import: ...`, exit 1. Preview deployment image `sha256:a15a25cd1613`: the same PASS. Nothing left on the Docker host. |
+| `./le build preview run output <dir> images`, then `./le build preview check path <dir>`, at `961d5c714f` | Both exit 0; version `preview-961d5c714fa4-a34f3d2f4175-dirty`, `published false`; dirty because of another session's eight uncommitted files under `internal/component/bgp/reactor/`. |
+| `./le test qemu appliance-ota` and `./le test qemu appliance-config-push` at `a9a0eca4d3` / `c6a1e51a1b` (same tree) | Both PASS, with no uncommitted product source in the tree. |
+| `./le site build` and `./le site check` on the canonical site checkout after `86e0c57e04` | Both exit 0. |
 
 ## Existing Mechanisms
 
@@ -922,13 +933,17 @@ Use existing native install/systemd registrations, Docker image entrypoints, net
 
 ## 🧪 TDD Test Plan
 
+### Unit Tests
+
+The unit, functional and live proofs this spec owns, in one table.
+
 | Test | File or route | Validates | Status |
 |------|---------------|-----------|--------|
 | Native command regression tests | Existing local/systemd test packages | Ownership, removal safety, lifecycle entrypoints | Scoped controls, actual systemd lifecycle, 80-run stress and live CI case passed |
 | `TestDeploymentJourneysReachPublishedGuides` | `internal/le/site/` | Useful native/container/lab/appliance destinations are published | Site wiring implemented; scoped site evidence and current local canonical build/check passed |
 | Two-peer tutorial proof | Supplied tutorial configs and existing functional runner | Established session and received prefix | Actual route/authentication, 80-run stress and live CI case passed |
-| Compose bootstrap/recreate | Existing Docker tooling and Compose | Persistent authenticated state | Actual Compose portion of `84344` printed PASS; source-unbound runtime-image limitation retained |
-| Reference topology route/ping | Existing netlab/containerlab tooling | Real protocol and forwarding outcome | Initial-method correction passed RED/GREEN/full units, narrow review and compilation; actual `68552` failed before topology startup on changing foreign IKE code, with successful outer cleanup; live correction remains unverified |
+| Compose bootstrap/recreate | `./le test deployment docker-compose` (`internal/le/test/deployment/compose.go`) | Persistent authenticated state | PASS on a tree-built image and on the preview image, `break-volume` red at import, `break-commit` red at second-login (AC-5 row) |
+| Reference topology route/ping | `./le test qemu docker-lab lab "test netlab run"` | Real protocol and forwarding outcome | PASS at `92ca4ce6e4` on the committed template, all six sourced pings at the first attempt; the history of earlier failures is in the AC-6 row |
 | Installed-target ISO and OTA | Existing native QEMU actions | Booted installed system and update/reboot cycle | Actual amd64/KVM installed-target ISO and OTA/recovery `19822` passed; arm64/HVF installed-target ISO and OTA/recovery passed on 2026-11-13 |
 
 ### Boundary Tests
@@ -1054,9 +1069,86 @@ Use existing native install, appliance and installer functional suites; extend w
 
 No existing journal row is claimed by this specification at creation. The reviewed deployment findings are the Task and ACs above.
 
+## Checklist
+
+The template's checklist items, unticked. The red and green results they ask
+for are recorded per criterion in the current acceptance table and the dated
+verification tables above.
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+
 ## Review Gate
 
-### Current independent source and documentation reviews, 2026-11-12
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/deployment-user-journeys-f96ab875-1387-4c71-a81e-d6e96e2f59a1.md` (verdict clean, 553 files, rounds 5), findings file `tmp/session/2026-11-13-225555/scratch/close-review-findings.md` |
+| `./le spec review check` | 2026-11-14: `review_gate: OK (549 code files, clean, hashes match ...)` over the working-tree-equal paths. The other four (`internal/component/bgp/reactor/peer.go`, `peer_initial_sync.go`, `peer_initial_sync_unwind_test.go`, `internal/component/bgp/types/types.go`) carry another session's uncommitted edits, so they are pinned at their HEAD blobs with `blob`, which is what the closure commit's tree holds and what `./le commit create` judges (`checkReviewSelected`, `internal/le/commit/review.go`) |
+| Rounds | 5 |
+| Reviewer lenses used | Round 1: source-review reconciliation over the 431-path population and every later commit intersecting it. Rounds 2-4: logic, wiring, test discrimination and operator-safety over `961d5c714f`, `86e0c57e04`, `33f1ec1826`, then their fixes. Round 5: the closing agent's `/ze-review` pass over the closure diff (prose only) |
+
+Population: every review-code path touched by a commit carrying
+`Spec-work: deployment-user-journeys` (88 commits, 553 code paths), pinned at
+HEAD. The commits made on 2026-11-13 and 14 without a claim (`01d7ee17ef`,
+`4423922ca1`, `33f1ec1826`, `86e0c57e04`, `961d5c714f`, `6251e70acb`,
+`6715cfecc3`, `439f2e38b9`, `c6a1e51a1b`) carry no `Spec-work` line and are
+not in that population; rounds 2-4 reviewed the five of them that carry this
+spec's code. Later edits other specs made to shared files were judged by
+those specs' own gates, not by this review.
+
+| Round | Reviewer | Scope | Result |
+|-------|----------|-------|--------|
+| 1 | Independent read-only agent | Reconciliation, below | 0 BLOCKER, 2 ISSUE (spec bookkeeping), 3 NOTE (code) |
+| 2 | Independent reviewer | `961d5c714f`, `86e0c57e04`, `33f1ec1826` | 0 BLOCKER, 2 ISSUE |
+| 3 | Same reviewer | `6251e70acb`, `6715cfecc3` | Both ISSUEs closed; 1 new ISSUE |
+| 4 | Same reviewer | `439f2e38b9` | 0 BLOCKER, 0 ISSUE |
+| 5 | Closing agent (`/ze-close`, authored none of the change) | Closure diff: this spec, the handover, the news fragment | 0 BLOCKER, 0 ISSUE. NOTEs: stale rows (AC-11, source/runtime troubleshooting, two TDD rows, the 2026-11-13 topology section), fixed in one edit. `./le repo check` named 9 issues, all in files of other sessions (`internal/component/bgp/reactor/`, `internal/le/le/action/page.go`, untracked `internal/le/site/buildproducer.go`, `internal/le/test/deployment/vppevidencempls.go`); `./le test weakened check` named 2 weakened `.ci` files of another session (`test/plugin/as112-healthcheck-withdraw.ci`, `test/plugin/healthcheck-cycle.ci`), neither in this spec's change |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The Review Gate section was stale | this spec | the bookkeeping edit of 2026-11-14 |
+| 2 | ISSUE | The spec failed five structure checks (no `### Unit Tests`, no `## Checklist`, three checklist items) | this spec | the same edit |
+| 3 | ISSUE | The Compose proof's persistence assertion had never been seen red: `break-volume` fails at import, before the second login | `internal/le/test/deployment/compose.go` | `6251e70acb`: `break-commit` re-imports the seed between the containers and fails at second-login |
+| 4 | ISSUE | The site check's round-figure rule let hand-typed copies through ("1,000+ Go packages", "100+ Go fuzz targets") | `internal/le/site/plaintext.go` | `6715cfecc3`: a word sharing the unit's stem within four words of the same clause makes it a copy |
+| 5 | ISSUE | The leftover-volume notice could name a concurrent live run's volume, call it interrupted and print its removal command | `internal/le/interoplab/compose.go`, `internal/le/test/deployment/compose.go` | `439f2e38b9`: a removal command only when the owner is shown gone and the project holds no container |
+
+The three round-1 NOTEs (config-push cause matched as a substring, one
+unparseable firmware descriptor stopping the ISO run, a diag comment naming a
+missing page) are fixed in `33f1ec1826`.
+
+### Fixes applied
+
+Each fix above is a `[source]` fix at its producer, with a test that fails
+without it: `TestComposeBreakCommitReimportsTheSeed` and the live
+`break-commit` run (FAIL at second-login), the near-unit test in
+`internal/le/site/plaintext_test.go`, and the dead-owner, live-owner and
+unjudgeable-owner tests in `internal/le/interoplab/compose_volume_orphans_test.go`
+and `internal/le/test/deployment/compose_test.go`.
+
+### Reconciliation, 2026-11-14
+
+An independent read-only agent, which authored none of the change, reconciled
+the review population on 2026-11-14. These are its results as the main thread
+reported them.
+
+| Item | Result |
+|------|--------|
+| Population | 431 paths: 400 read at `6307518170f6`, plus 31 new at `5797d548acf7`. The TSV ledger has 40 later rows, and their union equals the 431-path file. It holds 65 `internal/component/ike/` paths. |
+| Later landings matched to their review pins by hash | `0ec5666e2e`, `c5baed81d0`, `7bf418baaa`, `19086169f5`, `4644c95058`, `994c2c1152`, and the bootstrap, keys, authorizedkeys and config-push runner files of `6f11891cab`. |
+| Commits newly read for this gate | `1d8017e6fd`, the logic of `be52bcb019`, `ece5c2a80d`, the Go of `01d7ee17ef`, `4423922ca1`, `92b0b49dcc`, `e4bdb55d1e`, `929b1aec14`, `8793b59939`, `ef1a3cf33d`, `e2627d3e7b`, `995c46014d`, the docs of `92ca4ce6e4`. |
+| Covered by an earlier independent review or judge | `ca9571e0e2`, `00d8e62202`, `0e4bdbe95b`, `7de6a5d319`, and the test replacements in `be52bcb019` and `4423922ca1`. |
+| BLOCKER | 0. |
+| ISSUE | 2, both spec bookkeeping: this section was stale, and the spec failed five structure checks of the validator. This edit closes both. |
+| NOTE | 3, in code, all fixed in `33f1ec1826`. |
+| Stated limit | The handover's list of 120 IKE paths to keep (`deployment-closure-foreign-ike-review-population.txt`) is not in `evidence/` and is not in the checkout, so that subset cannot be enumerated. |
+| Owned elsewhere, unchanged | The ESP limiter (`espform.go`): journal row `plan/journal/token-bucket-refill-ignores-the-rate.md`, owned by `plan/release/validation/spec-ipsec-esp-dual-form-receive.md`. |
+| Not yet reviewed at the time | `961d5c714f` (the Compose proof), `86e0c57e04` (the site check) and `33f1ec1826` (the three NOTE fixes): reviewed in rounds 2-4 above. |
+
+### Historical source and documentation reviews, 2026-11-12
 
 These are bounded source-review results reported by the main thread. They do
 not convert an outstanding runtime or artifact requirement into a pass; the
@@ -1109,23 +1201,19 @@ result, JSON remains stdout-only with private stderr sidecars, and logs retain
 both streams. The fixture judge approved and personally recorded both strict
 startup-fixture additions; their previous assertions remain intact.
 
-| Requirement | Current state | Required result |
-|-------------|---------------|-----------------|
-| AC-6 live topology | Actual `53628` reached running nodes and initial configuration; missing YAML inventory was then corrected and passed scoped tests and actual create. | Actual declared adjacencies, kernel routes, sourced traffic and successful owned teardown through the corrected invocation. |
-| AC-8 post-update health | Extended actual `87610` passed both updated and recovered boots, preserving the original identity/configuration/login/recovery assertions and requiring live configured-service health. | Complete for the tested native amd64/KVM management seed. |
-| AC-9 appliance removal | Canonical guide covers backup, separate export, shutdown, VM/hardware retirement and retained secrets; independent review and latest full canonical build/check passed. | Complete locally; no push or publication authorized. |
-| AC-10 current source-bound preview | Fresh complete preparation `52283` and retained checker `27968` passed with all identity checks retained. | Preserve the private bundle and its exact scope; no publication is authorized. |
-| Final closure review | Bounded source/doc reviews above are clear; required runtime/artifact evidence remains open. | Reconcile actual results before declaring a final clean gate or overall completion. |
+The 2026-11-12 table of remaining evidence that stood here is superseded: the
+current acceptance table above records a pass for each of its rows (AC-6, AC-8,
+AC-9, AC-10).
 
 ### Final status
 
 - [ ] Independent review shows zero blockers and zero issues.
 - [ ] Notes recorded or explicitly none.
 
-These final closure boxes remain unchecked while live netlab and extended OTA
-health proofs remain open. The complete source-bound preview and its retained
-checker passed. Canonical site regeneration for the latest guidance remains
-required. No feature-proof refresh or remote publication is authorized.
+The boxes stay unticked by convention. Round 4 of the independent review
+returned 0 BLOCKER, 0 ISSUE, and the closing pass (round 5) found NOTEs only,
+recorded in the table above. The three NOTE findings of the 2026-11-14
+reconciliation are fixed in `33f1ec1826`. No remote publication is authorized.
 
 ## Build and kernel research, 2026-11-11
 
@@ -1148,3 +1236,158 @@ Recommended design for review: extend `build preview run` with an appliance and 
 First use `defconfig` plus explicit QEMU exclusions and emitted-config checks. Compare its kernel bytes, module-tree bytes, compressed image bytes and bounded build costs with the current profile. Consider `allnoconfig` plus complete architecture/boot/capability fragments only if the first approach misses an agreed size target. Neither size nor speed improvement has been measured by this research.
 
 Verification must cover each native architecture, cold and warm profile caches, ISO optical/UEFI boot and installed-disk boot, A/B updates, the unchanged networking capabilities, and Docker-host kernel-byte/PID-1/root-filesystem identity. Detailed producer evidence, alternatives and implementation order are in `tmp/session/2026-11-10-225434/state/session-state-deployment-user-journeys-build-kernel.md`.
+
+## Implementation Summary
+
+### What Was Implemented
+- Native Linux lifecycle through the existing `local` and `systemd` owners: bare `ze install` and `ze uninstall`, fresh-state initialization, service start, repeat installation that keeps units, credentials and configuration, ordinary removal that keeps state, and a purge confined to the selected installation that respects package-owned state (`nativeRuntime.install`, `nativeRuntime.uninstall`, `packageStateOwnership` in `internal/plugins/local/native.go`).
+- A changed-version upgrade proof, `test/ui/native-install-upgrade.ci`, with the harness daemon `ze-upgrade` (`0e4bdbe95b`).
+- A supplied two-peer quickstart with its configs and the functional test `test/ui/deployment-quickstart.ci`.
+- Container persistence: `docker/compose.yaml` with a named state volume, corrected first-start initialization, and the committed proof `./le test deployment docker-compose` with two counterfactuals (`961d5c714f`, `6251e70acb`, `439f2e38b9`).
+- netlab: node startup after interface setup, diagnostics retained on failure, interface inventory and peer replay, route passing between BGP peers (`ef1a3cf33d`), and the live six-ping proof.
+- Appliance: ISO media discovery, firmware pairing, the arm64 virtio SCSI kernel option (`1d8017e6fd`, `be52bcb019`, `33f1ec1826`), OTA authentication, partition payloads and health assertions, the authenticated SSH configuration-push subsystem and its native proof, and in-process WireGuard key generation (`4423922ca1`).
+- Routing defects the live labs exposed: per-destination Default next hop for redistributed routes (`7bf418baaa`), connected-route bootstrap and retirement (`c5baed81d0`), interface address replay (`0ec5666e2e`), OSPF interface reachability and rollback, IS-IS level constraints, rollback and circuit lifetime.
+- Preview delivery: `./le build preview run` and `check`, and the manual workflow `.github/workflows/preview.yml`, which builds, checks and retains a bundle without publishing.
+- Website and guides: the deployment chooser, a complete guide per path with upgrade and removal, and the site check repairs (`01d7ee17ef`, `86e0c57e04`, `6715cfecc3`).
+
+### Bugs Found/Fixed
+- Each is listed with its regression in the acceptance table, the dated verification tables and the Review Gate above. The ones found by the live proofs: installer ISO media not found on arm64 (`1d8017e6fd`), the UEFI variable store derived by renaming (`be52bcb019`), the config-push seed and refusal causes (`ca9571e0e2`, `8793b59939`, `33f1ec1826`), the kexec reboot (`92b0b49dcc`), the named appliance's configuration file name (`e4bdb55d1e`), `request wireguard keypair` needing `wg` (`4423922ca1`), and the netlab render passing only its own prefixes (`ef1a3cf33d`).
+
+### Documentation Updates
+- `docs/guide/ze-install.md` (chooser, Upgrading, removal), `docs/guide/appliance.md` (SSH checks after update, removal), `docs/guide/docker.md` (named volume, recreation, capabilities), `docs/guide/netlab.md`, `docs/guide/quickstart.md`, `docs/guide/ubuntu-build-install.md`, `docs/architecture/testing/qemu-integration.md` (proof host tables, including the `c6a1e51a1b` rows that landed in `cab4307742`), `docs/architecture/appliance/iso-installer.md`, `docs/functional-tests.md`, `docs/contributing/preview-artifacts.md`, `docs/architecture/site-facts.md`.
+- Lesson routed at closure: `docs/architecture/testing/interop.md`, the vacuity-trap table, gains a sixth trap, a counterfactual that fails before the assertion it is meant to prove (the `break-volume` case). Committed as this session's hunks only; the file carries another session's two lines.
+- `./le doc check all` on 2026-11-14 exits 1 on one finding outside this spec: `../wiki/command-catalog.md` disagrees with the live command catalogue. Digest anchors all resolve.
+
+### Deviations from Plan
+- The AC-2 changed-version upgrade script that timed out on 2026-11-11 was never committed; a committed functional test replaces it.
+- AC-6 passed only after the netlab template changed (`ef1a3cf33d`); the explicit `next-hop self` it sets is owned by `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md`.
+- No second-architecture run is recorded for any proof, under the owner's ruling that a test runs once, on one architecture.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The Compose persistence proof was first recorded from a session script that was never committed | A proof that is not in the tree cannot be rerun or reviewed | Review of the AC-5 evidence on 2026-11-14 | `961d5c714f` committed it as a native action |
+| approach | `break-volume` was taken as the red of the persistence assertion | It fails at import, before the assertion under test runs | Independent review, round 2 | `6251e70acb` added `break-commit`, red at second-login |
+| assumption | The arm64 ISO would boot with the qemu installer kernel profile as it was | The arm64 VM presents the ISO on virtio-scsi, which the profile lacked | First arm64 ISO run, "ISO media not found" | `1d8017e6fd` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Install and uninstall on Linux with the ze command line | Done | `internal/plugins/local/native.go` `nativeRuntime.install`, `nativeRuntime.uninstall` | AC-1, AC-2 |
+| ISO installation works | Done | `internal/le/test/qemu/install_iso.go` `executeISO` | AC-7, amd64 and arm64 |
+| Docker, VM, containerlab and gokrazy journeys | Done | `docker/compose.yaml`, `contrib/netlab/`, `internal/appliance/` | AC-5, AC-6, AC-8, AC-12 |
+| Website presents each path for testing and production | Done | `internal/le/site/home.go` `homeBody`, `docsmanifest.go`, `website/data/` | AC-9, AC-11 |
+| Prepare preview delivery locally and in CI, without publishing | Done | `internal/le/build/preview/preview.go` `prepare`, `.github/workflows/preview.yml` | AC-10 |
+| Update the documentation and website for the completed part | Done | `01d7ee17ef` and the guides above | AC-9 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | Real systemd lifecycle `cd7be821`; `test/ui/native-install-lifecycle.ci` | |
+| AC-2 | Done | `test/ui/native-install-upgrade.ci` 1/1 and 80/80, red under the `copyFile` mutation; native refusal controls | arm64 only, by owner ruling |
+| AC-3 | Done | Five flavors compile; preview binaries at `961d5c714f`; `docs/guide/ubuntu-build-install.md` | |
+| AC-4 | Done | `test/ui/deployment-quickstart.ci`, 80 stress invocations | No forwarding claim, which AC-4 does not ask for |
+| AC-5 | Done | `./le test deployment docker-compose` PASS, `break-volume` and `break-commit` red; `TestComposeFileMatchesTheDockerGuide` | The port, capability and network clause is that file-against-guide test |
+| AC-6 | Done | `test netlab run` at `92ca4ce6e4`, six pings, cleanup | |
+| AC-7 | Done | `installer-iso` PASS amd64/KVM and arm64/HVF after `33f1ec1826` | Ventoy on arm64 not run; AC-7 does not name it |
+| AC-8 | Done | `appliance-ota` PASS at `c6a1e51a1b` | No routing or VPN traffic claim, which AC-8 does not ask for |
+| AC-9 | Done | `TestDeploymentJourneysReachPublishedGuides`; `./le site build` and `check` exit 0 after `6715cfecc3` | Publication waits for the owner's order |
+| AC-10 | Done | `build preview run` and `check` exit 0 at `961d5c714f`; `.github/workflows/preview.yml` | Bundle marked dirty: another session's files in the tree |
+| AC-11 | Done | `docs/guide/ze-install.md` (pre-release statement, Upgrading, backup and rollback), `docs/guide/appliance.md` | |
+| AC-12 | Done | `appliance-config-push` PASS at `c6a1e51a1b` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Native command regression tests | Done | `internal/plugins/local/`, `internal/plugins/systemd/` | |
+| `TestDeploymentJourneysReachPublishedGuides` | Done | `internal/le/site/deployment_journeys_test.go` | |
+| Two-peer tutorial proof | Done | `test/ui/deployment-quickstart.ci` | |
+| Compose bootstrap/recreate | Done | `internal/le/test/deployment/compose.go` | |
+| Reference topology route/ping | Done | `internal/le/test/netlab/live.go` | |
+| Installed-target ISO and OTA | Done | `internal/le/test/qemu/install_iso.go`, `install_ota.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugins/local/`, `internal/plugins/systemd/` | Done | |
+| `internal/appliance/`, `internal/le/test/qemu/` | Done | |
+| `docs/guide/quickstart.md`, `ubuntu-build-install.md`, `docker.md`, `netlab.md`, `ze-install.md`, `appliance.md` | Done | |
+| `docker/compose.yaml`, `contrib/netlab/` | Done | |
+| `internal/le/site/homebody.go`, `home_test.go`, `docsmanifest.go`, audience and nav JSON | Done | |
+| Tutorial configs and their proof | Done | `examples/quickstart/`, `test/ui/deployment-quickstart.ci` |
+| Preview preparation and workflow | Done | `internal/le/build/preview/`, `.github/workflows/preview.yml` |
+
+### Audit Summary
+- **Total items:** 31
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Install and remove Ze on Linux with the ze command line | functional | `test/ui/native-install-lifecycle.ci` and `test/ui/native-install-upgrade.ci` (80/80, red when the binary copy is skipped); real systemd lifecycle `cd7be821` |
+| The ISO installation works | functional (VM) | `./le test qemu installer-iso` printed `INSTALL-ISO-QEMU: PASS` on amd64/KVM and on arm64/HVF after `33f1ec1826`: installed-disk boot and authenticated SSH `show version` |
+| A container keeps its state across recreation | functional with counterfactual | `DEPLOYMENT-COMPOSE: PASS ...` on a tree-built and on the preview image; `break-commit` FAIL at second-login; `break-volume` FAIL at import |
+| A lab user gets a working routed topology | interop (FRR) and live lab | `bgp-ospf-redistribute-default-frr` PASS and red under its counterfactual; netlab six sourced pings at `92ca4ce6e4` |
+| An appliance updates and takes configuration safely | functional (VM) | `APPLIANCE-OTA-QEMU: PASS ...` and `APPLIANCE-CONFIG-PUSH-QEMU: PASS ... three refusal controls` at `c6a1e51a1b` |
+| Users obtain Ze without a published release | artifact check | `./le build preview run ... images` and `./le build preview check` exit 0 at `961d5c714f`, `published false` |
+| The website leads each kind of user to a working path | site check and regression | `TestDeploymentJourneysReachPublishedGuides`; `./le site build` and `./le site check` exit 0 on `../gh-pages` after `6715cfecc3`; the owner reviewed the pages on 2026-11-14 |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Publication of the site, the preview bundle and any image | AC-10 makes it wait for the owner's order; no criterion asks this spec to publish | none: the owner's order, not a spec, starts it |
+| Ze advertising its best route between peers without `bgp-rs` | Owner ruling of 2026-11-13, outside this spec's criteria | `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md` |
+| eBGP next-hop default, which made the netlab render's `next-hop self` necessary | Product defect found by AC-6, outside its criterion | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` |
+| Dedicated QEMU and Xen kernel profiles | Owner research request, unapproved skeleton | `plan/proposals/spec-virtual-machine-kernel-profiles.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/native-install-lifecycle.ci`, `native-install-upgrade.ci`, `deployment-quickstart.ci`, `deployment-remote-trust.ci` | yes | `ls test/ui/`, 2026-11-14 |
+| `docker/compose.yaml`, `.github/workflows/preview.yml`, `internal/le/test/deployment/compose.go`, `test/plugin/netlab-lab-profile.ci` | yes | `ls`, 2026-11-14 |
+| `docs/guide/{quickstart,ubuntu-build-install,docker,netlab,ze-install,appliance}.md`, `docs/contributing/preview-artifacts.md` | yes | `ls`, 2026-11-14 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | Install, upgrade and removal keep state; purge is confined | `nativeRuntime.install` in `internal/plugins/local/native.go` runs `preflight`, `packageStateOwnership` and the service preflight before `copyFile`, and bootstraps only when no state exists; `.ci` runs as recorded in the AC rows |
+| AC-3 | Source build documented | `docs/guide/ubuntu-build-install.md` exists; preview binaries built at `961d5c714f` |
+| AC-4 | Quickstart uses the supplied configs | `test/ui/deployment-quickstart.ci` reads `examples/quickstart/r1.conf` and `r2.conf` and expects `DEPLOYMENT-QUICKSTART: PASS` |
+| AC-5 | Ports and volume match the guide | `docker/compose.yaml` publishes `179:179` and `127.0.0.1:2222:2222` and mounts a named volume; `docs/guide/docker.md` line 130 states both; `TestComposeFileMatchesTheDockerGuide` holds them |
+| AC-6 to AC-8, AC-12 | Live and VM proofs passed | The main thread's runs recorded in the acceptance table, 2026-11-13 and 14 |
+| AC-9, AC-11 | Guides cover each path, its upgrade and removal | `docs/guide/ze-install.md` "## Upgrading" (line 219), `docs/guide/appliance.md` "## Removing an appliance" (line 472); `ze-install.md` line 4 states pre-release |
+| AC-10 | CI publication path is reviewable and publishes nothing | `.github/workflows/preview.yml`: `workflow_dispatch` only, `permissions: contents: read`, upload-artifact with 14-day retention |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Native Ze install/uninstall CLI | `test/ui/native-install-lifecycle.ci`, `test/ui/native-install-upgrade.ci` | Read: both run `le test fixture ui/native-install-*`, which drive the shipped `ze install` and SSH login (`nativeInstallLifecycle`, `internal/test/fixture/register_native_install.go`) |
+| Homepage deployment links | none: `TestDeploymentJourneysReachPublishedGuides` | Site regression over `homeBody` and `docsManifest` |
+| Docker Compose up | none: `./le test deployment docker-compose` | The action runs `docker compose` on `docker/compose.yaml` itself |
+| netlab up | `test/plugin/netlab-lab-profile.ci` and `./le test qemu docker-lab lab "test netlab run"` | Live run at `92ca4ce6e4` |
+| Boot installer ISO | none: `./le test qemu installer-iso` | `executeISO` boots the ISO, installs, boots the written disk and logs in |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Real systemd lifecycle and native controls; no shell installer was added |
+| A-2 | confirmed | ISO and OTA proofs passed under amd64/KVM and arm64/HVF |
+| A-3 | confirmed | Nothing published; `published false` in the preview manifest; publication waits for the owner |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| User guides (Yes) | `docs/guide/docker.md` source anchors `docker/compose.yaml -- published ports` match `ports:` in `docker/compose.yaml`; `ze-install.md` Upgrading anchors `register_native_install_upgrade.go` | yes |
+| Test infrastructure (Yes) | `docs/functional-tests.md` names `./le test deployment docker-compose` and `test/ui/native-install-upgrade.ci`; `docs/architecture/testing/qemu-integration.md` holds the `c6a1e51a1b` rows | yes |
+| Config syntax, API, wire, SDK, RFC (No) | No YANG, RPC or wire file is in this spec's change; the next-hop audit records were rejudged in `6f11891cab` without new RFC claims | yes |
+| `./le doc check all` | exit 1 on 2026-11-14, one finding outside this spec (`../wiki/command-catalog.md` versus the live catalogue) | recorded |

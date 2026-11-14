@@ -1,11 +1,15 @@
 # Deployment user journeys: handover
 
-**Spec:** [deployment-user-journeys](../../release/delivery/spec-deployment-user-journeys.md), in progress, not closed.
+**Spec:** `spec-deployment-user-journeys`, **closed on 2026-11-14**. The spec as it closed is in git history (the commit that removed it from `plan/release/delivery/`, and its parent). Its Review Gate ended at 0 BLOCKER, 0 ISSUE after five rounds; every acceptance criterion has a recorded pass.
+
+**What is still open, and who owns it:** publication of the site, the preview bundle and any image waits for the owner's order (AC-10), which no spec starts. Best-route advertisement between peers: `plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md`. The eBGP next-hop default behind the netlab render's `next-hop self`: `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md`. Dedicated QEMU and Xen kernel profiles: `plan/proposals/spec-virtual-machine-kernel-profiles.md`. The rest of this page is the record of how the work got there.
+
+**Retained outside the repository, to remove now that no further arm64 ISO run or preview check is owed for this spec:** the private GRUB builder under `~/.cache/ze-deployment-journeys/grub` and the Docker image `ze-deployment-journeys-grub:f96ab875`, the preview bundle under `~/.cache/ze-deployment-journeys/preview-961d5c714f/` (keep it until the owner decides on publication), and the server tree backup `~/.cache/ze-server-tree-backup-20261114/` on the Linux server. An agent does not delete Docker images there; the owner does.
 **Branch:** main. Wiki checkout: `../wiki`, local branch `wiki` tracking `wiki/master`.
 **Goal:** Reduce friction across Linux installation and removal, Docker, VM and ISO, containerlab and netlab, and gokrazy, with accurate documentation and website guidance.
 **Written:** 2026-11-13, at the end of the first session after the machine migration, and updated on 2026-11-14 by the session that ran step 0 on the Mac. Resume from this page. Nothing was pushed or published.
 
-Start a new session with a new claim (`./le spec claim plan/release/delivery/spec-deployment-user-journeys.md`). Read `AGENTS.md` and its rule files first. Work in the main checkout, with native `./le` actions and session-private named outputs. No worktree, no test export, no `./le verify`.
+History, before closure: a session resumed this work with a new claim on the spec. Read `AGENTS.md` and its rule files first. Work in the main checkout, with native `./le` actions and session-private named outputs. No worktree, no test export, no `./le verify`.
 
 ## Where the spec stands
 
