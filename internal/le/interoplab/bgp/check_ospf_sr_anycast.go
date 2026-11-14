@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 )
 
 const (
@@ -27,6 +28,27 @@ const (
 	// ospfPrefixSIDSubTLV is the Prefix-SID Sub-TLV type of RFC 8665 Section 5.
 	ospfPrefixSIDSubTLV = 2
 	ospfSRAnycastWait   = 90 * time.Second
+	// ospfSRAnycastPoll is the interval every wait and the hold in this checker sample at.
+	ospfSRAnycastPoll = time.Second
+	// ospfSRAnycastSettle is how long assertion 3 holds the pop after its first passing
+	// read. It bounds the time from the second advertiser's LSA entering Ze's LSDB, which
+	// assertion 2 observed, to Ze's label route built from it. Ze builds its SR table only
+	// in the SPF post-run hook (internal/plugins/ospf/spf_wiring.go), and the run that
+	// reads the LSA starts at most DefaultSPFMaxHold after the LSA triggered it
+	// (spf.Computer.TriggerArea, bumpDelayLocked doubles the hold up to that ceiling,
+	// and a run already under way leaves the LSA to the next one). The scenario's ze.conf
+	// sets no SPF timer, so the engine runs the config default ospf.DefaultSPFMaxHoldMS,
+	// the same 5000 ms as the computer's own default read here. The entry then still
+	// crosses the mpls-fib bus to fib-kernel before netlink writes it. The other two
+	// ceilings cover that run, the bus and the kernel write on a loaded lab host. A single
+	// read cannot work: the read that follows assertion 2 can see the pop Ze installed
+	// before the LSA reached its SR table, while the next hop was the binding's only
+	// advertiser, and a Ze that ignores a non-originating next hop's flags pops then too.
+	// No `show` command exposes a fact that advances once the SR install consumed the
+	// current LSDB, so the hold is bounded by time, not by state.
+	ospfSRAnycastSettle = 3 * ospfspf.DefaultSPFMaxHold
+	// ospfSRAnycastDatabase is the Ze command assertion 2 reads, and the hold re-reads.
+	ospfSRAnycastDatabase = "show ospf database opaque-area"
 )
 
 var (
@@ -55,7 +77,10 @@ type ospfSRAnycastPrefixLSA struct {
 // discriminating one: Ze pops its own label for the anycast SID toward the next hop,
 // as that router's NP-Flag asks, where a Ze reading the flags of the Originator alone
 // swaps it. Assertions 1 and 2 establish the condition, so a lab where the next hop
-// became the Originator fails rather than passing for the wrong reason.
+// became the Originator fails rather than passing for the wrong reason. Assertion 3
+// holds the pop for ospfSRAnycastSettle after its first passing read and then re-reads
+// the condition, because the first pop can predate the condition (ospfSRAnycastSettle
+// says why).
 func checkOSPFSRAnycastNextHop(ctx context.Context, check *interoplab.CheckContext) error {
 	if !check.Network.IPv4.IsValid() {
 		return errors.New("assertion 1: the SR anycast lab has no selected IPv4 network")
@@ -72,17 +97,33 @@ func checkOSPFSRAnycastNextHop(ctx context.Context, check *interoplab.CheckConte
 	if err != nil {
 		return fmt.Errorf("assertion 3: FRR lab address: %w", err)
 	}
-	if err := waitOSPFSRAnycastPop(ctx, check.Lab, nextHop); err != nil {
+	if err := assertOSPFSRAnycastPop(ctx, check.Lab, nextHop, ospfSRAnycastSettle, ospfSRAnycastPoll); err != nil {
 		return fmt.Errorf("assertion 3: %w", err)
 	}
 	return nil
+}
+
+// assertOSPFSRAnycastPop is assertion 3. It waits for the first pop toward nextHop, holds
+// it for settle, sampling every interval and failing on the first sample that is not
+// that pop (a swap, no route, two routes, a pop elsewhere), and last re-reads Ze's LSDB,
+// so every accepted pop was judged while the table still held the Originator first.
+// settle and interval are parameters so a unit test can hold for milliseconds; the
+// checker passes ospfSRAnycastSettle and ospfSRAnycastPoll.
+func assertOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr, settle, interval time.Duration) error {
+	if err := waitOSPFSRAnycastPop(ctx, lab, nextHop, interval); err != nil {
+		return err
+	}
+	if err := holdOSPFSRAnycastPop(ctx, lab, nextHop, settle, interval); err != nil {
+		return err
+	}
+	return recheckOSPFSRAnycastOriginator(ctx, lab)
 }
 
 func waitOSPFSRAnycastFull(ctx context.Context, lab interoplab.CheckerLab, peer string) error {
 	command := []string{cmdVtysh, "-c", frrShowOSPFNeighbor}
 	var last string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: ospfSRAnycastWait, Interval: time.Second, Description: "FRR Full with Ze",
+		Timeout: ospfSRAnycastWait, Interval: ospfSRAnycastPoll, Description: "FRR Full with Ze",
 	}, func(ctx context.Context) (string, error) {
 		output, err := lab.Query(ctx, peer, command, queryEnvironment(peer, command))
 		last = output
@@ -97,11 +138,11 @@ func waitOSPFSRAnycastFull(ctx context.Context, lab interoplab.CheckerLab, peer 
 }
 
 func waitOSPFSRAnycastOriginator(ctx context.Context, lab interoplab.CheckerLab) error {
-	command := zeCommand("show ospf database opaque-area")
+	command := zeCommand(ospfSRAnycastDatabase)
 	var last string
 	var verdict error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: ospfSRAnycastWait, Interval: time.Second, Description: "both anycast Prefix-SIDs in Ze's LSDB",
+		Timeout: ospfSRAnycastWait, Interval: ospfSRAnycastPoll, Description: "both anycast Prefix-SIDs in Ze's LSDB",
 	}, func(ctx context.Context) (string, error) {
 		output, err := lab.Query(ctx, "ze", command, queryEnvironment("ze", command))
 		last = output
@@ -116,12 +157,19 @@ func waitOSPFSRAnycastOriginator(ctx context.Context, lab interoplab.CheckerLab)
 	return nil
 }
 
-func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr) error {
-	command := []string{"ip", "-f", ipFamilyMPLS, ipObjectRoute, "show"}
+// ospfSRAnycastLabelTable is the command that lists Ze's kernel label routes.
+func ospfSRAnycastLabelTable() []string {
+	return []string{"ip", "-f", ipFamilyMPLS, ipObjectRoute, "show"}
+}
+
+// waitOSPFSRAnycastPop returns at the first read that shows the pop. That read alone
+// proves nothing: assertOSPFSRAnycastPop holds it.
+func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr, interval time.Duration) error {
+	command := ospfSRAnycastLabelTable()
 	var last string
 	var verdict error
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
-		Timeout: ospfSRAnycastWait, Interval: time.Second, Description: "Ze's label route for the anycast SID",
+		Timeout: ospfSRAnycastWait, Interval: interval, Description: "Ze's label route for the anycast SID",
 	}, func(ctx context.Context) (string, error) {
 		output, err := lab.Query(ctx, "ze", command, nil)
 		last = output
@@ -132,6 +180,51 @@ func waitOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHo
 	})
 	if err != nil {
 		return fmt.Errorf("the next hop's own NP-Flag (RFC 8665 Section 5) was not applied by Ze: %w (last verdict: %s); last `ip -f mpls route show`: %s", err, ospfSRAnycastVerdictText(verdict), last)
+	}
+	return nil
+}
+
+// holdOSPFSRAnycastPop samples Ze's label table every interval until settle has passed
+// since its start, and refuses the first sample that is not the pop toward nextHop. A
+// sample that cannot be read is refused too: an unread table is not a pop. The last
+// sample is taken at or after settle, so the hold covers the whole window.
+func holdOSPFSRAnycastPop(ctx context.Context, lab interoplab.CheckerLab, nextHop netip.Addr, settle, interval time.Duration) error {
+	command := ospfSRAnycastLabelTable()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	started := time.Now()
+	for sample := 1; ; sample++ {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("the hold of the pop for in-label %s ended before %s, after %d samples: %w", ospfSRAnycastInLabel, settle, sample-1, ctx.Err())
+		case <-ticker.C:
+		}
+		output, err := lab.Query(ctx, "ze", command, nil)
+		if err != nil {
+			return fmt.Errorf("sample %d of the hold could not read Ze's label table: %w", sample, err)
+		}
+		if verdict := ospfSRAnycastPopVerdict(output, nextHop); verdict != nil {
+			return fmt.Errorf("the next hop's own NP-Flag (RFC 8665 Section 5) was not applied by Ze: the pop held for %s, then sample %d found %w; `ip -f mpls route show`: %s", time.Since(started).Round(time.Millisecond), sample, verdict, output)
+		}
+		if time.Since(started) >= settle {
+			return nil
+		}
+	}
+}
+
+// recheckOSPFSRAnycastOriginator re-reads the condition assertion 2 established. A lab
+// whose LSDB lost it during the hold (the next hop became the Originator, an advertiser
+// withdrew) held its pops under a table that passes either way, so it fails.
+func recheckOSPFSRAnycastOriginator(ctx context.Context, lab interoplab.CheckerLab) error {
+	command := zeCommand(ospfSRAnycastDatabase)
+	output, err := lab.Query(ctx, "ze", command, queryEnvironment("ze", command))
+	if err != nil {
+		return fmt.Errorf("re-read Ze's LSDB after the hold: %w", err)
+	}
+	if verdict := ospfSRAnycastOriginatorVerdict(output); verdict != nil {
+		return fmt.Errorf("during the hold the Ze LSDB lost the condition the scenario tests, so its pops prove nothing: %w; last reply: %s", verdict, output)
 	}
 	return nil
 }

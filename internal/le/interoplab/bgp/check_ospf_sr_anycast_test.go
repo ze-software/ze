@@ -1,19 +1,29 @@
 package bgp
 
 import (
+	"context"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
 // ospfSRAnycastCheckerBranches drives each predicate of the SR anycast next-hop checker
-// in both polarities, each false case written against one stated wrong reading.
+// in both polarities, each false case written against one stated wrong reading, then
+// assertion 3 over a fake lab whose label table changes between reads.
 // VALIDATES: the pop toward the SPF next hop, the Originator-before-next-hop order and
-// the per-row Full read each accept only the state the scenario names.
+// the per-row Full read each accept only the state the scenario names, and assertion 3
+// accepts only a pop that holds for the whole window under a table that still has the
+// Originator first.
 // PREVENTS: a swap (the pre-fix Originator-only reading), a lab whose next hop became the
-// Originator, or another neighbor's Full passing the checker.
+// Originator, another neighbor's Full, or a first pop that predates the second
+// advertiser's LSA and later becomes a swap, passing the checker.
 func ospfSRAnycastCheckerBranches(t *testing.T) {
 	nextHop := netip.MustParseAddr("172.30.0.3")
 
@@ -86,6 +96,61 @@ func ospfSRAnycastCheckerBranches(t *testing.T) {
 		}
 	})
 
+	// Assertion 3 over a fake lab whose label table changes between reads, the way Ze's
+	// does when its first install predates the second advertiser's LSA.
+	const (
+		pop          = "16100 via inet 172.30.0.3 dev eth0\n"
+		swap         = "16100 as to 17100 via inet 172.30.0.3 dev eth0\n"
+		settle       = 40 * time.Millisecond
+		interval     = 2 * time.Millisecond
+		nextHopFirst = `[{"extended-prefix":[
+			{"advertising-router":"192.0.2.3","opaque-id":1,"prefixes":[{"prefix":"10.255.255.100/32","sub-tlvs":[{"type":2}]}]},
+			{"advertising-router":"192.0.2.1","opaque-id":2,"prefixes":[{"prefix":"10.255.255.100/32","sub-tlvs":[{"type":2}]}]}]}]`
+	)
+	hold := func(t *testing.T, lab *ospfSRAnycastHoldLab) error {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		return assertOSPFSRAnycastPop(ctx, lab, nextHop, settle, interval)
+	}
+	t.Run("pop held through the window", func(t *testing.T) {
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop}, databases: []string{originatorFirst}}
+		if err := hold(t, lab); err != nil {
+			t.Fatalf("a pop that held for the whole window was refused: %v", err)
+		}
+		if lab.labelReads < 2 {
+			t.Fatalf("the label table was read %d times, want the first read and the hold's samples", lab.labelReads)
+		}
+		if lab.databaseReads != 1 {
+			t.Fatalf("the LSDB was re-read %d times after the hold, want once", lab.databaseReads)
+		}
+	})
+	t.Run("pop then swap is the pre-fix behavior", func(t *testing.T) {
+		// The first read is the pop Ze installed before the second advertiser's LSA
+		// reached its SR table; the swap is what a Ze reading the Originator alone
+		// installs once it did. A checker that judges the first passing read accepts it.
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop, pop, swap}, databases: []string{originatorFirst}}
+		err := hold(t, lab)
+		if err == nil {
+			t.Fatal("a pop that became a swap within the window was accepted")
+		}
+		if !strings.Contains(err.Error(), "in-label 16100 is swapped, not popped") {
+			t.Fatalf("the refusal does not name the swap: %v", err)
+		}
+	})
+	t.Run("pop then no route", func(t *testing.T) {
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop, ""}, databases: []string{originatorFirst}}
+		if err := hold(t, lab); err == nil {
+			t.Fatal("a pop whose route disappeared within the window was accepted")
+		}
+	})
+	t.Run("condition lost during the hold", func(t *testing.T) {
+		lab := &ospfSRAnycastHoldLab{labels: []string{pop}, databases: []string{nextHopFirst}}
+		if err := hold(t, lab); err == nil {
+			t.Fatal("pops held while the next hop became the Originator, which pass either way, were accepted")
+		}
+	})
+
 	zeRouter := ospfSRAnycastZeRouter
 	t.Run("full with Ze", func(t *testing.T) {
 		const neighbors = "Neighbor ID     Pri State           Up Time         Dead Time Address         Interface\n" +
@@ -101,6 +166,40 @@ func ospfSRAnycastCheckerBranches(t *testing.T) {
 			t.Fatal("Full on another neighbor's row was read as Full with Ze")
 		}
 	})
+}
+
+// ospfSRAnycastHoldLab answers Ze's label table from labels and Ze's LSDB from
+// databases, one answer per read in order, repeating the last answer once they run out.
+// Not safe for concurrent use: the checker reads serially.
+type ospfSRAnycastHoldLab struct {
+	noEvidenceLab
+	labels        []string
+	databases     []string
+	labelReads    int
+	databaseReads int
+}
+
+func (lab *ospfSRAnycastHoldLab) Query(_ context.Context, peer string, command []string, _ []interoplab.EnvironmentVariable) (string, error) {
+	if peer != "ze" {
+		return "", fmt.Errorf("query to %s, want ze", peer)
+	}
+	if slices.Equal(command, ospfSRAnycastLabelTable()) {
+		lab.labelReads++
+		return ospfSRAnycastAnswer(lab.labels, lab.labelReads), nil
+	}
+	if slices.Equal(command, zeCommand(ospfSRAnycastDatabase)) {
+		lab.databaseReads++
+		return ospfSRAnycastAnswer(lab.databases, lab.databaseReads), nil
+	}
+	return "", fmt.Errorf("unexpected query %v", command)
+}
+
+// ospfSRAnycastAnswer is the answer to the read-th read (from 1) of answers.
+func ospfSRAnycastAnswer(answers []string, read int) string {
+	if read > len(answers) {
+		return answers[len(answers)-1]
+	}
+	return answers[read-1]
 }
 
 // TestZeSysctlArguments covers both polarities of the ze-sysctls reader: a net.* assignment
