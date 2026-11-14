@@ -312,18 +312,26 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 		`<span data-ze-stat="rfc.implemented_display">140</span>`,
 		`<span data-ze-stat="rfc.not_walked_display">31</span>`,
 	}
+	strip := sliceBetween(t, page, `<div class="proof-strip"`, `<div class="interop-strip"`)
 	for _, span := range spans {
-		if !strings.Contains(page, span) {
+		if !strings.Contains(strip, span) {
 			t.Errorf("the proof strip does not carry %s", span)
 		}
+	}
+	if count := strings.Count(strip, `data-ze-stat=`); count != len(spans) {
+		t.Errorf("the proof strip carries %d stat spans, want %d", count, len(spans))
 	}
 	// The category buttons carry one marked count each, outside the strip.
 	categories := strings.Count(page, `data-ze-stat="features.categories.`)
 	if categories != len(legendCategories) {
 		t.Errorf("the category buttons carry %d stat spans, want %d", categories, len(legendCategories))
 	}
-	if count := strings.Count(page, `data-ze-stat=`) - categories; count != len(spans) {
-		t.Errorf("the homepage carries %d proof-strip stat spans, want %d", count, len(spans))
+	// The hero's five project metrics are the only other marked values on the
+	// page: TestHomeProjectMetricsUseSnapshotValues names each one.
+	const heroMetrics = 5
+	if count := strings.Count(page, `data-ze-stat=`) - categories - len(spans); count != heroMetrics {
+		t.Errorf("the homepage carries %d stat spans outside the proof strip and the category buttons, want the hero's %d",
+			count, heroMetrics)
 	}
 }
 
@@ -332,7 +340,12 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 func TestAFactTheSnapshotLostStopsTheHomepage(t *testing.T) {
 	paths := homeFixture(t)
 	writeArtifactFile(t, paths.Output, factsFile,
-		`{"interop":{"target_display":"9"},
+		`{"cli_commands":499,"plugin_registrations":96,
+		  "repo":{"go_source_lines_display":"1.57 million","go_test_lines_display":"1.84 million",
+		          "go_vendor_lines_display":"2.00 million"},
+		  "features":{"categories":{"automate":7,"observe":9,"operate":6,"platform":6,
+		              "routing":9,"secure":6,"services":9}},
+		  "interop":{"target_display":"9"},
 		  "rfc":{"enrolled_display":"171","gated_must_display":"2,972",
 		         "must_kept_display":"2,966","implemented_display":"140",
 		         "inspected_display":"171","not_walked_display":"31","proven_percent":"54.2"},
@@ -811,7 +824,7 @@ func TestTheHomeProducerClaimsTheSiteRoot(t *testing.T) {
 }
 
 // VALIDATES: spec-terminal-demo-showcase AC-8. The hero's file name, caption,
-// player label and transcript link, and the tour link beside it, come from
+// player label and transcript link, and the tour link in the browser panel, come from
 // HeroDemo and homeTourDemo plus their manifest entries: a fixture manifest
 // with its own title, page and anchor reaches the rendered homepage, and the
 // authored template names no demonstration id or anchor of the real manifest.
@@ -843,7 +856,7 @@ func TestHomeHeroDerivesFromTheManifest(t *testing.T) {
 		`<strong id="hero-demo-title">Fixture hero caption</strong>`,
 		`aria-label="Fixture hero caption"`,
 		`<a href="` + destination + `/#fixture-hero-anchor">Read transcript</a>`,
-		`<a class="hero-start-action" href="` + destination + `/#web-tour">`,
+		`<a href="` + destination + `/#web-tour">Explore the web interface →</a>`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the homepage carries no %s", want)
