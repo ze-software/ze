@@ -38,14 +38,30 @@ type plainFigure struct {
 // display string (one significant digit, as "100+"), which is a published value
 // only beside its unit word: smaller numbers, bare numbers and round figures
 // are too common in prose (years, section numbers, "100+ days", counts of other
-// things) to match without refusing pages that are right. A key whose last
-// word holds no letter (an index) has no unit word, so neither its whole
-// number nor its round display string is guarded here.
+// things) to match without refusing pages that are right. A whole number needs
+// its unit word as the very next word. A round display string is Nearby: any
+// word sharing its unit's stem within unitWindowWords words of the same clause
+// counts ("100+ Go fuzz targets", "200+ tests in the editor"), because its "+"
+// already makes it rarer in prose than a bare number. A key whose last word
+// holds no letter (an index) has no unit word, so neither its whole number nor
+// its round display string is guarded here.
 type publishedFigure struct {
-	Key  string
-	Text string
-	Unit string
+	Key    string
+	Text   string
+	Unit   string
+	Nearby bool
 }
+
+// unitWindowWords is how many words after a round display string the guard
+// reads for its unit word. Four reaches "200+ tests in the editor", the
+// farthest phrasing a copy of a current fact takes; "100+ days of fuzzing" is
+// the price, refused as a fuzz count, and a page that means days writes the
+// figure another way or marks the real one.
+const unitWindowWords = 4
+
+// unitStemMin is the shortest unit stem matched as a word prefix. A shorter
+// unit ("ms") would prefix too many words, so it must stand whole.
+const unitStemMin = 4
 
 // rawFigureMin is the smallest whole number the guard matches beside its unit
 // word. A value under it is matched only as a display string.
@@ -78,13 +94,13 @@ func publishedFigures(snapshot siteFactSnapshot) []publishedFigure {
 			}
 			// A round display string ("100+", "2,000+") is "a hundred or
 			// more" in any sentence: matched bare, tests.fuzz_display at
-			// "100+" refused a talk's "100+ days". Beside its unit word it is
+			// "100+" refused a talk's "100+ days". Near its unit word it is
 			// still the published value, so it is matched there.
 			unit := factUnit(key)
 			if !strings.ContainsFunc(unit, unicode.IsLetter) {
 				continue
 			}
-			figures = append(figures, publishedFigure{Key: key, Text: value, Unit: unit})
+			figures = append(figures, publishedFigure{Key: key, Text: value, Unit: unit, Nearby: true})
 			continue
 		}
 		number, err := strconv.Atoi(value)
@@ -368,7 +384,7 @@ func figuresIn(page, text string, figures []publishedFigure) []plainFigure {
 			if !figureStandsAlone(text, start, end) {
 				continue
 			}
-			if figure.Unit != "" && !unitFollows(text[end:], figure.Unit) {
+			if !unitMatches(figure, text[end:]) {
 				continue
 			}
 			if reported[start] {
@@ -411,6 +427,56 @@ func figureStandsAlone(text string, start, end int) bool {
 // isFigureDigit answers whether one byte is an ASCII digit.
 func isFigureDigit(character byte) bool {
 	return character >= '0' && character <= '9'
+}
+
+// unitMatches answers whether the text after a figure carries the unit word the
+// figure needs: none for a display string, the very next word for a whole
+// number, a word of the unit's stem nearby for a round display string.
+func unitMatches(figure publishedFigure, rest string) bool {
+	if figure.Unit == "" {
+		return true
+	}
+	if figure.Nearby {
+		return unitNear(rest, figure.Unit)
+	}
+	return unitFollows(rest, figure.Unit)
+}
+
+// unitNear answers whether one of the first unitWindowWords words after a
+// figure shares its unit's stem ("fuzz" for fuzzers and fuzzing, "package" for
+// packages). The window ends at a clause mark, so "100+ days)" never reads the
+// next sentence, and at the next figure, which owns the words after it: in
+// "100+ scenarios and 100+ fuzz targets" the fuzz word is the second figure's.
+func unitNear(rest, unit string) bool {
+	if clause := strings.IndexAny(rest, ".,;:!?()[]"); clause >= 0 {
+		rest = rest[:clause]
+	}
+	stem := strings.TrimSuffix(unit, "s")
+	words := strings.FieldsFunc(rest, func(character rune) bool {
+		return !unicode.IsLetter(character) && !unicode.IsDigit(character)
+	})
+	for position, word := range words {
+		if position == unitWindowWords {
+			return false
+		}
+		if isFigureDigit(word[0]) {
+			return false
+		}
+		word = strings.ToLower(word)
+		if unitStemOf(word, unit, stem) {
+			return true
+		}
+	}
+	return false
+}
+
+// unitStemOf answers whether one lowercase word is the unit word or shares its
+// stem. A stem shorter than unitStemMin must stand whole, singular or plural.
+func unitStemOf(word, unit, stem string) bool {
+	if len(stem) < unitStemMin {
+		return word == unit || word == unit+"s" || word+"s" == unit
+	}
+	return strings.HasPrefix(word, stem)
 }
 
 // unitFollows answers whether the next word after a number is its unit word,

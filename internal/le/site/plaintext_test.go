@@ -322,6 +322,47 @@ func TestARoundDisplayFigureIsMatchedOnlyBesideItsUnitWord(t *testing.T) {
 	}
 }
 
+// A round display string is a copy when a word of its unit's stem stands
+// within four words of it in the same clause, not only as the very next word:
+// "1,000+ Go packages", "100+ Go fuzz targets", "100+ fuzzers" and "200+ tests
+// in the editor" each show a current fact as plain text. Prose about something
+// else still passes: a talk's "100+ days" ends its clause at the bracket, and
+// "100+ scenarios" carries no unit word of any round fact.
+//
+// The method publishes three round facts, lays down one paragraph per phrasing
+// and asks the check: each copy is refused under its key, and the two prose
+// paragraphs add nothing, so the window is what catches the copies and the
+// clause and figure stops are what spare the prose.
+func TestARoundDisplayFigureIsMatchedNearItsUnitWord(t *testing.T) {
+	const page = "features/interoperability-testing/index.html"
+	output := t.TempDir()
+	writeArtifactFile(t, output, factsFile, `{
+  "go_packages_display": "1,000+",
+  "tests": {"editor_display": "200+", "fuzz_display": "100+"}
+}`)
+	writeArtifactFile(t, output, page, `<!doctype html><html><body><main>
+<p>Ze builds 1,000+ Go packages.</p>
+<p>It carries 100+ Go fuzz targets.</p>
+<p>It carries 100+ fuzzers.</p>
+<p>It runs 200+ tests in the editor.</p>
+<h2>The Story ... so far (100+ days)</h2>
+<p>The suite holds 100+ scenarios.</p>
+</main></body></html>`)
+	check, err := checkPlainFigures(ratchetSource(t, noRatchetedPages), output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []plainFigure{
+		{Page: page, Figure: "1,000+", Key: "go_packages_display"},
+		{Page: page, Figure: "100+", Key: "tests.fuzz_display"},
+		{Page: page, Figure: "100+", Key: "tests.fuzz_display"},
+		{Page: page, Figure: "200+", Key: "tests.editor_display"},
+	}
+	if !slices.Equal(check.Figures, want) {
+		t.Errorf("the check found\n%v\nwant\n%v", check.Figures, want)
+	}
+}
+
 // A key that ends in an index names no unit word, so the guard never matches
 // its value beside the index. The health section keys every figure of a
 // composed sentence by its position (health.<metric>.detail.<n>), and the
