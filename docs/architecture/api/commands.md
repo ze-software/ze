@@ -2542,6 +2542,29 @@ this barrier: the two BGP quiescers together cover the forward pool AND the
 per-peer initial-sync drain, so a route sent during establishment is on the wire
 (past its EOR) before the barrier returns.
 
+**What `bgp-peer-sync` waits for.** A peer is settled only when it owes none
+of these: routes queued before its session came up, its initial sync, its
+End-of-RIB, a peer-up replay that has not reported done, a policy change still
+re-sending its routes, and forwarded items its worker has not written yet. The
+End-of-RIB waits for no route process (owner ruling, 2026-09-18), so a route
+server's, reflector's or RIB's peer-up replay can still be passing after the
+marker. The replay fence covers that replay: it is up on an Established peer
+until every process that declared it (`FencesLiveForwards`: bgp-rs, bgp-rr,
+bgp-rib) has sent `plugin session ready` for the session. The peer's forward
+queue (its overflow and its worker channel) covers what the replay, a live
+forward or a requested End-of-RIB enqueued: `bgp-forward-pool` runs beside
+`bgp-peer-sync` and can settle before the replay has enqueued anything, so the
+peer-level answer reads the same per-peer counts the forward rails read. No
+timer lowers the fence. A fence owner that never reports keeps the peer
+pending, and the quiesce then fails when its drain ends with an answer that
+names the peer, what it owes, and the process a replay waits for:
+
+```
+quiesce failed for: bgp-peer-sync
+a subsystem still had work pending when its drain ended, so stopping the daemon or reading the result now would miss that work: bgp-peer-sync: peer 192.0.2.1: a peer-up replay to it has not reported done (waiting for bgp-rs): context deadline exceeded
+fix: request quiesce
+```
+
 **What the barrier does NOT cover.** A peer with no session, and a peer whose
 TCP connect has not completed, are both reported settled: neither has a
 counterparty, and a peer nobody is listening for waits in that state for the life
@@ -2553,6 +2576,7 @@ was absent until 2026-09-19, and until then a caller could quiesce, be told
 
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- peerSyncOwed, syncOwed, replayFenceUnreported, peerSyncOwedError -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-plugin:system-quiesce -->
 
 ### Peer Selector Parsing

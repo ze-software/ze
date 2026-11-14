@@ -515,6 +515,8 @@ type Peer struct {
 	// between them, so without the fence a live withdraw could overtake the
 	// replayed announce of the same prefix and leave it installed here.
 	// Atomic so the hold reads it without p.mu (forward_pool.go, takeOverflowReleased).
+	// `request quiesce` waits on it too (Peer.syncOwed): while it holds, the
+	// replay it fences is still owed to this peer.
 	initialUpdateOwed atomic.Bool
 	// establishedReceipt is the initial-replay receipt enterEstablished took
 	// for the latest session (Session.initialReplay), kept here so the RS fast
@@ -2624,7 +2626,8 @@ func (p *Peer) handOffForwardFlush(session *Session) bool {
 
 // pendingSync reports whether the peer still owes the wire something from this
 // session's initial update: routes queued while not-yet-established, an in-flight
-// initial-route sync, or the End-of-RIB that closes it. Unlike shouldQueue it does
+// initial-route sync, the End-of-RIB that closes it, a peer-up or policy replay
+// still passing, or forwarded items its worker has not written. Unlike shouldQueue it does
 // NOT gate on state -- a not-yet-established peer with queued routes IS pending
 // (those routes drain when it establishes), while a down/idle peer with an empty
 // queue is not. Used by the DrainPeerSync barrier so a test can wait for
@@ -2639,27 +2642,27 @@ func (p *Peer) handOffForwardFlush(session *Session) bool {
 // Both facts are read from p.session, the session that holds the peer now, so
 // a session's sync settles only that session: a sync of the session it
 // replaced cannot clear them (Session.sendingInitialRoutes).
+//
+// It also waits for what the initial sync no longer covers. The End-of-RIB
+// stopped waiting for route processes (owner ruling, 2026-09-18), so the two
+// facts above settle while a route server's, reflector's or RIB's peer-up
+// replay to this peer is still passing. The replay fence (initialUpdateOwed)
+// says that replay has not reported done, a policy restoration
+// (policyReplayHolds) is the same work after a policy change, and the peer's
+// forward queue (fwdOverflowPending, fwdChannelPending) holds what a replay or
+// a forward enqueued and the worker has not written yet: a replayed route, or
+// an End-of-RIB a process asked for (queueEndOfRIB).
+//
+// The gate and the marker are set by enterEstablished at Established, so a
+// peer that has not got there yet has neither and used to read as SETTLED.
+// That is "no work pending" and "work not started" answering the same way
+// (ai/rules/principles.md): a peer mid-handshake owes its whole initial
+// routing update, and a caller told it was settled tore the daemon down
+// between the OPEN exchange and the End-of-RIB.
+//
+// The facts and the lock order are Peer.syncOwed's (peer_sync_owed.go).
 func (p *Peer) pendingSync() bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	if len(p.opQueue) > 0 {
-		return true
-	}
-	if session := p.session; session != nil {
-		if session.sendingInitialRoutes.Load() != 0 {
-			return true
-		}
-		if session.initialSyncEOROwed.Load() {
-			return true
-		}
-	}
-	// The gate and the marker are set by enterEstablished at Established, so a
-	// peer that has not got there yet has neither and used to read as SETTLED.
-	// That is "no work pending" and "work not started" answering the same way
-	// (ai/rules/principles.md): a peer mid-handshake owes its whole initial
-	// routing update, and a caller told it was settled tore the daemon down
-	// between the OPEN exchange and the End-of-RIB.
-	return handshakeInFlight(p.session)
+	return p.syncOwed() != peerSyncSettled
 }
 
 // handshakeInFlight reports whether this peer holds a BGP handshake that is

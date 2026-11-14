@@ -425,7 +425,7 @@ and the peer expects the route and the marker in one `seq` group.
 | R-5 | An explicit marker parked in the forward overflow during the sync is never released | the peer of `api-eor-during-initial-sync` never receives its marker | the gate's opening is already followed by the overflow wake in `sendInitialRoutes`; the unit test asserts the write with no further traffic |
 | R-6 | An explicit marker that did not take the claim hands back a claim it does not own when its write fails (`settleEndOfRIB` releases by family, whoever claimed) | a second automatic marker for one family after a failed explicit write | read at implementation; if real, the forward item records whether it owns the claim. Confirmed real at the producer 2026-11-14 and fixed in a2302b8968: the queued item records whether it took the claim (`fwdEndOfRIB.ownsClaim`), and a failed write hands back only an owned claim (`settleEndOfRIB`) |
 | R-7 | A test reactor without a forward pool writes an explicit marker at once, ahead of queued routes | a unit test on that path sees the marker first | production always builds the pool (`reactor.go`); the new unit tests run with one, and the no-pool arm keeps the suppression for both forms. Holds as written 2026-11-14: the reactor's constructor always builds the forward pool, and `announceEOR`'s no-pool arm stands down both forms while the peer queues or the sync owes its marker |
-| R-10 | `request quiesce` does not see a requested marker still in the forward queue: its settle predicate (`Peer.pendingSync`) reads the operation queue, the queueing gate and the owed flag only. A replay's marker already had the same gap, so this is not a regression | a fixture that quiesces right after it asks for a marker tears the session down before the marker is written | fixtures wait for the peer's marker counter before they quiesce, as `fixture10EORDuringInitialSync` does |
+| R-10 | `request quiesce` does not see a requested marker still in the forward queue: its settle predicate (`Peer.pendingSync`) reads the operation queue, the queueing gate and the owed flag only. A replay's marker already had the same gap, so this is not a regression | a fixture that quiesces right after it asks for a marker tears the session down before the marker is written | fixtures wait for the peer's marker counter before they quiesce, as `fixture10EORDuringInitialSync` does. Resolved 2026-11-14: quiesce now waits while the peer's replay fence is up, while a policy re-send holds it, and while its forward queue holds items (`Peer.syncOwed`, `peer_sync_owed.go`), so a requested marker in the queue is waited for |
 | R-8 | Ending the session on a recovered panic loops if the panic is deterministic for that peer's table | reconnect, panic, reconnect | the existing reconnect backoff bounds it, and the panic is logged with its stack each time; a looping peer is visible where a silently stuck one was not |
 | R-9 | A `manual-eor` operator relies on today's replay marker reaching the peer | a route-server client configured with `manual-eor` stops receiving any marker until a process asks | the gate question on D-2; if the owner keeps today's behaviour, AC-6's survivor clause changes and D-2 is dropped. Answered 2026-11-14: withhold all automatic markers. The change is stated in `docs/guide/configuration.md` and in the news fragment at closure, so such an operator reads it |
 | R-4 | A hold added before the marker parks forwards that nothing wakes | a forwarded UPDATE delivered only when the next one arrives | every store that ends a hold is followed by the overflow wake, and a unit test asserts delivery with no further traffic |
@@ -438,6 +438,21 @@ stayed `ready` during implementation. The closure claims it one above the
 in-progress count only to close it. The work landed as a2302b8968 (D-1, D-2,
 R-6), 2cd7ac9f09 (D-3), 0461489d41 (D-5 and the two new tests) and 4aa1f84ff6
 (D-4).
+
+The stress run of the changed tests exposed an existing race in a file this
+spec regrouped: `test/plugin/rfc7999-blackhole-readvertise-agreement-forked.ci`
+failed when `request quiesce` reported a peer settled while a route server's
+peer-up replay to it was still in flight, so the fixture stopped the daemon
+mid-replay. `Peer.pendingSync` read the operation queue, the queueing gate, the
+owed End-of-RIB and a live handshake, never the replay fence nor the peer's
+forward queue. It was fixed here and not parked, for three reasons. It is the
+same surface: what `request quiesce` reports about the initial update. The page
+that documents the barrier (`docs/architecture/api/commands.md`) did not list
+the replay as excluded. The fix reuses the existing fence and forward counters
+(`Peer.syncOwed`, `peer_sync_owed.go`). One consequence: a fence owner that
+never reports its replay done now makes a quiesce on that peer time out, with
+an error that names the peer and the process. Before, the same owner silently
+stranded that peer's live forwards.
 
 ## Blast Radius
 
@@ -497,6 +512,12 @@ stand; AC-3 is widened by AC-4. Each row names what is still permitted and why.
 | the wire-content assertions of the three unwind tests | `internal/component/bgp/reactor/peer_initial_sync_unwind_test.go` | D-3: after a recovered panic the wire holds what the socket took before the fault, then only the Cease / Unspecific NOTIFICATION, with no End-of-RIB (2cd7ac9f09) | changed through the test judge |
 | the five readers of `apiSyncReady` | `peer_initial_sync_test.go`, `peer_up_barrier_test.go`, `rs_receipt_readiness_test.go`, `api_sync_test.go` | AC-9: each observes `initialUpdateOwed` going false | changed through the test judge |
 | `TestAnnounceEOR_SkipsPeerInInitialRouteSync`, `TestAnnounceEORDefersToCurrentSessionMarker`, `TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed` | `reactor_api_forward_test.go`, `peer_initial_sync_test.go` | they pin "an explicit marker is not written while the sync owes its own", which D-1 replaces | changed through the test judge: the old expectation is the defect in the owned journal row |
+| `TestPendingSyncWaitsForTheReplayFence` | `internal/component/bgp/reactor/peer_sync_owed_test.go` | R-10: an Established peer whose replay fence is up is not settled | new (2026-11-14) |
+| `TestPendingSyncWaitsForAPolicyReplay` | same file | R-10: a peer held by a policy re-send is not settled | new (2026-11-14) |
+| `TestPendingSyncWaitsForAForwardOnTheChannel` | same file | R-10: a forward item on the worker's channel keeps the peer unsettled | new (2026-11-14) |
+| `TestPendingSyncWaitsForAForwardInOverflow` | same file | R-10: a forward item in overflow keeps the peer unsettled | new (2026-11-14) |
+| `TestDrainPeerSyncErrorNamesWhatEachPeerOwes` | same file | the drain's timeout error names each owed peer, what it owes, and the process a replay waits for | new (2026-11-14) |
+| `TestQuiesceErrorCarriesWhatTheSubsystemOwes` | `internal/component/plugin/server/quiesce_test.go` | `quiesceAll` carries each failed subsystem's own error in its answer | new (2026-11-14) |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -557,6 +578,15 @@ files, which the list above lacks:
 - `internal/test/fixture/register_initial_sync_marker_beside_process_route.go` (new) - the fixture of `initial-sync-marker-beside-process-route`.
 - `test/exabgp-compat/etc/api-manual-eor.conf`, `test/exabgp-compat/etc/run/api-manual-eor.run` - the script waits for the session to be up in place of the sleep, and its header says what the test can and cannot prove.
 - `docs/exabgp/exabgp-differences.md` - a requested marker is held behind pending routes and never dropped, as in ExaBGP (Documentation checklist row 6).
+
+Added 2026-11-14, for the quiesce race in the implementation notes (R-10):
+
+- `internal/component/bgp/reactor/peer_sync_owed.go` (new) - `Peer.syncOwed` names what a peer still owes, the replay fence, a policy re-send and the forward queue included; `peerSyncOwedError` turns it into the drain's timeout error.
+- `internal/component/bgp/reactor/peer.go` - `Peer.pendingSync` reads `Peer.syncOwed`.
+- `internal/component/bgp/reactor/reactor_api.go` - `DrainPeerSync` returns `peerSyncOwedError` when its context ends first.
+- `internal/component/plugin/server/quiesce.go` - `quiesceAll` answers with an operator error that carries each failed subsystem's own error.
+- `internal/component/bgp/reactor/peer_sync_owed_test.go` (new), `internal/component/plugin/server/quiesce_test.go` - the six tests in the unit test table.
+- `docs/architecture/api/commands.md` - "What `bgp-peer-sync` waits for".
 
 ## Files to Create
 - `test/plugin/initial-sync-marker-beside-process-route.ci`

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,6 +101,31 @@ func TestQuiesceReportsQuiescerError(t *testing.T) {
 	}
 	if !contains(resp.Error, "boom") {
 		t.Errorf("error %q does not name the failing subsystem", resp.Error)
+	}
+}
+
+// TestQuiesceErrorCarriesWhatTheSubsystemOwes verifies the answer carries each
+// failed drain's own error, which says what it was still waiting for, and ends
+// with the command to run.
+//
+// VALIDATES: a caller reads the bgp-peer-sync detail (the peer and its work)
+// in the answer, as an operator error whose last line is the fix.
+// PREVENTS: "quiesce failed for: bgp-peer-sync" as the whole answer, which
+// cannot tell a replay still passing from an End-of-RIB still owed.
+func TestQuiesceErrorCarriesWhatTheSubsystemOwes(t *testing.T) {
+	const owed = "peer 192.0.2.1: a peer-up replay to it has not reported done"
+	quiescers := []Quiescer{
+		{Name: "bgp-peer-sync", Quiesce: func(context.Context) error { return errors.New(owed) }},
+	}
+	resp := quiesceAll(context.Background(), quiescers, time.Second)
+	if resp.Status != plugin.StatusError {
+		t.Fatalf("status = %v, want Error", resp.Status)
+	}
+	if !contains(resp.Error, "bgp-peer-sync: "+owed) {
+		t.Errorf("error %q does not carry what the subsystem was waiting for", resp.Error)
+	}
+	if !strings.HasSuffix(resp.Error, "request quiesce") {
+		t.Errorf("error %q does not end with the command to run", resp.Error)
 	}
 }
 

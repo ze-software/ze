@@ -394,6 +394,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `gate-excludes-part-of-its-population` | 2026-09-02 | AC-60: `countPeerUpBarrier` asks the registry by process name, not registration name |
 | `two-owners-share-one-name` | 2026-10-10 | AC-61: `recordCreatedPeerLocked` overwrites an operator's peer of the same name |
 | `silent-fall-through` | 2026-11-14 | `fwdPool.safeBatchHandle` keeps the session after a recovered batch panic, leaving a hole in what the peer was sent |
+| `wait-outlives-the-process-it-waits-on` | 2026-11-14 | replay fence stays up when its owner never reports (`Peer.lowerReplayFence`) |
 
 ## Rows found already fixed
 

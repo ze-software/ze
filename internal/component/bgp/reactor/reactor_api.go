@@ -1676,8 +1676,21 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 // and a handshake in flight count too, and the facts are cleared at several sites.
 // So this polls the cheap pendingSync() condition rather than a fixed sleep: it
 // returns as soon as the condition holds, and ctx bounds it.
+//
+// A peer is also waited on while a peer-up replay to it has not reported done
+// (the replay fence), while a policy change re-sends its routes, and while its
+// forward queue holds items the worker has not written (Peer.syncOwed). The
+// bgp-forward-pool quiescer runs beside this one (quiesceAll), so it can settle
+// before a replay has enqueued its routes; this one still waits for them.
+//
+// When ctx ends first, the error names each peer still owed work and what it
+// is owed (peerSyncOwedError), so a caller can tell a replay still passing
+// from an End-of-RIB still owed.
 func (a *reactorAPIAdapter) DrainPeerSync(ctx context.Context) error {
-	return waitForCondition(ctx, time.Millisecond, a.peerSyncDrained)
+	if err := waitForCondition(ctx, time.Millisecond, a.peerSyncDrained); err != nil {
+		return peerSyncOwedError(a.r.Peers(), err)
+	}
+	return nil
 }
 
 // peerSyncDrained reports whether no peer has pending route work (see peersSynced):

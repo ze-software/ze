@@ -11,11 +11,14 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -65,8 +68,9 @@ const quiesceTimeout = 10 * time.Second
 
 // quiesceAll drains every quiescer concurrently, each bounded by perTimeout, and
 // returns StatusDone only when all settle. If any drain fails or times out it
-// returns StatusError naming the offending subsystem(s); the Data map always
-// lists which subsystems were asked to quiesce.
+// returns an operator error naming the offending subsystem(s), with each one's
+// own error (what it was still waiting for) as the evidence; the Data map
+// always lists which subsystems were asked to quiesce.
 func quiesceAll(ctx context.Context, quiescers []Quiescer, perTimeout time.Duration) *plugin.Response {
 	names := make([]string, len(quiescers))
 	errs := make([]error, len(quiescers))
@@ -84,18 +88,24 @@ func quiesceAll(ctx context.Context, quiescers []Quiescer, perTimeout time.Durat
 	wg.Wait()
 
 	var failed []string
+	var reasons []error
 	for i, err := range errs {
 		if err != nil {
 			failed = append(failed, names[i])
+			reasons = append(reasons, fmt.Errorf("%s: %w", names[i], err))
 		}
 	}
 	if len(failed) > 0 {
+		// Each subsystem's own error is the evidence: it says what it was
+		// still waiting for (bgp-peer-sync names the peer and the work), so a
+		// caller can tell a replay still passing from an End-of-RIB owed.
 		var tb textbuf.Buffer
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  tb.Str("quiesce failed for: ").Str(textbuf.Join(failed, ", ")).String(),
-			Data:   plugin.Map{"quiesced": names, "failed": failed},
-		}
+		resp := plugin.OperatorErrorResponse(opererr.Wrap(errors.Join(reasons...),
+			tb.Str("quiesce failed for: ").Str(textbuf.Join(failed, ", ")).String(),
+			"a subsystem still had work pending when its drain ended, so stopping the daemon or reading the result now would miss that work",
+			"request quiesce"))
+		resp.Data = plugin.Map{"quiesced": names, "failed": failed}
+		return resp
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
