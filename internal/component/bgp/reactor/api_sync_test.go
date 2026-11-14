@@ -277,7 +277,8 @@ func TestAPISyncConcurrent(t *testing.T) {
 //
 // These tests drive SignalPeerAPIReady, the entry point the "peer <addr> plugin
 // session ready" command lands on (bgp/plugins/cmd/peer/session.go:20), and
-// assert the peer-visible effect: waitForAPISync (peer.go:423) is released.
+// assert the peer-visible effect: the peer's replay fence (Peer.initialUpdateOwed)
+// is lowered. The End-of-RIB waits for no report (owner ruling, 2026-09-18).
 // They do not test findPeerByAddr directly -- the bug was never in the helper,
 // it was that the caller never reached it (ai/rules/evidence.md,
 // "Test corollary").

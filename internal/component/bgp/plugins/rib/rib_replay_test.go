@@ -197,12 +197,12 @@ func TestReplayEmptyRibOut(t *testing.T) {
 // route is originated. It must reach replayRoutesWithCursor's len(groups)==0
 // branch and dispatch "plugin session ready".
 //
-// This asserts a LATENCY behavior, not a return value. The reactor arms
-// waitForAPISync(2s) (reactor/peer.go:423) for every peer with a `send [ update ]`
-// process and sends its EOR only after that wait returns
-// (reactor/peer_initial_sync.go:329-337). The signal asserted here is the ONLY
-// thing that ends the wait early (reactor/api_sync.go:176 -> peer.go:409). No
-// signal means the peer burns the full 2s and the EOR lands 2.5s late.
+// This asserts the report that lowers the replay fence, not a return value. The
+// End-of-RIB waits for no report (owner ruling, 2026-09-18). The report is
+// credited by Peer.SignalAPIReady (reactor/peer.go), and once every fence owner
+// has reported, Peer.lowerReplayFence releases the live forwarded UPDATEs
+// parked while the peer-up replay passed. No report means the fence stays up
+// for the whole session.
 //
 // Deliberately driven from handleState/handleStructuredState rather than by
 // calling replayRoutesWithCursor(addr, nil, receipt) directly: the bug was never in the
@@ -245,7 +245,7 @@ func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 
 		require.Equal(t, []string{"request peer " + addr + " plugin session ready session 18446744073709551615"}, dispatched,
 			"a peer coming up with an empty Adj-RIB-Out must signal ready immediately; "+
-				"without it the reactor waits the full waitForAPISync(2s) and the EOR is 2.5s late")
+				"without it the peer's replay fence stays up and its live forwards stay parked for the session")
 	})
 
 	t.Run("handleStructuredState", func(t *testing.T) {
@@ -273,8 +273,10 @@ func TestPeerUpEmptyRibOutSignalsReady(t *testing.T) {
 // to get that wrong is to signal on every up event.
 //
 // VALIDATES: only the down->up edge signals ready.
-// PREVENTS: duplicate ready signals inflating apiSyncCount (reactor/peer.go:410),
-// which would let a multi-plugin peer's wait finish before every plugin reported.
+// PREVENTS: a ready report on every up event. The reactor credits a second
+// report from the same process no more than once (Peer.creditAPIReady keeps a
+// set of reporters), so a duplicate is never credited and only adds a command
+// that does nothing.
 func TestPeerUpEmptyRibOutSignalsReadyOnceOnly(t *testing.T) {
 	const addr = "10.0.0.1"
 	r := newTestRIBManager(t)
