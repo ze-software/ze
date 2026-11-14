@@ -2,20 +2,33 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Scope | tooling |
 | Depends | - |
-| Phase | implementation |
+| Phase | design |
 | Handoff | - |
-| Updated | 2026-10-02 |
+| Updated | 2026-11-14 |
+
+**Moved back from `ready` to `design` on 2026-11-14 (disposition REWORK, see
+`## Disposition`).** The bounded design below is built: commit `4576f2ee8d`
+(2026-10-03) landed every acceptance criterion, and `rfc/short/rfc9514.md`
+carries the two `{partial}` rows with `partial` audit verdicts. The design
+sections describe the tree before that commit, so they are no longer an
+implementation brief. What remains is not designed: the owned
+`field-carries-two-meanings.md` row (2026-10-30) asks for a role-scoped form
+of the annotation, because RFC2131-4.1-15 splits by role, not by clause; the
+owned `reference-checked-claim-unchecked.md` row (2026-10-26) names
+`ProvenShareOf`, which the tree no longer has, and is to be re-judged at HEAD
+and closed or rewritten; and the Review Gate of the landed work was never
+recorded here. The redesign runs through `/ze-spec` in its own session.
 
 ## Task
 
 Represent a requirement whose implemented clause has real tests and recorded discrimination while another clause is an explicit implementation gap. Retain the whole verbatim RFC sentence, permanent requirement id, receive tests and records. Never publish partial evidence as enforcement of the whole requirement.
 
-Owner decision 10 in `plan/handover/rfc-verdict-test-fix-pass/RULINGS.md` authorizes this scoped representation for RFC9514-7.2-5/6. The owner authorized design and implementation, not native SRv6 BGP EPE origination or deletion of receive proof. This document is the design proposal; the parent reviews it before authorizing its implementation phase. No interactive ze-spec gate, session claim change, implementation, RFC9514 ledger edit or verification is claimed by this design author.
+Owner decision 10 in `plan/records/rfc-verdict-test-fix-pass-rulings.md` authorizes this scoped representation for RFC9514-7.2-5/6. The owner authorized design and implementation, not native SRv6 BGP EPE origination or deletion of receive proof. This document is the design proposal; the parent reviews it before authorizing its implementation phase. No interactive ze-spec gate, session claim change, implementation, RFC9514 ledger edit or verification is claimed by this design author.
 
 Thomas approved the bounded annotation-plus-partial-verdict design on
 2026-10-02 after the parent checked annotationBarsATest, stampFingerprints and
@@ -24,7 +37,7 @@ requirement/test identities and zero whole-requirement credit over a larger
 clause-identity framework. Scope changes invalidate the independent audit;
 unchanged historical discrimination observations are not rewritten.
 
-The release bucket is `pre-release`: this is the RFC evidence owed outside the repository, not a change to the shipped packet path. Related work is `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` and its BGP child. `plan/release/validation/spec-excluded-requirement-owes-an-observable-test.md` concerns excluded obligations, not this still-counted obligation. The older `plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md` concerns origination and scheduled work; neither a scheduled marker nor an exclusion represents proof of one clause.
+The release bucket is `pre-release`: this is the RFC evidence owed outside the repository, not a change to the shipped packet path. Related work is `spec-rfc-verdict-test-fix-pass` (closed 2026-11-14, `plan/learned/051-rfc-verdict-test-fix-pass.md`) and its BGP child. `plan/release/validation/spec-excluded-requirement-owes-an-observable-test.md` concerns excluded obligations, not this still-counted obligation. The older `plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md` concerns origination and scheduled work; neither a scheduled marker nor an exclusion represents proof of one clause.
 
 ## Required Reading
 
@@ -40,7 +53,7 @@ The release bucket is `pre-release`: this is the RFC evidence owed outside the r
   → Constraint: extraction records sentences, discrimination records an observed break of a tag claim, and only an independent judgment connects that evidence to the RFC's meaning. Partial annotation must not collapse those three questions.
 - [ ] `website/AI.md` RFC ledger section and `docs/functional-tests.md` RFC Requirement Tags.
   → Constraint: public HTML, Markdown mirror, JSON and requirement shards must disclose the same scope. Retain existing tag grammar and six-cell shard shape.
-- [ ] `plan/handover/rfc-verdict-test-fix-pass/{HANDOFF,AUTHOR-BRIEF,JUDGE-BRIEF,RULINGS}.md` and `bgp/c35-author.md` in that handover directory.
+- [ ] `plan/records/rfc-verdict-test-fix-pass-rulings.md`, decision 10 and the rulings it records.
   → Constraint: latest owner ruling governs; no RFC9514 source/test/audit edits in this design phase; an independent judge, not a tool author, adjudicates the receive proof.
 - [ ] `rfc/short/rfc9514.md`, `rfc/full/rfc9514.txt` §7.2, and corresponding audit, discrimination and extraction entries.
   → Constraint: both target rows retain their complete current Text and MUST level; absence of native SRv6 BGP EPE assignment/origination remains public.
@@ -48,6 +61,29 @@ The release bucket is `pre-release`: this is the RFC evidence owed outside the r
 **Key insights:** an annotation already keeps a row out of `CoverageRow.Both`, but other consumers and audit freshness need explicit treatment. `requirement_sha` currently hashes only `Requirement.Text`, which excludes annotations. Adding a scope without binding it to freshness would let a re-scoped claim retain an old judgment. No new discrimination key or extraction clause id is necessary when every tag on a partial row has one declared tested scope.
 
 ## Current Behavior
+
+This section was written against the tree before `4576f2ee8d` and is kept as
+the record of the design's starting point. Several of its statements are now
+false: `annotationBarsATest` and `checkGapCountAgreement` no longer exist,
+`provenshare.go` and `ProvenShareOf` are gone (retired by `8debe22e4b`), the
+partial kind and verdict exist, and audits are stored one file per
+requirement under `rfc/audit/<stem>/`. `## Existing Mechanisms` is the tree
+today. Source files re-read at HEAD `1a8d24e0cb` on 2026-11-14:
+
+- [ ] `internal/le/rfc/rfc.go`
+- [ ] `internal/le/rfc/summary.go`
+- [ ] `internal/le/rfc/check_core.go`
+- [ ] `internal/le/rfc/audit.go`
+- [ ] `internal/le/rfc/check_audit.go`
+- [ ] `internal/le/rfc/freshness.go`
+- [ ] `internal/le/rfc/coverage.go`
+- [ ] `internal/le/rfc/artifact.go`
+- [ ] `internal/le/rfc/render.go`
+- [ ] `internal/le/rfc/check_status.go`
+- [ ] `internal/le/rfc/profilecoverage.go`
+- [ ] `internal/le/rfc/discriminate_action.go`
+- [ ] `internal/le/site/rfcledger.go`
+- [ ] `internal/le/test/health/collect_rfc.go`
 
 | Source read | Producing behavior and constraint |
 |-------------|-----------------------------------|
@@ -67,6 +103,23 @@ The full source sentence contains both origination and receipt obligations. Its 
 **Preserve:** all existing syntax and behavior for non-partial rows; native observed-red records; tag claim hashing; whole RFC quotes; ids, levels and section citations; audit independence; extraction denominators; all coverage/evidence/discrimination ratchets; no automatic proof runs.
 
 **Change:** explicitly scope existing tags to a quoted part of their parent row, expose the remaining gap, and prevent any consumer from counting that row as whole-proven.
+
+## Existing Mechanisms (MANDATORY)
+
+Read at HEAD `1a8d24e0cb` on 2026-11-14. The table above is the tree before
+`4576f2ee8d`; this table is the tree today, and it is what the residual
+role-scoped design starts from.
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| `{partial}` annotation kind | `internal/le/rfc/rfc.go`, `annotationKinds` entry `AnnotationPartial`; parser `internal/le/rfc/summary.go::parsePartial` | Registered kind with traits Counts, Unmet, Partial, rollup state gap, bucket `partial-scope`; parses `tested "<span>"; gap "<span>"; <reason with path.go::Symbol>`, refuses a test, absolute or escaping producer | Built by this spec. The role-scoped residual extends this kind or its parser; it adds no second kind beside it without that being the design's stated choice |
+| Selector and producer checks | `internal/le/rfc/summary.go::partialScopeRefusal`, `internal/le/rfc/check_core.go::checkPartialScopes` | Each selector must occur exactly once in the parent quote, non-empty, non-overlapping; the gap-context producer must resolve | Built. Unchanged by a role form unless the role is itself a locator |
+| `partial` audit verdict | `internal/le/rfc/audit.go`, `VerdictPartial` in `auditVerdicts` and `auditVerdictsUnmet` | Closed-vocabulary verdict meaning only the declared tested scope is enforced; counted unmet | Built. Extends to the role form |
+| Scope-sensitive audit digest | `internal/le/rfc/freshness.go::AuditRequirementSHA` | Non-partial rows hash `RequirementSHA(Text)`; partial rows hash a length-prefixed tuple of Text, kind, Tested, Gap, Producer and Reason | Built. A role field must join the tuple, or a role change keeps a stale judgment fresh |
+| Verified-record precondition | `internal/le/rfc/check_audit.go::partialCoverRefusals` | Refuses a partial judgment unless every cover has a current verified producer-break record | Built. Does not change |
+| Coverage partition | `internal/le/rfc/coverage.go::CoverageRows`, `CoverageRow.Partial` | A partial row adds to Gated and Annotated, and to the Partial subset, never to Both or One | Built. Does not change |
+| Publication | `internal/le/rfc/render.go::RequirementRows` (partial marks), `internal/le/site/rfcledger.go` (invalid enforced on partial), `internal/le/test/health/collect_rfc.go` (partial count), `internal/le/rfc/discriminate_action.go` (record text) | Every surface shows the parent quote, scope, zero whole credit, and flags `enforced` on a partial row as invalid | Built. A role form owes the same disclosure on each |
+| Unmet disclosure | `internal/le/rfc/check_status.go::checkStatusAgreement` | An Unmet-trait row on an enrolled RFC must have a public ledger row; the Unmet cell is derived | Built. Does not change |
 
 ## Design and Interface Contract
 
@@ -137,6 +190,14 @@ The later ledger application records dated Correction paragraphs for -5/6 descri
 
 ## Data Flow
 
+### Entry Point
+
+Authored rows in `rfc/short/<stem>.md`, read by the existing `./le rfc check`,
+the audit-stamp action and the site and health builds that collect the same
+summaries. No new entry point.
+
+### Transformation Path
+
 | Stage | Input → output | Boundary |
 |-------|----------------|----------|
 | Summary | Full checklist row → existing Requirement plus parsed partial fields | Authored prose to typed model; invalid syntax fails closed |
@@ -145,6 +206,18 @@ The later ledger application records dated Correction paragraphs for -5/6 descri
 | Audit | Requirement-aware digest, units, code and verified records → partial judgment / stale finding | Independent human meaning, mechanical freshness |
 | Gate / counts | Typed requirements and evidence → unchanged primary partition plus partial subset | No clause credit enters whole numerator |
 | Publication | RenderInput/RequirementRows/CoverageRows → CLI, shards, status, site and health | Shared counts, escaped at HTML/Markdown boundaries |
+
+### Boundaries Crossed
+
+Authored prose to the typed requirement model (the parser), and the typed
+model to every publication surface. Repository tooling only: no product
+package, no plugin process boundary, no wire.
+
+### Integration Points
+
+The annotation register in `internal/le/rfc/rfc.go`, the audit verdict
+register in `internal/le/rfc/audit.go`, and the shared producers
+`CoverageRows` and `RequirementRows` that the site and health consumers read.
 
 ### Architectural Verification
 
@@ -208,7 +281,12 @@ The later ledger application records dated Correction paragraphs for -5/6 descri
 | AC-10 | Partial finding deleted or changed to enforced over unchanged units without upgrade reason; polarity/carrier/record removed | Existing relevant ratchet refuses. Partial is retained in non-enforced worklist; no new approval exception. |
 | AC-11 | Later RFC9514 -5/6 application after tool approval and independent judgment | Both whole sentences and ids survive, all real receive tests/records retained, public native EPE origination gap explicit, no whole enforcement. If receive assertions fail scoped audit they remain weak/wrong rather than being promoted by syntax. |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
+
+### Unit Tests
+
+Every test below exists at HEAD `1a8d24e0cb` (landed by `4576f2ee8d`); see
+`## Disposition` for the AC each one carries.
 
 | Test | File | Validates |
 |------|------|-----------|
@@ -317,7 +395,7 @@ Only `internal/le/rfc/partial_test.go` and `test/ui/le-rfc-partial-proof.ci`. Pr
 | No false whole proof | One-row counter matrix, enforced-on-partial refusal and direct publication controls pass |
 | Durable meaning | Scope-edit freshness/reseal negatives and unchanged observation/extraction comparisons pass |
 | Real target application | Independent row-by-row judgment of -5/6, retained receive evidence and visible missing native origination; no enforced whole sentence |
-| Full integration | Main runs `./le verify worktree` over the integrated commit and records evidence; no run claimed in this design |
+| Full integration | GitHub CI's `verify` workflow on the pushed commit is the whole-tree evidence; no agent runs a `./le verify` command (`ai/META-DECISIONS.md`) |
 
 ### Security Review Checklist
 
@@ -378,5 +456,46 @@ Reserved for the independent implementation review; no review has run in this de
 - [ ] Every AC demonstrated by its named test or independent target-row evidence.
 - [ ] Public and health partitions agree; extraction and observation identities preserved.
 - [ ] Docs and discovery updated in the implementing phase, not postponed to closure.
-- [ ] Independent review and consolidated `./le verify worktree` evidence recorded by main.
+- [ ] Independent review recorded in the Review Gate; the whole-tree run is GitHub CI's `verify` workflow on the pushed commit, never an agent's `./le verify` (`ai/META-DECISIONS.md`, "Ze is pre-release").
 - [ ] No code, tests, formatters, builds or generated documents executed by this design phase.
+
+### TDD (residual role-scoped work)
+
+- [ ] Tests written for the role-scoped form before its code.
+- [ ] Tests FAIL against HEAD, with the failure naming the missing role scope.
+- [ ] Tests PASS after the change, run by the main thread as `./le test unit pkg path ./internal/le/rfc/` and `./le test unit pkg path ./internal/le/site/`.
+
+## Disposition
+
+| Date | 2026-11-14 |
+|------|------------|
+| Checked at | `1a8d24e0cb` |
+| Verdict | REWORK (partly done: every AC landed, the owned residuals are undesigned) |
+| Baseline | Spec last edited `607a4ba3dc` (2026-10-31); design approved 2026-10-02 |
+| Landed | `4576f2ee8d` (2026-10-03) "rfc: distinguish clause proof from whole conformance", 45 files; later partial-aware changes `947a07ca7c`, `ce17a46ba6`, `67932475cc` |
+| AC-1, AC-2, AC-3 | `internal/le/rfc/partial_test.go`: `TestPartialRequirementCheckReportsScope`, `TestPartialSelectorsRejectInvalidScope`, over `parsePartial` and `partialScopeRefusal` |
+| AC-4 | `internal/le/rfc/audit_stamp_test.go`: `TestPartialAuditStampRefusesWholeEnforced`, `TestPartialAuditRequiresVerifiedClaims`, over `partialCoverRefusals` |
+| AC-5 | `internal/le/rfc/audit_test.go`: `TestPartialScopeChangesInvalidateAudit`, `TestAddingPartialScopeRequiresRejudgment`, over `AuditRequirementSHA` |
+| AC-6 | `TestPartialNeverMovesWholeProofNumerator`, `TestMalformedPartialCannotPublishWholeCredit` (`partial_test.go`) |
+| AC-7 | `internal/le/site/rfcdetail_test.go::TestPartialProofPublicationsAgree`, `internal/le/test/health/collect_rfc_test.go::TestPartialHealthExplainsScopedEvidence`, `test/ui/le-rfc-partial-proof.ci` and its `-render`, `-selector`, `-malformed` siblings |
+| AC-8 | `TestPartialDisclosureCountsRows` over `checkStatusAgreement`. The hand-spelled count the AC names was retired (`697558b8ae`); the Unmet cell is derived, so the dishonest-count case no longer exists to refuse |
+| AC-9 | `TestPartialKeepsExtractionAndClaimIdentity` |
+| AC-10 | `TestPartialFindingCannotVanish`, `internal/le/rfc/check_audit_baseline_test.go::TestPartialFindingRatchetSeesTipCommit` |
+| AC-11 | `rfc/short/rfc9514.md` rows -5/-6 carry `{partial}` with the origination gap; `rfc/audit/rfc9514/RFC9514-7.2-5.json` and `-6.json` hold verdict `partial`; records under `rfc/discrimination/rfc9514/`; dated corrections in `rfc/corrections/rfc9514.md` |
+| Residual 1 | `plan/journal/field-carries-two-meanings.md`, 2026-10-30, open: RFC2131-4.1-15 splits by role, and the `{partial}` form can only scope by clause. Its audit is stamped `partial` with the role split stated in the reason (`a40c6e06d8`), so a role-scoped form is still owed |
+| Residual 2 | `plan/journal/reference-checked-claim-unchecked.md`, 2026-10-26, open: it names `ProvenShareOf` and `singlePolarityCounts`, both gone (`8debe22e4b`); `internal/le/rfc/profilecoverage.go::rowCounts` now credits a row only when its traits prove and `proven` holds the RID. The row needs re-judging at HEAD, then closing or rewriting |
+| Residual 3 | `## Review Gate` was never filled; the commit message names an independent source review that is not recorded here |
+
+The spec was marked `ready` while its own implementation had already landed
+a day after approval, so it could not be implemented as written: its Current
+Behavior describes code that has since changed, and its Implementation Steps
+would rebuild what exists. That is not SUPERSEDED, because the spec owns two
+open journal rows and one of them asks for design work this spec never did:
+the role-scoped form is outside the bounded contract its Known Limitations
+state ("Arbitrary per-tag clause composition is not part of this bounded
+contract"). The status goes back to `design`, as the skill prescribes for
+REWORK. The smallest fitting redesign extends the existing `{partial}` kind
+(parser, selector check and `AuditRequirementSHA` tuple) with a role
+qualifier, keeps zero whole credit, and adds no ledger or verdict beside it.
+Alternatively the main thread may re-home residual 1 to a spec of its own,
+close residual 2 on evidence, record the Review Gate, and close this spec.
