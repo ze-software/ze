@@ -155,7 +155,7 @@ func checkPeerStopsReading(ctx context.Context, check *interoplab.CheckContext) 
 
 	// The session is up and each side holds the other's routes.
 	assertion++
-	if err := waitContains(ctx, lab, peerBIRD, []string{cmdBirdc, "show protocols"}, peerStopsReadingSessionWait, birdZeProtocol, stateEstablished); err != nil {
+	if err := waitContains(ctx, lab, peerBIRD, []string{cmdBirdc, birdcShowProtocols}, peerStopsReadingSessionWait, birdZeProtocol, stateEstablished); err != nil {
 		return fail(err)
 	}
 	assertion++
@@ -538,11 +538,11 @@ func bgpSocketUnsentOctets(tables string) (octets uint64, found bool) {
 // socket tables. The header row and any row that is not a socket answer
 // false.
 func socketTablePort(column string) (uint64, bool) {
-	separator := strings.LastIndexByte(column, ':')
-	if separator < 0 {
+	_, digits, separated := strings.CutLast(column, ":")
+	if !separated {
 		return 0, false
 	}
-	port, err := strconv.ParseUint(column[separator+1:], 16, 16)
+	port, err := strconv.ParseUint(digits, 16, 16)
 	if err != nil {
 		return 0, false
 	}

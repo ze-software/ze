@@ -277,11 +277,11 @@ here to what Phase 3 built (`session_connection.go` `closeConnWithin`).
 
 | Subject | Decision, as built | Why |
 |---------|--------------------|-----|
-| Idempotence of the close | Per connection, never per session. The routine records the connection whose socket it closed behind a held path (`Session.socketClosed`, set by `markSocketClosed`), and a second close of that connection makes one attempt to clear the fields without waiting, then returns | An unsealed Session takes a second connection (a passive peer's `Run` and `Accept`), so a per-session latch would refuse to close the next connection. `TestSecondConnectionOnAReusedSessionCloses` |
+| Idempotence of the close | Per connection, never per session. A close claims the connection before it flushes or drops (`Session.socketClosed` holds a `socketClaim`: the connection plus a completion signal, taken by `claimSocket`). The claim is taken under the write path when the close got it, and under `s.mu` when the path stayed held. One claim per connection, taken atomically, decides which close reports and which close drops. A close that meets another close's claim closes nothing and reports no held path. It waits for the claimant to finish on the claim's own signal, for at most `closeClaimWait` (the claimant's flush, drain and field clearing, plus slack), never by probing the write path, then clears the fields if they are still set (`awaitClaimedClose`). So a close that returned means the connection is no longer installed, except behind a writer parked on a plugin. A NOTIFICATION that found the write path busy is recorded once, by whichever close took its mark (`reportUnsentNotification`). The first build was different: it recorded the socket only after a drop behind a held path (`markSocketClosed`), and a second close made one attempt to clear the fields without waiting, then returned. The review rounds replaced it, because that second close could return while the first was still in its flush ("Review rounds") | An unsealed Session takes a second connection (a passive peer's `Run` and `Accept`), so a per-session latch would refuse to close the next connection. `TestSecondConnectionOnAReusedSessionCloses`, `TestSecondCloseWaitsForTheClaimant`, `TestTwoClosesBehindHeldPathReportOnce` |
 | Sealing | The close routine does not seal the session and records no close reason. `beginTeardown` and `retireWrite` seal, as before | Same reason: the session can be used again. The spec's earlier wording "the session is sealed" was wrong |
 | `openMu` across a close | About twenty close sites hold `openMu` across a NOTIFICATION and the close that follows. A holder waits for the write path once, never twice: a NOTIFICATION that found the path held leaves a mark (`notifyMetBusyPath`, set by `sendNotificationWithin` and `tryNotificationWithin`), and the close that follows takes the mark and tries the path without waiting. The bound is documented beside `openMu` in `session.go` | Two waits would double the time `openMu` is held behind one stuck writer. `TestCloseDoesNotWaitTwiceAfterBusyNotification` |
 | Bound of the wait | `closeWait`: one second when the recorded close reason is a hold timer or a send hold timer expiry, the control budget for every other close. `sendHoldTimerExpired` and `ceaseAfterPanic` pass the one second themselves | The cancel goroutine's close and `Run`'s deferred close after a timer expiry get the one-second bound with no call-site edit |
-| Field clearing | After the socket is closed: `clearClosedConn` takes `s.mu`, then the write path by `TryLock` only, and clears the connection, the transport and the mark. When the path is held, the routine waits for it up to one second (`closeClearWait`) with no session lock held, releases it, and tries once more. If the path is still held the fields stay set | A dynamic peer's writer may want `s.mu` while it holds the write path, so the path is never waited for under `s.mu`. Only a writer parked on a plugin outlasts the second (A-3) |
+| Field clearing | After the socket is closed, by the close that holds the claim (`clearClosedConnWithin`): `clearClosedConn` takes `s.mu`, then the write path by `TryLock` only, and clears the connection, the transport and the claim. When the path is held, the claimant waits for it up to one second (`closeClearWait`) with no session lock held, releases it, and tries once more. If the path is still held the fields stay set. A close that waited for the claimant makes one more attempt to clear them, without waiting for the path | A dynamic peer's writer may want `s.mu` while it holds the write path, so the path is never waited for under `s.mu`. Only a writer parked on a plugin outlasts the second (A-3) |
 | What a healthy close keeps | A bare close still flushes buffered bytes when the path is free (`closeFlushed`: flush under a one-second budget, FIN, 100 ms drain, close). The ERROR line keeps the words "no NOTIFICATION was sent to the peer" when a NOTIFICATION was due | Pinned by `TestSessionCloseFlushesBufWriter` and `TestSessionReadPanicWriteLockHeld`, which were not edited |
 | Callers that closed the socket themselves | `ceaseAfterPanic` now calls the routine (`closeConnWithin` with the one-second bound). `sendUpdateCounted` cannot: its two closes run under the write path the writer itself holds, so they take the routine's own close step, `dropConn` (expire the write deadline, close), and `Run`'s close clears the fields afterwards | One close step for a path that cannot be waited for, with the RFC quotes above it |
 | What the operator sees | A close that met a held path logs one ERROR line and raises one event under `doctor-bgp-write-path-held` (`reportWritePathHeld`) | The existing `doctor-bgp-peer-not-reading` says a budget passed, which a close does not know, and a writer parked on a plugin is a second cause |
@@ -323,6 +323,24 @@ here to what Phase 3 built (`session_connection.go` `closeConnWithin`).
   on the session clock, for `closeWait`). Every assertion after the barrier is
   unchanged, and one is added: the DelayOpenTimer is still running at that
   point. Commit 1c6795e9e4 carries the `Weakening-approved:` line.
+- **One claim per connection decides who closes and who reports.** Phase 3
+  first recorded a closed socket only after a drop behind a held path, and a
+  second close of that connection returned after one attempt to clear the
+  fields. Two closes that both gave up on the path then each reported it, and
+  a close that met another close in its final flush took that close for a
+  stuck writer. As committed, a close claims the connection (`claimSocket`)
+  before it flushes or drops, and the claim carries a completion signal. A
+  close that finds the claim taken closes nothing, reports no held path, and
+  waits on that signal for at most `closeClaimWait`, never on the write path:
+  two closes that both probed the path could each find it taken by the
+  other's probe and each leave the fields set. It then clears the fields if
+  they are still set, so a close that returned means the connection is no
+  longer installed, except behind a writer parked on a plugin.
+- **A NOTIFICATION that found the write path busy is recorded once.** Its
+  sender logs nothing and leaves a mark. The close that takes the mark writes
+  the line, also when another close holds the claim or has finished with the
+  connection (`reportUnsentNotification`), unless a close of the session has
+  already reported a held path.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -425,6 +443,23 @@ Tests that exist and were not in the plan above, added by the phases that needed
 | `peerStopsReadingCheckerBranches`, run by `TestBespokeCheckerBranches` | `internal/le/interoplab/bgp/check_peer_stops_reading_test.go`, `bgp_test.go` | Both polarities of every predicate of the interop checker, with no container | |
 | `TestFormatKeepsOneUndeclaredFieldInItsBlock` | `internal/component/config/serialize_unknown_field_test.go` | `ze config fmt` keeps a lone undeclared field inside its block, the formatter defect the scenario's config met | |
 | `TestDelayOpenExpiryWriteFailureDeliversOneEvent18` (existing, barrier changed with the judge's approval) | `internal/component/bgp/reactor/delay_open_regression_test.go` | See "What Phase 3 learned" | |
+
+Tests added by the review rounds ("Review rounds"):
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestTwoClosesBehindHeldPathReportOnce` | `internal/component/bgp/reactor/session_close_test.go` | Two closes of one connection that both give up on a held write path give one ERROR line and one event under `doctor-bgp-write-path-held`, and both return | |
+| `TestCloseBehindAGracefulCloseReportsNothing` | same file | A close that meets another close of the same connection in its final flush reports no held path, and the first close still closes the socket | |
+| `TestSecondCloseWaitsForTheClaimant` | same file | A second close does not return while the first is in its flush; it returns with the socket closed and no connection installed, and logs and raises nothing | |
+| `TestCloseFlushIsBounded` | same file | The final flush of a close has a budget of its own (`closeFlushBudget`): the close returns within it against a peer that reads nothing, with the socket closed and the fields cleared | |
+| `TestTeardownDuringHeldRunDeliversCease` | same file | A teardown in the middle of a held run of UPDATEs ends the run within one message, returns far inside the control budget, and the peer reads the Cease last | |
+| `TestBusyNotificationIsLoggedOnceByTheClose` | same file | A NOTIFICATION that found the write path held is logged once, by the close that follows; its sender logs nothing | |
+| `TestBusyNotificationBehindAnotherCloseIsLoggedOnce` | same file | The same line and event are written once when the close that took the mark finds another close holds the socket, and both closes return with no connection installed | |
+| `TestRequestDeadlineIsNotABudgetExpiry` | `internal/component/bgp/reactor/session_write_budget_report_test.go` | A write that met its request's own deadline answers `context.DeadlineExceeded` and closes the session, with no budget-expiry close reason, line or event | |
+| `TestWriteBoundRecordsWhoseItIs` | same file | The acquisition records whether the armed bound is the session budget or the request's deadline, and the classification reads that record | |
+| `TestWriteBudgetExpiryReachesPeerInfo` | same file | AC-10: the reactor's `PeerInfo` builder carries the close cause and its time, the fields the peer summary's last error reads | |
+| `TestBudgetExpiryInForwardFlushLogsOnce` | same file | A budget expiry met by the fast path's deferred flush logs the coded line and no second line for the same flush | |
+| `TestSessionBFDStrictDelayOpenBoundedWait` (existing, not edited) | `internal/component/bgp/reactor/bfd_delay_open_test.go` | Went red on round 1's first fix (a second close returning while the first was in its flush), before that fix was committed | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -555,6 +590,7 @@ Created, as built:
    - Files: `session_connection.go`, `session_write.go` (`sendHoldTimerExpired`, the NOTIFICATION senders), `session.go` (hold timer callback), `docs/architecture/core-design.md` (close sequence, send hold timer), `docs/architecture/behavior/fsm-established.md`, `docs/architecture/behavior/peer-lifecycle.md`, `ai/digests/bgp-reactor.md`
    - The routine, in order: record the close reason; wait for the write path no longer than the caller's bound (one second for the two timer expiries and the panic guard, the control budget for every other close); if the path came free, send the owed NOTIFICATION, flush with a short budget, send FIN, drain, close; if it stayed held, expire the socket's write deadline, close the socket, and log at ERROR that no NOTIFICATION was sent and why. `s.mu` is taken only to read the connection, and neither `s.mu` nor `openMu` is held across the wait for the write path or across the NOTIFICATION. Once the socket is closed the routine records that fact on the session, so a second call (the cancel goroutine, `Run`'s deferred close) returns at once. It then clears the connection fields in the recorded order, `s.mu` then `writeMu`, waiting for `writeMu` no longer than one second: a writer blocked on the socket has failed by then. If the path is still held, the fields are left set and the routine returns: the session is sealed, its socket is closed, every later write fails, and a sealed session is never reused, so a stale field is read by nobody who could act on it. A NOTIFICATION sent from a read-loop error path waits for the path with the control budget, so the `logNotifyErr` call sites are bounded with no call-site edit
    - Corrected after the build (the table "Phase 3 decisions from the close-path worklist" holds the detail): the routine records the closed socket per connection, not on the session, and it never seals; "the session is sealed ... a sealed session is never reused" above is wrong, because an unsealed Session takes a second connection. A stale field is harmless for another reason: its socket is closed, so every later read and write on it fails. The clearing takes `s.mu`, then the write path without waiting; the one-second wait for the path runs with no session lock held. The routine waits for the path not at all when the NOTIFICATION sent just before already found it held. The teardown records its stop event first ("What Phase 3 learned")
+   - Corrected again after the review rounds: "a second call ... returns at once" above, and the per-connection record of the first correction, describe the first build. As committed, a close claims the connection before it flushes or drops, and a second close of that connection waits for the claimant to finish, on the claim's own signal and for at most `closeClaimWait`, then clears the fields if they are still set. It reports no held path. A NOTIFICATION that found the write path busy is recorded once, by the close that took its mark. The row "Idempotence of the close" holds the detail
    - Tests as built: the Phase 3 tests live in `session_close_test.go`, and `TestSessionDroppedNotOwedAfterHeldWritePath` in `peer_close_write_path_held_test.go`
    - Verify A-3 here: read the export filter path that runs under `writeMu` and record its bound
    - Verify: tests fail, implement, tests pass. The two RFC-tagged tests get their discrimination records
@@ -606,6 +642,26 @@ Run by the main thread in the main checkout. Each row is a result already seen, 
 | Interop `peer-stops-reading-bird`, against BIRD 3.4.0 | Green twice. Red with the close step (`dropConn`) disabled in `closeConnWithin`: the session closed 31.1 s after the freeze, against a 20.5 s bound | AC-9, G-5, and that the scenario discriminates |
 | `TestDelayOpenExpiryWriteFailureDeliversOneEvent18` with a close that stops the DelayOpenTimer early | Red; green with the change removed | The changed barrier still catches the defect the test exists for |
 | `./le rfc record` for the two tagged tests | Two records written: `rfc/discrimination/rfc4271/RFC4271-8.2.2-4.json` (unit `TestHoldExpiryClosesBehindStuckWriter`) and `rfc/discrimination/rfc9687/RFC9687-4.3-5.json` (unit `TestSendHoldExpiryClosesBehindStuckWriter`), both by the revert route with `dropConn` as the producer | Each tagged test goes red when the close step is disabled |
+| Reruns on the final close routine: functional `session-peer-stops-reading`, `deadpeer-holddown` and `open-hold-time-peer-lower-wins` | Green, all three | The claim-based close keeps AC-8 and the existing hold-expiry tests |
+| Rerun on the final close routine: interop `peer-stops-reading-bird` | Green, 58 s | AC-9 and G-5 hold on the committed close |
+| Rerun on the final close routine: the reactor package | Green except `TestOrdinaryRefreshDoesNotDoublePrepend`, the red named in the first row | No regression from the review fixes |
+| `TestSessionBFDStrictDelayOpenBoundedWait` and `TestSecondCloseWaitsForTheClaimant`, 100 repetitions under the race detector | No failure | The second close waits for the claimant on every schedule the run met |
+| `TestPolicyFinalReplayPreservesPreAdmittedBatchOrder` | Failed once in one full run of the package under load, then passed 40 repetitions | A red on a path this change does not reach, named here and not investigated |
+| RFC records and verdicts refreshed | Six discrimination records re-recorded because their producer changed: RFC2918-4-3, RFC4271-4.4-2, RFC9494-4.3-1 (positive and negative), RFC9687-4.3-3 (two units). Audit verdicts re-judged or resealed: RFC4271-8.2.2-4, RFC4271-8.2.2-13, RFC7911-2-1, RFC7911-2-2, RFC8654-5-1, RFC9687-4.3-5 | Bookkeeping this change owed and paid. It is not a defect |
+| Judge-approved test changes | `TestDelayOpenExpiryWriteFailureDeliversOneEvent18`: `Weakening-approved:` trailer in 1c6795e9e4. `TestSendHoldExpiryClosesBehindStuckWriter`: `RFC-approved:` trailer in 5d862bbab9 | Each change was judged by an independent agent, and its commit carries the verdict |
+
+### Review rounds (2026-11-14)
+
+These are the implementation's own review rounds, run on its commits as they landed. The Review Gate of this spec is `/ze-close`'s, and none of these rounds stands for it.
+
+| Round | Scope | Found | Fixed in |
+|-------|-------|-------|----------|
+| 1 | The whole change set, commits 85c1a3c4cb to 73fac8af9c | 1 BLOCKER, 9 ISSUE, 8 NOTE | 43cfa9af6e |
+| 2 | 43cfa9af6e | 0 BLOCKER, 3 ISSUE, 7 NOTE | 5d862bbab9 |
+| 3 | 5d862bbab9 | 0 BLOCKER, 1 ISSUE (a comment that stated the `openMu` bound too low), 6 NOTE | The issue and notes 2 and 3 are corrected in the commit that follows 5d862bbab9 |
+
+- The blocker of round 1: the cause of a write budget expiry never reached the peer summary, because two lines were left out of 178cffd97d.
+- The regression round 1's own fix introduced, caught by round 1 before that fix was committed: a second close returned while the first was still in its flush. `TestSessionBFDStrictDelayOpenBoundedWait` went red on it, and `TestSecondCloseWaitsForTheClaimant` pins the repair.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -625,7 +681,7 @@ Run by the main thread in the main checkout. Each row is a result already seen, 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| No writer bypasses the acquisition | A grep for `writeMu.Lock`, `writeMu.TryLock`, `writeMu.LockContext` and `writeMu.LockWithin` in `internal/component/bgp/reactor/`, tests excluded, shows only: the four forms of the acquisition in `session_write_mutex.go`; `holdWrites` in `session_write.go`; the close routine's own waits in `session_connection.go` (`closeConnWithin` twice by `LockWithin`, `clearClosedConn` by `TryLock`); the fast path's `writeMu.TryLock` in `forward_rs_direct.go`, which arms with `armFastPathBudget` and releases with `releaseFastPathWrites`; and the non-writing takers of the census (`connectionEstablished`, `negotiateWith`, `setSendCtxID`, the policy reload files, `peer_settings_apply.go`, `session_paths_limit_elect.go`). Checked on 2026-11-14: the grep shows exactly these |
+| No writer bypasses the acquisition | A grep for `writeMu.Lock`, `writeMu.TryLock`, `writeMu.LockContext` and `writeMu.LockWithin` in `internal/component/bgp/reactor/`, tests excluded, shows only: the four forms of the acquisition in `session_write_mutex.go`; `holdWrites` in `session_write.go`; the close routine's own waits in `session_connection.go` (`closeConnWithin` and `clearClosedConnWithin` by `LockWithin`, `clearClosedConn` by `TryLock`); the fast path's `writeMu.TryLock` in `forward_rs_direct.go`, which arms with `armFastPathBudget` and releases with `releaseFastPathWrites`; and the non-writing takers of the census (`connectionEstablished`, `negotiateWith`, `setSendCtxID`, the policy reload files, `peer_settings_apply.go`, `session_paths_limit_elect.go`). Checked on 2026-11-14: the grep shows exactly these |
 | No hand-set write deadline remains | A grep for `SetWriteDeadline` in `internal/component/bgp/reactor/`, tests excluded, shows only: `armWriteDeadline` in the acquisition, which `closeFlushed` also reaches through `armWriteBudget` for the close's final flush; the clearing in `releaseWrites`; `dropConn` in the close routine; the request cancel callback in `requestWriteDeadline`; and the two raw-connection refusals (`rejectAdminDownConnection`, `rejectConnectionCollision`). Checked on 2026-11-14: six sites, exactly these |
 | The poll loop and `flushForClose` are gone | A grep for `writePathPoll` and `flushForClose` in `internal/component/bgp/reactor/`, tests excluded, returns nothing. Checked on 2026-11-14 |
 | The functional test exists and passes | `./le --name session test bgp plugin --pattern session-peer-stops-reading` |
@@ -671,6 +727,7 @@ None of these has a journal row yet. The main thread decides the owning spec of 
 | The reactor's NOTIFICATION log lines use the `code` log key for the BGP error code | `session_write.go` `notificationWritten` ("notification sent"), `session.go` `logNotifyOutcome` ("notification send failed", which `logNotifyErr` reaches), and the same line in `ceaseAfterPanic` | `ai/rules/user-facing-errors.md` reserves `code` for the doctor code, which the two lines this spec added use it for. One key then carries two meanings in the same log |
 | A writer parked on a plugin (A-3) | A writer delivers the sent event to plugins under `writeMu`, a channel send with no timeout that a socket close does not wake ("Consequences of A-3") | The parked goroutine and the locks it holds stay until the plugin drains or stops, and the peer does not reconnect until then. Thomas decides: fixed here, or in a spec of its own |
 | A stalled fast-path destination holds the source's read loop for up to the write budget | `forward_rs_direct.go` `tryDirectWriteNoFlush` writes synchronously on the source peer's read goroutine | A source whose hold time is under the budget can lose its own session meanwhile (Known Limitations). The territory of the fast-path performance spec |
+| The record that a held write path was reported is kept on the Session, not on the connection's claim | `session.go` `Session.writePathHeldReported`, read by `reportUnsentNotification` and `leaveCause`, never cleared | On a Session used for a second connection, an earlier held-path report would silence a later missed-NOTIFICATION line and one `session-dropped`. Reviewed as unreachable past Established: a Peer runs one Session per run cycle |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

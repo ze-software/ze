@@ -370,7 +370,7 @@ func checkWireEditAPIOriginBIRD(ctx context.Context, check *interoplab.CheckCont
 	if err := observerFailure(ctx, check.Lab); err != nil {
 		return err
 	}
-	if err := waitContains(ctx, check.Lab, peerBIRD, []string{cmdBirdc, "show protocols"}, timeout, birdZeProtocol, stateEstablished); err != nil {
+	if err := waitContains(ctx, check.Lab, peerBIRD, []string{cmdBirdc, birdcShowProtocols}, timeout, birdZeProtocol, stateEstablished); err != nil {
 		return err
 	}
 	var command textbuf.Buffer

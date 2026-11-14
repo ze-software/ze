@@ -44,6 +44,9 @@ const (
 	cmdGoBGP = "gobgp"
 	cmdCat   = "cat"
 	cmdPing  = "ping"
+	// birdcShowProtocols is the birdc argument that lists every protocol with
+	// its state, where a check reads that a BGP session is Established.
+	birdcShowProtocols = "show protocols"
 	// cmdSleep keeps a container's entrypoint alive, or holds a scenario step
 	// for a fixed time. cmdDHCPCD is the DHCPv4 client a client peer runs.
 	cmdSleep  = "sleep"

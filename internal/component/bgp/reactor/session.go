@@ -266,10 +266,12 @@ type Session struct {
 	// that took the path meanwhile. A close of a connection another close has
 	// claimed can first wait closeWait for the path, when the claim was taken
 	// while it waited, and then waits no longer than closeClaimWait for that
-	// close to finish. So a holder that sends a NOTIFICATION and closes holds
-	// openMu no longer than the NOTIFICATION's deadline, plus closeWait, plus
-	// the larger of closeClaimWait and the flush, the drain and
-	// closeClearWait; closeClaimWait is the larger by one closeDrainWait.
+	// close to finish. The NOTIFICATION itself costs up to twice its deadline:
+	// its wait for the path, then its write budget (writeMessageWithin). So a
+	// holder that sends a NOTIFICATION and closes holds openMu no longer than
+	// twice the NOTIFICATION's deadline, plus closeWait, plus closeClaimWait,
+	// which is larger by one closeDrainWait than the flush, the drain and
+	// closeClearWait of a close that got the path.
 	openMu sync.Mutex
 
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
@@ -548,8 +550,10 @@ type Session struct {
 	// its socket is closed, or is being flushed and closed under the write
 	// path, while s.conn still names it because the fields can be cleared only
 	// under writeMu. Every other close of the same connection reads it,
-	// closes and reports nothing, and waits no longer than closeClaimWait for
-	// the claimant to finish (socketClaim.done). It is keyed on the connection,
+	// closes nothing and reports no held path, and waits no longer than
+	// closeClaimWait for the claimant to finish (socketClaim.done). Such a
+	// close still writes the line of a NOTIFICATION that found the path busy
+	// when it holds that mark (reportUnsentNotification). It is keyed on the connection,
 	// never on the session: an unsealed Session is used again for a second
 	// connection (a passive peer's Run and Accept). Cleared with the fields.
 	socketClosed atomic.Pointer[socketClaim]

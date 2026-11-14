@@ -164,7 +164,7 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 			"BGP state = Established",
 		)
 	case opBIRDSession:
-		return waitContains(ctx, lab, peerBIRD, []string{cmdBirdc, "show protocols"}, current.timeout, current.argument, stateEstablished)
+		return waitContains(ctx, lab, peerBIRD, []string{cmdBirdc, birdcShowProtocols}, current.timeout, current.argument, stateEstablished)
 	case opGoBGPSession:
 		return waitContainsFold(ctx, lab, peerGoBGP, []string{cmdGoBGP, gobgpNeighbor, current.argument}, current.timeout, peerStateEstablished)
 	case opFRRRoute:

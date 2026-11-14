@@ -742,11 +742,15 @@ const writePathHeldFix = "on the peer, find why its BGP process stopped reading 
 
 // closeConn closes the session's connection through the one close routine
 // (closeConnWithin), waiting for the write path no longer than closeWait.
-// Safe for concurrent use. A second close of one connection closes and
-// reports nothing, and returns once the first has finished, so a close that
-// returned means the connection is no longer installed. The one exception is
-// a writer that keeps the path while it waits on a plugin: the fields stay set
-// on a closed socket, and a later close of that connection returns at once. The caller MUST NOT hold s.mu or the write path.
+// Safe for concurrent use. A second close of one connection closes nothing
+// and reports no held path, and returns once the first has finished, so a
+// close that returned means the connection is no longer installed. It still
+// writes the line of a NOTIFICATION that found the path busy, when it took
+// that mark and no close reported a held path (reportUnsentNotification).
+// The one exception is a writer that keeps the path while it waits on a
+// plugin: the fields stay set on a closed socket, and a later close of that
+// connection returns at once. The caller MUST NOT hold s.mu or the write
+// path.
 func (s *Session) closeConn() {
 	s.closeConnWithin(s.closeWait())
 }
@@ -798,7 +802,8 @@ func (s *Session) closeWait() time.Duration {
 //     the socket, the log says what the peer was not sent, and dropConn fails
 //     the writer's socket write and closes the socket. A close that finds the
 //     claim taken, because another close of this connection got there while
-//     it waited, reports nothing and closes nothing, and leaves as in step 2.
+//     it waited, reports no held path and closes nothing, and leaves as in
+//     step 2.
 //  5. It clears the connection fields in the recorded order, s.mu then the
 //     write path, taking the path under s.mu only when it is free. When the
 //     path is still held it waits for it closeClearWait with no lock held and
@@ -1090,7 +1095,7 @@ func (s *Session) claimSocketForDrop(conn net.Conn) *socketClaim {
 	defer s.mu.RUnlock()
 	if s.conn != conn {
 		// No claim: another close finished with conn. closeConnWithin reads a
-		// nil claim as "not this close's socket" and reports nothing.
+		// nil claim as "not this close's socket" and reports no held path.
 		return nil
 	}
 	return s.claimSocket(conn)
