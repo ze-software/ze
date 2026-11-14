@@ -20,7 +20,7 @@
 #
 # FRR (bgp_attr.c) and BIRD (packets.c) instead drop the Link-Local half of a
 # malformed pair and keep the route. Ze follows the draft's MUST, not them
-# (plan/immediate/spec-bgp-unowned-rfc-rows.md, review N4).
+# (spec-bgp-unowned-rfc-rows, review N4).
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
