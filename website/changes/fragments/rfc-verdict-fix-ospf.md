@@ -40,8 +40,9 @@ none
 ## Exposure
 
 OSPFv2 deployments using graceful restart helper mode on shared media,
-cryptographic authentication, segment routing with anycast or multiply
-advertised Prefix-SIDs, or key chains whose last key expires.
+cryptographic authentication, or key chains whose last key expires. OSPFv2
+and OSPFv3 deployments using segment routing with anycast or multiply
+advertised Prefix-SIDs: one installer serves both address families.
 
 ## Upstream
 
