@@ -7,6 +7,7 @@ package sshclient
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -552,7 +553,15 @@ func LoadCredentials() (Credentials, error) {
 // prompt and freeze the shell mid-completion. Resolution here fails with
 // "no password source" instead, letting the caller degrade quietly.
 func LoadCredentialsNoPrompt() (Credentials, error) {
-	dbPath := ResolveStoreDir("")
+	return ReadCredentialsNoPrompt(ResolveStoreDir(""))
+}
+
+// ReadCredentialsNoPrompt is LoadCredentialsNoPrompt over the store in the
+// config folder dbPath rather than the default one. A local command acting on
+// a store the operator named with --path reaches the daemon that owns that
+// store, so it reads that store's credentials and address, never the default
+// store's.
+func ReadCredentialsNoPrompt(dbPath string) (Credentials, error) {
 	return readCredentials(dbPath, "", "", "", false)
 }
 
@@ -561,9 +570,14 @@ func LoadCredentialsNoPrompt() (Credentials, error) {
 // ze.ssh.port env pair, then the store's default pointer, then the built-in
 // default), without reading any credential. A caller that must tell "no
 // daemon listens" from "this account cannot log in" probes this address
-// before it loads credentials: the local ze doctor does.
+// before it loads credentials (ProbeDaemon): the local ze doctor does.
 func DaemonAddress() (host, port string, err error) {
-	dbPath := ResolveStoreDir("")
+	return DaemonAddressOf(ResolveStoreDir(""))
+}
+
+// DaemonAddressOf is DaemonAddress over the store in the config folder dbPath,
+// for the same reason ReadCredentialsNoPrompt takes one.
+func DaemonAddressOf(dbPath string) (host, port string, err error) {
 	store, err := openStoreIfReadable(dbPath)
 	if err != nil && !errors.Is(err, errStoreUnavailable) {
 		return "", "", err
@@ -572,6 +586,29 @@ func DaemonAddress() (host, port string, err error) {
 		defer store.Close() //nolint:errcheck // read-only access
 	}
 	return resolveHostPort(store)
+}
+
+// daemonProbeTimeout bounds the TCP connect that tells "no daemon listens"
+// from "this account cannot log in". A listener on the same host answers a
+// connect at once; the bound is for an address that drops the SYN.
+const daemonProbeTimeout = 2 * time.Second
+
+// ProbeDaemon connects to the daemon's SSH listener at address (host:port) and
+// closes the connection at once: a refused or timed-out connect means no
+// daemon listens there. It reads no credential and logs in to nothing, so a
+// caller runs it before it loads credentials and gives each failure its own
+// fix.
+func ProbeDaemon(address string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), daemonProbeTimeout)
+	defer cancel()
+
+	var dialer net.Dialer
+	conn, err := dialer.DialContext(ctx, "tcp", address)
+	if err != nil {
+		return err
+	}
+	conn.Close() //nolint:errcheck // the probe only needed the connect to succeed
+	return nil
 }
 
 // LoadCredentialsWithFlags reads SSH credentials from the default zefs

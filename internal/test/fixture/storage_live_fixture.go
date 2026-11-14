@@ -413,14 +413,20 @@ func storageLiveKeyHeld(want bool) error {
 }
 
 // storageLiveKeyPresent answers whether a fresh reader handle finds
-// storageLiveStaleKey. An absent key answers false; any other read error is an
-// error, never an absence.
+// storageLiveStaleKey.
 func storageLiveKeyPresent() (bool, error) {
+	return storageLiveHolds(storageLiveStaleKey)
+}
+
+// storageLiveHolds answers whether a fresh reader handle on the daemon's store
+// finds key. An absent key answers false; any other read error is an error,
+// never an absence.
+func storageLiveHolds(key string) (bool, error) {
 	tree, err := openDaemonStoreReadOnly(os.Environ(), ".")
 	if err != nil {
 		return false, err
 	}
-	_, err = tree.ReadKey(storageLiveStaleKey)
+	_, err = tree.ReadKey(key)
 	if closeErr := tree.Close(); closeErr != nil {
 		return false, errors.Join(err, closeErr)
 	}

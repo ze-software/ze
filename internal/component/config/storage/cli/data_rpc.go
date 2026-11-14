@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -18,8 +20,10 @@ import (
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -308,6 +312,9 @@ func handleDataKeyDelete(_ *pluginserver.CommandContext, validated command.Valid
 	if !storage.RuntimeKey(key) {
 		return zePlugin.OperatorErrorResponse(configurationKeyError("delete data key", key)), nil
 	}
+	if refusal := runningOwnerError("delete data key", key); refusal != nil {
+		return zePlugin.OperatorErrorResponse(refusal), nil
+	}
 	if err := target.Store.RemoveKey(key); err != nil {
 		return zePlugin.OperatorErrorResponse(removeKeyError(key, err)), nil
 	}
@@ -325,6 +332,57 @@ func configurationKeyError(commandPath, key string) *opererr.Error {
 		commandPath+": "+key+" is configuration, not runtime state",
 		commandPath+" reaches runtime state only, a key under meta/ outside meta/config/, because a raw change to a configuration key bypasses its versions, pointers and history",
 		"update data config name <name> content <base64>")
+}
+
+// keyOwners answers the plugin process names granted a store key, and
+// pluginStates answers the running plugin server's state. They are variables
+// only so a test can stand in for the grants and the server; the daemon reads
+// the real registries. Both answer value types, so the guard below holds no
+// handle on a plugin and works the same for a plugin that runs in another
+// process.
+var (
+	keyOwners    = statestore.PluginKeyOwners
+	pluginStates = pluginserver.PluginDoctorSnapshot
+)
+
+// runningOwnerError refuses a change to a key while a plugin granted that key
+// runs: the plugin manages the key while it runs, so a change under it leaves
+// the plugin's view and the store disagreeing. The owner comes from the key
+// grants and the running state from the plugin snapshot, both by the process
+// name the daemon configured, which is the identity a plugin's state calls
+// carry, so the guard names no plugin, key or feature. commandPath is the
+// command the operator typed, which the refusal names first.
+//
+// A nil answer means the key may change: no plugin holds a grant for it, or no
+// plugin holding one runs. A key no plugin is granted needs no snapshot, so it
+// is never refused because the plugin state is unavailable. A key with an owner
+// is refused while the snapshot is unavailable (plugins not started yet, or a
+// server that is stopping), because nothing then says whether the owner runs.
+func runningOwnerError(commandPath, key string) *opererr.Error {
+	owners := keyOwners(key)
+	if len(owners) == 0 {
+		return nil
+	}
+	snapshot, err := pluginStates()
+	if err != nil {
+		return opererr.Wrap(err,
+			commandPath+": cannot tell yet whether the plugin that owns "+key+" runs",
+			"the key is granted to "+strings.Join(owners, ", ")+", and the daemon has not started its plugins yet or is stopping them, so the key is unchanged",
+			"ze show health")
+	}
+	for i := range snapshot.Plugins {
+		state := &snapshot.Plugins[i]
+		if !state.Running {
+			continue
+		}
+		if slices.Contains(owners, state.Name) {
+			return opererr.New(
+				commandPath+": plugin "+state.Name+" manages "+key+" while it runs",
+				"a change made under the running plugin leaves its own view of the key and the store disagreeing, so the key is unchanged; a restart makes the plugin take up its own state again",
+				process.RestartCommand(state.Name))
+		}
+	}
+	return nil
 }
 
 // removeKeyError explains a removal the store refused. A key the store does

@@ -11,10 +11,12 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -217,5 +219,147 @@ func TestDataRefusesOwnedStoreMutation(t *testing.T) {
 	}
 	if string(data) != "keep" {
 		t.Fatalf("held key = %q", data)
+	}
+}
+
+// ownedStore creates a live store in a temporary folder, writes keys into it,
+// and keeps it open as its owner for the rest of the test, as a running daemon
+// holds its store. It answers the owner and the path ze data is given.
+func ownedStore(t *testing.T, keys ...string) (storage.Storage, string) {
+	t.Helper()
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = owner.Close() })
+	for _, key := range keys {
+		if err := owner.WriteKey(key, []byte("keep")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return owner, filepath.Join(dir, "database")
+}
+
+// VALIDATES: AC-3, local half. While another process owns the store, ze data
+// rm sends each key to the daemon as `delete data key <key>`, one command per
+// key, to the daemon of the store it was given, and prints the lines and the
+// exit code the local route prints. A key the daemon refuses is an error line
+// carrying the daemon's reason, and the next key is still sent. When every key
+// is refused the exit code is 2. The stub removes through the owner's handle,
+// as the daemon's handler does.
+// PREVENTS: a busy store answered with the bare refusal while a daemon could
+// remove the key, a daemon removal printed differently from a local one, or a
+// refused key ending the walk.
+func TestDataRmForwardsToDaemonWhenBusy(t *testing.T) {
+	owner, path := ownedStore(t, "meta/held", "meta/other")
+	var sent []string
+	ask := func(folder, line string) ([]byte, error) {
+		if folder != filepath.Dir(path) {
+			t.Errorf("asked the daemon of %s, want the daemon of %s", folder, filepath.Dir(path))
+		}
+		sent = append(sent, line)
+		key, found := strings.CutPrefix(line, "delete data key ")
+		if !found {
+			return nil, &daemonRefusal{message: "unexpected command " + line}
+		}
+		if err := owner.RemoveKey(key); err != nil {
+			return nil, &daemonRefusal{message: "delete data key: the store holds no key " + key + "\nfix: show data list"}
+		}
+		return json.Marshal(map[string]string{"key": key})
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := removeKeys(path, []string{"meta/held", "meta/absent", "meta/other"}, ask, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("partial removal returned %d, want 0; stderr:\n%s", code, stderr.String())
+	}
+	wantSent := []string{"delete data key meta/held", "delete data key meta/absent", "delete data key meta/other"}
+	if !reflect.DeepEqual(sent, wantSent) {
+		t.Fatalf("sent %q, want %q", sent, wantSent)
+	}
+	wantOut := "removed meta/held\nremoved meta/other\n2 entries removed from " + path + "\n"
+	if stdout.String() != wantOut {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), wantOut)
+	}
+	if !strings.Contains(stderr.String(), "error: delete data key: the store holds no key meta/absent") {
+		t.Fatalf("stderr lacks the daemon's refusal of meta/absent:\n%s", stderr.String())
+	}
+	for _, key := range []string{"meta/held", "meta/other"} {
+		if _, err := owner.ReadKey(key); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s after its removal: %v", key, err)
+		}
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := removeKeys(path, []string{"meta/absent"}, ask, &stdout, &stderr); code != 2 {
+		t.Fatalf("all keys refused returned %d, want 2", code)
+	}
+	if want := "0 entries removed from " + path + "\n"; stdout.String() != want {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
+	}
+}
+
+// VALIDATES: AC-3 survivor. A busy store whose daemon does not answer keeps
+// the refusal: the store's own refusal, why the daemon did not answer with its
+// address and the cause, the fix alone on the last line, exit 2, nothing on
+// stdout, and the key kept. The walk ends at the first unanswered key.
+// PREVENTS: a busy store with no daemon reported as a removal, or a refusal
+// that does not say why the daemon route did not run.
+func TestDataRmBusyWithNoDaemonNamesTheOwner(t *testing.T) {
+	owner, path := ownedStore(t, "meta/held")
+	asked := 0
+	ask := func(_, _ string) ([]byte, error) {
+		asked++
+		return nil, &daemonUnanswered{
+			why:   "no daemon listens at 127.0.0.1:2222",
+			fix:   fixDaemonStatus,
+			cause: errors.New("connection refused"),
+		}
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := removeKeys(path, []string{"meta/held", "meta/other"}, ask, &stdout, &stderr); code != 2 {
+		t.Fatalf("unanswered removal returned %d, want 2", code)
+	}
+	if asked != 1 {
+		t.Fatalf("asked the daemon %d times, want 1: no later key can reach a daemon that did not answer", asked)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want nothing", stdout.String())
+	}
+	text := stderr.String()
+	for _, want := range []string{"error: ze data rm: ", storage.ErrBusy.Error(), "no daemon listens at 127.0.0.1:2222", "connection refused"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("refusal lacks %q:\n%s", want, text)
+		}
+	}
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	if last := lines[len(lines)-1]; last != "fix: "+fixDaemonStatus {
+		t.Fatalf("last line = %q, want the fix alone", last)
+	}
+	data, err := owner.ReadKey("meta/held")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "keep" {
+		t.Fatalf("held key = %q", data)
+	}
+}
+
+// VALIDATES: an answer the daemon gives that is not JSON is read as no answer,
+// never as success, with the command to run by hand as the fix.
+// PREVENTS: a removal printed as done when nothing says it ran.
+func TestSendToDaemonUnreadableAnswerIsNoAnswer(t *testing.T) {
+	ask := func(_, _ string) ([]byte, error) { return []byte("removed, probably"), nil }
+	var answer keyAnswer
+	err := sendToDaemon(ask, "/var/lib/ze/database", "delete data key meta/x", &answer)
+	unanswered, ok := errors.AsType[*daemonUnanswered](err)
+	if !ok {
+		t.Fatalf("err = %v, want a *daemonUnanswered", err)
+	}
+	if want := `ze cli --user <name> -c "delete data key meta/x"`; unanswered.fix != want {
+		t.Fatalf("fix = %q, want %q", unanswered.fix, want)
 	}
 }

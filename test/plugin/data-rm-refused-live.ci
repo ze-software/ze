@@ -1,0 +1,58 @@
+# Test: data-rm-refused-live
+# VALIDATES: AC-3 (local half), AC-4 (delete), AC-5 (delete) -- the local `ze data rm` on the daemon's host, while the daemon owns the store, sends the removal to the daemon: a runtime-state key seeded while ze was stopped is removed with the local route's lines (`removed <key>`, `1 entries removed from <store>`) and exit 0, and a fresh reader handle no longer finds it; removing it again is an error, exit 2; a configuration key is refused naming why; the key of the running ddos-flowspec plugin is refused naming `request plugin restart ddos-flowspec`.
+# PREVENTS: a `ze data rm` that needs ze stopped, a daemon removal that prints other lines than the local one, a removal of a running plugin's state from under it.
+# QUESTION: does the local command, refused the store by the owner lock, reach the daemon over SSH with the login of the daemon's host and print what the local route prints? A unit test stubs the daemon (TestDataRmForwardsToDaemonWhenBusy) and cannot see the lock, the address and login resolution, the dispatcher or the running plugin.
+# RUNNING PLUGIN: ddos-flowspec, configured at `response-level alert`, which needs no BGP peer, no detection and no kernel feature. Its grant is meta/ddos-flowspec/announcement (internal/plugins/ddos/flowspec/register.go). The key is never written here, so its refusal proves the guard runs before the store is touched.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=stale.txt:terminator=EOF_STALE
+stale runtime state
+EOF_STALE
+
+tmpfs=data-rm-refused-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+ddos {
+    flowspec {
+        response-level alert
+        action discard
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+# The first start creates the store; the key is seeded while ze is stopped,
+# the only time the offline writer may open it.
+cmd=background:seq=1:exec=ze start data-rm-refused-live.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=foreground:seq=3:exec=ze data write meta/test/stale-state stale.txt:exit=0
+cmd=background:seq=4:exec=ze start data-rm-refused-live.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=5:exec=le test fixture storage/data-rm-refused-live $PORT2:exit=0
+expect=stdout:contains=OK: data-rm-refused-live
+cmd=stop:seq=6:name=daemon:signal=term

@@ -5,6 +5,7 @@ package flowspec
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -116,9 +117,10 @@ func TestRuntimeOrphanReportNamesBothCausesOfAFailedWithdrawal(t *testing.T) {
 // that does not decode prints, as its fix, the command that reads the record,
 // and never the record's removal.
 //
-// VALIDATES: ai/rules/user-facing-errors.md for the corrupt record: `ze data rm`
-// is refused while the daemon owns the store, and no plugin start withdraws
-// from a record it cannot decode, so neither clears it.
+// VALIDATES: ai/rules/user-facing-errors.md for the corrupt record: no plugin
+// start withdraws from a record it cannot decode, and removing the record
+// first leaves the rule at the peers untraced, so the first step is reading the
+// record to find the rule; the removal is the second step, in the message.
 // METHOD: the runtime check's answer function over a fake whose Recorded
 // answers bytes that are not a record.
 // PREVENTS: a fix line the running daemon refuses.
@@ -141,26 +143,133 @@ type corruptRecordDispatcher struct{ *fakeDispatcher }
 
 func (corruptRecordDispatcher) Recorded() ([]byte, bool, error) { return []byte("not json"), true, nil }
 
-// TestRemovedSectionReportSaysWhatRemovesTheRecord proves that the report made
-// while ddos flowspec is not configured says its withdrawal leaves the record,
-// and that the store's removal works only while ze is stopped.
+// TestRemovedSectionReportNamesTheRemovalThatWorksLive proves that the report
+// made while ddos flowspec is not configured keeps the withdrawal as its fix,
+// says the withdrawal leaves the record, and names the removal of the record
+// as the second step: `ze data rm`, which works while ze runs, refused while a
+// ddos-flowspec plugin runs, with the restart for that case.
 //
-// VALIDATES: AC-16's "the report clears when the record is removed", as things
-// work while no plugin runs: the fix withdraws the rule, and the message names
-// what removes the record.
-// METHOD: the removed-section report for orphanTestMatch.
-// PREVENTS: a report that presents `ze data rm` as a step the running daemon
-// takes, when the store refuses a second writer.
-func TestRemovedSectionReportSaysWhatRemovesTheRecord(t *testing.T) {
+// VALIDATES: AC-2, the removed-section report: the two steps in order, why the
+// order matters, the running-plugin refusal and the restart; the fix field
+// stays the withdrawal. Also AC-16's "the report clears when the record is
+// removed", as the message names what removes the record.
+// METHOD: the removed-section report for orphanTestMatch, read for the fix,
+// for each fact, and for the order of the two steps.
+// PREVENTS: a report that says the removal needs ze stopped, a report that
+// lets the operator remove the record before the rule is withdrawn, and a
+// report whose removal a running plugin refuses with no way out named.
+func TestRemovedSectionReportNamesTheRemovalThatWorksLive(t *testing.T) {
 	diag := unconfiguredOrphanDiagnostic(orphanTestMatch())
 
-	if !strings.Contains(diag.Message, "ze data rm "+announcementRecordKey+" removes the record only while ze is stopped") {
-		t.Errorf("message %q does not say that ze data rm removes the record only while ze is stopped", diag.Message)
+	if diag.Fix != orphanTestFix {
+		t.Errorf("fix = %q, want the withdrawal %q", diag.Fix, orphanTestFix)
 	}
+	assertLiveRecordRemoval(t, diag.Message, "first withdraw the rule with the command below")
 	if !strings.Contains(diag.Message, "configure ddos flowspec again") {
 		t.Errorf("message %q does not name the plugin start that removes the record", diag.Message)
 	}
 }
+
+// TestUnrunReportsNameTheRemovalThatWorksLive proves that both reports of a
+// daemon with no ddos-flowspec process say the same about the removal as the
+// removed-section report, after the withdrawal they name.
+//
+// VALIDATES: AC-2, "the two unrun reports say the same about the removal".
+// METHOD: unrunUndecidedDiagnostic and noConfigurationUnrunDiagnostic for
+// orphanTestMatch, each read as the removed-section report is.
+// PREVENTS: an unrun report that still says the removal needs ze stopped.
+func TestUnrunReportsNameTheRemovalThatWorksLive(t *testing.T) {
+	reports := map[string]orphanReport{
+		"saved configuration names the section": unrunUndecidedDiagnostic,
+		"no configuration loaded":               noConfigurationUnrunDiagnostic,
+	}
+	for name, report := range reports {
+		t.Run(name, func(t *testing.T) {
+			diag := report(orphanTestMatch())
+			if diag.Fix != runningConfigCommand {
+				t.Errorf("fix = %q, want %q", diag.Fix, runningConfigCommand)
+			}
+			assertLiveRecordRemoval(t, diag.Message, "first send that withdrawal")
+		})
+	}
+}
+
+// assertLiveRecordRemoval checks the facts an operator needs to remove the
+// record of a withdrawn rule: withdrawStep comes before the removal command,
+// the removal works while ze runs, removing first leaves the rule untraced,
+// and a running ddos-flowspec plugin refuses it, with the restart named.
+func assertLiveRecordRemoval(t *testing.T, message, withdrawStep string) {
+	t.Helper()
+	removal := "then remove the record with ze data rm " + announcementRecordKey + ", which works while ze runs"
+	withdrawAt := strings.Index(message, withdrawStep)
+	removalAt := strings.Index(message, removal)
+	if withdrawAt < 0 {
+		t.Errorf("message %q does not name the withdrawal step %q", message, withdrawStep)
+	}
+	if removalAt < 0 {
+		t.Errorf("message %q does not name the removal %q", message, removal)
+	}
+	if removalAt < withdrawAt {
+		t.Errorf("message %q names the removal before the withdrawal", message)
+	}
+	if !strings.Contains(message, "a record removed before its rule is withdrawn leaves the rule at the peers with no trace in the store and no report to find it") {
+		t.Errorf("message %q does not say why the withdrawal comes first", message)
+	}
+	if !strings.Contains(message, "ze refuses the removal while a ddos-flowspec plugin runs") {
+		t.Errorf("message %q does not say that a running ddos-flowspec plugin refuses the removal", message)
+	}
+	if !strings.Contains(message, "then run "+restartTestFix) {
+		t.Errorf("message %q does not name the restart %q for a running plugin", message, restartTestFix)
+	}
+	if strings.Contains(message, "while ze is stopped") {
+		t.Errorf("message %q still says the removal needs ze stopped", message)
+	}
+}
+
+// TestCorruptRecordReportNamesTheRemoval proves that the report of a record
+// that does not decode keeps the read command as its fix and names, in order,
+// the withdrawal of the rule the printed bytes name and the removal of the
+// record, which works while ze runs when no ddos-flowspec plugin runs; while
+// one runs, its next announcement replaces the record.
+//
+// VALIDATES: AC-6. The report is shared with the configured-section checks, so
+// it says what happens while the plugin runs too.
+// METHOD: corruptRecordDiagnostic for a decode error, read for the fix, for
+// each fact, and for the order of the two steps.
+// PREVENTS: a corrupt-record report that says the removal needs ze stopped, or
+// that names a removal a running plugin refuses with no word on what clears
+// the record then.
+func TestCorruptRecordReportNamesTheRemoval(t *testing.T) {
+	diag := corruptRecordDiagnostic(errCorruptTestRecord)
+
+	if diag.Fix != recordReadTestFix {
+		t.Errorf("fix = %q, want %q", diag.Fix, recordReadTestFix)
+	}
+	withdrawAt := strings.Index(diag.Message, "First withdraw the rule the printed bytes name at the peers")
+	removalAt := strings.Index(diag.Message, "then remove the record with ze data rm "+announcementRecordKey)
+	if withdrawAt < 0 {
+		t.Errorf("message %q does not name the withdrawal of the rule the printed bytes name", diag.Message)
+	}
+	if removalAt < 0 {
+		t.Errorf("message %q does not name the removal of the record", diag.Message)
+	}
+	if removalAt < withdrawAt {
+		t.Errorf("message %q names the removal before the withdrawal", diag.Message)
+	}
+	if !strings.Contains(diag.Message, "which works while ze runs when no ddos-flowspec plugin runs") {
+		t.Errorf("message %q does not say the removal works while ze runs", diag.Message)
+	}
+	if !strings.Contains(diag.Message, "While one runs, ze refuses the removal, and the plugin's next announcement replaces the record") {
+		t.Errorf("message %q does not say what replaces the record while the plugin runs", diag.Message)
+	}
+	if strings.Contains(diag.Message, "while ze is stopped") {
+		t.Errorf("message %q still says the removal needs ze stopped", diag.Message)
+	}
+}
+
+// errCorruptTestRecord is the decode error the corrupt-record report is built
+// from in TestCorruptRecordReportNamesTheRemoval.
+var errCorruptTestRecord = errors.New("decode announcement record: invalid character 'o' in literal null")
 
 // TestRestartWithdrawsTheOrphanAndClearsTheReport proves the fix the runtime
 // report prints: a plugin whose start-time withdrawal failed reports the record

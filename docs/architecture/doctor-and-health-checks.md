@@ -130,7 +130,8 @@ finding and its cause, with the same configured instance's restart command.
 `ze doctor` answers for the box, and the runtime rows exist only in the
 running daemon, so the local route asks the daemon before it answers alone
 (`answerLocalWith`). It resolves the daemon's SSH address as every `ze <verb>`
-daemon command does (`sshclient.DaemonAddress`), connects to it, logs in with
+daemon command does (`sshclient.DaemonAddress`), probes its listener with a
+connect that reads no credential (`sshclient.ProbeDaemon`), logs in with
 the credentials `ze init` stored (`sshclient.LoadCredentialsNoPrompt`, which
 never prompts), and sends `show doctor | raw`. When the daemon answers, its
 answer, runtime and plugin rows included, is drawn by the local renderer with
@@ -163,7 +164,7 @@ WARN  [doctor-runtime-not-checked] runtime checks did not run: they need the run
       fix: ze start
 ```
 <!-- source: internal/component/doctor/local_route.go -- answerLocalWith, askDaemonDoctor, askDaemonOverSSH, runtimeNotChecked -->
-<!-- source: internal/component/cli/sshclient/client.go -- DaemonAddress -->
+<!-- source: internal/component/cli/sshclient/client.go -- DaemonAddress, ProbeDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorRuntimePhaseNotRunLocally -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteAsksReachableDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteNoCredentialsAnswersLocally -->

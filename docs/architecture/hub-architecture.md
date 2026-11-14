@@ -354,8 +354,9 @@ and calls the same commit reload, so the SIGHUP acceptance chain runs and
 promotion stays last. `delete data key <key>` removes one runtime-state key
 (`storage.RuntimeKey`: under `meta/` outside `meta/config/`) through the same
 handle, so the owner lock is never lifted and no second writer opens the
-store; it refuses a configuration key before the store is touched.
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- InstallDataRPC, handleDataBackup, handleDataRestore, handleDataKeyDelete -->
+store; it refuses a configuration key, and a key whose granted plugin runs,
+before the store is touched.
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- InstallDataRPC, handleDataBackup, handleDataRestore, handleDataKeyDelete, runningOwnerError -->
 <!-- source: cmd/ze/hub/main.go -- storagecli.InstallDataRPC -->
 
 

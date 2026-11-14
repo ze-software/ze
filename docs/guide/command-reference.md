@@ -2747,7 +2747,8 @@ operators (match, count, first, last, display) work on both JSON and plain text.
 ### ze data
 
 Inspect a live tree read-only, or modify a tree or explicit blob artifact offline.
-Mutations refuse an active writer. Keys are raw, namespaced paths, and `list`
+Mutations refuse an active writer, except `rm`, which sends its removal to the
+daemon that owns the store. Keys are raw, namespaced paths, and `list`
 recursively lists matching keys.
 
 ```
@@ -2755,7 +2756,7 @@ ze data --path /etc/ze/database list meta/
 ze data --path /etc/ze/database cat meta/instance/name
 ze data write <key> <file>         # A file of "-" reads stdin
 ze data import <file>...           # Import under file/active/<basename>
-ze data rm <key>...
+ze data rm <key>...                # Through the daemon while ze runs
 ze data registered [pattern]
 ze data check
 ze data repair --output <new-path>
@@ -2833,6 +2834,23 @@ the daemon; there is no live full restore. The restore records a durable
 opener, `ze start` included, refuses and prints `ze data restore <file> full`,
 and that command alone finishes the restore.
 
+`rm` removes each key it is given, printing `removed <key>` for each and then
+`<n> entries removed from <store>`. A key the store does not hold is an error
+line, and the next key is still removed. It exits `0` when at least one key was
+removed and `2` when none was. While a daemon owns the store, the store refuses
+the local writer, so `rm` sends each key to that daemon as
+`delete data key <key>`, one command per key, and prints the same lines with
+the same exit codes. It reaches the daemon the way `ze doctor` does: the
+address and login of the store it was given (the `ze.ssh.*` settings, then what
+`ze init` recorded), with no password prompt. The daemon command reaches
+runtime state only, so while ze runs `rm` removes runtime-state keys only, and
+its refusals are the ones `delete data key` gives below. When no daemon
+answers, `rm` keeps the store's refusal, says why the daemon did not answer (no
+listener at its address, no credentials to log in, or no answer) and names the
+command that fixes that, and exits `2`. With ze stopped, `rm` removes any key.
+<!-- source: internal/component/config/storage/cli/main.go -- cmdRm, removeKeys, removeKeysThroughDaemon -->
+<!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH, unansweredRefusal -->
+
 The daemon answers three store commands on every surface (SSH, REST, gRPC,
 MCP, the web), acting on the store it owns. The two `request data` commands
 read or write a file on the daemon's own host:
@@ -2847,7 +2865,13 @@ delete data key <key>
 under `meta/` outside `meta/config/`. It answers `key`. A configuration key
 (under `file/` or `meta/config/`, or outside both) is refused before the store
 is touched, because a raw removal bypasses its versions, pointers and history;
-the refusal names `update data config name <name> content <base64>`. A key the
+the refusal names `update data config name <name> content <base64>`. A key a
+plugin is granted is refused while that plugin runs, because the plugin manages
+the key while it runs: the refusal names the plugin and
+`ze request plugin restart <name>`. A key granted to a plugin that does not
+run, and a key no plugin is granted, are removed. Until the daemon has started
+its plugins, a key a plugin is granted is refused, because the daemon cannot
+tell yet whether that plugin runs. A key the
 store does not hold is an error, as it is for `ze data rm`. The built-in
 read-only profile is denied the command. Runtime state includes the login and
 HTTPS credentials, so removing one of them can lock you out:

@@ -14,13 +14,11 @@
 package doctor
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net"
 	"strconv"
 	"sync/atomic"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
@@ -30,11 +28,6 @@ import (
 
 // showDoctorCommand is the daemon form of ze doctor the local route sends.
 const showDoctorCommand = "show doctor"
-
-// daemonProbeTimeout bounds the TCP connect that tells "no daemon listens"
-// from "this account cannot log in". A listener on the same host answers a
-// connect at once; the bound is for an address that drops the SYN.
-const daemonProbeTimeout = 2 * time.Second
 
 // The fix line of the doctor-runtime-not-checked row, one per reason no
 // daemon answered.
@@ -146,7 +139,7 @@ func askDaemonOverSSH(line string) (diagnostic.DoctorResult, error) {
 		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixDaemonStatus}
 	}
 	address := net.JoinHostPort(host, port)
-	if err := probeDaemonListener(address); err != nil {
+	if err := sshclient.ProbeDaemon(address); err != nil {
 		var why textbuf.Buffer
 		why.Str("no daemon listens at ").Str(address).Str(" (").Err(err).Str(")")
 		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixStartDaemon}
@@ -164,21 +157,6 @@ func askDaemonOverSSH(line string) (diagnostic.DoctorResult, error) {
 		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixAskAsAccount}
 	}
 	return decodeDaemonDoctor(output, address)
-}
-
-// probeDaemonListener connects to the daemon's SSH listener and closes the
-// connection at once: a refused or timed-out connect means no daemon listens.
-func probeDaemonListener(address string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), daemonProbeTimeout)
-	defer cancel()
-
-	var dialer net.Dialer
-	conn, err := dialer.DialContext(ctx, "tcp", address)
-	if err != nil {
-		return err
-	}
-	conn.Close() //nolint:errcheck // the probe only needed the connect to succeed
-	return nil
 }
 
 // decodeDaemonDoctor reads the daemon's show doctor JSON. An answer that is

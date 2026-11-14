@@ -191,7 +191,10 @@ Client configs are entries in the hub's live tree, keyed by client name at
 The admin can edit these through a live SSH editor owned by the hub.
 Offline writers, including `ze data`, require the hub to be stopped because
 the writable store handle holds an exclusive lifetime lock. Read-only
-inspection remains available while the hub runs. A running hub also restores
+inspection remains available while the hub runs. `ze data rm` beside a running
+hub sends its removal to the hub as `delete data key`, which removes
+runtime-state keys only, so a client config (a configuration key) is still
+removed with the hub stopped. A running hub also restores
 a client's config from a backup artifact with `request data restore path <file>
 config client <name>`: the RPC writes a version of `client-<name>.conf` and
 promotes it under the store guard, with no reload of the hub, so the write
@@ -481,7 +484,7 @@ cannot authenticate ends the connection before the token is written.
 | Hub auth (`#0 auth`) | Extend: per-client secret lookup under `server` block |
 | Hub MuxConn | Reuse as-is |
 | Hub live tree | Shared Storage handle (client configs are entries) |
-| `ze data rm` | Reuse as-is |
+| `ze data rm` | Reuse as-is, with the hub stopped: a running hub refuses the removal of a client config, which is a configuration key |
 | Named `server`/`client` hub blocks | **New:** replaces flat `listen`/`secret` fields |
 | `config-fetch` / `config-changed` RPCs | **New:** hub-side handlers |
 | Config change watcher | Hub notifies on stored config writes |

@@ -247,16 +247,27 @@ The configuration storage layer maps config paths into this key space and also
 exposes raw-key operations for data commands. Its mapping, per-config pointers
 and recursive enumeration contract are described in
 [Storage backends](storage-backends.md). `ze data` accepts either an explicit
-blob artifact or the live tree root; its mutations require offline ownership.
+blob artifact or the live tree root; its mutations require offline ownership,
+except `ze data rm`: when the store refuses it a writer (`storage.ErrBusy`), it
+sends each key to the daemon that owns the store as `delete data key <key>`,
+over SSH with that store's address and login and no prompt, as `ze doctor`
+reaches `show doctor`, and prints the lines of its local route. The lock is
+never lifted: the daemon removes the key through its own handle.
 A running daemon changes its own store only through the handle it owns, by the
 store commands it serves on every surface: `request data backup`,
 `request data restore ... config`, and `delete data key <key>`, which removes
 one runtime-state key. Runtime state is a key under `meta/` outside
 `meta/config/` (`storage.RuntimeKey`), the same split that picks the lock a
 write takes; `delete data key` refuses every other key, because a raw removal
-of a configuration key bypasses its versions, pointers and history.
+of a configuration key bypasses its versions, pointers and history. It also
+refuses a runtime key while a plugin granted that key runs, reading the
+plugin's grants (`statestore.PluginKeyOwners`) and the daemon's plugin
+snapshot, and refuses such a key while the plugins have not started, since it
+cannot tell then whether the owner runs.
 <!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete, runningOwnerError -->
+<!-- source: internal/component/config/storage/cli/daemon_route.go -- sendToDaemon, askDaemonOverSSH -->
+<!-- source: internal/core/statestore/permissions.go -- PluginKeyOwners -->
 
 ## Key Registry
 

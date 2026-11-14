@@ -116,8 +116,10 @@ Initialization uses a private random staging directory and a no-replace rename.
 
 `ze data --path <folder>/database` addresses a tree, while an explicit `.zefs`
 file addresses a blob artifact. Run mutating commands only after stopping the
-owning daemon and as the store owner. These commands expose decoded values,
-never the tree's framing bytes.
+owning daemon and as the store owner, except `ze data rm`: while the daemon
+runs, it sends each removal to that daemon as `delete data key <key>` and
+prints the same lines. These commands expose decoded values, never the tree's
+framing bytes.
 
 | Command | Effect |
 |---------|--------|
@@ -125,7 +127,7 @@ never the tree's framing bytes.
 | `ze data cat <key>` | Read a key |
 | `ze data write <key> <file>` | Write a file's bytes into a raw key (`-` reads stdin) |
 | `ze data import <file>...` | Import files as active configs |
-| `ze data rm <key>` | Remove a key |
+| `ze data rm <key>...` | Remove keys; while ze runs, through the daemon, which removes runtime-state keys only (see `delete data key`) |
 | `ze data registered` | Show registered key patterns |
 | `ze data check` | Check integrity; exits 0 clean, 1 corrupt, 2 unreadable |
 | `ze data repair --output <path>` | Copy recoverable keys into a new destination |
@@ -135,10 +137,10 @@ never the tree's framing bytes.
 | `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it; refused while a `commit confirmed` window is open |
 | `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
-| `delete data key <key>` | Live removal of one runtime-state key (under `meta/` outside `meta/config/`) through the daemon's own store; a configuration key and an absent key are refused |
+| `delete data key <key>` | Live removal of one runtime-state key (under `meta/` outside `meta/config/`) through the daemon's own store; a configuration key, a key whose granted plugin runs, and an absent key are refused |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |
 
-<!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->
+<!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers, removeKeysThroughDaemon -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
 
 ### Connection

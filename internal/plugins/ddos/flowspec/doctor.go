@@ -138,13 +138,30 @@ func ruleFindings(m, live flowspecMatch, isLive bool, report orphanReport) []rpc
 	return []rpc.DoctorCheckDiagnostic{report(m)}
 }
 
-// recordRemovalToday says what removes the record while no plugin start does.
-// The store refuses a writer beside the daemon that owns it (storage open.go
-// lockStoreFile answers ErrBusy), so `ze data rm` removes the record only while
-// ze is stopped.
-func recordRemovalToday(msg *textbuf.Buffer) {
-	msg.Str("ze data rm ").Str(announcementKey.Pattern).
-		Str(" removes the record only while ze is stopped, because the store refuses a second writer while the daemon owns it")
+// recordRemovalCommand is the command that removes the record by hand. With ze
+// stopped it removes the key from the store itself. While ze runs it sends the
+// removal to the daemon, which removes the key through its own store (the
+// daemon command delete data key), and the daemon refuses it while a plugin
+// process holding the key's grant runs.
+func recordRemovalCommand() string {
+	var tb textbuf.Buffer
+	return tb.Str("ze data rm ").Str(announcementKey.Pattern).String()
+}
+
+// recordRemoval says what removes the record while no plugin start does, as
+// the second of two steps. withdrawStep names the first step, the withdrawal,
+// in the words of the report that calls it. The order is the point: the record
+// is the only trace of the rule in the store, so a record removed before its
+// rule is withdrawn leaves the rule at the peers with nothing left to report
+// it. While a ddos-flowspec process runs, the daemon refuses the removal and
+// names the restart, whose start withdraws the recorded rule and removes the
+// record (withdrawRecordedAnnouncement).
+func recordRemoval(msg *textbuf.Buffer, withdrawStep string) {
+	msg.Str("To remove the record now, first ").Str(withdrawStep).
+		Str(", then remove the record with ").Str(recordRemovalCommand()).
+		Str(", which works while ze runs. Keep that order: a record removed before its rule is withdrawn leaves the rule at the peers with no trace in the store and no report to find it. ze refuses the removal while a ").Str(Name).
+		Str(" plugin runs, because that plugin manages the record: then run ").Str(process.RestartCommand(Name)).
+		Str(", whose start withdraws the recorded rule and removes the record")
 }
 
 // unownedOrphanDiagnostic is the runtime report: the plugin runs and its
@@ -191,8 +208,8 @@ func unconfiguredOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	var msg textbuf.Buffer
 	msg.Str("ddos-flowspec announced a FlowSpec rule for ").Str(victim).
 		Str(", and the ddos flowspec section is not configured, so no running plugin can withdraw it. Every BGP peer that took the rule may still discard or rate-limit traffic to ").Str(victim).
-		Str(". The command below withdraws the rule at the peers. It does not remove the record, so this report stays: the plugin removes the record when it next starts (configure ddos flowspec again, and its start withdraws the rule and removes the record), and ")
-	recordRemovalToday(&msg)
+		Str(". The command below withdraws the rule at the peers. It does not remove the record, so this report stays: the plugin removes the record when it next starts (configure ddos flowspec again, and its start withdraws the rule and removes the record). ")
+	recordRemoval(&msg, "withdraw the rule with the command below")
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
@@ -201,18 +218,23 @@ func unconfiguredOrphanDiagnostic(m flowspecMatch) rpc.DoctorCheckDiagnostic {
 	}
 }
 
-// corruptRecordDiagnostic reports a record that does not decode, for both
-// checks. Nothing is rendered from it, and no plugin start withdraws from it
-// (readRecordedAnnouncement), so a restart does not clear it. Its fix prints the
-// stored bytes, which can still show the rule's victim, so the operator can
-// withdraw that rule at the peers.
+// corruptRecordDiagnostic reports a record that does not decode, for every
+// check, the configured-section ones included. Nothing is rendered from it, and
+// no plugin start withdraws from it (readRecordedAnnouncement), so a restart
+// does not clear it. Its fix prints the stored bytes, which can still show the
+// rule's victim, so the operator can withdraw that rule at the peers, and the
+// message then names the removal of the record. While a ddos-flowspec process
+// runs the daemon refuses that removal, and the plugin's next announcement
+// replaces the record instead (responder.announce, through the dispatcher's
+// Record).
 func corruptRecordDiagnostic(err error) rpc.DoctorCheckDiagnostic {
 	var msg textbuf.Buffer
 	msg.Str("ddos-flowspec holds a record of an announced FlowSpec rule that it cannot read (").Err(err).
-		Str("), so ze cannot say which rule may still be at the BGP peers, and the plugin withdraws nothing from it, at start or after a restart. The command below prints the stored record, which can still show the rule's victim prefix: withdraw that rule at the peers with ").
+		Str("), so ze cannot say which rule may still be at the BGP peers, and the plugin withdraws nothing from it, at start or after a restart. The command below prints the stored record, which can still show the rule's victim prefix. First withdraw the rule the printed bytes name at the peers with ").
 		Str(manualWithdrawalCommand()).
-		Str(", or ipv6/flow and destination-ipv6 for an IPv6 victim. The record and this report stay until the plugin records a new announcement over it, and ")
-	recordRemovalToday(&msg)
+		Str(", or ipv6/flow and destination-ipv6 for an IPv6 victim, then remove the record with ").Str(recordRemovalCommand()).
+		Str(", which works while ze runs when no ").Str(Name).
+		Str(" plugin runs. While one runs, ze refuses the removal, and the plugin's next announcement replaces the record")
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorDDoSFlowspecOrphanAnnouncement,
 		Severity: string(diagnostic.SeverityWarning),
@@ -556,8 +578,8 @@ func unrunCases(msg *textbuf.Buffer, m flowspecMatch) {
 		Str(" may use, so do not send the withdrawal while it mitigates traffic to ").Str(m.DstPrefix.String()).
 		Str(". If it holds no ddos flowspec section, no process runs the plugin, nothing withdraws the rule, and every BGP peer that took it may still discard or rate-limit traffic to ").Str(m.DstPrefix.String()).
 		Str(": withdraw it at the peers with ").Str(withdrawalCommand(m)).
-		Str(". That withdrawal does not remove the record: the plugin removes it when it next starts, and ")
-	recordRemovalToday(msg)
+		Str(". That withdrawal does not remove the record: the plugin removes it when it next starts under its own name. ")
+	recordRemoval(msg, "send that withdrawal")
 }
 
 // unrunDiagnostic is the finding of an unrun report, whose fix reads the

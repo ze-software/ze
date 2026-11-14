@@ -137,6 +137,108 @@ func TestKeyCommandsRefuseConfigurationKey(t *testing.T) {
 	assert.Equal(t, before, after, "no key was removed")
 }
 
+// standInPluginState replaces the two readers the running-owner guard reads,
+// the key grants and the plugin snapshot, with fixed answers, and restores the
+// real readers when the test ends. owners maps a key to the plugin process
+// names granted it; a key it does not name has no owner.
+func standInPluginState(t *testing.T, owners map[string][]string, snapshot pluginserver.DoctorSnapshot, snapshotErr error) {
+	t.Helper()
+	savedOwners, savedStates := keyOwners, pluginStates
+	keyOwners = func(key string) []string { return owners[key] }
+	pluginStates = func() (pluginserver.DoctorSnapshot, error) { return snapshot, snapshotErr }
+	t.Cleanup(func() { keyOwners, pluginStates = savedOwners, savedStates })
+}
+
+// TestKeyCommandsRefuseKeyOfRunningPlugin verifies the running-owner guard of
+// `delete data key`. The grants and the plugin snapshot are stood in, so each
+// case fixes who owns the key and whether that owner runs, and the live store
+// is read back after the command. A key whose granted plugin runs is refused
+// and kept, and the refusal names the plugin and its restart. A key whose
+// owner does not run, or that no plugin is granted, is removed; a key with no
+// owner is removed even while the snapshot is unavailable, because the guard
+// never asks for it. A key with an owner is refused while the snapshot is
+// unavailable, saying it cannot tell yet whether the owner runs.
+// VALIDATES: AC-5 (delete).
+// PREVENTS: a removal that takes runtime state from under a running plugin.
+func TestKeyCommandsRefuseKeyOfRunningPlugin(t *testing.T) {
+	const key = "meta/test/owned"
+	granted := map[string][]string{key: {"test-owner"}}
+	ownerRuns := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
+		{Name: "test-other", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-owner", Configured: true, HasProcess: true, Running: true},
+	}}
+	ownerStopped := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
+		{Name: "test-other", Configured: true, HasProcess: true, Running: true},
+		{Name: "test-owner", Configured: true, HasProcess: true, Running: false, Down: true},
+	}}
+	ownerAbsent := pluginserver.DoctorSnapshot{Plugins: []pluginserver.PluginDoctorState{
+		{Name: "test-other", Configured: true, HasProcess: true, Running: true},
+	}}
+
+	refused := []struct {
+		name        string
+		owners      map[string][]string
+		snapshot    pluginserver.DoctorSnapshot
+		snapshotErr error
+		want        []string
+	}{
+		{"owner runs", granted, ownerRuns, nil, []string{
+			"delete data key: plugin test-owner manages " + key + " while it runs",
+			"so the key is unchanged",
+			"fix: ze request plugin restart test-owner",
+		}},
+		{"snapshot not available", granted, pluginserver.DoctorSnapshot{}, pluginserver.ErrDoctorSnapshotNotStarted, []string{
+			"delete data key: cannot tell yet whether the plugin that owns " + key + " runs",
+			"the key is granted to test-owner",
+			pluginserver.ErrDoctorSnapshotNotStarted.Error(),
+			"fix: ze show health",
+		}},
+	}
+	for i := range refused {
+		tc := &refused[i]
+		t.Run(tc.name, func(t *testing.T) {
+			store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+			standInPluginState(t, tc.owners, tc.snapshot, tc.snapshotErr)
+			require.NoError(t, store.WriteKey(key, []byte("live state")))
+
+			response := keyCall(t, key)
+			assert.Equal(t, zePlugin.StatusError, response.Status)
+			for _, want := range tc.want {
+				assert.Contains(t, response.Error, want)
+			}
+			assert.NotContains(t, response.Error, "test-other", "a running plugin that holds no grant is not named")
+			data, err := store.ReadKey(key)
+			require.NoError(t, err, "the key is still in the live store")
+			assert.Equal(t, "live state", string(data), "the key is unchanged")
+		})
+	}
+
+	removed := []struct {
+		name        string
+		owners      map[string][]string
+		snapshot    pluginserver.DoctorSnapshot
+		snapshotErr error
+	}{
+		{"owner stopped", granted, ownerStopped, nil},
+		{"owner not in the snapshot", granted, ownerAbsent, nil},
+		{"no plugin holds a grant", nil, ownerRuns, nil},
+		{"no grant and no snapshot", nil, pluginserver.DoctorSnapshot{}, pluginserver.ErrDoctorSnapshotNotPublished},
+	}
+	for i := range removed {
+		tc := &removed[i]
+		t.Run(tc.name, func(t *testing.T) {
+			store, _ := dataRPCStore(t, func(context.Context) error { return nil })
+			standInPluginState(t, tc.owners, tc.snapshot, tc.snapshotErr)
+			require.NoError(t, store.WriteKey(key, []byte("stale state")))
+
+			response := keyCall(t, key)
+			require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
+			_, err := store.ReadKey(key)
+			assert.ErrorIs(t, err, fs.ErrNotExist, "the key is gone from the live store")
+		})
+	}
+}
+
 // TestDataCommandsRefuseWithNoStore verifies every data RPC refuses while the
 // daemon publishes no store (starting, stopping, or running with none),
 // instead of reaching a nil or closed store.

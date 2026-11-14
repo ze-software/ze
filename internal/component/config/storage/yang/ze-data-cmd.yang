@@ -5,7 +5,7 @@ module ze-data-cmd {
     description "Live maintenance of the daemon's own store: backup, config restore, and the
 removal of one runtime-state key, each through the store handle the daemon owns.";
     revision 2026-09-26 { description "Initial revision"; }
-    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon."; }
+    revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs."; }
 
     container delete {
         config false;
@@ -22,8 +22,12 @@ command under it.";
                 description "Removes one runtime-state key (a key under meta/ outside meta/config/) through
 the store the daemon owns, so it works while ze runs. A configuration key (under
 file/ or meta/config/, or outside both) is refused before the store is touched,
-because a raw removal bypasses its versions, pointers and history. A key the
-store does not hold is an error.";
+because a raw removal bypasses its versions, pointers and history. A key a
+plugin is granted is refused while that plugin runs, because the plugin manages
+the key while it runs; the refusal names the plugin and its restart. Until the
+daemon has started its plugins, such a key is refused, because the daemon
+cannot tell yet whether the plugin runs. A key the store does not hold is an
+error.";
                 ze:help "Remove one runtime-state key from the daemon's store.";
                 leaf key {
                     type string { length "1..512"; }

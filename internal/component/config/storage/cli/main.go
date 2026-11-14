@@ -1,20 +1,26 @@
 // Design: docs/architecture/zefs-format.md -- managed store and blob artifact CLI
 //
-// Package cli provides offline key operations over managed stores and blob artifacts.
+// Package cli provides key operations over managed stores and blob artifacts:
+// offline on a store no process owns, and through the daemon's own store
+// handle while a daemon owns it.
 package cli
 
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -213,34 +219,114 @@ func cmdImport(storePath string, args []string) int {
 	return 0
 }
 
+// cmdRm is `ze data rm <key>...`. With the store free it removes each key
+// itself. While a daemon owns the store, the open answers storage.ErrBusy and
+// each key goes to that daemon as `delete data key <key>`, one command per
+// key (daemon_route.go). Both routes print `removed <key>` per key and
+// `<n> entries removed from <store>`, and exit 0 when at least one key was
+// removed, 2 when none was or the store could not be reached, 1 on usage.
 func cmdRm(storePath string, args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: ze data rm <key>...\n")
+	return removeKeys(storePath, args, askDaemonOverSSH, os.Stdout, os.Stderr)
+}
+
+// removeKeys is cmdRm over one daemon ask and two writers, so a test stubs the
+// daemon and reads the lines.
+func removeKeys(storePath string, keys []string, ask daemonAsk, stdout, stderr io.Writer) int {
+	if len(keys) == 0 {
+		writeText(stderr, "usage: ze data rm <key>...\n")
 		return 1
 	}
 
 	s, err := openStore(storePath, true)
+	if errors.Is(err, storage.ErrBusy) {
+		return removeKeysThroughDaemon(storePath, keys, err, ask, stdout, stderr)
+	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		var line textbuf.Buffer
+		writeText(stderr, line.Str("error: ").Err(err).Byte('\n').String())
 		return 2
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
 	removed := 0
-	for _, key := range args {
+	for _, key := range keys {
 		if rmErr := s.RemoveKey(key); rmErr != nil {
-			fmt.Fprintf(os.Stderr, "error: remove %s: %v\n", key, rmErr)
+			var line textbuf.Buffer
+			writeText(stderr, line.Str("error: remove ").Str(key).Str(": ").Err(rmErr).Byte('\n').String())
 			continue
 		}
-		fmt.Printf("removed %s\n", key)
+		writeRemoved(stdout, key)
 		removed++
 	}
+	return removedSummary(stdout, storePath, removed)
+}
 
-	fmt.Printf("%d entries removed from %s\n", removed, storePath)
+// removeKeysThroughDaemon sends each key to the daemon that owns the store, as
+// `delete data key <key>`, with the local route's rules: a key the daemon
+// refuses is an error line and the walk goes on; a daemon that does not answer
+// ends the walk, because no later key can reach it. busy is the store's
+// refusal of the local open, which the refusal names first.
+func removeKeysThroughDaemon(storePath string, keys []string, busy error, ask daemonAsk, stdout, stderr io.Writer) int {
+	removed := 0
+	for _, key := range keys {
+		var line textbuf.Buffer
+		line.Str("delete data key ").Str(configtext.QuoteCommandWord(key))
+		var answer keyAnswer
+		err := sendToDaemon(ask, storePath, line.String(), &answer)
+		if unanswered, ok := errors.AsType[*daemonUnanswered](err); ok {
+			var refusal textbuf.Buffer
+			writeText(stderr, refusal.Str("error: ").Err(unansweredRefusal("ze data rm", busy, unanswered)).Byte('\n').String())
+			if removed == 0 {
+				return 2
+			}
+			break
+		}
+		if err != nil {
+			var refusal textbuf.Buffer
+			writeText(stderr, refusal.Str("error: ").Err(err).Byte('\n').String())
+			continue
+		}
+		if answer.Key != key {
+			var problem, fix, refusal textbuf.Buffer
+			problem.Str("ze data rm: the daemon answered the removal of ").Str(strconv.Quote(answer.Key)).
+				Str(", not of ").Str(key)
+			fix.Str("ze data cat ").Str(configtext.QuoteCommandWord(key))
+			mismatch := opererr.New(problem.String(), "whether "+key+" was removed is not known, so it is not counted", fix.String())
+			writeText(stderr, refusal.Str("error: ").Err(mismatch).Byte('\n').String())
+			continue
+		}
+		writeRemoved(stdout, key)
+		removed++
+	}
+	return removedSummary(stdout, storePath, removed)
+}
+
+// keyAnswer is the answer of a daemon key command: the key it acted on.
+type keyAnswer struct {
+	Key string `json:"key"`
+}
+
+// writeRemoved prints the line each removed key gets, on both routes.
+func writeRemoved(stdout io.Writer, key string) {
+	var line textbuf.Buffer
+	writeText(stdout, line.Str("removed ").Str(key).Byte('\n').String())
+}
+
+// removedSummary prints the count line both routes end with and answers the
+// exit code: 0 when at least one key was removed, 2 when none was.
+func removedSummary(stdout io.Writer, storePath string, removed int) int {
+	var line textbuf.Buffer
+	writeText(stdout, line.Int(int64(removed)).Str(" entries removed from ").Str(storePath).Byte('\n').String())
 	if removed == 0 {
 		return 2
 	}
 	return 0
+}
+
+// writeText writes one piece of command output. A failed write to the
+// operator's terminal has nowhere left to be reported.
+func writeText(w io.Writer, text string) {
+	io.WriteString(w, text) //nolint:errcheck // command output; see the comment above
 }
 
 func cmdList(storePath string, args []string) int {
@@ -325,7 +411,7 @@ func usage() {
 				{Name: "restore <file> full", Desc: "Replace the whole tree with the artifact's keys, keeping the previous tree as database.replaced-<stamp>; offline only"},
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
 				{Name: "import <file>...", Desc: "Import files into the store"},
-				{Name: "rm <key>...", Desc: "Remove entries from the store"},
+				{Name: "rm <key>...", Desc: "Remove entries from the store; while ze runs, through the daemon, which removes runtime-state keys only"},
 				{Name: "list [prefix]", Desc: "List all matching keys recursively"},
 				{Name: "cat <key>", Desc: "Print entry content to stdout"},
 				{Name: "registered", Desc: "List all registered key patterns"},

@@ -1,0 +1,159 @@
+# Test: a FlowSpec record left in the store after the `ddos flowspec` section
+# was removed is reported by `ze doctor` on a running box, and the two steps
+# the report names, run while ze runs, clear it.
+#
+# QUESTION: with the daemon running, `ddos flowspec` absent from the saved
+#           configuration, and a record under meta/ddos-flowspec/announcement,
+#           does `ze doctor` (answered by the daemon) report
+#           doctor-ddos-flowspec-orphan-announcement and name the removal
+#           `ze data rm meta/ddos-flowspec/announcement`, does the withdrawal it
+#           prints as its fix run, does that removal succeed while the daemon
+#           owns the store, and does the next `ze doctor` report no such
+#           finding? A unit test cannot decide it: the report comes from the
+#           daemon's doctor over the store it owns, the removal crosses the
+#           owner lock through the daemon (`delete data key`), and only the
+#           next doctor run on the same store shows the record gone.
+#
+# VALIDATES: AC-1 (moved from AC-16 of
+#            spec-single-owner-lifecycle-5-session-end-locals), user story 1.
+# PREVENTS:  a warning an operator can clear only by stopping the daemon.
+#
+# HOW THE DAEMON REACHES THE STATE:
+#   1. A first daemon run creates the live store, and is stopped.
+#   2. `ze data write` stores the record (the format encodeAnnouncementRecord
+#      writes), while ze is stopped: the only time the offline writer may open
+#      the store.
+#   3. `ze config import` stores running.conf, which has no `ddos flowspec`, as
+#      the store's active configuration: doctor judges the saved configuration
+#      (checkOrphanRecord), never the file `ze start` was given.
+#   4. The daemon starts. No ddos-flowspec plugin runs, so nothing withdraws
+#      the rule or removes the record, and the running-owner guard of
+#      `delete data key` does not refuse.
+#   5. clear-orphan.sh takes the report from `ze doctor`, runs the withdrawal
+#      its fix line prints, runs the removal the report names, and runs
+#      `ze doctor` again.
+#
+# THE PEER: the withdrawal answers route.ErrNoPeersMatch on a daemon with no
+# BGP peer at all (spec A-3), so one peer with ipv4/flow is configured. Nothing
+# listens at its address and it never comes up; the withdrawal is what the
+# operator runs, and this test does not assert its wire effect.
+#
+# RED: with `ze data rm` refused beside the daemon (the busy-store route in
+#   internal/component/config/storage/cli/main.go removeKeysThroughDaemon
+#   absent), clear-orphan.sh exits 1 at REMOVE-FAILED.
+#
+# Run: ./le test bgp plugin --draft --pattern ddos-flowspec-removed-section-orphan-cleared
+option=storage:value=disk
+option=timeout:value=90s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.host:value=127.0.0.1
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=record.json:terminator=EOF_RECORD
+{"victim":"203.0.113.9/32"}
+EOF_RECORD
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				port $PORT
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=clear-orphan.sh:terminator=EOF_SCRIPT
+#!/bin/sh
+set -eu
+code=doctor-ddos-flowspec-orphan-announcement
+removal='ze data rm meta/ddos-flowspec/announcement'
+# ze doctor exits 1 while it reports a warning; its text is what is judged.
+report=$(ze doctor 2>&1 || true)
+if printf '%s\n' "$report" | grep -qF doctor-runtime-not-checked; then
+	echo "NO-DAEMON: ze doctor was not answered by the daemon" >&2
+	printf '%s\n' "$report" >&2
+	exit 1
+fi
+if ! printf '%s\n' "$report" | grep -qF "[$code]"; then
+	echo "REPORT-MISSING: ze doctor did not report $code" >&2
+	printf '%s\n' "$report" >&2
+	exit 1
+fi
+if ! printf '%s\n' "$report" | grep -qF "$removal"; then
+	echo "REMOVAL-UNNAMED: the report does not name $removal" >&2
+	printf '%s\n' "$report" >&2
+	exit 1
+fi
+fix=$(printf '%s\n' "$report" | sed -n 's/^[[:space:]]*fix: //p' | grep -F 'send bgp' | head -n 1)
+if [ -z "$fix" ]; then
+	echo "FIX-MISSING: ze doctor printed no withdrawal fix" >&2
+	printf '%s\n' "$report" >&2
+	exit 1
+fi
+echo "FIX-RUN: $fix" >&2
+eval "$fix"
+if ! $removal; then
+	echo "REMOVE-FAILED: $removal was refused while the daemon runs" >&2
+	exit 1
+fi
+after=$(ze doctor 2>&1 || true)
+if printf '%s\n' "$after" | grep -qF doctor-runtime-not-checked; then
+	echo "NO-DAEMON: the second ze doctor was not answered by the daemon" >&2
+	printf '%s\n' "$after" >&2
+	exit 1
+fi
+if printf '%s\n' "$after" | grep -qF "[$code]"; then
+	echo "REPORT-STANDS: ze doctor still reports $code after the removal" >&2
+	printf '%s\n' "$after" >&2
+	exit 1
+fi
+echo "CLEARED: $code"
+EOF_SCRIPT
+
+cmd=background:seq=1:exec=ze start running.conf:name=first:ready=Ze running.
+cmd=stop:seq=2:name=first:signal=term
+cmd=foreground:seq=3:exec=ze data write meta/ddos-flowspec/announcement record.json:exit=0
+cmd=foreground:seq=4:exec=ze config import --yes --name ze.conf running.conf:exit=0
+cmd=background:seq=5:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=6:exec=sh clear-orphan.sh:exit=0
+expect=stdout:contains=CLEARED: doctor-ddos-flowspec-orphan-announcement
+expect=stdout:contains=removed meta/ddos-flowspec/announcement
+expect=stdout:contains=1 entries removed from
+cmd=stop:seq=7:name=daemon:signal=term
