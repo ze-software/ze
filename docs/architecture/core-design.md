@@ -2710,14 +2710,15 @@ and before the one `BestChange` emission that every FIB writer subscribes to.
 The suppression therefore exists once, and each writer reads the same filtered
 stream with no code of its own.
 
-`publishChanges` does not hold the gate: it emits what it is handed. The
-producers do. `recomputeForwarding` sends a withheld winner to
-`recordWithheldWinner`, which programs nothing and withdraws what the previous
-winner had. `cascadeRecompute` declines to re-resolve a withheld prefix.
-`replayBest` replays only the prefixes ze has an install outstanding for. The
-permission sweep is the fourth producer of a batch: `applyFIBImport` withdraws
-each prefix the new set withholds, `fibStateChange` answers for the rest, and
-`publishFIBImport` emits what they decide. All four take WHAT to program from
+The routing-view worker's `publish` does not hold the gate: it orders and
+emits what it is handed. The producers do. `recomputeForwarding` sends a
+withheld winner to `recordWithheldWinner`, which programs nothing and withdraws
+what the previous winner had. `cascadeRecompute` declines to re-resolve a
+withheld prefix. `replayChanges` replays only the prefixes ze has an install
+outstanding for. The permission sweep is the fourth producer of a batch:
+`applyFIBImport` withdraws each prefix the new set withholds, `fibStateChange`
+answers for the rest, and the worker's `configure` publishes what they decide.
+All four take WHAT to program from
 `fibEntry` and choose only the ACTION, so what the FIB is told about one prefix
 cannot depend on which of them spoke. A FIB
 plugin that reconnects and asks for the table is handed no withheld prefix, and
@@ -2817,7 +2818,9 @@ over every registered protocol, and it is a different table from the
 resolved-next-hop one above.
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
 <!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibPermitted -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeForwarding, cascadeRecompute, fibEntry, fibInstall, installedPath, replayBest -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeForwarding, cascadeRecompute, fibEntry, fibInstall, installedPath, replayChanges -->
+<!-- source: internal/component/sysrib/route_view_worker_operations.go -- configure, flush -->
+<!-- source: internal/component/sysrib/route_view_worker_output.go -- publish -->
 <!-- source: internal/component/sysrib/ecmp.go -- forwardingPath, ecmpCollect, ecmpRIBGroup -->
 
 After distance selection, the system RIB performs two additional phases:
