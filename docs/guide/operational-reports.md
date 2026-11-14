@@ -213,7 +213,7 @@ debug level.
 | `detail` keys | 16 entries (no per-value length check; pass only primitive types) |
 | `fix` | 256 |
 
-<!-- source: internal/core/report/report.go -- validFields, maxSourceLen, maxCodeLen, maxSubjectLen, maxMessageLen, maxDetailKeys, maxFixLen -->
+<!-- source: internal/core/report/report.go -- validFields, SourceMax, CodeMax, SubjectMax, MessageMax, maxDetailKeys, FixMax -->
 
 ## See also
 

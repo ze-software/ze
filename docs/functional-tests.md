@@ -1331,7 +1331,7 @@ second fallback for a standalone fixture; earlier caller and cleanup deadlines
 still win. The child owner joins cleanup and limits each mutation-command stream
 to 8192 bytes. Kernel inspection commands
 retain their complete table output and remain independent assertions.
-<!-- source: internal/test/fixture/rib_import_command_fixture.go -- importCommandOutput, importCommandCapture -->
+<!-- source: internal/test/fixture/rib_import_command_fixture.go -- importCommandOutputLimit, importCommandCapture -->
 <!-- source: internal/test/fixture/rib_import_command_linux.go -- importCommandAttributes -->
 <!-- test: internal/test/fixture/rib_import_command_linux_test.go -- TestImportCommandRetainsOnlyNetworkAdministration -->
 <!-- test: internal/test/runner/server_process_attributes_linux_test.go -- TestServerProcessPreservesCallerCredential -->
