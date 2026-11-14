@@ -702,7 +702,9 @@ func (f *fibKernel) startupSweep() map[string]string {
 // sysrib refreshed a route only in the table its current change names, so a
 // route Ze installed this run keeps that table and a previous run's route in
 // any other table is still stale. A prefix startup never listed is removed
-// from main, the table sweepStale's caller knew it from. Caller MUST hold f.mu.
+// from main, the table sweepStale's caller knew it from. A table whose delete
+// the kernel refused stays recorded for the prefix: the route is still Ze's to
+// remove, and flushRoutes tries it again at stop. Caller MUST hold f.mu.
 func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, error) {
 	tables, listed := f.staleTables[prefix]
 	delete(f.staleTables, prefix)
@@ -713,15 +715,20 @@ func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, 
 	current := f.forwarding[prefix]
 	swept := 0
 	var errs error
+	var refused []uint32
 	for _, table := range tables {
 		if installed && table == current.TableID {
 			continue
 		}
 		if err := f.delListedLocked(prefix, table, rb); err != nil {
 			errs = errors.Join(errs, err)
+			refused = append(refused, table)
 			continue
 		}
 		swept++
+	}
+	if len(refused) > 0 {
+		f.staleTables[prefix] = refused
 	}
 	return swept, errs
 }
@@ -780,11 +787,17 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 		if _, refreshed := f.installed[prefix]; refreshed {
 			continue // Route was refreshed by sysrib.
 		}
-		// Ensure installed map stays consistent -- stale route is gone from kernel.
+		// No protocol refreshed the prefix, so Ze holds no forwarding state
+		// for it. A route the kernel refused to delete is still there: it
+		// stays retained, so the stop flush owns it and tries again.
 		delete(f.installed, prefix)
 		delete(f.forwarding, prefix)
-		delete(f.retained, prefix)
 		delete(f.backups, prefix)
+		if err != nil {
+			f.retained[prefix] = true
+			continue
+		}
+		delete(f.retained, prefix)
 	}
 	f.reportBackupsLocked()
 

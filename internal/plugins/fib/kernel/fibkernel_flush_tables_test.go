@@ -188,3 +188,77 @@ func TestFIBKernelSweepNamesTheLowestFailure(t *testing.T) {
 		t.Errorf("first failure = %v, want the lowest prefix 198.18.110.0/24", issues[0].Detail["first-failure"])
 	}
 }
+
+// Goal: a stale route the startup sweep could not delete is still Ze's to
+// remove, so the stop flush tries it again and reports it when the kernel
+// still refuses. Method: a backend that refuses every delete, one stale
+// prefix no protocol refreshed, sweepStale, then flushRoutes: the delete is
+// attempted a second time and the flush raises one error counting it.
+func TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &failingDeleteBackend{mockBackend: newMockBackend()}
+	fib := newFIBKernel(backend)
+	const prefix = "198.18.130.0/24"
+
+	fib.sweepStale(map[string]string{prefix: ""})
+	if backend.attempts != 1 {
+		t.Fatalf("the sweep attempted %d deletes, want one", backend.attempts)
+	}
+
+	fib.flushRoutes()
+
+	if backend.attempts != 2 {
+		t.Fatalf("after a failed sweep the flush attempted %d deletes in all, want the stale route tried again", backend.attempts)
+	}
+	issues := flushIssues()
+	if len(issues) != 1 {
+		t.Fatalf("the flush raised %d flush errors, want one for the route still in the kernel: %+v", len(issues), issues)
+	}
+	if issues[0].Detail["failed"] != 1 || issues[0].Detail["first-failure"] != prefix {
+		t.Errorf("flush detail = %+v, want one failed delete naming %s", issues[0].Detail, prefix)
+	}
+}
+
+// refusingRichBackend is a rich backend that records every rich delete and
+// refuses it. Its constructor supplies the plain backend; its zero value is
+// invalid.
+type refusingRichBackend struct {
+	*mockBackend
+	deletes []installedRoute
+}
+
+func (backend *refusingRichBackend) addRichRoute(RichRoute) error     { return nil }
+func (backend *refusingRichBackend) replaceRichRoute(RichRoute) error { return nil }
+
+func (backend *refusingRichBackend) delRichRoute(prefix netip.Prefix, tableID uint32) error {
+	backend.deletes = append(backend.deletes, installedRoute{prefix: prefix.String(), table: tableID})
+	return errors.New("operation not permitted")
+}
+
+// Goal: a stale route in a named table that the sweep could not delete is
+// retried by the stop flush in that same table. Method: a rich backend that
+// refuses every delete and lists one Ze route in table 100, startupSweep,
+// sweepStale, then flushRoutes: both delete attempts name table 100, and no
+// plain main-table delete is made.
+func TestFIBKernelFlushRetriesTheSweepsRefusedTable(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &refusingRichBackend{mockBackend: newMockBackend()}
+	const prefix = "198.18.131.0/24"
+	backend.zeRoutes = []installedRoute{{prefix: prefix, table: 100}}
+	fib := newFIBKernel(backend)
+
+	fib.sweepStale(fib.startupSweep())
+	fib.flushRoutes()
+
+	want := []installedRoute{{prefix: prefix, table: 100}, {prefix: prefix, table: 100}}
+	if len(backend.deletes) != len(want) || backend.deletes[0] != want[0] || backend.deletes[1] != want[1] {
+		t.Fatalf("rich deletes = %+v, want the sweep's attempt and the flush's retry, both in table 100", backend.deletes)
+	}
+	if len(backend.deleted) != 0 {
+		t.Errorf("the flush made plain main-table deletes %v for a route listed in table 100", backend.deleted)
+	}
+}

@@ -2187,20 +2187,21 @@ Every close of a session connection runs one routine, `closeConnWithin`, and no 
 | Step | What the routine does |
 |------|-----------------------|
 | 1 | Stops the Send Hold Timer |
-| 2 | Reads the connection under `s.mu` and releases `s.mu`. No connection is nothing to do. One another close already claimed is nothing to close or report: this close waits for the claimant to finish, at most 1.2 seconds (the claimant's flush and drain, plus slack), and clears the fields if the claimant could not. It waits on the claim, never on the write path: two closes that both probed the path could each find it taken by the other's probe and both leave the fields set. The close is idempotent per connection, and a close that returned means the connection is no longer installed, except behind a writer that waits on a plugin (step 5). It never seals the session, because an unsealed `Session` takes a second connection |
+| 2 | Reads the connection under `s.mu` and releases `s.mu`. No connection is nothing to do. One another close already claimed is nothing to close or report: this close waits for the claimant to finish, at most 2.2 seconds (the claimant's one-second flush, its 100ms drain and its one-second wait to clear the fields, plus 100ms of slack), and clears the fields if the claimant could not. A close that leaves here, or at the lost claim of step 4, holding the mark of a NOTIFICATION that found the path held, logs that no NOTIFICATION was sent when no close of the session reported a held path: the claimant did not hold the mark. It waits on the claim, never on the write path: two closes that both probed the path could each find it taken by the other's probe and both leave the fields set. The close is idempotent per connection, and a close that returned means the connection is no longer installed, except behind a writer that waits on a plugin (step 5). It never seals the session, because an unsealed `Session` takes a second connection |
 | 3 | Waits for the write path with no session lock held: one second when a hold timer or a Send Hold Timer expiry ended the session and for the read task's panic guard, the control budget for every other close. It does not wait at all when the NOTIFICATION sent just before already found the path held, so a caller that holds `openMu` waits once behind a writer that was already stuck when the NOTIFICATION asked for the path |
-| 4, path free | Claims the socket, then flushes what `bufio.Writer` holds with a one-second budget -> `CloseWrite` (FIN) -> drains unread data (100ms deadline) -> `Close`. The peer reads a NOTIFICATION that was written |
+| 4, path free | Claims the socket under the path, so that the other closes are let go on every way out, a panic in the flush included, then flushes what `bufio.Writer` holds with a one-second budget -> `CloseWrite` (FIN) -> drains unread data (100ms deadline) -> `Close`. The peer reads a NOTIFICATION that was written |
 | 4, path held | Claims the socket, logs at ERROR and raises the event `doctor-bgp-write-path-held`, expires the socket's write deadline, which fails a write blocked in the kernel, and closes the socket (`dropConn`). Nothing is flushed. When a NOTIFICATION was due, none was sent, and the line says so |
-| 4, claim taken | Another close of the same connection claimed the socket while this one waited: it dropped it, or it holds the path for its own flush and drain. This close reports nothing and closes nothing, and leaves as in step 2, so one connection gives one ERROR line and one event however many closes meet the held path, and a close in its final flush is never reported as a stuck writer |
+| 4, claim taken | Another close of the same connection claimed the socket while this one waited: it dropped it, or it holds the path for its own flush and drain. This close closes nothing and reports no held path, and leaves as in step 2, so one connection gives one ERROR line and one event however many closes meet the held path, and a close in its final flush is never reported as a stuck writer |
 | 5 | Clears the connection fields in the lock order `s.mu` then the write path, taking the path under `s.mu` only when it is free. When it is held, the routine waits one second for it with no lock held and tries once more: a writer blocked on the closed socket has failed by then. A writer that waits on a plugin outlasts it, and the fields then stay set, naming a closed socket |
-<!-- source: internal/component/bgp/reactor/session_connection.go -- closeConnWithin, closeWait, closeFlushed, dropConn, clearClosedConn, clearClosedConnWithin, awaitClaimedClose, closeClaimWait, claimSocket, claimSocketForDrop, reportWritePathHeld -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- closeConnWithin, closeWait, closeFlushed, dropConn, clearClosedConn, clearClosedConnWithin, awaitClaimedClose, closeClaimWait, claimSocket, claimSocketWithPath, claimSocketForDrop, reportWritePathHeld, reportUnsentNotification -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendNotificationWithin, tryNotificationWithin -->
 <!-- test: internal/component/bgp/reactor/session_close_test.go TestSecondCloseWaitsForTheClaimant -->
+<!-- test: internal/component/bgp/reactor/session_close_test.go TestBusyNotificationBehindAnotherCloseIsLoggedOnce -->
 <!-- test: internal/component/bgp/reactor/session_close_test.go TestTwoClosesBehindHeldPathReportOnce -->
 <!-- test: internal/component/bgp/reactor/session_close_test.go TestCloseBehindAGracefulCloseReportsNothing -->
 <!-- test: internal/component/bgp/reactor/session_close_test.go TestCloseFlushIsBounded -->
 
-A NOTIFICATION that found the write path held is logged once, by the close that follows it: the sender logs nothing for a busy path, and the close's ERROR line is the record that the peer was not told.
+A NOTIFICATION that found the write path held is logged once, by the close that follows it: the sender logs nothing for a busy path, and the close's ERROR line is the record that the peer was not told. That close writes the line whether it closes the socket itself or finds that another close of the connection has it.
 <!-- source: internal/component/bgp/reactor/session.go -- logNotifyOutcome -->
 <!-- test: internal/component/bgp/reactor/session_close_test.go TestBusyNotificationIsLoggedOnceByTheClose -->
 
@@ -3065,7 +3066,9 @@ only the route sysrib refreshed in the table its change names, so a previous
 run's route for the same prefix in another table is still removed. A stale
 route the kernel refuses to delete is not counted as removed: the sweep raises
 one `doctor-fib-sweep-incomplete` error that counts the prefixes left and names
-the lowest of them with the kernel's error. A startup listing that fails marks
+the lowest of them with the kernel's error. The route stays one of Ze's own:
+the stop flush tries its delete again and counts it if it is still there. A
+startup listing that fails marks
 nothing stale, so nothing is swept: startup raises the same error with the
 listing's error, and the same WARN line, rather than leaving the stale routes
 unreported.
@@ -3073,6 +3076,7 @@ unreported.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- startupSweep, sweepStale, sweepPrefixLocked, delListedLocked -->
 <!-- test: internal/plugins/fib/kernel/named_table_integration_linux_test.go -- TestKernelStartupSweepRemovesNamedTableRoute, TestKernelFlushReportsNamedTableResidue -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelSweepReportsRefusedDelete -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelStartupReportsUnlistedKernel, TestFIBKernelSweepNamesTheLowestFailure, TestFIBKernelFlushDeletesEachListedTableOnce, TestFIBKernelFlushReportsPlainBackendNamedTable -->
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
