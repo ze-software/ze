@@ -618,6 +618,17 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   it is, report it, and run again in the main checkout once the cause is gone.
   Comparing before and after the change, in the main checkout, shows which
   side a red is on.
+- When development uses more than one machine, to spread load or to reach
+  another architecture, the checkouts are kept in step with git commands and
+  nothing else. A change is made in one checkout, committed, pushed on
+  Thomas's order, and pulled on every other machine. An agent never edits,
+  copies or patches a file in another machine's checkout over SSH, tracked or
+  untracked: that machine runs tests, labs and builds of what git delivered,
+  and anything a run writes goes to scratch outside the tracked tree. An agent
+  may update another machine's checkout with `git pull --rebase
+  --no-autostash` when its tree is clean; when the tree is dirty the agent
+  stops and reports what it found, and never stashes, discards or overwrites
+  to get past it.
 - `sudo` is allowed only for the stress harness (`./le test integration
   stress`): one root run at a time, alone on the host, removing what it
   created, and leaving anything in a shared location usable by the owner's
