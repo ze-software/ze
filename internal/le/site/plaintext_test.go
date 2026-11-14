@@ -282,3 +282,37 @@ func TestHistoryMarkedFigureIsNotPlain(t *testing.T) {
 		t.Errorf("without the marker the check found\n%v\nwant\n%v", check.Figures, want)
 	}
 }
+
+// A key that ends in an index names no unit word, so the guard never matches
+// its value beside the index. The health section keys every figure of a
+// composed sentence by its position (health.<metric>.detail.<n>), and the
+// proof-density detail states the years its definition changed: matched
+// against "15", the year was refused on every page whose footer was stamped
+// "Published 27 October 2026 15:52 UTC".
+//
+// The method publishes a snapshot holding two indexed year figures and one
+// unit-worded control, lays down a page whose footers carry those stamps and
+// whose prose shows the control beside its unit word, and asks the check: only
+// the control is refused, so the pass is the index rule's doing and the guard
+// still refuses a real plain figure on the same page.
+func TestAnIndexedFigureIsNotMatchedBesideItsIndex(t *testing.T) {
+	const page = "code-of-conduct/index.html"
+	output := t.TempDir()
+	writeArtifactFile(t, output, factsFile, `{
+  "cli_commands": 490,
+  "health": {"rfc-proof-density": {"detail": {"12": "2026", "15": "2026", "2": "4752"}}}
+}`)
+	writeArtifactFile(t, output, page, `<!doctype html><html><body><main>
+<p>Ze answers 490 commands, and 4752 2 rows.</p>
+<footer><span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+<span class="footer-published">Published 30 October 2026 12:24 UTC</span></footer>
+</main></body></html>`)
+	check, err := checkPlainFigures(ratchetSource(t, noRatchetedPages), output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []plainFigure{{Page: page, Figure: "490", Key: "cli_commands"}}
+	if !slices.Equal(check.Figures, want) {
+		t.Errorf("the check found\n%v\nwant\n%v", check.Figures, want)
+	}
+}

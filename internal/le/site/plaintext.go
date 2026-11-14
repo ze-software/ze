@@ -37,7 +37,8 @@ type plainFigure struct {
 // it stands. A figure with a Unit is a whole number of 100 or more, which is a
 // published value only beside its unit word: smaller numbers and bare numbers
 // are too common in prose (years, section numbers, counts of other things) to
-// match without refusing pages that are right.
+// match without refusing pages that are right. A key whose last word holds no
+// letter (an index) has no unit word, so its whole number is not guarded here.
 type publishedFigure struct {
 	Key  string
 	Text string
@@ -58,7 +59,8 @@ var displayFigurePattern = regexp.MustCompile(`^(?:\d{1,3}(?:,\d{3})+\+?|\d+\+)$
 // The figures derive from the snapshot's own keys, so a value a later section
 // adds is guarded with no edit here. A key's unit word is the last word of its
 // own name, with the _display suffix dropped: cli_commands is "commands",
-// tests.unit_display is "unit".
+// tests.unit_display is "unit". A last word with no letter is an index, not a
+// unit, and its key is skipped unless its value is a display string.
 func publishedFigures(snapshot siteFactSnapshot) []publishedFigure {
 	var figures []publishedFigure
 	for _, key := range snapshot.keys() {
@@ -78,6 +80,15 @@ func publishedFigures(snapshot siteFactSnapshot) []publishedFigure {
 			continue
 		}
 		unit := factUnit(key)
+		// A key that ends in an index (health.<metric>.detail.15, the 15th
+		// figure of a sentence) names no unit word, so no text can show it
+		// beside one: matched against the index, the year of a date in that
+		// sentence was refused beside every footer stamped at 15:xx. Those
+		// figures are policed on their own page by
+		// TestEveryHealthFigureIsAMarkedSnapshotValue.
+		if !strings.ContainsFunc(unit, unicode.IsLetter) {
+			continue
+		}
 		figures = append(figures, publishedFigure{Key: key, Text: value, Unit: unit})
 		if grouped := groupThousands(number); grouped != value {
 			figures = append(figures, publishedFigure{Key: key, Text: grouped, Unit: unit})

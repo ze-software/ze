@@ -181,9 +181,9 @@ of `website/data/`, and `namedArtifacts` lists it, so an artifact without it fai
 | The one helper | `markedFact` writes the marked element; a hand-written source names a value with a `{{ze:<dotted.key>}}` token, resolved by `substitute` (Markdown) and `substituteHTML` (HTML) |
 | The key set | the snapshot's own dotted JSON keys, walked from the published file (`siteFactSnapshot.keys`), so a map-typed section's keys count too and no name table exists |
 | A hand-marked element | a hand-written HTML source may carry `data-ze-stat="<key>"` around fallback text. The build writes the snapshot's value into it when the key holds one, and leaves the fallback while the key's section is `null` (`markedValue`), which is what `site.js` does in the browser. A key neither the snapshot nor the `siteFacts` model names is refused by name, and so is markup or a `{{ze:}}` token inside the element, whether or not the key's section holds a value yet (`readMarkedText`) |
-| The guard | `./le site check` reports `plain-figures`: each display string (a thousands separator or a "+") and each whole number of 100 or more beside its unit word that a page shows outside a marker (`checkPlainFigures`) |
+| The guard | `./le site check` reports `plain-figures`: each display string (a thousands separator or a "+") and each whole number of 100 or more beside its unit word that a page shows outside a marker (`checkPlainFigures`). The unit word is the last word of the key's name (`factUnit`); a key whose last word holds no letter, such as `health.<metric>.detail.15`, ends in an index rather than a unit, so its whole number is not matched (`publishedFigures`) |
 | The RFC ratchet | `website/data/plain-figure-ratchet.json`, committed and never deployed, lists the RFC pages (under `quality/rfc-compliance/`) whose figures are still server-written, each with its reason. A listed page's plain figures are not refused; a listed page that shows none is reported under `stale-ratchet` and fails the check, so the list only shrinks. The check never writes it, and refuses by name a missing file, an unknown field, a page outside the RFC section, an unclean path, a page listed twice and a page with no reason (`loadPlainFigureRatchet`). An RFC page not listed is judged like any other. `spec-rfc-figures-sectioned-presentation`'s website phase emptied it: no RFC page is listed, so every RFC page is judged like any other |
-<!-- source: internal/le/site/plaintext.go -- checkPlainFigures, publishedFigures, plainFigures, loadPlainFigureRatchet -->
+<!-- source: internal/le/site/plaintext.go -- checkPlainFigures, publishedFigures, factUnit, plainFigures, loadPlainFigureRatchet -->
 <!-- source: internal/le/site/factfallback.go -- markedValue, modelNamesFactKey, readMarkedText -->
 
 A producer that writes a value itself, rather than through a token, reads it
@@ -222,10 +222,13 @@ refuses it by name, as it refuses two groups whose slugs collide.
 The health sections carry each figure as the string the page prints, because
 the record spells a score as `0.0` and a number would publish it as `0`. They
 carry no label, prose or row name, only figures, so the snapshot grows by about
-4 KB over this tree's record. A string that is not a display string is not
-matched by the plain-text guard, so the health figures are policed by
-`TestEveryHealthFigureIsAMarkedSnapshotValue`, which requires no number left
-on the page outside a marker. The Markdown mirror stays the generator's own
+4 KB over this tree's record. A health figure's key ends in its position in
+the sentence, which names no unit word, so the plain-text guard matches none
+of them: a figure is not a display string, and a year a sentence states (the
+proof-density detail names the dates its definition changed) would otherwise
+be matched beside any page's "2026 15:52" publication stamp. The health
+figures are policed instead by `TestEveryHealthFigureIsAMarkedSnapshotValue`,
+which requires no number left on the page outside a marker. The Markdown mirror stays the generator's own
 `docs/features/test-health.md` (`renderHealth`), so it states the same reading
 in the generator's words.
 

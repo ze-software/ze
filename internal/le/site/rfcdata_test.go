@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -356,6 +357,138 @@ func TestDataIndexAndFilesAgree(t *testing.T) {
 	}
 	if !slices.Equal(got.Unmet, []string{"RFC9999-2-1"}) {
 		t.Fatalf("the gap row is not disclosed: %+v", got.Unmet)
+	}
+}
+
+// TestNoPublishedRFCDataNamesAnIntent proves AC-7 and R-7 over every file the
+// RFC data step and the requirement ledger publish, not over a list of known
+// files: no JSON key and no string value is one of the three intent states,
+// no key names an intent, and no string carries the marker or the not-ever
+// reason, so a type that later embeds a row's intent cannot leak it unseen.
+//
+// Method: the walked one-RFC fixture of TestDataIndexAndFilesAgree, plus two
+// open SHOULD rows marked {intent: not-yet} and {intent: not-ever; ...}. The
+// model's private NotYet and NotEver counts are checked first, so the guard is
+// proven to have had something to leak. publishRFCData and publishRFCLedger
+// then write the artifact, every file under data/rfc/ and
+// data/rfc-requirements.json is decoded and walked key by key, and each of the
+// four kinds of file must have been read, so an empty artifact cannot pass.
+func TestNoPublishedRFCDataNamesAnIntent(t *testing.T) {
+	const notEverReason = "Ze keeps no discard counter"
+	root, summary, marker := partialPublicationTree(t)
+	summary = strings.ReplaceAll(summary, marker, "{gap: native sending absent}") +
+		"- [ ] [RFC9999-2-2] [SHOULD] A speaker SHOULD log every widget it discards. (§2) {intent: not-yet}\n" +
+		"- [ ] [RFC9999-2-3] [SHOULD] A speaker SHOULD count every widget it discards. (§2) " +
+		`{intent: not-ever; "A speaker SHOULD count every widget it discards."; ` + notEverReason + "}\n"
+	writePartialPublicationFile(t, root, "rfc/short/rfc9999.md", summary)
+	writePartialPublicationFile(t, root, "rfc/full/rfc9999.txt", "Test RFC 9999\n\n2.  Widgets\n\n"+
+		"A widget MUST be zero when sent and ignored on receipt.\n"+
+		"A speaker SHOULD log every widget it discards.\nA speaker SHOULD count every widget it discards.\n")
+	if err := rfc.FixtureProof(root, rfc.FixtureStem, map[string]string{"2:1": "RFC9999-2-1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	collected, err := rfc.Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err := rfc.NewRenderInput(root, collected, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	figures, err := rfc.StemFiguresOf(&input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := figures[rfc.FixtureStem]
+	if !model.Walked {
+		t.Fatal("the signed-off stem is not walked, so its counts would not be published")
+	}
+	if model.NotYet != 1 || model.NotEver != 1 {
+		t.Fatalf("the intent rows did not reach the figures (not yet %d, not ever %d, want 1 and 1), "+
+			"so the guard below would have nothing to leak", model.NotYet, model.NotEver)
+	}
+
+	output := t.TempDir()
+	paths := Paths{Repository: root, Output: output}
+	if err := publishRFCData(paths); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishRFCLedger(paths); err != nil {
+		t.Fatal(err)
+	}
+	published := []string{rfcLedgerFile}
+	err = filepath.WalkDir(filepath.Join(output, filepath.FromSlash(rfcDataDir)), func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(output, path)
+		if err != nil {
+			return err
+		}
+		published = append(published, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]int{}
+	for _, rel := range published {
+		switch {
+		case rel == rfcLedgerFile:
+			kinds["ledger"]++
+		case rel == rfcDataIndexFile:
+			kinds["index"]++
+		case strings.HasPrefix(rel, rfcDataProfilesDir+"/"):
+			kinds["profile"]++
+		default:
+			kinds["stem"]++
+		}
+		body, err := os.ReadFile(filepath.Join(output, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var value any
+		if err := json.Unmarshal(body, &value); err != nil {
+			t.Fatalf("%s: %v", rel, err)
+		}
+		var hits []string
+		publishedIntentHits(value, "$", notEverReason, &hits)
+		for _, hit := range hits {
+			t.Errorf("%s publishes the private intent at %s", rel, hit)
+		}
+	}
+	for _, kind := range []string{"index", "stem", "profile", "ledger"} {
+		if kinds[kind] == 0 {
+			t.Errorf("no %s file was published, so the guard read none: %v", kind, published)
+		}
+	}
+}
+
+// publishedIntentHits appends, by JSON path, every key and string value of
+// value that names an intent: a key or value that is exactly one of the three
+// intent states, a key containing "intent", and a string carrying the marker
+// or the fixture's not-ever reason. Numbers, booleans and nulls name nothing.
+// The recursion is bounded by the nesting of a file this package marshals.
+func publishedIntentHits(value any, path, reason string, hits *[]string) {
+	states := []string{"not-ever", "not-yet", "not-decided"}
+	switch node := value.(type) {
+	case map[string]any:
+		for key, child := range node {
+			at := path + "." + key
+			if slices.Contains(states, key) || strings.Contains(strings.ToLower(key), "intent") {
+				*hits = append(*hits, at+" (key)")
+			}
+			publishedIntentHits(child, at, reason, hits)
+		}
+	case []any:
+		for index, child := range node {
+			publishedIntentHits(child, path+"["+strconv.Itoa(index)+"]", reason, hits)
+		}
+	case string:
+		if slices.Contains(states, node) || strings.Contains(node, "{intent") || strings.Contains(node, reason) {
+			*hits = append(*hits, path+" = "+strconv.Quote(node))
+		}
 	}
 }
 
