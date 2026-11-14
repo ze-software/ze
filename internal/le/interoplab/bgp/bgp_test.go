@@ -506,6 +506,7 @@ func TestBespokeCheckerBranches(t *testing.T) {
 	t.Run(isisExportPolicyScenario, isisExportPolicyCheckerBranches)
 	t.Run(ospfExportPolicyScenario, ospfExportPolicyCheckerBranches)
 	t.Run(peerStopsReadingScenario, peerStopsReadingCheckerBranches)
+	t.Run(manualEORScenario, manualEORCheckerBranches)
 
 	t.Run("bfd-frr", func(t *testing.T) {
 		const established = "BGP state = Established, up for 00:00:05\n  Connections established 1; dropped 0\n"

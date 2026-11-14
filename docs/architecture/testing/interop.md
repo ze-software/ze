@@ -2083,6 +2083,38 @@ function (`session_panic_inject.go`, `!ze_le`).
 <!-- source: internal/le/interoplab/bgp/check_rfc8212_default_reject.go -- checkRFC8212DefaultRejectFRR -->
 <!-- source: internal/component/bgp/reactor/session_panic_inject_le.go -- injectReadPanic -->
 
+`bgp-manual-eor-requested-frr` proves which End-of-RIB markers Ze sends a peer
+configured `behavior { manual-eor true; }`, against FRR 10.7.1. Its external
+process (`le test interop-bgp process bgp-manual-eor-requested-frr
+manual-eor-requester`) acts from inside its handler for the peer-UP event,
+which the engine awaits before it starts the initial sync (`deliverPeerState`,
+`internal/component/bgp/server/events.go`), and answers within 4 s, under the
+engine's 5 s delivery timeout. On the first session it announces
+`10.84.1.0/24` and asks for nothing: FRR must decode the route and, through a
+10 s hold, no End-of-RIB. The checker then runs `clear bgp <ze>`. On the
+second session the process announces `10.84.2.0/24` and asks for the IPv4
+unicast End-of-RIB with the session's queueing gate still closed: in the part
+of FRR's log written after the clear, FRR must decode the route and then
+exactly one End-of-RIB, held for 10 s, and its table must hold the route.
+
+The checker reads FRR's own receive log rather than `show bgp neighbor json`.
+FRR's `bgp_update_receive_eor` (`bgpd/bgp_packet.c` at `frr-10.7.1`) logs
+`rcvd End-of-RIB for IPv4 Unicast from <peer> in vrf default` at
+informational level for every marker, before it tests
+`PEER_STATUS_EOR_RECEIVED`, so a second marker is logged too. `bgp_update`
+logs `<peer> rcvd <prefix>` under `debug bgp updates in`, and the order of the
+lines is the order FRR handled one connection's UPDATEs. The
+`gracefulRestartInfo.endOfRibRecv` flag is one bit, printed only for a peer
+whose Graceful Restart capability FRR received, so it can show neither a
+count nor an order, and the scenario negotiates no Graceful Restart.
+
+It proves two things: an explicit request asked inside the sync is written,
+after the route, and the sync writes no marker on a `manual-eor` peer. It does
+not exercise a route-server replay's marker, because no replaying plugin is
+attached.
+<!-- source: internal/le/interoplab/bgp/check_manual_eor.go -- checkManualEORRequested, runManualEORProcess, requestManualEOR -->
+<!-- source: internal/le/interoplab/bgp/check_manual_eor_predicate.go -- readManualEOR, requireNoManualEORMarker, requireOneManualEORMarkerAfterRoute, requireManualEORRequests -->
+
 A scenario carrying `frr.conf` may also carry its own `daemons` file. That file
 names which FRR daemons run and what each one is started with, so a scenario
 needing a `bgpd` module (`-M bmp` for one that drives Ze's BMP receiver) carries
@@ -4738,6 +4770,7 @@ is not packet-forwarding evidence.
 | 65 | ospf-export-policy-frr | Ze, FRR 10.7.1 | `ospf filter export` decides which AS-External-LSAs Ze originates and what they carry: FRR holds the tagged route's LSA at metric 50, E1, tag 200, the untagged one at metric 20, E2, tag 0, and none for the rejected route ("IGP export-policy scenarios"). Results on 2026-10-31 at 697dc6a618, each image built by the harness: unmodified, pass (`sha256:7459d9f4deca`); `applyExportSets` returning its input, assertion 2 red with "FRR's AS-External-LSA for 10.67.1.0/24 has metric 20, want 50" (`sha256:49ebad4b55cc`); restored, pass (`sha256:8cfc88af0ea1`). The first run found FRR 10.7.1 writing "E2 (Larger than any link state path)" for type 2, which the checker now reads by its first word (697dc6a618) |
 | 67 | bgp-rapid-reconnect-initial-sync-frr | Ze, FRR 10.7.1 | A session's initial sync ends with its session: FRR runs `clear bgp <ze>` three times, each on the first probe (every 100 ms) that shows the next session Established by its `connectionsEstablished` count, so each clear lands inside ze's initial sync. On the fourth session FRR's `show bgp neighbor <ze> json` must count four establishments and three drops, report `gracefulRestartInfo.endOfRibRecv` for `ipv4Unicast` and `ipv6Unicast` and no other family, and, in that same answer, an `acceptedPrefixCounter` equal to the prefixes ze.conf originates in each family (three IPv4, two IPv6). `show bgp <afi> unicast neighbors <ze> routes json` must then hold each of those prefixes with exactly one path from ze and nothing else, and a last read of the neighbor must still pass. ze advertises Graceful Restart because FRR prints End-of-RIB received only for a peer whose Graceful Restart capability it received (`bgp_show_peer_gr_extra_info`), and FRR clears those flags when a session stops (`bgp_stop`), so the flags read belong to the fourth session. Claimed for the positive outcome only (spec R-9). Results, 2026-11-14, QEMU docker-lab on arm64: pass with ze image `sha256:5f80bd3c10b4`. Revert run with the join of the initial sync removed from the `runOnce` session-end defer through a build overlay, ze image `sha256:484c9683e046`: also pass, so the scenario does not discriminate the fix; the unit test `TestPredecessorSyncWritesNothingOnSuccessor` does |
 | 68 | peer-stops-reading-bird | Ze, BIRD 3.4.0 | RFC 4271 Section 8.2.2, Event 10, when the peer has stopped reading and ze still has routes to write to it: the hold timer must drop the TCP connection behind the blocked writer. A frozen BIRD and an idle ze cannot show that, because with nothing to write no writer holds ze's write path and the close succeeds on any build (`bgp-holdtime-deadpeer-frr` is that case). So the checker first requires the session up with two routes held on each side, freezes BIRD's container, and reloads ze with `ze-reload.conf`, which adds 131072 routes to the peer (two /8 split into /24, one UPDATE of 451 octets each, about 56 MiB). The reload delivers them on the running session and is not waited for: it is the writer that blocks. Ze must log `session closed` for BIRD (`Peer.sessionDown`, logged once `Session.Run` has returned) between 5 s and 20.5 s after the freeze. The hold time is 9 s and BIRD's last KEEPALIVE is at most 3 s old at the freeze, so the timer expires 6 s to 9 s after it and the close may take two more; a close that waits for the blocked write instead comes no sooner than the 30 s write budget (`ze.fwd.write.deadline`, which the lab leaves at its default), and 20.5 s is halfway between the two. Two readings then prove the writer was blocked, because without one the timing proves nothing: `/proc/net/tcp` in ze's container showed at least 16 KiB unsent toward BIRD, and ze logged no delivered Hold Timer Expired NOTIFICATION, which it can write only on a free write path. The checker thaws BIRD on every exit path. After the thaw BIRD must log `ze_peer: State changed to up` once more, ze must report the peer Established, BIRD must hold exactly 131074 routes from ze (`show route protocol ze_peer count`), and a last count of both logs must show exactly one session ended and one returned. The scenario's `ze.conf` logs `bgp.reactor.peer` at info for the two lines the checker counts |
+| 69 | bgp-manual-eor-requested-frr | Ze, FRR 10.7.1 | On a `behavior { manual-eor true; }` peer, Ze sends no End-of-RIB nobody asked for, and sends the one a process asks for from inside the initial sync after the route that process announced first. Session 1: the process announces `10.84.1.0/24` inside its peer-UP handler and asks for nothing; FRR's log must hold the route decode and no `bgp_update_receive_eor` line through a 10 s hold. After `clear bgp <ze>`, session 2: the process announces `10.84.2.0/24` and asks for the IPv4 unicast End-of-RIB inside its peer-UP handler; the log written after the clear must hold the route decode, then exactly one marker through a 10 s hold. FRR's `connectionsEstablished` must read 1, then 2, and the process's records must show each session's requests answered within 4 s. Not yet run: the main thread owes the green run and the two red walks (an explicit request suppressed during the sync again, and the sync's marker forced on a `manual-eor` peer) |
 <!-- source: internal/le/interoplab/bgp/check_session_protection.go -- checkSessionProtection, sessionProbeScript -->
 <!-- source: internal/le/interoplab/bgp/check_session_protection_predicate.go -- parseSessionProbe, coppUnknownSourceDrops -->
 <!-- source: internal/le/interoplab/bgp/check_paths_limit_receive.go -- checkPathsLimitReceive, decodePathsLimitReceive, requirePathsLimitReceive -->
