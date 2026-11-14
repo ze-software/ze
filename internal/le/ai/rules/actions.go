@@ -114,7 +114,7 @@ var reportActions = leaction.New(reportArea,
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
-	leaction.Action{Verb: "payload", Does: doesReport, Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
+	leaction.Action{Verb: "payload", Does: doesReport, Summary: "measure loaded instructions against their token budget", Why: "what a session loads before it reads anything else, measured against the " +
 		"token budget. A MEASUREMENT, except that a payload file which is not there " +
 		"fails: an absent file is not a smaller one",
 		Answer: payloadAnswer},
