@@ -11,7 +11,7 @@
     "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "678867473385a541",
     "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire": "56ded9ff159b946a",
-    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "a65faf019fcdeda5"
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "59c489a4243bf006"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",

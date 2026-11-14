@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
     "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "671526884de3c8f0",
-    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "a65faf019fcdeda5",
-    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "a65faf019fcdeda5"
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "59c489a4243bf006",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "59c489a4243bf006"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "132a6b151f557edb",

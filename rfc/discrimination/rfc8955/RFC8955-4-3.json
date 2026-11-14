@@ -47,23 +47,23 @@
     "rid": "RFC8955-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop",
-    "unit-sha": "51c98b69d0c0ab63",
+    "unit-sha": "c966e2d9f622e196",
     "claim-sha": "6cb7e52d32e6805b",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin",
     "producer-sha": "c45c8a3042a821aa",
-    "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8955-4-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop",
-    "unit-sha": "51c98b69d0c0ab63",
+    "unit-sha": "c966e2d9f622e196",
     "claim-sha": "e990732fba089e82",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
     "producer-sha": "44ccbe7f2ba0402d",
-    "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8955-4-3",

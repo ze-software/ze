@@ -3,22 +3,22 @@
     "rid": "RFC2545-3-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds",
-    "unit-sha": "c5729af3f6dab2fa",
+    "unit-sha": "a6d38b7eebe373c7",
     "claim-sha": "8c220eaef31cb924",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "c8de1516569d9967",
+    "producer-sha": "c2899b4c93a6df1b",
     "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink",
-    "unit-sha": "7fe8fa5ef4376902",
+    "unit-sha": "9a4febacab249cf1",
     "claim-sha": "503dd2d530e3d3ae",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_initial_sync.go::sendDefaultOriginateRoutes",
-    "producer-sha": "c8de1516569d9967",
+    "producer-sha": "c2899b4c93a6df1b",
     "break": "body of sendDefaultOriginateRoutes replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
