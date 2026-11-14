@@ -493,16 +493,25 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   sessions' work. Check available space before large copies and reuse suitable
   outputs. Record the purpose and removal condition of anything retained,
   explain large retained items, and report substantial space recovered.
-- A problem found while working is fixed in the work in hand. A new spec is
-  created only when the problem is so big that fixing it would derail the work
-  it was found in. Reading a rule as an order to open a spec for anything
-  smaller is a misreading, and it is never what Thomas meant.
+- A small problem found while working is fixed in the work in hand, and the
+  scope of the spec being worked is widened to carry it: the spec names the
+  fix and gains an acceptance criterion for it. A problem is small unless
+  fixing it needs a design of its own or would derail the work it was found
+  in. Reading a rule as an order to open a spec, or to write a journal row
+  and walk away, for anything smaller is a misreading, and it is never what
+  Thomas meant.
+- Before a new spec is created, for a found problem, an unfinished item or a
+  new request, the existing specs are searched for one whose scope can be
+  amended to take the work, and that spec is amended. A new spec is written
+  only when no existing spec fits. The number of specs is kept as low as the
+  work allows.
 - A defect too big to fix in the work in hand gets one journal row in
   `plan/journal/<class>.md`; grep `plan/journal/` first, because other sessions
   meet the same defect. List that row in the owned journal rows table of the
-  spec that will fix it: an existing spec whose mechanism fits, or a new one.
-  Then close the work in hand and stop, with no ask. A commit that adds or
-  changes an open row no spec owns is refused.
+  spec that will fix it: an existing spec whose scope can be amended to take
+  it, and a new one only when none fits. Then close the work in hand and stop,
+  with no ask. A commit that adds or changes an open row no spec owns is
+  refused.
 - A crash, corruption or other incident that was not investigated in the
   session that met it is not recorded: another session may have caused it,
   and with its evidence gone nobody can investigate it. A spec item whose only

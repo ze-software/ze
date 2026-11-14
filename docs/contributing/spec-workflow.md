@@ -234,9 +234,9 @@ second.
 
 
 A journal row NEVER makes a commit a closure. A row names the spec a defect was
-found under and says nothing about whether that spec is closing, and CLAUDE.md
-requires a row for every defect walked into, so the ordinary `in-progress`
-commit carries one. Reading rows as closures charged those commits with a review
+found under and says nothing about whether that spec is closing, and a defect
+too big to fix in the work in hand gets a row, so an ordinary `in-progress`
+commit can carry one. Reading rows as closures charged those commits with a review
 artifact their spec could not yet produce, and charged a session with other
 sessions' specs where a class file is shared. A journal file the
 commit changes is still validated whole, by `specjournal.ValidateFile`. A file
@@ -336,7 +336,8 @@ grep limited to `// Design:` finds only one of the three forms.
 
 ## Work not done
 
-An in-scope item a spec does not do becomes its OWN spec, and the source spec's
+An in-scope item a spec does not do is homed in a spec, an existing one amended
+to take it or a new one when none fits, and the source spec's
 `Work Not Done` table names that spec by path (`plan/templates/TEMPLATE-CLOSURE.md`).
 Nothing is parked in a row. `plan/deferrals/` held that role until 2026-09-05, <!-- doc-links: ignore (the directory was deleted on 2026-09-05 and this sentence is the record of it) -->
 and `ai/rationale/unfinished-scope-becomes-a-spec.md` records why it was
@@ -357,12 +358,15 @@ name. Reducing scope stays the owner's decision, never the author's
 ### Choosing the destination
 
 Searched in this order, and a new spec is written only after step 1 comes up
-empty.
+empty. The order holds for every reason a spec might be created: an unfinished
+item, a found problem too big for the work in hand, and a new request
+(`ai/META-DECISIONS.md`). Each spec is claimed, reviewed and closed on its own,
+so amending one that exists is the default and a new file is the exception.
 
 | Order | Action |
 |-------|--------|
 | 1 | Search the six categories and `./le spec status` for a spec that already covers the topic. Prefer a `spec-finish-<subsystem>` or `spec-followup-<subsystem>` umbrella that owns the area |
-| 2 | If one exists, add the item to its `## Task` section and name that spec in the table |
+| 2 | If one exists, amend its scope: add the item to its `## Task` section with an acceptance criterion, and name that spec in the table. A spec fits when it changes the same mechanism; one in `verification` is handed off and is not widened |
 | 3 | If none does, write a new spec from `plan/templates/TEMPLATE.md` and name it in the table |
 
 A new spec goes in the bucket the ITEM belongs to, which is not always the
@@ -381,7 +385,8 @@ It moves to `design` when somebody picks it up.
 
 | Situation | Where it goes |
 |-----------|---------------|
-| A defect the work in hand does not depend on | One row in `plan/journal/<class>.md`, listed in the owned journal rows table of the spec that will fix it, then close the work in hand (`ai/rules/completion.md`) |
+| A small defect the work in hand does not depend on | Fix it in the work in hand, in a commit of its own, and widen this spec's scope to carry it: name the fix in `## Task` and add an acceptance criterion. Small means its fix needs no design or open-ended investigation of its own (`ai/rules/completion.md`) |
+| A defect too big for that | One row in `plan/journal/<class>.md`, listed in the owned journal rows table of the spec that will fix it, found in the order above, then close the work in hand (`ai/rules/completion.md`) |
 | A defect that BLOCKS the goal this work exists to achieve | Fix it now. It is neither a row nor a spec |
 | A failure nobody could reproduce | One shard in `plan/known-failures/`, carrying the reproduction attempt and the next step |
 | Work that was never in scope | Nothing. This spec does not record it |

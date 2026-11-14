@@ -64,7 +64,9 @@ an instruction only: no check refuses a `fixed:` row without a fragment.
 ## Owned rows
 
 Every `open:` row is listed in the owned journal rows table of the spec that
-will fix it: an existing spec whose mechanism fits the defect, or a new one. The
+will fix it. Search for an existing spec whose scope can be amended to take the
+defect first, and write a new one only when none fits
+(`docs/contributing/spec-workflow.md`, "Choosing the destination"). The
 spec table is the only declaration of ownership; the row names no owner.
 
 ```

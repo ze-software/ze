@@ -377,7 +377,8 @@ round N made and what those fixes touched. A full-diff pass every round never
 converges, because a diff of any size always yields something new. The agent
 is then unable to close work that is genuinely finished. A finding
 outside the round's scope is still fixed when the goal this work exists to
-achieve depends on it, when you are unsure whether it does, or when it belongs
+achieve depends on it, when you are unsure whether it does, when it is small
+(the spec's scope is widened to carry it), or when it belongs
 to the always-in-scope classes. What those classes are, what happens to
 everything else, and why none of it is parking are settled in ONE place:
 `ai/rules/planning.md` "Work Phases and the Review Loop". Do not restate the list or

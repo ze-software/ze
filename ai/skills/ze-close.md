@@ -211,9 +211,12 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
      Native commit validation names each empty table independently, so a row in
      `Files Exist` is not evidence for `AC Verified`.
    - **Work Not Done:** one row for every in-scope item this spec did not do,
-     and each row names by path the spec that OWNS that item now. Write that
-     spec in this same commit, in the bucket the item belongs to
-     (`plan/README.md`), and add `file <that path>` to commit A.
+     and each row names by path the spec that OWNS that item now. Search
+     first for an existing spec whose scope can be amended to take the item,
+     and amend it (`docs/contributing/spec-workflow.md`, "Choosing the
+     destination"). Only when none fits, write a new spec in the bucket the
+     item belongs to (`plan/README.md`). Either way the amended or new spec
+     rides in this same commit: add `file <that path>` to commit A.
      A destination cell holding prose is a deletion with a polite name: a row
      nobody can count is a row nobody schedules, which is why the row mechanism
      was deleted (`ai/rationale/unfinished-scope-becomes-a-spec.md`). Nothing

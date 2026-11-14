@@ -59,14 +59,19 @@ before putting it in front of the user (`ai/rules/evidence.md`).
 4. Check `ai/INDEX.md` for relevant architecture docs
 5. Present:
    - Related specs found (if any)
-   - Whether this overlaps or extends existing work
-   - Suggested spec filename
+   - Whether an existing spec's scope can be amended to take this work. When
+     one changes the same mechanism, amending it is the default: add the work
+     to its `## Task` section and acceptance criteria and resume that spec
+     (Step R). A new spec is written only when no existing spec fits
+     (`ai/META-DECISIONS.md`; `docs/contributing/spec-workflow.md`, "Choosing
+     the destination")
+   - Suggested spec filename, only when no existing spec fits
 6. **Mandatory challenge:** Before presenting the gate, raise at least one concern:
    - Does this overlap with something that already exists?
    - Is the scope too broad for one spec? Too narrow to be useful?
    - Is there a simpler framing of the same goal?
 7. **GATE:** ASK user to confirm scope and direction. Present your concern alongside the recommendation. Do not proceed until confirmed.
-8. Create spec file with `Status: skeleton`
+8. Create spec file with `Status: skeleton`, unless step 5 found a spec to amend: then amend it and create nothing
 9. Claim it for this session: `./le spec claim <spec-file>`
 
 ---

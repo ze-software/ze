@@ -349,6 +349,7 @@ start").
   spec's **Documentation Update Checklist** is the list `/ze-close` verifies, not a queue of
   work to start there. A diff that changes behavior and carries no page edit states why.
 - **No deferred work.** Every item in the spec must be implemented fully before reporting completion. No TODOs, no stubs, no placeholder implementations, no "left as future work" notes, no comments like "// TODO: handle X later". If an item turns out to be blocked, ambiguous, or harder than expected, stop and raise it with the user to re-negotiate scope. Never silently skip or defer.
+- **A small problem found on the way is fixed here.** Fix it in a commit of its own and widen this spec's scope to carry it: name the fix in `## Task` and add an acceptance criterion, so review and closure judge it. Small means its fix needs no design or open-ended investigation of its own. One too big for that gets a journal row owned by an existing spec whose scope can be amended to take it, and a new spec only when none fits (`ai/rules/completion.md`).
 - **Keep the agreed capability boundary.** A design's future work does not become current scope merely because it belongs to the same problem. Complete the agreed acceptance criteria. Ask before adding absent features or changing those criteria.
 - Do NOT skip the audit step -- re-implementing existing code wastes time
 - If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
