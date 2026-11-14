@@ -325,7 +325,7 @@ feature, whatever the configuration uses. It probes each enrolment with `InUse`
 ignored and returns one `Row` per subsystem (subsystem, kernel symbol, state,
 reason), and a probe that gave no verdict reads `unknown`. A host that runs Ze's
 Docker labs must answer it with every row present
-(`plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md`). The operator
+(`docs/architecture/testing/interop.md`, "The Docker host kernel check"). The operator
 reaches it as `ze doctor [--json] kernel-capabilities`, which takes no config
 file, prints the rows (as `{"ready":...,"capabilities":[...]}` under `--json`)
 and exits 0 only when at least one capability is enrolled and every row is

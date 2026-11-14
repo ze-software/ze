@@ -7,7 +7,7 @@
 | Priority | P2 |
 | Release reason | Five nightly labs prove behavior on Alpine, which is not the system Ze ships or the owner's rule for test guests |
 | RFC gaps | - |
-| Depends | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (the Ze-image guest these steps move to) |
+| Depends | - (the dependency landed: the Ze-image guest these steps move to is `./le test qemu docker-lab`, from `spec-docker-hosts-run-the-ze-kernel`, in closure since 2026-11-14) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-06 |
@@ -345,6 +345,8 @@ No wire changes. The move is between test routes, and no protocol, event or file
 | `gate-excludes-part-of-its-population.md` | 2026-11-06 | plain `docker-lab command` holds no host slot |
 | `gate-excludes-part-of-its-population.md` | 2026-11-06 | `internal/test/pppoeac` integration tests run nowhere |
 | `check-probes-a-peer-its-own-teardown-stopped.md` | 2026-11-06 | `TestInjectionConsumerCancellationJoinsDescendants` fails on its own teardown race |
+| `failing-gate-prints-no-cause.md` | 2026-10-28 | `dockerLabSession.forward` (`internal/le/test/qemu/dockerlab.go`) drops the `os.Stat` error and the ssh child's outcome (re-homed 2026-11-14 from `spec-docker-hosts-run-the-ze-kernel`) |
+| `zero-value-as-valid-answer.md` | 2026-10-28 | `Run.dockerLab` prints `check-exit 0` and `lab-exit 0` for stages that never ran (re-homed 2026-11-14 from `spec-docker-hosts-run-the-ze-kernel`) |
 
 ## Key Design Decisions
 

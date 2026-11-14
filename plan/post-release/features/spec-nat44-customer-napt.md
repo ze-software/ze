@@ -190,7 +190,7 @@ summary exists to name.
 | A-6 | Linux forwarding sends ICMP Fragmentation Needed for DF=1 oversize and fragments DF=0; `nf_defrag_ipv4` reassembles out-of-order fragments within `ipfrag_high_thresh` | `net/ipv4/ip_forward.c`, `nf_defrag_ipv4` | REQ-13 / REQ-14 gap | `TestNAT44FragmentationBehaviour` | unvalidated |
 | A-7 | (Q4, VPP in scope only) NAT44-EI and NAT44-ED cannot run at once in one VPP | VPP plugin layout | VPP backend must choose one per config | VPP docs and a probe | unvalidated |
 | A-8 | stuntman (`stunclient --mode behavior`) reports mapping and filtering classes per RFC 5780 against a two-address `stunserver` | stuntman documentation | interop needs another RFC 5780 client | first lab run | unvalidated |
-| A-9 | The Docker host for labs runs Ze's runtime kernel, so it carries the patch | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` | the Docker lab cannot pass; the QEMU path remains the proof | lab kernel check (`docs/architecture/testing/interop.md`, "The Docker host kernel check") | unvalidated |
+| A-9 | The Docker host for labs runs Ze's runtime kernel, so it carries the patch | `docs/architecture/appliance/docker-host.md`; owner rule in `ai/META-DECISIONS.md`, "Test systems and labs" | the Docker lab cannot pass; the QEMU path remains the proof | lab kernel check (`docs/architecture/testing/interop.md`, "The Docker host kernel check") | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

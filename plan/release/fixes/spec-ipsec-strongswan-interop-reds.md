@@ -28,11 +28,20 @@ be Ze, the scenario's checker or fixture, or the strongSwan 6.1.0 build, and
 the fix goes where the cause is.
 
 -> Decision (closer, 2026-10-23): this spec owns the `mobike-initiator` red.
-`plan/release/fixes/spec-ipsec-11-mobike.md` AC-12 and
-`plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` AC-12 name the
-same scenario as evidence for their own goals (MOBIKE behavior, a Ze-kernel
-Docker host); they cite the passing run AC-2 here records and carry no fix of
-their own for this red, so the work is not duplicated.
+`plan/release/fixes/spec-ipsec-11-mobike.md` AC-12 names the same scenario as
+evidence for its own goal (MOBIKE behavior); it cites the passing run AC-2 here
+records and carries no fix of its own for this red, so the work is not
+duplicated.
+
+-> Decision (closer of `spec-docker-hosts-run-the-ze-kernel`, 2026-11-14, on
+the owner's "close"): that spec's AC-12 and AC-13 named `mobike-initiator` as
+evidence of a Ze-kernel Docker host on the Mac and on the nightly. Its kernel
+half is proven (the check answers `ipsec-mobike` present on both routes, and
+`mobike-responder` passes), and the `mobike-initiator` pass on both routes moved
+here. AC-2 therefore also holds in the scheduled `evidence-nightly`
+`ipsec-interop` job, and
+`plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` AC-9
+cites the same run.
 
 ## Required Reading
 
@@ -44,6 +53,14 @@ their own for this red, so the work is not duplicated.
 
 - [ ] `internal/le/interoplab/ipsec/checkers.go` - the scenario table maps each of the four names to its checker: `checkIKEPaddedProbeStrongSwan`, `checkMOBIKEInitiator`, `checkESPIntegrityOnlyNull` (waits for `swanNullESPProposal`) and `checkMTUNegotiatedTransform` (waits for `swanSecondESPProposal`).
 - [ ] `test/interop-ipsec/scenarios/ike-padded-probe-strongswan/ze.conf` - the fixture sets no `unmatched`, so Ze's SPD catch-all DISCARD applies.
+
+## Existing Mechanisms
+
+| Mechanism | Where it lives | What it does today | This spec |
+|-----------|----------------|--------------------|-----------|
+| The IPsec interop suite and its scenario table | `internal/le/interoplab/ipsec/ipsec.go`, `checkers.go` (`docs/architecture/testing/interop.md`) | builds the Ze and strongSwan images, runs each scenario directory and maps its name to one checker | Extends: no new scenario or checker; a checker changes only where it is the diagnosed cause, keeping its assertion's strength |
+| The Docker host kernel check | `internal/le/interoplab/lab.go` `Suite.Run` calling `DockerKernel` (`interop.md`, "The Docker host kernel check") | refuses a daemon whose kernel lacks an enrolled feature before any image build, `ipsec-mobike` included | Does not apply as a fix: the four reds occur with the check passing, so the kernel is not their cause |
+| The Ze-kernel guest route | `./le test qemu docker-lab` (`docs/architecture/testing/qemu-integration.md`, "Docker labs in the Ze-kernel guest") | runs the same suite against a daemon on Ze's kernel, on the Mac and in the nightly `ipsec-interop` job | Extends nothing: each AC is recorded on this route as it stands |
 
 ## Data Flow
 
@@ -106,7 +123,8 @@ on the Mac, with the commit, the kernel and the strongSwan version recorded.
 | `plan/journal/gate-verdict-depends-on-the-machine.md`, row 2026-10-09 | the `mobike-initiator` CLI readback hang on kernel 7.2.9-ze |
 | `plan/handover/25-lab-peers-latest-stable.md`, item 4 (handover 20's "IPsec on strongSwan 6.1.0" row: `git show 2ec0e15be3:plan/handover/20-gobgp-v4.md`) | `esp-integrity-only-null` and `mtu-negotiated-transform` red on the Linux host on 6.1.0 |
 | `plan/journal/constant-reported-as-measured-state.md`, row 2026-09-11 | `show vpn ipsec sa` reports the configured ESP proposal, not the negotiated one; read it before changing what AC-3 and AC-4's checkers compare |
-| `plan/release/fixes/spec-ipsec-11-mobike.md` AC-12, `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` AC-12 | consumers of the AC-2 run |
+| `plan/release/fixes/spec-ipsec-11-mobike.md` AC-12, `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` AC-9 | consumers of the AC-2 run |
+| `evidence-nightly` run 43586166002 (2026-11-14, head 495e333fbe), job `ipsec-interop`, read with `gh run view` | `mobike-initiator: FAIL (40s) in checker: wait for MOBIKE migration of the original IKE and Child SAs never measured peer state: MOBIKE replaced an IKE or Child SA instead of migrating it`, with the kernel check `verdict  pass` and `mobike-responder: pass (20s)`. This is not the 30s readback hang of Current Evidence: read both before diagnosing AC-2. The job ended `80 passed, 5 failed` |
 
 ## 🧪 TDD Test Plan
 

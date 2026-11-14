@@ -222,7 +222,7 @@ Two labs that need one feature name one record, owned by the package that declar
 |----------|--------|
 | What breaks if this is wrong? | A developer host: setup loads a wrong module, or install refuses a kernel it should accept. On the appliance, a kernel that fails its build. Nothing a Ze user runs |
 | How is it reverted? | Single-commit revert per phase; the kernel option is one line in each of two files |
-| Who else touches this path? | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (install), `plan/release/validation/spec-lab-containers-least-privilege.md` (lab grants), `docs/architecture/testing/interop.md` "Crash-safe teardown" (the deployment verbs' labelled containers, from the closed `spec-lab-docker-cleanup-and-go-test-containers`) |
+| Who else touches this path? | `spec-docker-hosts-run-the-ze-kernel` (install; in closure since 2026-11-14, its code is `internal/le/setup/docker/kernel/`), `plan/release/validation/spec-lab-containers-least-privilege.md` (lab grants), `docs/architecture/testing/interop.md` "Crash-safe teardown" (the deployment verbs' labelled containers, from the closed `spec-lab-docker-cleanup-and-go-test-containers`) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

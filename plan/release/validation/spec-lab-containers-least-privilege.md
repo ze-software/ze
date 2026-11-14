@@ -5,12 +5,12 @@
 | Status | blocked |
 | Priority | P0 |
 | Release reason | Least-privilege release proofs retain outstanding confinement and grant-removal evidence; landed restrictions are not missing implementation. |
-| Blocked by | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md`: the AC-8/AC-9 lab runs, AC-2 AppArmor load and AC-10 evidence need a Docker host on Ze's kernel (the owner approval of the `plan/verification-debt/d1987d95.md` rows was given 2026-10-11, see the RESOLVED decision below) |
+| Blocked by | The owner's answer to "The open question: AppArmor in Ze's kernel" below (AC-2's load and AC-12 to AC-15 have no host that both runs Ze's kernel and applies AppArmor), and a Linux amd64 host named for AC-11. The AC-8/AC-9 lab runs and the AC-10 evidence need a Docker host on Ze's kernel, which `./le test qemu docker-lab` now provides (`spec-docker-hosts-run-the-ze-kernel`, in closure since 2026-11-14). The owner approval of the `plan/verification-debt/d1987d95.md` rows was given 2026-10-11, see the RESOLVED decision below |
 | Scope | tooling |
-| Depends | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (D-7, the AppArmor profile registry at a1636c2223) |
+| Depends | - (the dependency landed: D-7's AppArmor profile registry at a1636c2223, from the `spec-docker-hosts-run-the-ze-kernel`, in closure since 2026-11-14) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-21 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Every Docker container a Ze lab or proof starts that leaves Docker's default confinement (`--privileged`, `seccomp=unconfined`, `apparmor=unconfined`) gets the treatment the VRRP lab got at a1636c2223: it is granted exactly what its daemon needs (capabilities, devices, namespaced sysctls, a Ze AppArmor profile registered in `interoplab`), and broad privilege stays only where a justified verdict says the need is unbounded.
 
-Owner instruction, 2026-10-10 (recorded as the approval, design gates waived by the owner's "implement"): the remaining containers in the D-7 verdict table of `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` get the same least-privilege treatment as VRRP, as their own spec, and the spec is implemented.
+Owner instruction, 2026-10-10 (recorded as the approval, design gates waived by the owner's "implement"): the remaining containers in the D-7 verdict table of `spec-docker-hosts-run-the-ze-kernel` (in closure since 2026-11-14; once it is removed, the table is in its last committed text in git history) get the same least-privilege treatment as VRRP, as their own spec, and the spec is implemented.
 
 Owner principle D-7, restated at his request on 2026-10-10 in corrected English and made generic rather than specific to AppArmor: "The host should be set up correctly for Ze. A user will meet a misconfigured host sooner or later; when they do, Ze should report it without friction, and the path from the symptom to understanding the problem and its fix should be as smooth as possible. Where tooling can make sure the admin does the right thing, we should have the tooling." The owner's clarification, same day: the point is user friendliness, on every user interface Ze has (CLI, web, `ze doctor`, logs, the `./le` tooling), not the CLI alone, so every refusal this spec writes names what is wrong, why, and the exact command that fixes it.
 
@@ -42,7 +42,9 @@ Goals.
 - [ ] `docs/architecture/core-design.md` - declared by the deployment and terminal-demo files
   → Constraint: unaffected; this spec changes container argv only, no package boundary or registration
 - [ ] `ai/rules/platform-linux.md` - labs run on Ze's kernel
-  → Constraint: a lab runs through `./le test qemu docker-lab` (the Alpine guest on Ze's runtime kernel); that guest carries no AppArmor, so a profile is exercised only on an AppArmor Linux host, and its parse is proven with `apparmor_parser -Q` in `ubuntu:24.04`.
+  → Constraint: a lab runs through `./le test qemu docker-lab` (when written, the Alpine guest on Ze's runtime kernel; since 2026-10-22 Ze's docker-host image, `docs/architecture/appliance/docker-host.md`); that guest carries no AppArmor, so a profile is exercised only on an AppArmor Linux host, and its parse is proven with `apparmor_parser -Q` in `ubuntu:24.04`.
+- [ ] `docs/functional-tests.md` - declared by `internal/test/fixture/ui_fixture_le_evidence_answers.go`: the release-candidate evidence run (`./le verify evidence release-candidate`) and the deployment-grade external evidence targets
+  → Constraint: unaffected by AC-11 to AC-16; the evidence container's grants are AC-10's.
 - [ ] `gokrazy/kernel/runtime.config` - what Ze's kernel builds in
   → Constraint: `CONFIG_PPP`, `CONFIG_PPPOE`, `CONFIG_L2TP`, `CONFIG_PPPOL2TP`, `CONFIG_MPLS_ROUTING`, `CONFIG_MPLS_IPTUNNEL`, `CONFIG_XFRM_USER`, `CONFIG_IP_NF_NAT`, `CONFIG_TUN`, `CONFIG_HUGETLBFS` are all `=y`, so no container on the lab's kernel needs `modprobe` or `CAP_SYS_MODULE`. A host with these as modules loads them itself (D-7: the host is set up for Ze); a container never loads a host kernel module.
 - [ ] Docker's defaults (moby `oci/defaults.go`, `profiles/seccomp/default.json`)
@@ -173,6 +175,35 @@ Goals.
 | AC-8 | each lab and proof above, run through `./le test qemu docker-lab` on Ze's kernel (or its deployment action) | passes as it did with `--privileged` |
 | AC-9 | each grant (each capability, device, sysctl, systempaths) removed in turn | the lab fails, naming the refused operation; the red is recorded in this spec |
 | AC-10 | evidence and terminal-demo | the verdict in Verdicts is implemented or recorded with its justification; the D-7 table row is updated |
+| AC-11 | a Linux amd64 host's own Docker daemon (inherited 2026-11-14, was `spec-docker-hosts-run-the-ze-kernel` AC-9) | `./le setup docker kernel check` passes with the host's own kernel, or after `./le setup docker kernel install` and an operator reboot; the run, the host and its kernel release are recorded here |
+| AC-12 | the kernel probe on an AppArmor Docker host (inherited, was AC-15) | under `docker-default` the `mpls-transit-mtu` row reads `denied`, never `unknown` or `absent`, its reason naming the profile, the denied step and the grant; under `ze-kernel-probe` it reads `present` |
+| AC-13 | the Docker kernel check with that denied row, on the same host (inherited, was AC-17) | refuses, the row's reason in the text, plus the exact command that loads Ze's profile |
+| AC-14 | the Docker kernel check on a daemon reporting `name=apparmor` (inherited, was AC-18) | the probe container starts under `--security-opt apparmor=ze-kernel-probe` on a real daemon; on a Linux client whose `/sys/kernel/security/apparmor/profiles` lacks the profile, the check refuses before the run naming `./le setup docker kernel apparmor confirm ze-kernel-probe` |
+| AC-15 | `./le setup docker kernel apparmor confirm <name>` run by the owner on an AppArmor host (inherited, was AC-19) | loads `ze-kernel-probe` and `ze-lab-net-sysctl`; the VRRP lab then passes under `ze-lab-net-sysctl`; never run by an agent against a real host |
+| AC-16 | `evidence-nightly.yml`, the informational host check of the four lab jobs (inherited, was the last clause of AC-10) | the log shows the hosted runner's own failing rows, as information, so a runner kernel that starts to pass is seen |
+
+## Work inherited from spec-docker-hosts-run-the-ze-kernel (2026-11-14)
+
+Owner, 2026-11-14: "close terminal-demo-showcase docker-hosts-run-the-ze-kernel". That spec's closure began that day with its code, tests and guest route landed, and AC-11 to AC-16 above are the parts it could not prove. They are owed work. The owner has not said Ze's kernel will never carry AppArmor, so nothing here is declined.
+
+What the closed spec already proved, so it is not repeated here: the `denied` classification, the refusal text, the argv with and without AppArmor, the unloaded-profile refusal and the load action's refusals and printed steps, all over recorded answers (`internal/component/kernelcap` `TestMPLSIPMTUPolicyDenialIsDenied`, `TestClassifyLabel`; `internal/le/interoplab` `TestDockerKernelDeniedRowNamesTheProfileCommand`, `TestRunContainerAppliesItsAppArmorProfile`, `TestRunContainerRefusesAnUnloadedProfile`; `internal/le/setup/docker/kernel` `TestAppArmorLoadSteps`, `TestAppArmorLoadNeedsConfirmation`; `test/ui/doctor-kernelcap-denied.ci`). What is owed is each of those against a real AppArmor daemon.
+
+### The open question: AppArmor in Ze's kernel
+
+| Fact | Evidence |
+|------|----------|
+| Every Docker host Ze's labs use runs Ze's kernel | owner rule, `ai/META-DECISIONS.md`, "Test systems and labs" |
+| Ze's kernel is built without AppArmor and securityfs | `gokrazy/kernel/runtime.config` and `runtime.require` carry no `CONFIG_SECURITY_APPARMOR` and no `CONFIG_SECURITYFS` line (grep, 2026-11-14); on a host running `7.2.9-ze`, `/proc/config.gz` has no `CONFIG_SECURITY_APPARMOR=y` and `/sys/kernel/security/apparmor` is absent (`plan/journal/gate-verdict-depends-on-the-machine.md`, 2026-10-20) |
+| So no mandated host can load `ze-kernel-probe` or `ze-lab-net-sysctl` | AC-2's load, and AC-12 to AC-15, have no host to run on |
+| A host that does apply AppArmor exists in CI | scheduled `evidence-nightly` run 43586166002 (2026-11-14): the informational host check on the GitHub runner (kernel `7.0.0-1016-aws`) printed "the Docker daemon applies AppArmor, and the kernel probe runs under Ze's profile ze-kernel-probe, which the daemon could not apply" |
+
+The question for the owner, as "which way": (a) add `CONFIG_SECURITY_APPARMOR` and `CONFIG_SECURITYFS` to the runtime profile, with the userspace that loads a profile, so the mandated host proves AC-2 and AC-12 to AC-15; or (b) keep Ze's kernel without AppArmor and prove them on a host that is not Ze's kernel, which needs an exception to the lab-host rule for this proof (the hosted runner is such a host, and AC-16 needs the profile loaded there anyway). AC-11 needs neither: it needs a Linux amd64 host named for the run.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `gate-verdict-depends-on-the-machine.md` | 2026-10-20 | the Ze host kernel (`7.2.9-ze`) has no AppArmor and no securityfs |
 
 ## Verdicts
 
@@ -244,7 +275,7 @@ N-A as new scenarios: no protocol behavior changes; the existing scenarios are t
 - `test/weakened/d1987d95.md` - rows for `TestPPPSessionTestsDeclareDevPPP` and `TestOpensDeviceIsValidatedAndRecorded`, replaced by `TestContainerDevicesCoverWhatPPPOpens` and `TestNeedsLinuxRefusesUnknownKeys`
 - `plan/journal/silent-fall-through.md` - round 3 NOTE 5 (option types other than `timeout` and `needs-linux` drop unknown keys)
 - `internal/test/fixture/ui_fixture_le_evidence_answers.go`, `ui_fixture_le_evidence_vpp_answers.go` - assert the grants, not `--privileged`
-- `docs/architecture/testing/interop.md` - the profile table; `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` D-7 table rows
+- `docs/architecture/testing/interop.md` - the profile table; the D-7 table rows of `spec-docker-hosts-run-the-ze-kernel` (updated before its closure began on 2026-11-14)
 
 ## Files to Create
 - `internal/le/interoplab/apparmor_netsysctl.go`, `internal/le/interoplab/register_apparmor_netsysctl.go` - the generic `ze-lab-net-sysctl` profile and its registration

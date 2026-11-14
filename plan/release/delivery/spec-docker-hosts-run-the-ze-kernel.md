@@ -7,9 +7,9 @@
 | Release reason | Required release artifacts, safe installation or appliance/runtime-kernel delivery and their outstanding boot evidence. |
 | Scope | tooling |
 | Depends | - |
-| Phase | 3/7 |
+| Phase | 7/7 |
 | Handoff | - |
-| Updated | 2026-10-28 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -99,6 +99,19 @@ Goals.
 - A Docker run that runs Ze probes the daemon's kernel for EVERY enrolled capability, regardless of configuration, and fails when any is absent or undetermined.
 - The enrolment gains the capabilities the Docker labs exercise.
 
+## Existing Mechanisms
+
+Written at closure (2026-11-14) from the design this spec already records in Required Reading, Current Behavior and Key Design Decisions, re-read at the producers; no new design.
+
+| Mechanism | Where it lives | What it does today | This spec |
+|-----------|----------------|--------------------|-----------|
+| Kernel capability enrolment | `internal/component/kernelcap/kernelcap.go` `MustRegister`, `Enrolled`, `Evaluate`, `Refuse` | a subsystem enrols its kernel feature from `init()`; the daemon gate probes the ones the config uses | Extends: `ProbeAll` probes every enrolment with `InUse` ignored, and the Docker host check derives its required set from its rows. No second list |
+| MOBIKE migration probe | `internal/component/ike/dataplane/xfrm_migrate_linux.go` `xfrmMigrationAvailable` | answered whether `XFRM_MSG_MIGRATE_STATE` exists, outside `kernelcap` | Extends: `xfrmMigrationProbe` is both the backend's question and the enrolled `ipsec-mobike` probe (`ecfa32e1fd`), not a copy |
+| Lab preflight | `internal/le/interoplab/lab.go` `Suite.Run`, `internal/le/interoplab/docker.go` `Docker.Probe` | probes the daemon and stages ze before image builds; a setup failure runs nothing | Extends: `DockerKernel(s.StagedZe)` runs after `Preflight`, before any build |
+| Kernel profile registry | `internal/appliance/kernelreg.go`, `gokrazy/kernel/runtime.config`, `runtime.require` | one profile per `.config` and `.require` pair; the build refuses a config that loses a required symbol | Extends: Docker's options and the host-dependency options join the `runtime` profile; no docker-host profile |
+| QEMU runner on Ze's kernel | `internal/le/test/qemu/run.go` `Run` | boots Ze's runtime kernel under KVM or HVF and refuses any other | Extends: `Run.dockerLab` (`dockerlab.go`) runs the host le against the guest's Docker daemon |
+| Doctor tier | `internal/component/doctor/`, `internal/core/diagnostic/codes.go` | one registered check per runtime dependency | Extends: the `kernel-capabilities` mode and `CodeDoctorKernelCapabilityDenied` |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -136,11 +149,11 @@ Goals.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | a probe run in a container sees the daemon host's kernel features | containers share the kernel; module autoload requests reach the host kernel | a feature present on the host reads absent, or the reverse | AC-3 on colima (6.8, before D-6) and AC-5 in the Ze-kernel QEMU guest (D-6) | unvalidated |
+| A-1 | a probe run in a container sees the daemon host's kernel features | containers share the kernel; module autoload requests reach the host kernel | a feature present on the host reads absent, or the reverse | AC-3 on colima (6.8, before D-6) and AC-5 in the Ze-kernel QEMU guest (D-6) | confirmed: the same probe container read `ipsec-mobike` absent on colima's 6.8 daemon (`TestXFRMKernelProbesOnThisHost`, ecfa32e1fd) and every row present on the guest's `7.2.9-ze` daemon (`docker-lab-nolab-5.log`, `verdict pass`; again on Ze's image, 2026-10-23) |
 | A-2 | each feature the labs exercise has a native, mutation-free or namespace-confined probe: `XFRM_MSG_MIGRATE_STATE` (exists), xfrm interface (rtnetlink link kind), WireGuard (generic netlink family), L2TP (generic netlink family), PPPoE (socket family), ESP and every AEAD and cipher Ze's XFRM algorithm table installs | `xfrmMigrationAvailable`; the gate spec's "ESP has no unprivileged runtime probe" | an unprobeable feature cannot be required; it is named as a gap and the owner decides | each enrolment's probe test | partly confirmed 2026-10-10: MOBIKE, ESP v4/v6 and all nine XFRM transforms probe mutation-free (`XFRM_MSG_UPDSA` on reserved SPI 1 answers `ESRCH` after the kernel built the state); on colima 6.8 MOBIKE reads absent (`EINVAL`), the rest present, a bogus cipher absent, no SA left (`TestXFRMKernelProbesOnThisHost`, commit ecfa32e1fd). Confirmed 2026-10-10 for the rest: L2TP and WireGuard by generic netlink `CTRL_CMD_GETFAMILY` (`ENOENT` absent; a name over `GENL_NAMSIZ` answers `EINVAL`, so the negative control is `zenosuchfam`), L2TP sessions and PPPoE by an `AF_PPPOX` socket open (`pppox_create` requests the module, no privilege check), xfrm interface by `RTM_NEWLINK`+`NLM_F_CREATE` of kind `xfrm` with if_id 0 inside a throwaway netns (`xfrmi_newlink` answers `EINVAL` "if_id must be non zero" before registering; `EOPNOTSUPP` "Unknown device type" is absent; needs `CAP_SYS_ADMIN`, so the probe container is granted it). Kernel source read: torvalds/linux master `net/core/rtnetlink.c`, `net/xfrm/xfrm_interface_core.c`, `drivers/net/ppp/pppox.c`, `pppoe.c`, `net/l2tp/l2tp_ppp.c`. On colima 6.8 in a container with NET_ADMIN+SYS_ADMIN: wireguard present, PPPoE present, xfrm interface present, l2tp ABSENT (no l2tp family), PPPoL2TP ABSENT (`EPROTONOSUPPORT`), bogus link kind absent |
-| A-3 | the Alpine QEMU guest under HVF boots Ze's arm64 runtime kernel and runs a Docker daemon in it (D-6) | `./le test qemu run kernel <vmlinuz>` already boots Ze's arm64 kernel under HVF (`docs/architecture/testing/qemu-integration.md`); Alpine packages `docker`; D-5 put Docker's kernel options into `runtime.config` | the Mac route fails; the owner decides the next route | AC-8 | unvalidated (needs a kernel built after the D-5 config change; no build started) |
-| A-4 | the Linux amd64 host either passes with its own kernel or boots through grub | owner statement of a Linux host; not inspected | the install step differs | AC-9 run on the host | unvalidated |
-| A-5 | Docker runs inside the Alpine QEMU guest booted on Ze's amd64 kernel under KVM on `ubuntu-latest`, through the same guest path as A-3 | Alpine packages `docker`; `qemu-nightly.yml` boots Ze's kernel there with `/dev/kvm` | nightly route fails; owner decides between a self-hosted runner on the Linux host and dropping the hosted runner | AC-10 | unvalidated (four jobs wired at 8bd1742581, which is on origin/main; the last nightly, run 38043229048, built 1d0e7a0228, which predates it, so no run has booted the guest yet) |
+| A-3 | the Alpine QEMU guest under HVF boots Ze's arm64 runtime kernel and runs a Docker daemon in it (D-6) | `./le test qemu run kernel <vmlinuz>` already boots Ze's arm64 kernel under HVF (`docs/architecture/testing/qemu-integration.md`); Alpine packages `docker`; D-5 put Docker's kernel options into `runtime.config` | the Mac route fails; the owner decides the next route | AC-8 | confirmed 2026-10-10 (Alpine guest under HVF on cache entry `7.2.9-runtime-arm64-runtime-7c0d8f79-bf3ac1c9`: dockerd started, `verdict pass`), then superseded: the guest is Ze's docker-host image since 2026-10-22, where the same route passed the check on 2026-10-23 (kernel `7.2.9-ze`, HVF; `git show 52c6ccddfb:plan/release/validation/spec-lab-docker-cleanup-on-macos.md`, AC-5 rerun 3) |
+| A-4 | the Linux amd64 host either passes with its own kernel or boots through grub | owner statement of a Linux host; not inspected | the install step differs | AC-9 run on the host | confirmed for the half this spec keeps: the owner's Ubuntu host booted `7.2.9-ze` through grub after `./le setup docker kernel install confirm 7.2.9-ze` (2026-10-14, "Host the Ze kernel replaces"). Whether the check passes on that host's daemon is unrecorded and moved (`spec-lab-containers-least-privilege.md` AC-11) |
+| A-5 | Docker runs inside the Alpine QEMU guest booted on Ze's amd64 kernel under KVM on `ubuntu-latest`, through the same guest path as A-3 | Alpine packages `docker`; `qemu-nightly.yml` boots Ze's kernel there with `/dev/kvm` | nightly route fails; owner decides between a self-hosted runner on the Linux host and dropping the hosted runner | AC-10 | confirmed for Ze's docker-host image, which replaced the Alpine guest: scheduled `evidence-nightly` run 43586166002 (2026-11-14, head 495e333fbe, which contains 8bd1742581) ran all four jobs in the guest with `accelerator kvm`, `verdict pass` and `check-exit 0` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -157,7 +170,7 @@ Goals.
 |----------|--------|
 | What breaks if this is wrong? | every Docker lab, Docker deployment proof and demo render fails on a host missing an enrolled feature; new enrolments add doctor rows and, for a non-degrading capability, a startup refusal on an appliance whose config uses that subsystem |
 | How is it reverted? | single commit revert per phase; an installed kernel stays in the VM and is harmless |
-| Who else touches this path? | `plan/release/validation/spec-kernel-capability-gate.md` (owns `kernelcap`; this spec extends its enrolment), `docs/architecture/appliance/kernel-profiles.md` (built-in ESP, xfrm interface and WireGuard requirements), `docs/architecture/appliance/build-artifacts.md` (Ze's kernel build, source pin and provenance), `plan/post-release/engineering/spec-terminal-demo-showcase.md`, `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` (AC-9 depends on this), and the IKE sibling session working under `internal/component/ike/` (the MOBIKE enrolment lands there and must be sequenced with it) |
+| Who else touches this path? | `plan/release/validation/spec-kernel-capability-gate.md` (owns `kernelcap`; this spec extends its enrolment), `docs/architecture/appliance/kernel-profiles.md` (built-in ESP, xfrm interface and WireGuard requirements), `docs/architecture/appliance/build-artifacts.md` (Ze's kernel build, source pin and provenance), `spec-terminal-demo-showcase` (in closure 2026-11-14, cited by stem so its removal leaves no dangling path here), `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` (AC-9 depends on this), and the IKE sibling session working under `internal/component/ike/` (the MOBIKE enrolment lands there and must be sequenced with it) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -180,12 +193,12 @@ Goals.
 | AC-5 | every row `present` | proceeds to image builds unchanged |
 | AC-6 | the kernel build (`ze appliance kernel`, Docker backend) | runs no Ze, never calls the check, and builds on any daemon: this is not an exemption, it is outside the check's callers |
 | AC-7 | every `Capability.Kernel` symbol enrolled | appears in `gokrazy/kernel/runtime.require` (a test compares them), so Ze's own build passes the check by construction |
-| AC-8 | Mac (D-6): a Docker lab run with Ze's arm64 runtime kernel cached | runs inside the Alpine QEMU guest under HVF booted on that kernel, with Docker in the guest; the kernel check runs in the guest and passes AC-5; colima is never the lab host |
-| AC-9 | Linux amd64 host | the check passes with the host's own kernel, or after the same install action and an operator reboot; the action never reboots the host itself |
-| AC-10 | `evidence-nightly.yml` jobs `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop` | run inside the Alpine QEMU guest booted on Ze's cached amd64 kernel under KVM, through the same guest path as AC-8; the log shows the check passing in the guest and, as information, the hosted runner's own failing rows |
+| AC-8 | Mac (D-6): a Docker lab run through `./le test qemu docker-lab` | runs inside the QEMU guest under HVF that boots Ze's docker-host image (Ze's arm64 runtime kernel, dockerd in the image; rewritten 2026-11-14 from "the Alpine QEMU guest", which the owner rule of 2026-10-20 and the 2026-10-21 pointer above replaced); the kernel check runs against the guest's daemon and passes AC-5; a daemon on another kernel is never the lab host |
+| AC-9 | Linux amd64 host | KEPT HERE: the install action never reboots the host itself (`TestDockerKernelInstallSteps`, `runDockerKernelInstall`). MOVED 2026-11-14 to `plan/release/validation/spec-lab-containers-least-privilege.md` AC-11: a recorded `./le setup docker kernel check` pass on a Linux amd64 host's own Docker daemon, with the host's own kernel or after the install action and an operator reboot |
+| AC-10 | `evidence-nightly.yml` jobs `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop` | run inside the QEMU guest that boots Ze's docker-host image on Ze's cached amd64 kernel under KVM (rewritten 2026-11-14 from "the Alpine QEMU guest"), through the same guest path as AC-8; the log shows the check passing in the guest. MOVED 2026-11-14 to `spec-lab-containers-least-privilege.md` AC-16: "as information, the hosted runner's own failing rows", which the runner does not print while its AppArmor daemon cannot apply `ze-kernel-probe` |
 | AC-11 | a capability enrolled later by any package | is required of every Docker host with no le change (unit test enrolling a fake capability) |
-| AC-12 | `./le test integration interop-ipsec` on the Mac after AC-8 | `mobike-initiator` and `mobike-responder` pass; this is the evidence `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` AC-9 cites |
-| AC-13 | the same suite on the nightly after AC-10 | `mobike-initiator` and `mobike-responder` pass |
+| AC-12 | `./le test integration interop-ipsec` on the Mac after AC-8 | the kernel no longer decides either MOBIKE scenario: the check answers `ipsec-mobike` present and both scenarios run. Both passed on 2026-10-10; on Ze's docker-host image `mobike-responder` passes and `mobike-initiator` is red in its checker, a red `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2 owns (its closer's decision of 2026-10-23). The `mobike-initiator` pass is MOVED there, and it is the evidence `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` AC-9 cites |
+| AC-13 | the same suite on the nightly after AC-10 | as AC-12: `mobike-responder` passes; the `mobike-initiator` pass is MOVED to `spec-ipsec-strongswan-interop-reds.md` AC-2 |
 | AC-14 | `gokrazy/kernel/runtime.config` and `runtime.require` (D-5) | carry every symbol of the D-5 constraint list, each once, with a comment citing moby `contrib/check-config.sh` at the recorded commit; the appliance kernel's own build then refuses a config that loses one, and a Docker daemon starts on the appliance kernel (the QEMU guest of AC-8 and AC-10). No kernel build is started by the config edit itself |
 | AC-15 | a probe step fails with EACCES and the process is confined by a security label other than `unconfined` (D-7) | the row reads `denied`, never `unknown` or `absent`; its reason names the label (`AppArmor profile docker-default (enforce)`), the denied step, and the grant (`ze-kernel-probe`); EACCES with no confining label, and EPERM, stay `unknown` |
 | AC-16 | `ze doctor` with a config using a subsystem whose probe answered denied | its own diagnostic `doctor-kernel-capability-denied`, WARNING (ze starts, as for unknown), message naming the policy and the fix; `ze doctor --json kernel-capabilities` exits 1 on a denied row |
@@ -196,6 +209,23 @@ Goals.
 | AC-21 | `gokrazy/kernel/runtime.config` and `runtime.require` (owner, 2026-10-14: "fix the kernel config") | carry what a Linux Docker host that boots the Ze kernel relies on: `HOTPLUG_PCI`, `HOTPLUG_PCI_ACPI`, `HOTPLUG_PCI_PCIE` (slot-named interfaces such as `ens18` keep their name) and Ubuntu's stock UFW matches and targets (`NETFILTER_XT_MATCH_LIMIT`, `_RECENT`, `_HL`, `NETFILTER_XT_TARGET_LOG`, `IP_NF_TARGET_REJECT`, `IP6_NF_TARGET_REJECT`, `IP6_NF_MATCH_HL`, `IP6_NF_MATCH_RT`), plus `IP6_NF_MATCH_IPV6HEADER` and `NETFILTER_XT_MATCH_STATE`, which hand-written rule sets load and only the defconfig set, each `=y` and declared once |
 | AC-22 | `./le setup docker kernel install`, cached kernel lacking an option the host relies on (owner, 2026-10-14: "add the check") | refuses before any step, naming each dependency (a slot-named interface in `/sys/class/net` or netplan's generated networkd file names; the iptables modules in `/proc/modules`; UFW installed), what the kernel would break, the missing options and the rebuild; a loaded netfilter module the one table does not map is refused by name. `TestZeKernelServesHostRefusesWhatBrokeTheOwnersHost` refuses the `7.2.9-ze` config and accepts the fixed one; `TestHostDependencyOptionsAreInTheRuntimeProfile` keeps the table inside `runtime.config` |
 | AC-23 | `install confirm` on a host whose `/boot/grub/grub.cfg` is root-only | reads it through `sudo cat` after the plain read is refused for permission (`TestReadGrubConfigFallsBackToSudo`; journal row in `plan/journal/gate-verdict-depends-on-the-machine.md`) |
+
+### Criteria moved at closure (owner, 2026-11-14)
+
+Owner, 2026-11-14: "close terminal-demo-showcase docker-hosts-run-the-ze-kernel". The choice put to him was: add AppArmor and securityfs to Ze's kernel, or move the AppArmor host proofs out so this spec closes. Closing moves them. Nothing is declined: he has not said Ze's kernel will never carry AppArmor, so each moved part stays owed work in the spec named, with its evidence.
+
+Why they cannot be proven here: the host this spec mandates runs Ze's kernel, and `gokrazy/kernel/runtime.config` sets no `CONFIG_SECURITY_APPARMOR` and no `CONFIG_SECURITYFS` (`plan/journal/gate-verdict-depends-on-the-machine.md`, 2026-10-20: `/proc/config.gz` on `7.2.9-ze` has no `CONFIG_SECURITY_APPARMOR=y`, and `/sys/kernel/security/apparmor` is absent). No Ze-kernel Docker host can load `ze-kernel-probe`.
+
+| AC | Proven here, by committed tests | Moved to `plan/release/validation/spec-lab-containers-least-privilege.md` |
+|----|--------------------------------|--------------------------------------------------------------------|
+| AC-9 | the install action never reboots (`TestDockerKernelInstallSteps`) | AC-11: the check passing on a Linux amd64 host's own Docker daemon |
+| AC-10 | the four jobs run in the Ze-image guest under KVM and the check passes there (nightly run 43586166002) | AC-16: the hosted runner's own failing rows, as information |
+| AC-15 | the classification: EACCES under a confining label reads `denied` with the label, the step and the grant; EACCES with no label, EPERM and unconfined SELinux domains read `unknown` (`internal/component/kernelcap` `TestClassifyLabelUnconfinedSELinuxDomain`, `TestMPLSIPMTUUnconfinedSELinuxEACCESIsUnknown`, `TestForcedDeniedReachesBothReaders`; `test/ui/doctor-kernelcap-denied.ci` from both doctor entry points) | AC-12: a real `denied` row under `docker-default`, and `present` under `ze-kernel-probe`, on an AppArmor Docker host |
+| AC-17 | the refusal text over a recorded denied row (`TestDockerKernelDeniedRowNamesTheProfileCommand`, `TestDockerKernelDeniedRowWithoutAppArmorNamesThePolicyGrant`) | AC-13: the same refusal against a real AppArmor daemon |
+| AC-18 | the argv with and without AppArmor, and the refusal for an unloaded profile, over a recording `docker` (`TestRunContainerAppliesItsAppArmorProfile`, `TestRunContainerWithoutAppArmorPassesNoProfile`, `TestRunContainerRefusesAnUnloadedProfile`, `TestRunContainerMapsAnUnappliedProfileToItsLoadCommand`) | AC-14: the probe container started under the profile by a real daemon |
+| AC-19 | Linux-only, the refusals, the printed root steps and the `confirm` gate (`TestAppArmorLoadRefusesAHostThatCannotLoadIt`, `TestAppArmorLoadSteps`, `TestAppArmorLoadNeedsConfirmation`, `TestAppArmorLoadCommandIsThisAction`) | AC-15: the load action run by the owner on an AppArmor host, and the VRRP lab under `ze-lab-net-sysctl` there |
+
+AC-16 and AC-20 are whole here: they need no AppArmor host (`TestKernelCapabilitiesAnswer/one_denied`, `TestProbeAppArmorProfileGrantsExactlyTheProbe`, and the `apparmor_parser -Q` parse recorded under D-7).
 
 ## 🧪 TDD Test Plan
 
@@ -359,8 +389,10 @@ Rebuild (2026-10-14, after commits 7bd12b1e80 and af8cc93d2f): the Docker builde
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `command-name-breaks-the-cli-grammar.md` | 2026-10-24 | `setup docker host` and `setup docker kernel`, then hyphenated, failed `./le cli grammar` R9; renamed to two tokens |
-| `failing-gate-prints-no-cause.md` | 2026-10-28 | Docker socket forwarding loses the filesystem error and SSH child outcome |
-| `zero-value-as-valid-answer.md` | 2026-10-28 | Docker-lab setup failure prints zero exit statuses for unexecuted stages |
+
+Re-homed at closure (2026-11-14) to `plan/release/validation/spec-qemu-nightly-guests-run-ze-system.md`, which edits `internal/le/test/qemu/dockerlab.go` and already owns a `docker-lab` row: `failing-gate-prints-no-cause.md` 2026-10-28 (`dockerLabSession.forward` drops the `os.Stat` error and the ssh child's outcome) and `zero-value-as-valid-answer.md` 2026-10-28 (`Run.dockerLab` returns before `runHostLe`, so `check-exit 0` and `lab-exit 0` print for stages that never ran). Both read at the producer on 2026-11-14 and still open. Not fixed here: the second changes the `DockerLabReport` answer shape, the goal of this spec does not depend on either, and `spec-appliance-kernel-vpn-modules` found them, not this work.
+
+The 2026-10-24 row above is `fixed:` (b209677569) and needs no owner. Every other open row that names this spec as its finder is already listed by a live spec: `failure-report-names-a-command-that-does-not-exist.md` 2026-10-10 and `failing-gate-prints-no-cause.md` 2026-10-10 by `spec-gates-report-cause-and-progress`; `gate-verdict-depends-on-the-machine.md` 2026-10-10 by `spec-test-sandbox`; `stale-artifact-reused.md` 2026-10-14 by `spec-snapshot-builds-and-built-commits`; `helper-bypassed-by-an-open-coded-copy.md` 2026-10-10 by `spec-one-owner-per-domain-fact`; `feature-test-missing-build-tag.md` 2026-10-10 by `spec-gates-share-one-semantic-population`; `gate-fires-outside-its-population.md` 2026-10-10 by `spec-web-cli-config-one-off-defects`. `gate-verdict-depends-on-the-machine.md` 2026-10-20 (Ze's kernel has no AppArmor) moves from `spec-test-sandbox` to `spec-lab-containers-least-privilege`, with the criteria it blocks.
 
 ## Known Limitations
 
@@ -493,6 +525,31 @@ The review loop is closed: round 5 has 0 BLOCKER and 0 ISSUE. The spec stays in-
 | GitHub nightly (after a push the owner orders) | AC-10, AC-13 |
 | Mac | the full IPsec and BGP suites in the guest. AC-12 `mobike-responder` itself PASSED 2026-10-10 19:49 (HVF, arm64, guest kernel 7.2.9): `./le test qemu docker-lab lab "test integration interop-ipsec" env "IPSEC_INTEROP_SCENARIO=mobike-responder" timeout 3600s` printed `verdict  pass` for the kernel check (line 81), `── mobike-responder ── ✓ PASS`, `PASS  1 scenario(s)` and `QEMU VM: PASS` (lines 87 to 94), log `tmp/session/2026-10-09-5620b26f-603e-4d57-826d-6ef92b7fcd64/scratch/docker-lab-ipsec-mobike-responder-2.log`. With `mobike-initiator` (`docker-lab-ipsec-mobike.log`), both AC-12 scenarios have passed on the Mac |
 
+Status of that table at closure (2026-11-14): the whole-tree gates are not an agent's to run (`ai/META-DECISIONS.md`), so the scoped runs under Pre-Commit Verification replace them, and the five `./le cli grammar` R1 rows are owned by `spec-web-cli-config-one-off-defects`. The Linux host row moved (Work Not Done). The nightly row is answered by run 43586166002. The Mac row is answered by the full IPsec suite in the guest on Ze's image on 2026-10-23 (46 passed, 4 failed, the four reds owned by `spec-ipsec-strongswan-interop-reds`); the full BGP suite ran in the same guest route on the nightly (204 passed, 36 failed, none a kernel refusal), and a test runs on one machine.
+
+### Closure review: owed, by a context that did not write this (2026-11-14)
+
+Rounds 1 to 5 ended on 2026-10-10 and covered the diff to `49697ff613` and the round 5 fix. Scope of the closure pass, written before it runs: the work this spec landed after round 5, at its present state in the tree.
+
+| Commit | What it carried | Files to read |
+|--------|-----------------|---------------|
+| `7bd12b1e80` (2026-10-14) | AC-21: the host-dependency options in the runtime profile | `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` |
+| `af8cc93d2f` (2026-10-14) | AC-22, AC-23: the install refuses a kernel lacking what the host relies on; `readGrubConfig` falls back to `sudo cat` | `internal/le/setup/docker/kernel/hostdeps.go`, `hostdeps_test.go`, `dockerkernel.go` |
+| `b209677569` (2026-10-25) | the rename to `setup docker host` and `setup docker kernel`, as far as it touched this spec's refusals and routes | `internal/le/interoplab/kernelcheck.go`, `internal/le/setup/docker/kernel/dockerkernel.go` |
+
+The closing agent of 2026-11-14 edited no code and is not that reviewer: it was asked to prepare the closure and hand the review to an independent one. Whether this pass counts as a sixth round, which is the owner's decision, or as round 1 of a new diff, is put to the main thread with this hand-back.
+
+| Field | Value |
+|-------|-------|
+| Artifact | not recorded yet: the reviewer runs `./le spec review record` |
+| `./le spec review check` | not run |
+| Rounds | 5 recorded on 2026-10-10 (0 BLOCKER, 0 ISSUE at round 5); the closure pass above is owed |
+| Reviewer lenses used | rounds 1 to 5: independent reviewer over each round's stated scope; closure pass: owed |
+
+### Findings fixed
+
+Rounds 2 to 5 list each BLOCKER and ISSUE with its fixing commit in the tables above. The closure pass adds its own rows here.
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
@@ -509,10 +566,10 @@ The review loop is closed: round 5 has 0 BLOCKER and 0 ISSUE. The spec stays in-
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-13 all demonstrated
+- [ ] AC-1..AC-23 all demonstrated, or the undemonstrated part moved to the spec named in "Criteria moved at closure" and Work Not Done
 - [ ] Every user story has a working path and a passing test (N-A: Scope is tooling)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] The scoped package tests and changed-code lint of what this spec reached pass (the owed commands under Pre-Commit Verification, run by the main thread); GitHub CI verifies the pushed commit, and no agent runs a whole-tree verify
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -534,3 +591,166 @@ The review loop is closed: round 5 has 0 BLOCKER and 0 ISSUE. The spec stays in-
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `kernelcap.ProbeAll` and `ze doctor [--json] kernel-capabilities`: every enrolled capability probed with the configuration ignored (AC-1).
+- Enrolments from their owning packages: MOBIKE migration, ESP, every XFRM transform, xfrm interface, WireGuard, L2TP, PPPoL2TP, PPPoE (AC-2), each symbol in `runtime.require` (AC-7).
+- `interoplab.DockerKernel`: the one check, called by `Suite.Run`, the Docker deployment proofs, the terminal-demo validate and render, perf and the release-candidate evidence run (AC-3 to AC-6, AC-11).
+- `./le setup docker kernel check`, `install` and `apparmor` (AC-9 install half, AC-19, AC-22, AC-23), and `./le test qemu docker-lab` (AC-8, AC-10).
+- The `denied` state, `doctor-kernel-capability-denied`, the `ze-kernel-probe` profile and the lab AppArmor registry (AC-15 to AC-20, as far as tests without an AppArmor host prove them).
+- Docker's and the host's kernel options in the `runtime` profile (AC-14, AC-21).
+
+### Bugs Found/Fixed
+- `mpls-transit-mtu` read `unknown` in every probe container, so no kernel passed: `kernelcap.MPLSIPMTU` asks from a throwaway namespace (`7d209a5d9e`, `TestMPLSIntegration_ProbeAnswersFromAFreshNamespace`).
+- `ze-lab-vrrp` denied a sysctl VRRP writes (review round 2 BLOCKER): `84d07bf11c`, `TestVRRPWritesOnlyLabGrantedSysctls`.
+- The Ze kernel lost the owner host's NIC name and UFW: `7bd12b1e80`, `af8cc93d2f`, `TestZeKernelServesHostRefusesWhatBrokeTheOwnersHost`.
+- `install confirm` failed on a root-only `grub.cfg`: `TestReadGrubConfigFallsBackToSudo`.
+
+### Documentation Updates
+- Made by the implementation commits and verified present on 2026-11-14: `docs/architecture/doctor-and-health-checks.md` (`ProbeAll`, the `kernel-capabilities` mode, `denied`), `docs/architecture/testing/interop.md` "The Docker host kernel check", `docs/architecture/testing/qemu-integration.md` (the `docker-lab` route), `docs/architecture/testing/ci-workflows.md` (the lab jobs inside `docker-lab`), `docs/guide/developer-setup.md` (the lab host and the AppArmor load), `docs/guide/command-reference.md` (`show doctor ... [kernel-capabilities]`), `ai/rules/platform-linux.md` (the Docker lab in the guest).
+- At closure: the doctor page cited this spec by path; it now cites the interop page's section, which survives.
+- `./le doc check all`: see Pre-Commit Verification.
+
+### Deviations from Plan
+- The Alpine guest of D-6 (b), A-3, A-5, AC-8 and AC-10 is gone: the guest is Ze's docker-host image (owner rule, 2026-10-20; `docs/architecture/appliance/docker-host.md`). AC-8 and AC-10 were rewritten on 2026-11-14 to say so.
+- D-6 dropped colima as the lab host; `spec-ze-image-docker-host` brought it back as the `ze` Colima profile booting Ze's image, beside the QEMU guest.
+- G-3 is met for the Mac and the nightly and not for a Linux host natively; G-4 is met for `mobike-responder` and not for `mobike-initiator`. Both remainders are in Work Not Done. The kernel is no longer what decides either.
+- Documentation row 1 named `docs/features/ai-first.md` for the JSON mode; the mode is documented in the doctor architecture page and the command reference instead, and `ai-first.md` does not mention it.
+- Documentation row 9 (RFC 4555 carriers cite the passing run) is not done: no run has `mobike-initiator` green on Ze's image, so the citation rides with `spec-ipsec-strongswan-interop-reds` AC-2.
+- The "Blocked (2026-10-10)" table is history. Its Linux host row is the moved work; its nightly row is answered; its Mac rows are answered.
+- The arm64 runtime build with AC-21's options (the 2026-10-14 constraint) was not re-checked at closure.
+
+### Citers of this spec (cleared 2026-11-14, before commit B)
+- Repointed or restated by stem: `docs/architecture/doctor-and-health-checks.md`; `spec-lab-containers-least-privilege`, `spec-qemu-nightly-guests-run-ze-system`, `spec-test-sandbox`, `spec-ipsec-strongswan-interop-reds`, `spec-lab-kernel-features-in-setup`, `spec-iface-nic-slot-selector`, `spec-nat44-customer-napt`.
+- NOT cleared: `plan/post-release/engineering/spec-interop-image-copies-a-prebuilt-ze.md` cites this spec by path three times (its `Blocked by` row, its `Depends` row, its AC-9 row). The spec edit hook refuses every edit of that spec for two faults of its own: it names `cache/go-cache`, which resolves outside the checkout, and it carries no functional test reference for a daemon-path change. The owed text: `Blocked by` and `Depends` name `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` AC-2 (the `mobike-initiator` pass; the kernel half landed), and AC-9's evidence is the run that AC-2 records. Commit B leaves `./le spec citation` red on those three lines until that spec is repaired and repointed.
+- Left as they are: `test/ui/doctor-kernel-capabilities.ci` and `test/ui/doctor-kernelcap-denied.ci` name this spec under `plan/pre-release/`, a folder that no longer exists, in a comment; `docs/architecture/testing/interop.md` names it by bare stem.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 and A-5 designed an Alpine guest | the owner's rule rejects Alpine for test guests | owner rule, 2026-10-20 | the guest moved to Ze's image (`spec-ze-image-docker-host`); rule in `ai/META-DECISIONS.md` |
+| assumption | D-7 assumed the mandated host can load an AppArmor profile | Ze's kernel is built without AppArmor and securityfs | closability audit on `7.2.9-ze`, 2026-10-20 | journal row, and the host proofs moved with the open question to `spec-lab-containers-least-privilege` |
+| approach | the first check design read `unknown` for `mpls-transit-mtu` in any fresh namespace | the probe must size its own label space | first HVF guest boot, 2026-10-10 | `7d209a5d9e` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 derived requirement | Done | `internal/component/kernelcap/kernelcap.go` `ProbeAll`; `internal/le/interoplab/kernelcheck.go` `checkDockerKernel` | no le-side feature list |
+| G-2 every Ze-running Docker run checks first | Done | `internal/le/interoplab/lab.go` `Suite.Run`; `internal/le/site/terminaldemo/render.go` `preflightContainers`; `internal/le/test/deployment/` | |
+| G-3 every lab host passes | Partial | Mac and nightly guest | Linux host natively moved (Work Not Done); owner said close |
+| G-4 both MOBIKE scenarios pass | Partial | `mobike-responder` green on both | `mobike-initiator` moved (Work Not Done); owner said close |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDoctorAllCapabilitiesIgnoresConfig`, `test/ui/doctor-kernel-capabilities.ci` | |
+| AC-2 | Done | `TestMOBIKEMigrationIsEnrolled`, `TestXFRMAlgorithmEnrolmentFollowsTheTable`, A-2's record | |
+| AC-3, AC-5 | Done | `TestSuiteRefusesDockerHostMissingAKernelFeature`, `TestDockerDeploymentRefusesMissingKernelFeature`, `TestRenderRefusesMissingKernelFeature` | |
+| AC-4 | Done | `TestDockerKernelUnknownRefuses` | |
+| AC-6 | Done | the kernel build names no caller of `DockerKernel` (`git grep` over `internal/appliance`, `internal/le/build`: none) | |
+| AC-7 | Done | `TestEnrolledKernelSymbolsAreInRuntimeRequire` | linux-only test |
+| AC-8 | Done | Mac, HVF, Ze's image, kernel `7.2.9-ze`, check `verdict pass`, 2026-10-23 (`git show 52c6ccddfb:plan/release/validation/spec-lab-docker-cleanup-on-macos.md`, AC-5 rerun 3) | |
+| AC-9 | Partial | `TestDockerKernelInstallSteps` (never reboots) | host check moved |
+| AC-10 | Partial | nightly run 43586166002: four jobs, `accelerator kvm`, `verdict pass`, `check-exit 0` | informational rows moved |
+| AC-11 | Done | `TestDockerKernelRefusesNamingEveryMissingFeature` | |
+| AC-12, AC-13 | Partial | `mobike-responder: pass` (Mac 2026-10-23; nightly 43586166002) | `mobike-initiator` moved |
+| AC-14 | Done | `gokrazy/kernel/runtime.require` (the D-5 block), dockerd starts in the guest | |
+| AC-15, AC-17, AC-18, AC-19 | Partial | the tests in "Criteria moved at closure" | real-host proof moved |
+| AC-16 | Done | `TestKernelCapabilitiesAnswer/one_denied`, `TestForcedDeniedReachesBothReaders`, `test/ui/doctor-kernelcap-denied.ci` | |
+| AC-20 | Done | `TestProbeAppArmorProfileGrantsExactlyTheProbe`, the recorded `apparmor_parser -Q` parse | |
+| AC-21 | Done | `gokrazy/kernel/runtime.config`, `runtime.require` (`7bd12b1e80`) | |
+| AC-22 | Done | `TestZeKernelServesHostRefusesWhatBrokeTheOwnersHost`, `TestHostDependencyOptionsAreInTheRuntimeProfile` | |
+| AC-23 | Done | `TestReadGrubConfigFallsBackToSudo` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestDoctorAllCapabilitiesIgnoresConfig`, `TestForcedDeniedReachesBothReaders` | Done | `internal/component/kernelcap/kernelcap_test.go` | |
+| `TestSuiteRefusesDockerHostMissingAKernelFeature`, `TestDockerKernelUnknownRefuses`, `TestDockerKernelRefusesNamingEveryMissingFeature` | Changed | `internal/le/interoplab/kernelcheck_test.go` | the plan named `lab_test.go` for the first |
+| `TestEnrolledKernelSymbolsAreInRuntimeRequire` | Changed | `internal/appliance/kernelreq_enrolled_linux_test.go` | the plan named `kernelreq_test.go` |
+| `TestMOBIKEMigrationIsEnrolled`, `TestXFRMAlgorithmEnrolmentFollowsTheTable` | Done | `internal/component/ike/dataplane/kernelcap_linux_test.go` | |
+| `TestKernelCapabilitiesAnswer/one_denied` | Done | `internal/component/doctor/kernel_capabilities_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/kernelcap/kernelcap.go` | Done | `ProbeAll` |
+| `internal/le/interoplab/lab.go`, `docker.go` | Done | plus `kernelcheck.go`, `apparmor.go` |
+| `internal/le/setup/docker/kernel/dockerkernel.go` | Done | renamed from `dockerkernel/` by b209677569 |
+| `internal/le/test/qemu/` | Done | `dockerlab.go` |
+| `.github/workflows/evidence-nightly.yml` | Done | `8bd1742581`, `3ac4057f32` |
+| `gokrazy/kernel/runtime.config`, `runtime.require` | Done | |
+
+### Audit Summary
+- **Total items:** 4 goals, 23 criteria.
+- **Done:** 2 goals, 15 criteria.
+- **Partial:** 2 goals (G-3, G-4) and 8 criteria (AC-9, AC-10, AC-12, AC-13, AC-15, AC-17, AC-18, AC-19): the owner's "close" of 2026-11-14 moves each remainder to the spec in Work Not Done. None is dropped.
+- **Skipped:** 0.
+- **Changed:** AC-8 and AC-10 (the guest), recorded in Deviations.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 | unit | `TestDockerKernelRefusesNamingEveryMissingFeature` enrols a capability le never names and sees it required; `TestEnrolledKernelSymbolsAreInRuntimeRequire`; `TestXFRMAlgorithmEnrolmentFollowsTheTable` |
+| G-2 | unit and lab run | one refusal test per entry point (suite, deployment, render), the suite's asserting no `docker build` follows a refusal; in nightly run 43586166002 each job prints `verdict  pass` before its first scenario |
+| G-3 | lab run | Mac: 2026-10-23, HVF, Ze's image, `7.2.9-ze`, `verdict pass`. Nightly: run 43586166002, four jobs, KVM, `check-exit 0`. Linux host natively: NOT proven, moved (`spec-lab-containers-least-privilege.md` AC-11) |
+| G-4 | interop | `mobike-responder: pass (20s)` in nightly run 43586166002 and on the Mac on 2026-10-23; both scenarios passed on the Mac on 2026-10-10 against 6.8 red. `mobike-initiator` is NOT green: `FAIL (40s) in checker: ... MOBIKE replaced an IKE or Child SA instead of migrating it` on the nightly, with `ipsec-mobike` present, so the kernel is not the cause. Moved (`spec-ipsec-strongswan-interop-reds.md` AC-2) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-9: the Docker kernel check passing on a Linux amd64 host's own daemon | no run was recorded on the owner's host, and no host was named for one | `plan/release/validation/spec-lab-containers-least-privilege.md` (AC-11) |
+| AC-15, AC-17, AC-18, AC-19: proof against a real AppArmor Docker host, and the VRRP lab under `ze-lab-net-sysctl` there | the mandated host runs Ze's kernel, which has no AppArmor and no securityfs | `plan/release/validation/spec-lab-containers-least-privilege.md` (AC-12 to AC-15, with the open question and journal row 2026-10-20) |
+| AC-10: the hosted runner's own failing rows, as information | the runner's daemon applies AppArmor and cannot apply `ze-kernel-probe`, so the step prints that refusal instead of rows | `plan/release/validation/spec-lab-containers-least-privilege.md` (AC-16) |
+| AC-12, AC-13, G-4: `mobike-initiator` green on the Mac and the nightly | red in its checker on Ze's image since 2026-10-20, not a kernel refusal | `plan/release/fixes/spec-ipsec-strongswan-interop-reds.md` (AC-2) |
+| Two `dockerlab.go` journal rows of 2026-10-28 this spec's table listed | found by another spec; the goal here does not depend on them | `plan/release/validation/spec-qemu-nightly-guests-run-ze-system.md` (Owned journal rows) |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ui/doctor-kernelcap-denied.ci` | yes | `ls`, 2026-11-14: 1.5K, Oct 10 |
+| `test/ui/doctor-kernel-capabilities.ci` | yes | `ls`, 2026-11-14: 1.5K, Oct 10 |
+| `test/ui/doctor-refuses-bare-config-path.ci` | yes | `ls`, 2026-11-14: 714 bytes, Oct 10 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-7, AC-11, AC-16, AC-20, AC-22, AC-23 | each named test exists at the path in the audit | `git grep -l "func <Test>"`, 2026-11-14, one file per test; the pass output is the owed scoped runs, filled by the main thread |
+| AC-10, AC-13 | the four jobs ran in the guest; responder green, initiator red | `gh run view 43586166002`, read 2026-11-14: `verdict  pass`, `accelerator   kvm`, `check-exit    0` in each of `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`; `mobike-responder: pass (20s)`; `mobike-initiator: FAIL (40s) in checker` |
+| AC-14, AC-21 | the options are declared | `grep` of `runtime.require`: the D-5 block at line 152, `CONFIG_HOTPLUG_PCI` to `CONFIG_NETFILTER_XT_MATCH_LIMIT` at 198 to 201; `runtime.config` 166 to 176 `=y` |
+| AC-15, AC-17 to AC-19 (moved halves) | Ze's kernel carries no AppArmor | `grep SECURITY_APPARMOR\|SECURITYFS gokrazy/kernel/runtime.config runtime.require`: no line |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze doctor --json kernel-capabilities` | `test/ui/doctor-kernel-capabilities.ci`, `test/ui/doctor-kernelcap-denied.ci` | exist; the denied one was red with the `denied` arm removed (TDD table, 2026-10-10) |
+| `./le test integration <lab>` | none: `TestSuiteRefusesDockerHostMissingAKernelFeature` | `Suite.Run` calls `DockerKernel(s.StagedZe)` after `Preflight` (`lab.go`, read 2026-11-14) |
+| terminal-demo render | none: `TestRenderRefusesMissingKernelFeature` | `preflightContainers` calls `checkKernel` before the renderer image (`render.go`, read 2026-11-14) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | absent on colima 6.8, present on the guest's `7.2.9-ze`, same probe container |
+| A-2 | confirmed | its row: every probe mutation-free or namespace-confined, kernel source read |
+| A-3 | confirmed, then superseded | Alpine guest booted and ran dockerd on 2026-10-10; Ze's image replaced it (Mistake Log) |
+| A-4 | confirmed for grub | the owner's host booted `7.2.9-ze` after `install confirm`; the check pass moved |
+| A-5 | confirmed for Ze's image | nightly run 43586166002 |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ze doctor [--json] kernel-capabilities` exits 0 only with every row present | `docs/architecture/doctor-and-health-checks.md` lines 323 to 332 against `kernelcap.ProbeAll` | yes |
+| the lab check runs after `Preflight`, before builds | `docs/architecture/testing/interop.md` "The Docker host kernel check" against `Suite.Run` | yes |
+| the nightly lab jobs run inside `docker-lab` | `docs/architecture/testing/ci-workflows.md` lines 20 to 22 against run 43586166002 | yes |
+| `./le doc check all` | run by the closing agent after the citer edits | see the hand-back report |

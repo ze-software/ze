@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Test tooling: a red that judges the host instead of the code wastes the evidence the release depends on, but no shipped behaviour changes |
-| Depends | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` (the Ze-image guest this spec reuses) |
+| Depends | - (the dependency landed: the Ze-image guest this spec reuses is `./le test qemu docker-lab`, from `spec-docker-hosts-run-the-ze-kernel`, in closure since 2026-11-14) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-07 |
@@ -48,7 +48,7 @@ and a check after each test refuses one that touched anything outside it.
   -> Constraint: `.ci` `$PORT`/`$PORT2` are already leased through `LeaseTestPorts` with per-port advisory locks under `/tmp/le-port-locks-<uid>`. The sandbox extends that registry; it does not add a second one.
 - [ ] `docs/architecture/testing/qemu-integration.md` - guest kinds, Alpine ISO path
 - [ ] `docs/architecture/appliance/docker-host.md` - the Ze docker-host image the lab guest boots
-- [ ] `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` - Ze-kernel requirement for Docker hosts
+- [ ] `docs/architecture/testing/interop.md`, "The Docker host kernel check", and `docs/architecture/appliance/docker-host.md` - Ze-kernel requirement for Docker hosts (the pages `spec-docker-hosts-run-the-ze-kernel` left; that spec is in closure since 2026-11-14)
   -> Constraint: only the docker-lab guest moved to Ze's image; `run`, `all-tests`, `stress` and `mobike` still boot Alpine (`internal/le/test/qemu/run_iso.go`, `alpineISOName`). The owner rule rejects Alpine for test guests, so this spec routes them to Ze's image.
 - [ ] `docs/architecture/testing/interop.md` "Crash-safe teardown" (from spec-lab-docker-cleanup-and-go-test-containers, closed 2026-11-09) - run-owned Docker labels and cleanup
   -> Decision: orphaned lab networks are that spec's cleanup; this spec only leases the subnet so two live runs cannot pick the same one.
@@ -262,7 +262,6 @@ The loopback-address half stays here.
 | package-red-not-reproduced.md | 2026-10-15 | test/ipsec/ipsec-peer-reload-applies-selectors.ci in the QEMU arm64 guest |
 | gate-verdict-depends-on-the-machine.md | 2026-10-21 | ./le test qemu run, all-tests, stress, mobike (run.go, run_iso.go); ze appl |
 | gate-verdict-depends-on-the-machine.md | 2026-10-26 | ./le rfc record Linux guest unit run boots the Alpine Run guest (discriminate_guest.go, run_exec.go) |
-| gate-verdict-depends-on-the-machine.md | 2026-10-20 | the Ze host kernel (7.2.9-ze) |
 | gate-verdict-depends-on-the-machine.md | 2026-10-20 | ./le test exabgp api run directly (internal/test/cli), api-healthcheck-modu |
 | gate-verdict-depends-on-the-machine.md | 2026-10-18 | publishPluginRegistry (internal/le/site/build.go), ./le site build |
 | gate-verdict-depends-on-the-machine.md | 2026-10-12 | TestInstallNativeKernelFixtures, kernelQEMUArchAliasFixture (internal/test/ |

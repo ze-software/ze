@@ -114,7 +114,7 @@ replaced card, and the doctor names the edit that rebinds it.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A PCI function with several ports (some multi-port NICs) exposes several net devices on one PCI address; the selector then needs a port index (`dev_port`) | Linux sysfs `dev_port` | Ambiguous binding | QEMU guest with a multi-queue or multi-function NIC | unvalidated |
 | A-2 | A device with no permanent address (some modems, VFs) gets a random MAC per probe and must never be recorded as a card identity | VyOS T3871 `015663a31` | The doctor reports a replaced card every boot | Unit test with a device reporting no IFLA_PERM_ADDRESS | unvalidated |
-| A-3 | Ze's kernel exposes no `/sys/bus/pci/slots` (no PCI hotplug drivers), so the selector is the PCI bus address, not a physical slot number | `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` notes `CONFIG_HOTPLUG_PCI_*` unset | Slot numbers would be preferable where present | Read the Ze kernel config | unvalidated |
+| A-3 | Ze's kernel exposes no `/sys/bus/pci/slots` (no PCI hotplug drivers), so the selector is the PCI bus address, not a physical slot number | `spec-docker-hosts-run-the-ze-kernel` recorded `CONFIG_HOTPLUG_PCI_ACPI` and `_PCIE` unset on `7.2.9-ze` (2026-10-14). Its AC-21 then set `HOTPLUG_PCI`, `HOTPLUG_PCI_ACPI` and `HOTPLUG_PCI_PCIE` to `=y` in `gokrazy/kernel/runtime.config` (`7bd12b1e80`), so a kernel built after it is expected to expose `/sys/bus/pci/slots` (not observed here): re-check this basis before design | Slot numbers would be preferable where present | Read the Ze kernel config | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
