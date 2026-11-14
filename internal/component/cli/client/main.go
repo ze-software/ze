@@ -984,12 +984,17 @@ func buildRuntimeTree(client *cliClient) (*Command, error) {
 	return tree, nil
 }
 
-// BuildRuntimeTreeFromDispatch is the `ze cli` interactive completion tree:
-// the daemon's commands as runtimeTreeFromDispatch reads them, plus every
-// local-data command `ze cli` answers in its own process (command.ServeLocal),
-// so a command it serves is a command it offers whether or not a daemon
-// answers. The surface parity check (cmd/ze/hub TestEveryCommandOnEverySurface)
-// asks this producer for the `ze cli` surface.
+// BuildRuntimeTreeFromDispatch is the completion tree of the attached console
+// of `ze start --cli` (RunAttached, newAttachedModel): the daemon's commands as
+// runtimeTreeFromDispatch reads them, plus every local-data command
+// (mergeLocalDataCommands). A line typed in that console goes to dispatch,
+// which is the daemon's dispatcher: it serves a local-data command only under
+// a path a YANG node declares (plugin/server loadLocalData). Only `ze cli -c`
+// answers a local-data command in its own process (command.ServeLocal, in run
+// and cliClient.execute); an interactive `ze cli` session is an SSH shell
+// dispatched on the daemon, and builds no tree here. The surface parity check
+// (cmd/ze/hub TestEveryCommandOnEverySurface) asks this producer for the
+// surface command.SurfaceCLI names.
 func BuildRuntimeTreeFromDispatch(dispatch CommandFunc) (*Command, error) {
 	tree, err := runtimeTreeFromDispatch(dispatch)
 	if err != nil {

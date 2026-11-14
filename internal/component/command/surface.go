@@ -29,7 +29,7 @@ const (
 	SurfaceMCP                   // MCP tools/list
 	SurfaceREST                  // the REST command list
 	SurfaceGRPC                  // the gRPC command list
-	SurfaceCLI                   // `ze cli` interactive completion
+	SurfaceCLI                   // `ze start --cli` attached console completion (cli/client BuildRuntimeTreeFromDispatch)
 	SurfaceShell                 // shell completion, `ze completion words`
 )
 
@@ -272,10 +272,14 @@ func AnswerSurface(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 }
 
 // answerOfflineRoot answers a local command whose daemon form is another path:
-// listed on shell completion, which runs `ze <root>` locally, and on `ze cli`
-// when it is local-data, since `ze cli` answers local-data in its own process
-// (command.ServeLocal) before it asks the daemon. No daemon surface lists it:
-// each offers the declared daemon path instead.
+// listed on shell completion, which runs `ze <root>` locally, and on the
+// SurfaceCLI tree when it is local-data. Of the `ze cli` forms, only `ze cli -c`
+// answers local-data in its own process (command.ServeLocal) before it asks
+// the daemon; an interactive `ze cli` session is an SSH shell dispatched on
+// the daemon, and the SurfaceCLI tree is the attached console's
+// (cli/client BuildRuntimeTreeFromDispatch), whose lines the daemon's
+// dispatcher answers. No daemon surface lists it: each offers the declared
+// daemon path instead.
 func answerOfflineRoot(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 	if reg.Kind != KindLocal && reg.Kind != KindLocalData {
 		return SurfaceAnswer{}, fmt.Errorf("command %q: kind %s declares a daemon path; only a local command at an offline root may", reg.Path, reg.Kind)
