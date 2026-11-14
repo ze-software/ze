@@ -1,6 +1,8 @@
 # Scenario: isis-import-policy-frr (IS-IS import chain between two FRR isisd)
 
-Owner spec: `plan/post-release/features/spec-route-policy-0-umbrella.md`, AC-4.
+Owner spec: `spec-route-policy-0-umbrella`, AC-4, closed on 2026-11-14 (its
+record is in git history). Design: `docs/guide/route-policy.md` and
+`docs/architecture/rib/unified-locrib.md`.
 
 ## What it proves
 

@@ -313,11 +313,13 @@ reaches only the sessions that agreed. See
 The per-protocol row was checked against primary documentation on 2026-11-13.
 It compares where policy applies, rather than claiming identical route semantics.
 Ze's [Loc-RIB attachments](guide/route-policy.md) retain rejected candidates and
-leave IGP flooding intact. Its two system-RIB placements remain Experimental
-until paired execution proof is complete.
+leave IGP flooding intact. Both system-RIB placements, inside the daemon and
+as an external process, run the same paired daemon tests against a real
+kernel. The feature is declared Experimental.
 <!-- source: internal/core/rib/locrib/policy.go -- admit -->
 <!-- source: internal/component/policy/fields.go -- CheckChain -->
 <!-- source: features/route-policy.md -- Meta -->
+<!-- source: features/runs/route-policy.json -- the recorded run of the 30 paired cases -->
 
 [BIRD 3.4.0](https://bird.nic.cz/doc/bird-3.4.0.html)
 and [BIRD 2.20.0](https://bird.nic.cz/doc/bird-2.20.0.html)

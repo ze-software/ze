@@ -1,6 +1,7 @@
 # Scenario: isis-export-policy-frr (IS-IS export chain toward FRR isisd)
 
-Owner spec: `plan/post-release/features/spec-route-policy-0-umbrella.md`, AC-12.
+Owner spec: `spec-route-policy-0-umbrella`, AC-12, closed on 2026-11-14 (its
+record is in git history). Design: `docs/guide/route-policy.md`.
 
 ## What it proves
 

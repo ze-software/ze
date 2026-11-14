@@ -1,6 +1,8 @@
 # Scenario: ospf-import-policy-bird (OSPF import chain against BIRD 3)
 
-Owner spec: `plan/post-release/features/spec-route-policy-0-umbrella.md`, AC-9.
+Owner spec: `spec-route-policy-0-umbrella`, AC-9, closed on 2026-11-14 (its
+record is in git history). Design: `docs/guide/route-policy.md` and
+`docs/architecture/rib/unified-locrib.md`.
 
 ## What it proves
 
@@ -15,6 +17,12 @@ the route at the distance its `modify` sets:
   OSPF path at distance 110 and selected.
 - 10.88.1.0/24: OSPF at 200 loses to static, so `show rib candidates` lists its
   OSPF path at distance 200 and the static path selected.
+- 10.88.3.0/24, a third BIRD external, is rejected by the central `rib` import
+  chain: `show rib candidates` lists its OSPF path at distance 110 as hidden by
+  the `rib import` chain, `show ospf route` still lists it, and neither
+  `show rib` nor the kernel FIB holds it while the untagged 10.88.2.0/24 is
+  installed (`checkOSPFImportCentral` in
+  `internal/le/interoplab/bgp/check_import_policy_placement.go`).
 
 The two prefixes differ only in the tag, so the tag decides. BIRD is the
 reference: it writes the tag into the AS-external LSA (RFC 2328 Section A.4.5),

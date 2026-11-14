@@ -8,9 +8,9 @@
 | Release reason | New capability: a protocol-neutral route policy and a gate on every source entering the Loc-RIB. No shipped behavior is defective without it; the two defects it owns (journal rows below) are post-release quality, not release blockers. |
 | RFC gaps | - |
 | Depends | `spec-fixit-redistribution-chain-drops-silently` (closed 2026-10-31; phase 3 needs a working redistribution chain to prove anything); `plan/release/fixes/spec-single-owner-reload-reconcile.md` (its AC-9 tests the redistribute evaluator phase 3 replaces); phase 4 sequenced with `spec-filter-wire-0-umbrella`, which implemented it and is closing |
-| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented and closed at 54c5e8af0c; the 2026-11-12 closure, review round 4, handed back three ISSUE findings, see Blocker) |
+| Phase | 4/4 (phases 1-3 landed and reviewed clean after three rounds; phase 4 is the filter-wire redesign, which `spec-filter-wire-0-umbrella` implemented and closed at 54c5e8af0c; the 2026-11-12 closure, review round 4, found three ISSUEs, which the owner moved to `spec-route-policy-1-gate-proof-and-forked-sysrib` and which that spec closed on 2026-11-14, see Blocker) |
 | Handoff | verify |
-| Updated | 2026-11-12 |
+| Updated | 2026-11-14 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -21,12 +21,14 @@ owner's matched Mac run is `plan/records/route-policy-0-a4-mac.bench.txt`,
 and he accepted its cost (Assumptions, A-4). The 2026-11-12 closure review
 (round 4, Review Gate below) found three ISSUEs, each needing
 implementation. The owner moved them out on 2026-11-12: "route-policy's
-three review findings get in a new spec". They were owned by
-`spec-route-policy-1-gate-proof-and-forked-sysrib`, closed on 2026-11-14 with
-B-1, B-2 and B-3 delivered (its record is in git history), which also carried what its research found beyond B-2 (a forked system RIB
-is wrong in five more ways) and the gap between the committed fixture
-drivers and AC-6 and AC-7 as written. The table below is kept as the record
-of what was handed over:
+three review findings get in a new spec". That spec,
+`spec-route-policy-1-gate-proof-and-forked-sysrib`, closed all three on
+2026-11-14 (closure record 850ed621d3, removal 49d85b7e26; both in git
+history). It also carried what its research found beyond B-2 (a forked
+system RIB was wrong in five more ways) and the gap between the committed
+fixture drivers and AC-6 and AC-7 as written. The first table is the record
+of what was handed over; the second says how each item was closed, checked
+at HEAD 49d85b7e26:
 
 | # | What blocks | Producer | What clears it |
 |---|-------------|----------|----------------|
@@ -34,12 +36,18 @@ of what was handed over:
 | B-2 | A-2 is broken. When sysrib runs forked, `locrib.Default()` is nil and sysrib takes the EventBus input, whose BGP bests never pass the central chain, so `rib filter import` does not judge them. A-2 named the fix: delete that input or gate it | `internal/component/sysrib/sysrib.go` `run` (the `ribevents.BestChange.Subscribe` branch); `register.go` `runSysRIBPlugin` documents the forked case | Delete the EventBus input and refuse a forked sysrib with an operator error, or put the central chain on it, with a test that fails on the old path |
 | B-3 | Documentation Update Checklist rows 1 and 11 are unmet: no `features/` declaration for route policy, and `docs/comparison.md` has no per-protocol import and export policy row | `features/`, `docs/comparison.md` | Write the declaration (`docs/contributing/feature-maturity.md`) and the comparison row, each with source anchors |
 
+| # | How it was closed | Evidence at HEAD |
+|---|-------------------|------------------|
+| B-1 | 72327fb2dc promoted the daemon cases into `test/plugin/`, each run once with the system RIB internal and once forked (`-forked` twin), against a real kernel in a per-test network namespace | Central chain on BGP and static: `test/plugin/rib-import-central-bogons.ci` and `-forked.ci`. Static chain, re-admission by reload and `set distance`: `test/plugin/static-import-filter-distance.ci` and `-forked.ci`. Connected chain: `test/plugin/connected-import-filter-hides.ci` and `-forked.ci`. AC-11's tag through the central chain with static and the system RIB each internal or forked: `test/plugin/rib-import-tag-internal-internal.ci`, `-internal-forked.ci`, `-forked-internal.ci`, `-forked-forked.ci`. Central chain on OSPF: interop `ospf-import-policy-bird` and `ospf-import-policy-bird-forked`. The closure record 850ed621d3 states each daemon case passed 80 loaded runs; `features/runs/route-policy.json` records 36 runs at 5a39260bb3, every one `pass` |
+| B-2 | Not by the refusal named above: the owner rejected an internal-only system RIB on 2026-11-12 (`docs/architecture/rib/unified-locrib.md`, "Owner requirement: internal and external system RIB"). Both placements now read the daemon's post-policy selection, and the BGP best-change input is deleted (`plan/learned/DESIGN-HISTORY.md`, "A system RIB that runs only in the daemon") | No `ribevents.BestChange` subscription remains in the non-test code of `internal/component/sysrib/`; `test/plugin/rib-import-central-bogons-forked.ci` proves the forked system RIB keeps the centrally rejected prefix out of the FIB |
+| B-3 | `features/route-policy.md` (Scope complete, Level experimental) with its recorded run; the comparison row landed in d73a860caf | `features/route-policy.md`, `features/runs/route-policy.json`; `docs/comparison.md`, row "Per-protocol import/export route policy" |
+
 The closure work that needs no implementation is done (Implementation
 Audit, Pre-Commit Verification). What remains is closure alone: round 5,
-which checks that every item of B-1 to B-3 has an owner in the new spec and
-that this spec claims nothing they would have proved, then the review
-record, the news fragment and the two closing commits. Round 5 is the last
-round a session may spend.
+which checks that every item of B-1 to B-3 is closed with evidence and that
+this spec claims nothing they would have proved unless that proof now
+exists, then the review record, the news fragment and the two closing
+commits. Round 5 is the last round a session may spend.
 
 ### Independent closure findings retained
 
@@ -100,9 +108,9 @@ The 2026-11-12 closure reconciled the records this section listed:
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | Earlier RFC audit evidence was assumed sufficient for closure | The changed interop checker no longer matched the RFC3101-2.4-5 audit pin | Main-thread RFC check on 2026-11-10 | Separate audit phase re-judged the seven tagged units; main thread stamped the verdict and resealed shifted records |
-| assumption | A-2: sysrib's EventBus input was assumed unreachable in a shipped build | It is the input a forked sysrib takes, and the central chain does not see it | Closure review round 4, reading `sysrib.go` `run` | Blocker B-2 |
+| assumption | A-2: sysrib's EventBus input was assumed unreachable in a shipped build | It is the input a forked sysrib takes, and the central chain does not see it | Closure review round 4, reading `sysrib.go` `run` | Blocker B-2, closed by `spec-route-policy-1-gate-proof-and-forked-sysrib` (Blocker, second table) |
 | assumption | A-5: the stage-1 `Attributes` declaration was to become the fields an external filter reads at every attachment | The route-evaluator decision (Key Design Decisions) refuses a `<plugin>:<filter>` at a Loc-RIB attachment, so no external declaration is read there; BGP chains carry it through filter-wire | Closure review round 4 | Deviation recorded under Implementation Summary |
-| approach | Phase 2 closed with two of its functional tests left as ignored drafts | `test/draft/plugin/` is ignored, so the drafts never reached git and no daemon test proves the static and central chains | Closure review round 4 (`git log --all` finds no commit of either file) | Blocker B-1 |
+| approach | Phase 2 closed with two of its functional tests left as ignored drafts | `test/draft/plugin/` is ignored, so the drafts never reached git and no daemon test proves the static and central chains | Closure review round 4 (`git log --all` finds no commit of either file) | Blocker B-1, closed by 72327fb2dc (Blocker, second table) |
 
 ## Task
 
@@ -347,7 +355,7 @@ import, and is refused on connected import because connected carries no tag.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Every Loc-RIB write passes through `(*RIB).insert`/`Remove`, forked plugins included | research; `dispatch_route.go` `applyRouteInstall` calls `InsertForward` | a producer bypasses the gate | grep for every caller of the locrib write methods in phase 2's wiring test, plus a test per producer | confirmed: the RIB's only mutators are `Insert`, `InsertForward`, `Remove` and `Reselect`, and its store is unexported; the forked route-install path is `TestRouteInstallTagReachesGate` |
-| A-2 | sysrib's second input (`ribevents.BestChange` when it has no Loc-RIB) is not reachable in any shipped build | research: sysrib.go subscribes to BestChange only without a Loc-RIB | routes reach the FIB around the gate | read sysrib startup; if reachable, delete that input or gate it (phase 2) | broken: `sysrib.go` `run` subscribes to `ribevents.BestChange` when `locrib.Default()` is nil, which is the forked case; Blocker B-2 |
+| A-2 | sysrib's second input (`ribevents.BestChange` when it has no Loc-RIB) is not reachable in any shipped build | research: sysrib.go subscribes to BestChange only without a Loc-RIB | routes reach the FIB around the gate | read sysrib startup; if reachable, delete that input or gate it (phase 2) | broken: on 2026-11-12, `sysrib.go` `run` subscribed to `ribevents.BestChange` when `locrib.Default()` was nil, which is the forked case (Blocker B-2). Since fixed by `spec-route-policy-1-gate-proof-and-forked-sysrib`: that input is deleted and both placements read the daemon's post-policy selection (Blocker, second table) |
 | A-3 | Filtering IGP routes from the local RIB is local policy and violates no requirement of RFC 2328, RFC 5340 or the IS-IS RFCs Ze implements, provided LSDB and flooding are untouched | Junos IS-IS/OSPF `import`; BIRD and FRR source read 2026-10-29 (Key Design Decisions, "Interop evidence") | an RFC MUST forbids it | implementation: read RFC 2328 Section 16 and RFC 1195 Section 3.10 text and quote; implementations: BIRD and FRR confirmed below | confirmed: RFC 2328 Section 16 builds the OSPF routing table from the LSDB ("Using its attached areas' link state databases as input, a router runs the following algorithm, building its routing table step by step.") and RFC 1195 Section 3.10 says "The Dijkstra calculation must calculate routes to each distinct IP reachability entry."; neither text governs what the router installs locally afterwards. Ze's gate runs after SPF on the Loc-RIB, and interop `isis-import-policy-frr` proves the LSDB keeps and floods the hidden prefix |
 | A-4 | Adding three fields to `locrib.Path` keeps the insert path allocation-free | Path is value-typed; fields are scalars | Path grows past a cache line and the BGP full-table benchmark regresses | `./le perf` on Thomas's Mac before and after phase 2 (harness prepared, owner runs it) | confirmed, with a cost the owner accepted. What ran is not `./le perf`: it is the Loc-RIB shard benchmarks (`shard_bench_test.go` `BenchmarkShardedInsertSerial`, `BenchmarkShardedInsertParallel`, `BenchmarkShardedManyWritersDistinctShards`), which the gate commit fb94aa0497 named as owed, because they call the changed producer `manager.go` `RIB.insert` directly and nothing else. Record `plan/records/route-policy-0-a4-mac.bench.txt` (procedure `plan/records/route-policy-0-a4-procedure.md`): Apple M4 Max on battery, all three test binaries go1.27.3, ten interleaved rounds of 1000000 iterations, columns d04aabe5e0 (gate parent), fb94aa0497 (gate), c20d1efca7 (after dfa96ffa2e added `accountStored` to `upsert`). Single-writer insert costs about 17 ns more: 303.8 ns to 320.8 ns, +5.61% (p=0.000), and +5.86% at c20d1efca7. Parallel and distinct-shard inserts show no significant change. Allocations per insert fall by one in all three (1 to 0, 3 to 2, 2 to 1), with fewer bytes. Owner, 2026-11-12, asked whether that single-writer cost is accepted as the gate's price: "accept" |
 | A-5 | `FilterRegistration.Attributes` can be generalised into the "fields this filter reads" declaration | research: stage-1 registration already declares attribute names | external plugins need a new registration field | phase 1 test over an external filter's declaration | broken: superseded by the route-evaluator decision; `rib_compile.go` refuses a `<plugin>:<filter>` at a Loc-RIB attachment, and BGP chains read external declarations through filter-wire (Mistake Log) |
@@ -723,20 +731,25 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 
 ### Documentation Updates
 - Closure edits: the `// Design:` headers of `internal/component/policy/fields.go` and `rib.go`, and the stale `PathGroup` comment in `internal/core/rib/locrib/entry.go` (it named `store.Modify` as the only mutation path; `insert` now uses Lookup then Insert). No page under `docs/` changed, so `./le doc check all` is not owed by this pass.
+- Rows 1 and 11 of the Documentation Update Checklist were written under `spec-route-policy-1-gate-proof-and-forked-sysrib`: `features/route-policy.md` and the `docs/comparison.md` row (d73a860caf).
+- The 2026-11-14 closure pass repointed the citers of this spec's path (the four scenario READMEs under `test/interop/scenarios/`, `plan/records/route-policy-0-a4-procedure.md`, `plan/handover/2026-11-10-close-open-specs.md`) and changed no page under `docs/`. `plan/release/fixes/spec-single-owner-reload-reconcile.md` still cites this spec's path at its AC-9 (line 177) and line 233; that spec is at design with no claimant and its edit gate asks for its own design section first, so the two lines are left for its design pass and named as a known red in the removal commit. The 2026-11-12 route-policy findings handover, whose last work was this closure, is removed by the same commit.
 
 ### Deviations from Plan
 - AC-2's `ze config migrate` rewrite and migrate hint were removed by e396a2e360 under the owner's pre-release config rule. Six of its tests were retired with `Weakening-approved:` lines; AC-13's "refused with the migrate command" half changed the same way.
 - A-5's external declaration was not generalized: a `<plugin>:<filter>` is refused at a Loc-RIB attachment (Key Design Decisions, route evaluator).
 - AC-16's "one pointer load" is two loads with a fence (AC-16 row).
 - AC-4's end-to-end proof is the interop `isis-import-policy-frr` (two FRRs, owner decision 2026-10-30), not the planned `test/isis/isis-import-filter-hides-prefix.ci`.
+- AC-6's daemon proof uses BGP, not OSPF, as the accepted source that competes with the rejected static path (`static-import-filter-distance(-forked).ci`, child spec AC-8 to AC-10). No daemon test puts an OSPF path against the rejected static one; OSPF's own import chain is proven against BIRD (AC-9).
+- B-2 was closed by making the forked system RIB correct, not by refusing it: the owner required both placements on 2026-11-12 (`docs/architecture/rib/unified-locrib.md`, "Owner requirement: internal and external system RIB").
+- AC-5 names re-admission by reload for an IS-IS import chain. It is proven for a static path and for the central chain at the daemon, and by `TestLocRIBReselectReadmitsHidden` for a static path in a bare Loc-RIB; no test of any kind relaxes an IS-IS import chain.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Import per protocol (`isis`, `ospf`, `static`, `connected`) | Partial | `policy/rib.go` `MustRegisterRIBImport`, `locrib/policy.go` `admit` | IS-IS and OSPF proven at interop; static and connected units only (B-1) |
-| Import, central `rib filter import` | Partial | `sysrib/register.go`, `locrib/policy.go` `admit` | Units only (B-1); bypassed when sysrib runs forked (B-2) |
+| Import per protocol (`isis`, `ospf`, `static`, `connected`) | Done | `policy/rib.go` `MustRegisterRIBImport`, `locrib/policy.go` `admit` | IS-IS and OSPF proven at interop; static and connected at the daemon, both system RIB placements (`static-import-filter-distance(-forked).ci`, `connected-import-filter-hides(-forked).ci`, 72327fb2dc) |
+| Import, central `rib filter import` | Done | `sysrib/register.go`, `locrib/policy.go` `admit` | `rib-import-central-bogons(-forked).ci` (BGP, static), `ospf-import-policy-bird(-forked)` (OSPF); the forked bypass (B-2) is gone (Blocker, second table) |
 | Import, BGP per peer | Done | `bgp/config/library_chains.go` `compileLibraryChain` | Filter-wire AC-10 |
 | Export, IS-IS and OSPF | Done | `isis/redistribute/consumer.go`, `ospf/redistribute/consumer.go` | Interop green, red, green |
 | Redistribution chains | Done | `config/redistribute/route.go`, `plugins/redistribute/redistribute.go` | AC-14, AC-15 |
@@ -748,13 +761,13 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 | AC-2 | Changed | e396a2e360 | Owner's pre-release config rule; old path gets the unknown-field refusal |
 | AC-3 | Done | `test/parse/policy-root-shared-with-pbr.ci`, `TestPolicyRegistryDiscoversByMarker` | |
 | AC-4 | Done | interop `isis-import-policy-frr` | Green, red with the reject disabled, green |
-| AC-5 | Partial | `TestLocRIBReselectReadmitsHidden` | No daemon test relaxes a filter by reload (B-1) |
-| AC-6 | Partial | units | `static-import-filter-distance.ci` never committed (B-1) |
-| AC-7 | Partial | `TestLocRIBCentralChainAllSources` | `rib-import-central-bogons.ci` never committed (B-1); B-2 |
+| AC-5 | Done, IS-IS leg unproven | `TestLocRIBReselectReadmitsHidden`; `static-import-filter-distance(-forked).ci`, `rib-import-tag-*.ci` | Re-admission by reload with no producer event is proven at the daemon for a static path and for the central chain. The unit re-admits a static path in a bare Loc-RIB with no protocol in it; no unit, daemon or interop test relaxes an IS-IS import chain, so the IS-IS leg of this criterion is unproven |
+| AC-6 | Done | `static-import-filter-distance(-forked).ci` | BGP in OSPF's place (Deviations) |
+| AC-7 | Done | `TestLocRIBCentralChainAllSources`; `rib-import-central-bogons(-forked).ci`; `ospf-import-policy-bird(-forked)` | BGP and static at the daemon, OSPF against BIRD, in both system RIB placements |
 | AC-8 | Done | `TestLocRIBAllHiddenDispatchesRemove` | |
 | AC-9 | Done | `TestLocRIBSetDistanceByTag`, interop `ospf-import-policy-bird` | |
 | AC-10 | Done | `TestPolicyFieldMismatchRefused` | |
-| AC-11 | Partial | `TestRouteInstallTagReachesGate` | Forked path by unit; no daemon test (B-1) |
+| AC-11 | Done | `TestRouteInstallTagReachesGate`; `rib-import-tag-internal-internal.ci`, `-internal-forked.ci`, `-forked-internal.ci`, `-forked-forked.ci` | Static and the system RIB each internal or forked |
 | AC-12 | Done | Phase 3 record | |
 | AC-13 | Done | Phase 3 record | Migrate half changed (AC-2) |
 | AC-14 | Done | Phase 3 record | |
@@ -768,7 +781,8 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 |------|--------|----------|-------|
 | Every unit in the Unit Tests table | Done | the file each row names | All 24 found by name at HEAD |
 | `TestMigrateOSPFRedistributeToExportFilter`, `TestMigrateOSPFRedistributeRefusesNameClash` | Changed | - | Retired by e396a2e360 |
-| `isis-import-filter-hides-prefix`, `rib-import-central-bogons`, `static-import-filter-distance` | Skipped | - | Never committed (B-1); the first is replaced by the interop |
+| `rib-import-central-bogons`, `static-import-filter-distance` | Done | `test/plugin/`, each with a `-forked` twin | Promoted by 72327fb2dc under the child spec (B-1) |
+| `isis-import-filter-hides-prefix` | Changed | - | Replaced by interop `isis-import-policy-frr` and `isis-import-policy-frr-forked` (Deviations) |
 | `policy-root-old-path-refused`, `policy-root-migrate`, `ospf-redistribute-retired-metric` | Changed | - | Retired by e396a2e360 |
 | Interop rows | Done | `test/interop/scenarios/` | `ospf-multiaf-v4-frr` is not a phase 3 result |
 
@@ -781,16 +795,16 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 
 ### Audit Summary
 - **Total items:** 18 AC, 5 task requirements
-- **Done:** 13 AC
-- **Partial:** AC-5, AC-6, AC-7, AC-11 (Blocker B-1, B-2)
-- **Skipped:** two functional tests (B-1)
-- **Changed:** AC-2 (owner rule), A-5, AC-16 wording
+- **Done:** 17 AC, 5 task requirements (AC-5's IS-IS leg unproven; AC-6 with BGP in OSPF's place)
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-2 (owner rule), A-5, AC-16 wording, `isis-import-filter-hides-prefix` replaced by the interop
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | "only install these IS-IS prefixes" | interop | `isis-import-policy-frr`: hidden at Ze, kept in the LSDB, learned by FRR-B; red with the reject disabled |
-| "never install a bogon from any protocol" | unit, with the daemon proof owed elsewhere | Here: `TestLocRIBCentralChainAllSources` and `TestRouteInstallTagReachesGate` prove the gate judges every source. The daemon proof is not claimed by this spec: `spec-route-policy-1-gate-proof-and-forked-sysrib` AC-6, AC-7 and AC-11 proved it before that spec closed on 2026-11-14 (`test/plugin/rib-import-central-bogons*.ci`, `test/plugin/rib-import-tag-*.ci`, `ospf-import-policy-bird(-forked)`) |
+| "never install a bogon from any protocol" | functional (daemon), interop and unit | `test/plugin/rib-import-central-bogons.ci` and `-forked.ci`: `rib filter import` rejects 192.0.2.0/24 offered by BGP and static, `show rib candidates` lists both paths hidden by the rib import chain, and the Linux FIB holds no route for it while the permitted controls are installed (`importCentralKernel`, `internal/test/fixture/rib_import_daemon_fixture.go`), with the system RIB internal and forked. OSPF: `ospf-import-policy-bird(-forked)`. A forked static producer: `rib-import-tag-*-forked.ci` (`internal-forked` and `forked-forked`: the second word is where static runs). Units `TestLocRIBCentralChainAllSources`, `TestRouteInstallTagReachesGate`. Promoted by 72327fb2dc under `spec-route-policy-1-gate-proof-and-forked-sysrib` (its AC-6, AC-7, AC-11); recorded run `features/runs/route-policy.json`. IS-IS and connected sources are not exercised by a central-chain daemon test |
 | "advertise only loopbacks into IS-IS" | interop | `isis-export-policy-frr`, green, red, green at 697dc6a618 |
 | One policy library for every protocol and BGP | interop | Filter-wire AC-10 BGP policy scenarios; `ospf-import-policy-bird` |
 | The gate keeps the insert path cheap | benchmark | `plan/records/route-policy-0-a4-mac.bench.txt`; owner accepted +5.6% single-writer |
@@ -798,25 +812,55 @@ Review rounds 1-3 ended with 0 BLOCKER and 0 ISSUE once the round 3 fixes landed
 ## Work Not Done
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| none: B-1, B-2 and B-3 (moved out by the owner on 2026-11-12) landed with `spec-route-policy-1-gate-proof-and-forked-sysrib`, closed on 2026-11-14 | - | - |
+| none: B-1, B-2 and B-3, moved out by the owner on 2026-11-12, were closed by `spec-route-policy-1-gate-proof-and-forked-sysrib` on 2026-11-14 (850ed621d3; evidence in Blocker, second table) | - | - |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | none: round 4 is not clean |
-| `./le spec review check` | not run |
-| Rounds | 4 (round 5, over the B-1 to B-3 fixes, is the last a session may spend) |
-| Reviewer lenses used | generic (fail-open, wiring), spec (every AC and Wiring row against its test and entry point), style (the closure's Go comment edits) |
+| Artifact | recorded by the main thread after the corrections: see the closing commit |
+| `./le spec review check` | recorded by the main thread after the corrections: see the closing commit |
+| Rounds | 5. Rounds 1 to 3 ended with 0 BLOCKER and 0 ISSUE once a5222773e4 and 8b458ffafe landed. Round 4 found three ISSUEs, moved out by the owner and closed by `spec-route-policy-1-gate-proof-and-forked-sysrib`. Round 5 is the last a session may spend |
+| Reviewer lenses used | generic (fail-open, wiring), spec (every AC and Wiring row against its test and entry point), style (the closure's Go comment edits); round 5: every B-1 to B-3 claim against the test files and code at HEAD, every limit against the AC and Goal Validation rows, the fragment, the repointed citers |
 
 Round 4 scope: the producers this closure's claims rest on (`locrib/manager.go` `RIB.insert`, `policy.go` `admit`, `entry.go` `upsert`, `policy_metrics.go` `accountStored`, `sysrib.go` `run`), every AC, Wiring, Deliverables and Documentation row against the tree, and the closure's three Go comment edits. Phase 4 code was not re-reviewed: `spec-filter-wire-0-umbrella` reviewed and closed it. The `Spec-work: route-policy-0-umbrella` population is 72 commits and 643 reviewable files at HEAD, including the config-reference completion work done under this claim.
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| R4-1 | ISSUE | No entry-point test for the static, connected and central import chains | `test/plugin/` | Open: B-1 |
-| R4-2 | ISSUE | A forked sysrib reads BGP bests the central chain never judged | `sysrib/sysrib.go` `run` | Open: B-2 |
-| R4-3 | ISSUE | Documentation rows 1 and 11 unmet | `features/`, `docs/comparison.md` | Open: B-3 |
+| R4-1 | ISSUE | No entry-point test for the static, connected and central import chains | `test/plugin/` | B-1: 72327fb2dc, under `spec-route-policy-1-gate-proof-and-forked-sysrib` |
+| R4-2 | ISSUE | A forked sysrib reads BGP bests the central chain never judged | `sysrib/sysrib.go` `run` | B-2: the BGP best-change input deleted under the same spec, closed at 850ed621d3 |
+| R4-3 | ISSUE | Documentation rows 1 and 11 unmet | `features/`, `docs/comparison.md` | B-3: `features/route-policy.md`, the comparison row (d73a860caf) |
+
+The `Spec-work: route-policy-0-umbrella` population on 2026-11-14 is 73
+commits and 870 files, 678 of them reviewable code. 35 of those 678 have
+since been deleted by other work and are pinned as `DELETED`; the others are
+pinned at their current content, which no uncommitted hunk touches.
+
+### Run 5
+
+Round 5 was run on 2026-11-14 by an independent agent (id a0fb76f3b99a12ff6)
+that wrote none of the code or text.
+
+Verdict on the product: B-1, B-2 and B-3 are closed at HEAD 49d85b7e26. All
+ten central, static and connected import case files exist and assert the
+stated behaviour; no non-test file in the sysrib component subscribes to BGP
+best changes; the feature declaration and the comparison row exist.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R5-1 | ISSUE | The forked static producer cases were cited by the wrong file pattern | Goal Validation, "never install a bogon from any protocol" | Corrected to `rib-import-tag-*-forked.ci` |
+| R5-2 | ISSUE | AC-5's IS-IS leg was called proven by a unit that uses a static path | AC-5 row, Audit Summary | Marked unproven, with a Deviations bullet |
+| R5-3 | ISSUE | The spec said a citer in `spec-single-owner-reload-reconcile` was repointed when it was not | Documentation Updates | The citer named as left, with its lines and reason |
+| R5-4 | ISSUE | The 2026-11-10 handover said the 2026-11-12 handover was already removed | `plan/handover/2026-11-10-close-open-specs.md` | Tense made exact: the closure's removal commit removes it |
+| R5-5 | NOTE | A stale cell about the comparison paragraph | Documentation Verified, row 11 | Cell rewritten |
+| R5-6 | NOTE | The BIRD scenario README omits the central-chain check | `test/interop/scenarios/ospf-import-policy-bird/README.md` | Bullet added |
+
+Totals: 0 BLOCKER, 4 ISSUE, 2 NOTE. Each ISSUE was a false or overstated
+sentence in the closure text, none in code. All six were corrected in the
+closure text the same day and checked by the main thread by search; no code
+changed. No sixth round was run: five rounds are the session's to spend and a
+sixth is the owner's decision.
 
 NOTEs: the `PathGroup` comment named only `store.Modify` (fixed in `entry.go`); `docs/guide/static-routes.md` does not say a named-table route escapes `static filter import` (the file holds another session's hunks, left alone).
 
@@ -826,19 +870,24 @@ NOTEs: the `PathGroup` comment named only `store.Modify` (fixed in `entry.go`); 
 | File | Exists | Evidence |
 |------|--------|----------|
 | `test/plugin/policy-root-bgp-import.ci`, `test/parse/policy-root-shared-with-pbr.ci`, `test/isis/isis-export-chain.ci`, `test/plugin/redistribute-chain-static-ospf.ci` | Yes | `ls` on 2026-11-12 |
-| `test/plugin/rib-import-central-bogons.ci`, `test/plugin/static-import-filter-distance.ci`, `test/isis/isis-import-filter-hides-prefix.ci` | No | `ls` fails; `git log --all` names no commit of them |
+| `test/plugin/rib-import-central-bogons.ci`, `test/plugin/static-import-filter-distance.ci`, `test/plugin/connected-import-filter-hides.ci`, each with its `-forked.ci` twin, and the four `test/plugin/rib-import-tag-*.ci` | Yes | `ls test/plugin/` on 2026-11-14; added by 72327fb2dc |
+| `features/route-policy.md`, `features/runs/route-policy.json` | Yes | `ls` on 2026-11-14; the run record holds 36 results, every one `pass`, at 5a39260bb3 |
+| `test/isis/isis-import-filter-hides-prefix.ci` | No | Replaced by interop `isis-import-policy-frr` (Deviations) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-15 | The class reaches the rule | `entrySource` (`plugins/redistribute/redistribute.go`) reads `BGPClass.SourceName`; `bgpClassOf` in `bgp/redistribute/producer.go` |
 | AC-16 | Two loads, fenced | `manager.go` `RIB.insert` calls `ribpolicy.Current` before `sh.mu.Lock` and again under it |
+| AC-7 | The central reject never reaches the FIB, in either system RIB placement | `importCentralKernel` (`internal/test/fixture/rib_import_daemon_fixture.go`) requires zero kernel routes for the judged prefix and both candidates hidden by the rib import chain; `rib-import-central-bogons-forked.ci` expects "sysrib placement forked" |
+| B-2 | The forked BGP input is gone | no `ribevents.BestChange` subscription in the non-test files of `internal/component/sysrib/` (grep on 2026-11-14) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 | `isis filter import` | interop `isis-import-policy-frr` | Yes, in place of the planned `.ci` |
-| `rib filter import` | none | No (B-1) |
+| `rib filter import` | `test/plugin/rib-import-central-bogons.ci`, `-forked.ci` | Yes, through the real daemon and the Linux FIB |
+| `static filter import`, `connected filter import` | `test/plugin/static-import-filter-distance.ci`, `test/plugin/connected-import-filter-hides.ci`, each with its `-forked.ci` twin | Yes |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -851,4 +900,5 @@ NOTEs: the `PathGroup` comment named only `store.Modify` (fixed in `entry.go`); 
 |---------------------------------|-----------------|----------|
 | Row 4, route-install fields | `docs/architecture/api/process-protocol.md` lists `tag`, `has-tag`, `ospf-route-type` | Yes |
 | Row 3, `show rib candidates` | `docs/guide/command-reference.md` row, anchor `sysrib/candidates.go` `showRIBCandidates` | Yes |
-| Rows 1 and 11 | `grep` over `features/*.md` and `docs/comparison.md` finds no route policy entry | No (B-3) |
+| Row 1, feature declaration | `features/route-policy.md`: Scope complete, Level experimental, 30 real-path tests and 6 interop scenarios, recorded run `features/runs/route-policy.json` | Yes |
+| Row 11, comparison | `docs/comparison.md`, row "Per-protocol import/export route policy" | Row yes. The paragraph under the table said the two system RIB placements "remain Experimental until paired execution proof is complete", which 850ed621d3 made false; the main thread corrected it in this closure: both placements run the same paired daemon tests against a real kernel, and the feature is declared Experimental |

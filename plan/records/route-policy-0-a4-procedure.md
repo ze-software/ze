@@ -1,8 +1,9 @@
 # Procedure for the A-4 Loc-RIB insert measurement
 
 This page gives the procedure for the measurement that
-`plan/post-release/features/spec-route-policy-0-umbrella.md` still owes under
-assumption A-4. It has not been run. Only the owner runs it: the time figures
+`spec-route-policy-0-umbrella` owed under assumption A-4. The owner ran it,
+and the result is `plan/records/route-policy-0-a4-mac.bench.txt`; that spec
+closed on 2026-11-14 and its record is in git history. Only the owner runs it: the time figures
 count only from his Mac (`ai/META-DECISIONS.md`, "Test systems and labs"), and
 the procedure exports past revisions into copies of the tree, which agents may
 not do. It follows the procedure of `filter-wire-0-a6-procedure.md`.

@@ -4,9 +4,11 @@
 refusal closed today; Access's RFC 5176 proofs were found stale after closure
 and are repaired. Lint-tooling is in progress with five fix batches in and
 about 167 known findings left. Route-policy has its benchmark, accepted by the
-owner; the three findings of its closure review now belong to a new spec
-(`plan/handover/2026-11-12-route-policy-findings-spec.md`), so the umbrella
-can close. Read the dated
+owner; the three findings of its closure review were closed by
+`spec-route-policy-1-gate-proof-and-forked-sysrib`, and the umbrella closed on
+2026-11-14. Its closure removes the umbrella spec and the 2026-11-12
+route-policy findings handover in the commit after the one that carries this
+text, and git history then holds both. Read the dated
 sections below from the bottom of this block up; the latest ones are the
 Access proof repair and the route-policy section.
 **Branch:** main. No push was performed by this session; Thomas controls pushes.
@@ -243,12 +245,12 @@ then these findings live here.
 
 The owner moved B-1, B-2 and B-3 out of the umbrella: "route-policy's three
 review findings get in a new spec". The spec is
-`spec-route-policy-1-gate-proof-and-forked-sysrib` (closed on 2026-11-14), at
-Status `design`, waiting on his approval of its design. The umbrella can now
-close without them. Its five pointer edits and its closure steps are in
-`plan/handover/2026-11-12-route-policy-findings-spec.md`, which replaces the
-section below for everything about what happens next. The section below
-stays as the record of the benchmark and the review.
+`spec-route-policy-1-gate-proof-and-forked-sysrib`, which closed all three on
+2026-11-14. The umbrella closed the same day, through the steps of the
+2026-11-12 route-policy findings handover. The umbrella's closure removes that
+handover with the spec, in the commit after the one that carries this text,
+and git history then holds both. The section below stays as the record of the benchmark
+and the review.
 
 ## Route-policy after the owner's benchmark, 2026-11-12
 
@@ -1256,7 +1258,7 @@ the build. Agents continued source work while main-thread jobs ran. No push was 
 |------|-------------------------------------|
 | `plan/release/validation/spec-lint-backlog-3-test-tooling.md` | Handback `dc7b73d88c`; claim released. Repairs and independent source review are complete. Final scoped lint and structural/documentation checks need the claimed inventory build repaired first. |
 | `spec-refuse-instead-of-defaulting` | Handback `a261740ab2`; claim released. CoS and forwarding-writer refusals are repaired. Actual absent-CoS CLI, affected Go consumers and all eight parser cases passed. Interop staging cannot build the shared `le` dependency; no ADD-PATH scenario or negative control ran, and LDP remains unrun. The config corpus is separately red with eight errors across five non-CoS fixtures. |
-| `plan/post-release/features/spec-route-policy-0-umbrella.md` | Handback `a32bb92747`; claim released. A-4 requires matched Loc-RIB performance results on the owner's Mac: baseline `fb94aa0497^` versus implementation `fb94aa0497`. Preserve revisions, Go version, hardware and full output. The SDK transport benchmark does not answer this obligation. Final review and closure remain owed. |
+| `spec-route-policy-0-umbrella` | Closed on 2026-11-14; its record is in git history. The A-4 measurement this row asked for is `plan/records/route-policy-0-a4-mac.bench.txt`, accepted by the owner. |
 | `spec-plugin-reload-applies-or-refuses` | Historical handback `dbf47bb319`; the permission blocker and guest proof were subsequently cleared. See the latest continuation above for current evidence. |
 | `spec-rfc-verdict-fix-access` | Locked by `644a4e78-0122-4eeb-8642-eb50638a1641+AccessInteropImplement`. Its owner holds the six lab acceptance runs and proof work; this continuation did not take the claim or alter its source. |
 

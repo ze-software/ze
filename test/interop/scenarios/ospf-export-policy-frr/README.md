@@ -1,6 +1,7 @@
 # Scenario: ospf-export-policy-frr (OSPFv2 export chain toward FRR ospfd)
 
-Owner spec: `plan/post-release/features/spec-route-policy-0-umbrella.md`, AC-13.
+Owner spec: `spec-route-policy-0-umbrella`, AC-13, closed on 2026-11-14 (its
+record is in git history). Design: `docs/guide/route-policy.md`.
 
 ## What it proves
 
