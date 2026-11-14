@@ -171,7 +171,8 @@ func TestFIBKernelSweepReportsRefusedDelete(t *testing.T) {
 	backend := &failingDeleteBackend{mockBackend: newMockBackend()}
 	fib := newFIBKernel(backend)
 
-	fib.sweepStale(map[string]string{"198.18.104.0/24": ""})
+	backend.zeRoutes = []installedRoute{{prefix: "198.18.104.0/24", table: 0}}
+	fib.sweepStale(fib.startupSweep())
 
 	if backend.attempts != 1 {
 		t.Fatalf("the sweep attempted %d deletes, want one", backend.attempts)

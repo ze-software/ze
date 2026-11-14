@@ -3069,7 +3069,10 @@ one `doctor-fib-sweep-incomplete` error that counts the prefixes left and names
 the lowest of them with the kernel's error. The route stays one of Ze's own:
 the stop flush tries its delete again and counts it if it is still there, and
 an install of the prefix into that table replaces it instead of being refused
-by it. A startup listing that fails marks
+by it. The sweep deletes only what startup listed and nothing has removed
+since: an install that took a listed table, or a withdraw that deleted a route
+there, leaves the sweep nothing to do for it, so it reports no orphan for a
+route that is no longer there. A startup listing that fails marks
 nothing stale, so nothing is swept: startup raises the same error with the
 listing's error, and the same WARN line, rather than leaving the stale routes
 unreported.
@@ -3077,7 +3080,7 @@ unreported.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- startupSweep, sweepStale, sweepPrefixLocked, delListedLocked -->
 <!-- test: internal/plugins/fib/kernel/named_table_integration_linux_test.go -- TestKernelStartupSweepRemovesNamedTableRoute, TestKernelFlushReportsNamedTableResidue -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_list_test.go -- TestFIBKernelSweepReportsRefusedDelete -->
-<!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete, TestFIBKernelFlushRetriesTheSweepsRefusedTable, TestFIBKernelFlushRetriesARefusedTableAfterAWithdraw, TestFIBKernelInstallsOverItsOwnRefusedStaleRoute, TestFIBKernelSweepLeavesARefreshedNamedTablePrefixAlone -->
+<!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete, TestFIBKernelFlushRetriesTheSweepsRefusedTable, TestFIBKernelFlushRetriesARefusedTableAfterAWithdraw, TestFIBKernelInstallsOverItsOwnRefusedStaleRoute, TestFIBKernelSweepLeavesARefreshedNamedTablePrefixAlone, TestFIBKernelSweepLeavesAWithdrawnNamedTablePrefixAlone, TestFIBKernelSweepLeavesAStaleRouteAWithdrawRemovedAlone, TestFIBKernelWithdrawForgetsOneStaleRouteOfTwo -->
 <!-- test: internal/plugins/fib/kernel/fibkernel_flush_tables_test.go -- TestFIBKernelStartupReportsUnlistedKernel, TestFIBKernelSweepNamesTheLowestFailure, TestFIBKernelFlushDeletesEachListedTableOnce, TestFIBKernelFlushReportsPlainBackendNamedTable -->
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,

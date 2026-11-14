@@ -188,8 +188,9 @@ type fibKernel struct {
 	// staleTables records, for each prefix startup listed, every table the
 	// listing found a Ze route for it in (0 for main). sweepStale deletes each
 	// from its own table and keeps only the tables the kernel refused; an
-	// install into a listed table takes the slot and drops that table;
-	// flushRoutes deletes what is left and clears the map.
+	// install into a listed table takes the slot and drops that table, and a
+	// withdraw drops one listing for the one route it deleted; flushRoutes
+	// deletes what is left and clears the map.
 	staleTables map[string][]uint32
 	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
 	mplsInstalled map[string]bool
@@ -288,9 +289,9 @@ func (f *fibKernel) ownsSlotLocked(pfx string, table uint32) bool {
 	return slices.Contains(f.staleTables[pfx], table)
 }
 
-// forgetStaleTableLocked drops table from the stale tables recorded for pfx
-// once Ze's current route holds that table: the stale route there was
-// replaced, and the slot is tracked by the installed route from now on.
+// forgetStaleTableLocked drops every listing of table from the stale tables
+// recorded for pfx once an install took the slot: the replace removes each
+// route Ze held there, and the installed route tracks the slot from now on.
 // Caller MUST hold f.mu.
 func (f *fibKernel) forgetStaleTableLocked(pfx string, table uint32) {
 	tables, listed := f.staleTables[pfx]
@@ -298,6 +299,22 @@ func (f *fibKernel) forgetStaleTableLocked(pfx string, table uint32) {
 		return
 	}
 	tables = slices.DeleteFunc(slices.Clone(tables), func(t uint32) bool { return t == table })
+	if len(tables) == 0 {
+		delete(f.staleTables, pfx)
+		return
+	}
+	f.staleTables[pfx] = tables
+}
+
+// forgetOneStaleRouteLocked drops one listing of table from the stale tables
+// recorded for pfx, after one successful delete there. Caller MUST hold f.mu.
+func (f *fibKernel) forgetOneStaleRouteLocked(pfx string, table uint32) {
+	tables := f.staleTables[pfx]
+	at := slices.Index(tables, table)
+	if at < 0 {
+		return
+	}
+	tables = slices.Delete(slices.Clone(tables), at, at+1)
 	if len(tables) == 0 {
 		delete(f.staleTables, pfx)
 		return
@@ -460,6 +477,10 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			delete(f.retained, pfx)
 			delete(f.pending, pfx)
 			delete(f.backups, pfx)
+			// One delete removes one route, so it accounts for one stale
+			// listing in that table: a crashed replace can have left two
+			// there, and the second is still the sweep's to remove.
+			f.forgetOneStaleRouteLocked(pfx, c.TableID)
 			wasMPLS := f.mplsInstalled[pfx]
 			delete(f.mplsInstalled, pfx)
 			if m := fibMetricsPtr.Load(); m != nil {
@@ -743,22 +764,19 @@ func (f *fibKernel) startupSweep() map[string]string {
 // from the table it was listed in, and answers how many it removed.
 // sysrib refreshed a route only in the table its current change names, so a
 // route Ze installed this run keeps that table and a previous run's route in
-// any other table is still stale. A prefix with no table recorded and a
-// route installed this run has nothing stale left: its installs took every
-// listed table. A prefix with no table recorded and nothing installed is
-// removed from main, the table sweepStale's caller knew it from. A table whose
-// delete the kernel refused stays recorded for the prefix: the route is still
-// Ze's to remove, and flushRoutes tries it again at stop. Caller MUST hold f.mu.
+// any other table is still stale. startupSweep records a table for every
+// route it lists, and only an install that takes the table or a withdraw that
+// deletes a route there drops one, so a prefix with no table recorded has
+// nothing stale left and the sweep deletes nothing for it. A table whose delete the kernel
+// refused stays recorded for the prefix: the route is still Ze's to remove,
+// and flushRoutes tries it again at stop. Caller MUST hold f.mu.
 func (f *fibKernel) sweepPrefixLocked(prefix string, rb richRouteBackend) (int, error) {
 	tables, listed := f.staleTables[prefix]
 	delete(f.staleTables, prefix)
-	_, installed := f.installed[prefix]
 	if !listed {
-		if installed {
-			return 0, nil
-		}
-		tables = []uint32{0}
+		return 0, nil
 	}
+	_, installed := f.installed[prefix]
 	current := f.forwarding[prefix]
 	swept := 0
 	var errs error

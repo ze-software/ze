@@ -162,17 +162,16 @@ func TestFIBKernelSweepNamesTheLowestFailure(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
 
-	stale := map[string]string{}
+	backend := &failingDeleteBackend{mockBackend: newMockBackend()}
 	for _, prefix := range []string{
 		"198.18.117.0/24", "198.18.113.0/24", "198.18.110.0/24", "198.18.116.0/24",
 		"198.18.111.0/24", "198.18.115.0/24", "198.18.112.0/24", "198.18.114.0/24",
 	} {
-		stale[prefix] = ""
+		backend.zeRoutes = append(backend.zeRoutes, installedRoute{prefix: prefix, table: 0})
 	}
-	backend := &failingDeleteBackend{mockBackend: newMockBackend()}
 	fib := newFIBKernel(backend)
 
-	fib.sweepStale(stale)
+	fib.sweepStale(fib.startupSweep())
 
 	if backend.attempts != 8 {
 		t.Fatalf("the sweep attempted %d deletes, want all eight", backend.attempts)
@@ -202,7 +201,8 @@ func TestFIBKernelFlushRetriesARouteTheSweepCouldNotDelete(t *testing.T) {
 	fib := newFIBKernel(backend)
 	const prefix = "198.18.130.0/24"
 
-	fib.sweepStale(map[string]string{prefix: ""})
+	backend.zeRoutes = []installedRoute{{prefix: prefix, table: 0}}
+	fib.sweepStale(fib.startupSweep())
 	if backend.attempts != 1 {
 		t.Fatalf("the sweep attempted %d deletes, want one", backend.attempts)
 	}
@@ -430,5 +430,105 @@ func TestFIBKernelSweepLeavesARefreshedNamedTablePrefixAlone(t *testing.T) {
 	}
 	if _, installed := fib.installed[prefix.String()]; !installed {
 		t.Errorf("the sweep dropped the refreshed prefix %s from the installed set", prefix)
+	}
+}
+
+// Goal: a prefix whose stale table an install took, and which was withdrawn
+// again before the sweep, has nothing stale left: the sweep deletes nothing
+// and reports no orphan. Method: a rich backend listing the prefix in table
+// 100 only, startupSweep, an Add and then a Withdraw in table 100, sweepStale:
+// no delete after the withdraw's own, no fib-orphan warning.
+func TestFIBKernelSweepLeavesAWithdrawnNamedTablePrefixAlone(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &deleteLogBackend{mockBackend: newMockBackend()}
+	prefix := netip.MustParsePrefix("198.18.135.0/24")
+	backend.zeRoutes = []installedRoute{{prefix: prefix.String(), table: 100}}
+	fib := newFIBKernel(backend)
+	stale := fib.startupSweep()
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Add, Prefix: prefix, NextHop: netip.MustParseAddr("192.168.35.1"), Protocol: "bgp", TableID: 100},
+	}))
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Withdraw, Prefix: prefix, Protocol: "bgp", TableID: 100},
+	}))
+	afterWithdraw := len(backend.deletes)
+	if afterWithdraw != 1 || backend.deletes[0].table != 100 {
+		t.Fatalf("control: the withdraw's rich deletes = %+v, want one in table 100", backend.deletes)
+	}
+
+	fib.sweepStale(stale)
+
+	if len(backend.deletes) != afterWithdraw || len(backend.deleted) != 0 {
+		t.Errorf("the sweep deleted for a prefix with nothing stale left: rich %+v, plain %v", backend.deletes[afterWithdraw:], backend.deleted)
+	}
+	for _, warning := range report.Warnings() {
+		if warning.Code == reportCodeFIBOrphan {
+			t.Errorf("the sweep reported an orphan for a route that was not there: %+v", warning)
+		}
+	}
+}
+
+// Goal: a withdraw that removes a stale route from its listed table, with no
+// install before it, leaves nothing for the sweep either. Method: the same
+// listing, a Withdraw in table 100 inside the sweep window, sweepStale: no
+// second delete, no fib-orphan warning.
+func TestFIBKernelSweepLeavesAStaleRouteAWithdrawRemovedAlone(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &deleteLogBackend{mockBackend: newMockBackend()}
+	prefix := netip.MustParsePrefix("198.18.136.0/24")
+	backend.zeRoutes = []installedRoute{{prefix: prefix.String(), table: 100}}
+	fib := newFIBKernel(backend)
+	stale := fib.startupSweep()
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Withdraw, Prefix: prefix, Protocol: "bgp", TableID: 100},
+	}))
+	afterWithdraw := len(backend.deletes)
+	if afterWithdraw != 1 || backend.deletes[0].table != 100 {
+		t.Fatalf("control: the withdraw's rich deletes = %+v, want one in table 100", backend.deletes)
+	}
+
+	fib.sweepStale(stale)
+
+	if len(backend.deletes) != afterWithdraw || len(backend.deleted) != 0 {
+		t.Errorf("the sweep deleted a route the withdraw had removed: rich %+v, plain %v", backend.deletes[afterWithdraw:], backend.deleted)
+	}
+	for _, warning := range report.Warnings() {
+		if warning.Code == reportCodeFIBOrphan {
+			t.Errorf("the sweep reported an orphan for a route the withdraw had removed: %+v", warning)
+		}
+	}
+}
+
+// Goal: one withdraw forgets one stale route, not every stale route listed in
+// that table. Method: a rich backend listing the prefix twice in table 100
+// (two routes a crashed replace left at different metrics), startupSweep, a
+// Withdraw in table 100 (one delete), sweepStale: one more delete in table
+// 100, for the route the withdraw did not remove.
+func TestFIBKernelWithdrawForgetsOneStaleRouteOfTwo(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	backend := &deleteLogBackend{mockBackend: newMockBackend()}
+	prefix := netip.MustParsePrefix("198.18.137.0/24")
+	listed := installedRoute{prefix: prefix.String(), table: 100}
+	backend.zeRoutes = []installedRoute{listed, listed}
+	fib := newFIBKernel(backend)
+	stale := fib.startupSweep()
+	fib.processEvent(makeSysribPayload([]incomingChange{
+		{Action: routeaction.Withdraw, Prefix: prefix, Protocol: "bgp", TableID: 100},
+	}))
+	if len(backend.deletes) != 1 {
+		t.Fatalf("control: the withdraw's rich deletes = %+v, want one", backend.deletes)
+	}
+
+	fib.sweepStale(stale)
+
+	want := []installedRoute{listed, listed}
+	if len(backend.deletes) != 2 || backend.deletes[0] != want[0] || backend.deletes[1] != want[1] {
+		t.Errorf("rich deletes = %+v, want the withdraw's delete and one sweep delete for the second stale route, both in table 100", backend.deletes)
 	}
 }
