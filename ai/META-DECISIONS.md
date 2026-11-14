@@ -212,6 +212,25 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Owner-only authorization actions require an interactive terminal and refuse
   noninteractive invocation before recording authorization. Independent
   test-judge approvals retain their existing agent route.
+- The tests of an RFC MUST prove that the code obeys it and that the test
+  would notice if it stopped. The positive test proves Ze does what the
+  clause requires, in the case the clause describes, observed where the
+  behaviour shows: the bytes on the wire, the state installed, the message
+  refused. The negative test proves the behaviour is tied to the clause's
+  condition and is not unconditional: it takes the case just outside the
+  clause, where the correct answer is the opposite one. Code that refuses
+  everything, or sends something always, passes a positive test alone.
+- What the negative is depends on which side of the wire the clause binds.
+  A clause that obliges Ze to generate something is proven positively on
+  what Ze sends, and its negative is on reception: how Ze handles a peer's
+  message that lacks it. That handling is what the RFC prescribes (ignore,
+  refuse, tear down), or, where the protocol cannot run without it, the
+  right way to deal with its absence. A clause that obliges Ze to accept
+  something is proven positively by acceptance, and its negative is how Ze
+  handles it absent or malformed. For a MUST NOT, the test that matters is
+  the violating input being refused: a positive alone proves nothing.
+- A tag claims no more than its test body asserts. A claim wider than the
+  assertion publishes an unproven MUST as proven.
 
 ## Code and dependencies
 
