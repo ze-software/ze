@@ -30,11 +30,14 @@ Ze reads it from the kernel neighbor table and follows the table as it
 changes, with or without an `interface` block in the config. When the table
 names no usable entry for that router, the global address goes alone and a
 rate-limited warning names the next hop and the reason. When the table cannot
-be read, one warning per peer names the cause, and `ze doctor` reports it. A
-route already sent with the global address alone is not sent again when the
-table later names the link-local address.
+be read, one warning per peer names the cause, and `ze doctor` reports it as
+`doctor-bgp-neighbor-table` with the fix (`ze show diagnostic
+doctor-bgp-neighbor-table` describes it). A route already sent with the global
+address alone is not sent again when the table later names the link-local
+address.
 
 <!-- source: internal/component/bgp/reactor/link_scope.go -- linkLocalNextHop, thirdPartyLinkLocal -->
+<!-- source: internal/component/bgp/config/neighbor_table_doctor.go -- codeBGPNeighborTable, checkBGPNeighborTable -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- startNeighborWatch, neighborWatchWorker -->
 
 `binding-sid srv6 <ipv6-address>` on an SR Policy route writes the SRv6

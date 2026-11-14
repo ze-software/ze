@@ -16,21 +16,16 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Blocker
 
 Handed back on 2026-11-14 by the agent that split this spec and prepared its
-closure. The split is done and committed; the closure is not, and nothing below
-is a product defect.
+closure, and cleared the same day. Nothing below was a product defect.
 
-| What blocks the two closure commits | Producer | What clears it |
+| What blocked the two closure commits | Producer | State |
 |-------------------------------------|----------|----------------|
-| Five owed runs are not in: the interop scenarios `bgp-rfc2545-third-party-linklocal-frr` and `bgp-sr-policy-gobgp` (Linux Docker lab), `./le rfc check`, and the unit packages `./internal/plugins/iface/netlink/` (Linux) and `./internal/component/bgp/config/`. Every other owed run is green and recorded under Pre-Commit Verification | the main thread schedules them | Each green, its result written into the Goal Validation and Pre-Commit Verification cells that say "not yet run" |
-| Two specs still cite this file by path and commit B removes it: `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` (lines 20, 171, 364) and `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` (lines 20, 461). No other tracked file cites the path (`grep -rn`, 2026-11-14); the two `.ci` tests and the sibling specs cite the bare stem. The spec edit gate refused both repoints on 2026-11-14 for reasons the repoint does not cause: the EPE spec is `ready` with no `## Existing Mechanisms` section (`writeSpecMechanisms`, `internal/le/hookruntime/specmechanisms.go`) and cites a producer `../../peer/address` that resolves outside the checkout; the FSM spec cites `fsm/fsm.go`, which matches two tracked files | `./le spec citation`; the `pretool-writeedit` spec gates | Each spec's own defect repaired by its owner (the missing section, the two producer paths), then lines 20 and 364 (EPE) and 20 and 461 (FSM) restated to the bare stem, and EPE line 171 repointed to `plan/release/validation/spec-bgp-mp-attribute-first-wire-proof.md`, which owns row 10's wire proof, all in commit A |
+| The owed runs | the main thread | Cleared on 2026-11-14: every run is in and recorded under Goal Validation and Pre-Commit Verification, with what each run did not exercise |
+| The Review Gate artifact and the news fragment | `checkVerificationGates`, `newsFragmentPath` (`internal/le/commit/`) | Cleared on 2026-11-14: recorded and checked clean (Review Gate); `website/changes/fragments/bgp-unowned-rfc-rows.md` written |
+| Citations of this file by path | `./le spec citation` | The FSM spec was repointed in e8d57272a6. Two citers remain and the closure commit names them: `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md` (lines 20, 171, 364), which its edit gate refuses until it gains a real `## Existing Mechanisms` section, and `plan/release/fixes/spec-bgp-link-local-only-next-hop.md` (line 739, "AC-3 of" this spec, which is that spec's own AC-20 since the split), whose edit gate asks for a read of 19 producers and three more doors first. Each is repointed by the next agent that edits that spec: the EPE lines to the bare stem and, for line 171, to `plan/release/validation/spec-bgp-mp-attribute-first-wire-proof.md`; line 739 to "AC-20 of this spec" |
 
-Cleared on 2026-11-14: the Review Gate artifact is recorded and checks clean
-(Review Gate), and the news fragment is written as
-`website/changes/fragments/bgp-unowned-rfc-rows.md`, the name
-`newsFragmentPath` (`internal/le/commit/newsfragment.go`) expects: the stem
-without `spec-`.
-
-The main thread sets Status back to `in-progress` when it runs the owed commands.
+Nothing above blocks the two closure commits; the table is kept as the record
+of the hand-back.
 
 ## Task
 
@@ -125,6 +120,17 @@ Row numbers are the numbers the rows had before the first split.
 - The RECOMMENDED type-20 SRv6 BSID encoding stays the default.
 
 **Behavior to change:** rows 4, 5 (tested half) and 9, as the ACs state. Done.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| The RFC 7606 attribute walk | `internal/component/bgp/message/rfc7606.go`, the MP_REACH_NLRI arm that calls `validateMPReachNextHop` | Judges each attribute of a received UPDATE and returns one `RFC7606ValidationResult` (session reset, treat-as-withdraw, discard) | Extends: row 4 adds one more check in that arm, `validateLinkLocalNextHopPair`, returning the same result type on a capability-77 session |
+| The per-peer link scope | `internal/component/bgp/reactor/link_scope.go`, `linkScope.linkLocalNextHop`, `applyLinkLocalNextHop` | Decides RFC 2545 Section 3's inclusion condition from one snapshot of the connected subnets and appends the speaker's own Link-Local | Extends: row 5 adds the `nextHopRouterThirdParty` arm and a neighbor view to the same snapshot |
+| The core network registry | `internal/core/network`, `ConnectedPrefixes`, `InterfacePrefixes` | Lets the reactor read host interface state the interface component registers, with no import between the two | Extends: the neighbor table reader and watch join it (`RegisterNeighborTable`, `WatchNeighbors`) |
+| The reactor's supervised table watch | `internal/component/bgp/reactor/reactor_table_watch.go`, `superviseTableWatch`, used by the address watch worker (`reactor_address_watch.go`) | Keeps a kernel table watch open, restarts it after a failure and refreshes every live peer | Extends: `neighborWatchWorker` is a second user of the same supervisor |
+| The SR Policy Binding SID sub-TLV | `internal/component/bgp/plugins/nlri/srpolicy/config.go`, `buildBindingSIDSubTLV`, `buildBindingSIDNullSubTLV`; `attr_json.go`, `bindingSIDToJSON` | Writes and reads type 13 at Lengths 6 and 2; `srv6-binding-sid` writes type 20 | Extends: row 9 adds the Length-18 form to the same parser switch, builder family and decoder switch |
+| A neighbour-changed bus event from the netlink monitor | `docs/architecture/bgp/interface-event-reactions.md` | The interface monitor emits address events on the bus, and runs only with an `interface` block | Does not apply: a watch registered in the core network registry replaced the planned event, because the monitor does not run in a BGP-only config (Deviations) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -472,7 +478,7 @@ observed that day are under Pre-Commit Verification, with the runs still owed.
 | AC-4 | Done | `TestLinkLocalCapabilityMalformedThirtyTwoOctet`, `TestLinkLocalCapabilityWellFormedThirtyTwoOctet`, `test/plugin/linklocal-capability-malformed-nexthop-withdraw.ci` | record `rfc/discrimination/draft-ietf-idr-linklocal-capability/DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1.json` |
 | AC-5 | Partial | `TestRFC2545ThirdPartyLinkLocalAnnounce`, `TestRFC2545ThirdPartyLinkLocalForward`, `test/plugin/rfc2545-third-party-linklocal.ci`, `bgp-rfc2545-third-party-linklocal-frr` | record `rfc/discrimination/rfc2545/RFC2545-3-6.json`; the re-advertise clause moved |
 | AC-6 | Done | `TestRFC9830BindingSIDSRv6Encode`, `TestRFC9830BindingSIDSRv6Decode`, the three `.ci` tests, `bgp-sr-policy-gobgp` | record `rfc/discrimination/rfc9830/RFC9830-2.4.2-12.json` |
-| AC-8 | owed run | `./le rfc check` | rows read on 2026-11-14: `-6-1` and `RFC9830-2.4.2-12` carry no annotation, `RFC2545-3-6` is `{partial}` |
+| AC-8 | Done for this spec's rows | `./le rfc check` (Mac, working tree, 2026-11-14) | the run is red tree-wide, 177 violations from other sessions' in-progress work; no violation line names `draft-ietf-idr-linklocal-capability`, `rfc9830` or `RFC2545-3-6` (grep of the log, zero matches). The criterion's "exits clean" was therefore not observed as an exit status; what was observed is that none of the three stems' rows is refused. Rows `-6-1` and `RFC9830-2.4.2-12` carry no annotation, `RFC2545-3-6` is `{partial}`. Four other RFC 2545 rows, 3-1 to 3-4, read SHIFTED in that run; they are not this spec's and were left to the session working on them |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -500,12 +506,9 @@ observed that day are under Pre-Commit Verification, with the runs still owed.
 |------------------|---------------|-------------------|
 | A malformed 32-octet next hop on a capability-77 session is withdrawn, not accepted | functional | `./le test bgp plugin linklocal-capability-malformed-nexthop-withdraw`: pass 1/1 (main thread, 2026-11-14). The test sends the malformed pair on one connection and expects the withdrawal of `2001:db8:5701::/48` on the second (`expect=bgp:conn=2:seq=2`), and rejects the malformed pair being relayed. No conforming peer can send the form, so no interop scenario exists; the recorded break is `rfc/discrimination/draft-ietf-idr-linklocal-capability/DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1.json` |
 | A third-party next hop on the common subnet carries its router's Link-Local | functional, in Ze's QEMU guest | `./le test qemu ci test test/plugin/rfc2545-third-party-linklocal.ci`: pass 1/1 (main thread, 2026-11-14). The peer expects the 32-octet next hop `2001:db8:2545::9` then `fe80::9` for the route through the neighbor the table names, and the 16-octet form for the router it does not name |
-| The same, against another implementation | interop | `bgp-rfc2545-third-party-linklocal-frr`, judged by `checkRFC2545ThirdPartyLinkLocal` (FRR decodes the third router's global then its Link-Local, and installs the route through it), with its recorded break in `rfc/discrimination/rfc2545/RFC2545-3-6.json`. Not yet run in this closure: owed on the Linux Docker lab |
+| The same, against another implementation | interop | `bgp-rfc2545-third-party-linklocal-frr`, judged by `checkRFC2545ThirdPartyLinkLocal` (FRR decodes the third router's global then its Link-Local, and installs the route through it), with its recorded break in `rfc/discrimination/rfc2545/RFC2545-3-6.json`. Run on the Linux server (Ze kernel 7.2.9-ze, checkout at 9609d00703, clean), 2026-11-14: `INTEROP_SCENARIO=bgp-rfc2545-third-party-linklocal-frr ./le test integration interop` exit 0. Only the runner's exit status is held: the next run wrote the same job log name and overwrote this one, so the scenario's pass line was not retained |
 | An SRv6 BSID can be signalled in the type-13 sub-TLV at Length 18 and read back | functional | `./le test bgp encode bgp-srpolicy-bsid-srv6-encode`, `./le test bgp decode bgp-srpolicy-bsid-srv6-decode`, `./le test bgp parse srpolicy-binding-sid-srv6`: each pass 1/1 (main thread, 2026-11-14). The encode test asserts the UPDATE hex, the decode test the JSON with `srv6-sid`, the parse test the refusal of an IPv4 address |
-| The same, against another implementation | interop | `bgp-sr-policy-gobgp`: GoBGP prints the type-13 Binding SID. Not yet run in this closure: owed on the Linux Docker lab |
-
-The two interop rows stay open until their runs are in; the closure commits
-wait on them.
+| The same, against another implementation | interop | `bgp-sr-policy-gobgp`: GoBGP prints the type-13 Binding SID. Run on the same server, 2026-11-14: `INTEROP_SCENARIO=bgp-sr-policy-gobgp ./le test integration interop`: "[1/1] bgp-sr-policy-gobgp: pass (2m15s)", "interop: 1 passed, 0 failed" |
 
 ## Work Not Done
 
@@ -565,9 +568,9 @@ and `rfc9830_bsid_srv6_test.go` (srpolicy); `check_rfc2545_third_party.go`
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
 | AC-4 | both polarities tagged and recorded | `grep -rn "RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1"`: `draft_ietf_idr_linklocal_capability_malformed_test.go` lines 47 and 89, `rfc2545_forward_subnet_test.go` lines 231, 232, 627, 628, 701; the record lists five units. Run: `./le test unit pkg path ./internal/component/bgp/message/ path ./internal/component/bgp/plugins/nlri/srpolicy/`: ok; `./le test bgp plugin linklocal-capability-malformed-nexthop-withdraw`: pass 1/1 (main thread, 2026-11-14) |
-| AC-5 | tested half tagged and recorded | the record lists `TestRFC2545ThirdPartyLinkLocalAnnounce`, `TestRFC2545ThirdPartyLinkLocalForward` and `checkRFC2545ThirdPartyLinkLocal`. Run: `./le test unit pkg path ./internal/component/bgp/reactor/ run 'RFC2545\|ThirdParty\|LinkScope\|NeighborWatch\|NeighbourReader\|LinkLocal'`: ok (8.586s); the whole reactor package was not run, because another session is editing it. `./le test qemu ci test test/plugin/rfc2545-third-party-linklocal.ci`: pass 1/1 in Ze's guest (main thread, 2026-11-14). Not yet run: the interop scenario `bgp-rfc2545-third-party-linklocal-frr`; `./le test unit pkg path ./internal/plugins/iface/netlink/` (Linux), which holds the `TestNeighbourWatch*` tests; `./le test unit pkg path ./internal/component/bgp/config/`, which holds the two doctor tests |
-| AC-6 | both polarities tagged and recorded | `rfc9830_bsid_srv6_test.go` lines 26, 29, 80, 93; the record lists the two units. Run: the srpolicy package in the unit run above: ok; `./le test bgp encode bgp-srpolicy-bsid-srv6-encode`, `./le test bgp decode bgp-srpolicy-bsid-srv6-decode`, `./le test bgp parse srpolicy-binding-sid-srv6`: each pass 1/1 (main thread, 2026-11-14). Not yet run: the interop scenario `bgp-sr-policy-gobgp` |
-| AC-8 | ledger clean for the three stems | not yet run: `./le rfc check`. Read on 2026-11-14: rows `-6-1` and `RFC9830-2.4.2-12` carry no annotation, `RFC2545-3-6` is `{partial}`, and the three discrimination records exist |
+| AC-5 | tested half tagged and recorded | the record lists `TestRFC2545ThirdPartyLinkLocalAnnounce`, `TestRFC2545ThirdPartyLinkLocalForward` and `checkRFC2545ThirdPartyLinkLocal`. Run: `./le test unit pkg path ./internal/component/bgp/reactor/ run 'RFC2545\|ThirdParty\|LinkScope\|NeighborWatch\|NeighbourReader\|LinkLocal'`: ok (8.586s); the whole reactor package was not run, because another session is editing it. `./le test qemu ci test test/plugin/rfc2545-third-party-linklocal.ci`: pass 1/1 in Ze's guest (main thread, 2026-11-14). On the Linux server: the interop scenario `bgp-rfc2545-third-party-linklocal-frr`, exit 0 (pass line not retained, Goal Validation); `./le test unit pkg path ./internal/plugins/iface/netlink/`: ok (69.3s), the package of the `TestNeighbourWatch*` tests, run as an ordinary user, so a test that skips without CAP_NET_ADMIN was not exercised. On the Mac: `./le test unit pkg path ./internal/component/bgp/config/`: ok, the package of the two doctor tests |
+| AC-6 | both polarities tagged and recorded | `rfc9830_bsid_srv6_test.go` lines 26, 29, 80, 93; the record lists the two units. Run: the srpolicy package in the unit run above: ok; `./le test bgp encode bgp-srpolicy-bsid-srv6-encode`, `./le test bgp decode bgp-srpolicy-bsid-srv6-decode`, `./le test bgp parse srpolicy-binding-sid-srv6`: each pass 1/1 (main thread, 2026-11-14). The interop scenario `bgp-sr-policy-gobgp`: "[1/1] bgp-sr-policy-gobgp: pass (2m15s)" on the Linux server |
+| AC-8 | no ledger refusal for the three stems | `./le rfc check` (Mac, working tree, 2026-11-14): red tree-wide with 177 violations from other sessions' work, none naming `draft-ietf-idr-linklocal-capability`, `rfc9830` or `RFC2545-3-6` (grep of the log, zero matches). Rows `-6-1` and `RFC9830-2.4.2-12` carry no annotation, `RFC2545-3-6` is `{partial}`, and the three discrimination records exist |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -584,6 +587,6 @@ and `rfc9830_bsid_srv6_test.go` (srpolicy); `check_rfc2545_third_party.go`
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| RFC status rows | `rfc/short/` rows read on 2026-11-14: `draft-ietf-idr-linklocal-capability.md` line 128 and `rfc9830.md` line 313 carry no annotation, `rfc2545.md` line 206 is `{partial}` | Yes for the rows. This closure changed no `rfc/short/` row, so the generated `docs/features/rfc-status.md` owes no regeneration; `./le rfc check` (not yet run) judges the records |
+| RFC status rows | `rfc/short/` rows read on 2026-11-14: `draft-ietf-idr-linklocal-capability.md` line 128 and `rfc9830.md` line 313 carry no annotation, `rfc2545.md` line 206 is `{partial}` | Yes for the rows. This closure changed no `rfc/short/` row, so the generated `docs/features/rfc-status.md` owes no regeneration; `./le rfc check` refused none of the three rows (AC-8 above) |
 | The Documentation Update Checklist's Yes rows | each row names its page and lines, read on 2026-11-14 | Yes; `./le doc check all` source-anchor stage passes |
 | News fragment | `website/changes/fragments/bgp-unowned-rfc-rows.md`, topic `BGP` (a tag of `website/data/topics.json`), six headings in order | written; `./le commit create` validates it when commit A is prepared |
