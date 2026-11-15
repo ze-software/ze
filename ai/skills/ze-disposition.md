@@ -36,8 +36,8 @@ have an owner, and the owner judges them.
 phase itself.
 
 - **If you are the main thread:** spawn one agent per spec with
-  `subagent_type: ze-read`, hand it the spec path and this skill, and run at
-  most five at once. You do not need to ask permission first
+  `subagent_type: ze-read`, and hand it the spec path and this skill.
+  You do not need to ask permission first
   (`ai/META-DECISIONS.md`, "Delegate to subagents"). The agents change no file:
   you verify each report and write the record yourself ("Record the verdict"
   below).

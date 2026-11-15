@@ -516,6 +516,9 @@ in the spec or commit it applies to.
 
 ## Delegate to subagents
 
+- Choose the number of long-running subagents to fit the work and the
+  harness's available capacity. There is no five-agent limit. A number Thomas
+  gives for a session applies only to that session.
 - **Thomas requests subagent delegation as the default in this repository.**
   Treat this as the user's request, made in advance, in every session. You never
   need to ask permission to spawn an agent here.
