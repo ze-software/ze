@@ -1,5 +1,6 @@
 //go:build ze_web
 
+// Design: docs/guide/authentication.md -- bootstrap credentials and their operator diagnostics.
 package hub
 
 import (
@@ -138,8 +139,12 @@ func TestBootPowerUsersWarnsWhenUsernameHasNoHash(t *testing.T) {
 	users := bootPowerUsers(db, log)
 
 	assert.Empty(t, users, "an unreadable database declares no power user")
-	assert.Contains(t, out.String(), "zefs power user unavailable",
+	assert.Contains(t, out.String(), "stored local recovery credentials are unavailable",
 		"an unreadable zefs database must be reported at a level the default logger prints")
+	assert.Contains(t, out.String(), "level=WARN")
+	assert.Contains(t, out.String(), "code=doctor-local-admin-credentials")
+	assert.Contains(t, out.String(), "ze data --path <database> write <credential-key> <credential-backup-file>",
+		"the warning must carry the command that restores the affected credential")
 }
 
 // VALIDATES: an appliance built with `admin-disabled` boots SILENTLY. The flag
