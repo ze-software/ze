@@ -10,7 +10,6 @@ import (
 	"slices"
 	"time"
 
-	bgpconfig "github.com/ze-software/ze/internal/component/bgp/config"
 	"github.com/ze-software/ze/internal/component/config"
 
 	// The schema a scenario's Ze config is parsed against: every root the
@@ -56,51 +55,6 @@ const zeBMPSenderPath = "bgp" + config.PathSep + "bmp" + config.PathSep + "sende
 // also matched the receiver's `environment bmp`, which dials no collector.
 func zeSendsBMP(tree *config.Tree) bool {
 	return tree.GetContainerPath(zeBMPSenderPath) != nil
-}
-
-// zePassiveListenPorts answers the ports a Ze started from tree, the parsed
-// config file name, listens on for a peer it never dials: a peer whose
-// `connection remote connect` is false, and a dynamic group (`remote ip
-// dynamic`), which has no address to dial and which Ze refuses without
-// `connect false`. Ze refuses connect and accept both false, so each such
-// peer accepts, and the reactor binds its configured local address at its
-// listen port (listenerSpecs, listenPortFor). The config is resolved by
-// ResolveBGPTree, the resolver the daemon runs, so a group's leaves reach its
-// peers here exactly as they do in Ze. The answer is sorted, holds each port
-// once, and is empty when Ze dials every peer or the config holds no bgp
-// block. The question is answered from the parsed config, never from its
-// text: a text match fires on a comment.
-func zePassiveListenPorts(tree *config.Tree, name string) ([]string, error) {
-	if tree.GetContainer("bgp") == nil {
-		return nil, nil
-	}
-	resolved, err := bgpconfig.ResolveBGPTree(tree)
-	if err != nil {
-		return nil, fmt.Errorf("resolve %s for the Ze readiness probe: %w", name, err)
-	}
-	var ports []string
-	if peers, ok := resolved["peer"].(map[string]any); ok {
-		for peerName, entry := range peers {
-			peer, isBlock := entry.(map[string]any)
-			if !isBlock {
-				return nil, fmt.Errorf("resolve %s for the Ze readiness probe: peer %s is not a block", name, peerName)
-			}
-			remote, hasRemote := config.BGPRemote(peer)
-			if !hasRemote {
-				continue
-			}
-			if remote["connect"] == "false" {
-				ports = append(ports, zeListenPort(peer))
-			}
-		}
-	}
-	if groups, ok := resolved["dynamic-groups"].([]bgpconfig.DynamicGroupTemplate); ok {
-		for index := range groups {
-			ports = append(ports, zeListenPort(groups[index].Template))
-		}
-	}
-	slices.Sort(ports)
-	return slices.Compact(ports), nil
 }
 
 // zeListenPort is the port Ze listens on for a resolved peer or dynamic group

@@ -324,8 +324,15 @@ peer keeps the probe that only runs `true`, because it redials the daemons
 started after it on its own backoff. A relay barrier keeps the listener check:
 one `sh` runs `ss -ltn` and then the peer list, and the probe requires both
 sets of strings.
-<!-- source: internal/le/interoplab/bgp/ze_ready.go -- zePassiveListenPorts, zeReadyProbe -->
+<!-- source: internal/le/interoplab/bgp/ze_ready.go -- zeReadyProbe -->
+<!-- source: internal/le/interoplab/bgp/ze_ready_bgp.go -- zePassiveListenPorts -->
 <!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers -->
+
+The listener resolver is compiled under `ze_bgp`, like the BGP engine it
+reads. A build without that feature refuses a BGP listener query rather than
+reporting readiness without resolving the peer and group inheritance. A config
+without a BGP block still owes no BGP listener.
+<!-- source: internal/le/interoplab/bgp/ze_ready_nobgp.go -- zePassiveListenPorts -->
 
 A GoBGP-facing relay, as in `bgp-local-pref-strip-gobgp`, is gated the same way.
 GoBGP's `InitialConfig` calls `StartBgp`, which opens the listener, before it
