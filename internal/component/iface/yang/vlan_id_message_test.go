@@ -1,6 +1,7 @@
 package yang
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,9 +52,15 @@ func TestUnitVIDRefusalSpeaksTheVLANRange(t *testing.T) {
 			}
 			for _, refused := range []string{"0", "4095", "9999"} {
 				err := command.ValidateArgString(refused, def)
-				if assert.Error(t, err, "VLAN ID %s", refused) {
-					assert.Equal(t, "value "+refused+" out of range 1..4094: "+vlanIDMessage, err.Error())
-				}
+				require.Error(t, err, "VLAN ID %s", refused)
+				fault, ok := errors.AsType[*command.ValueArgumentError](err)
+				require.True(t, ok, "the model must refuse the VLAN ID as a typed value fault: %v", err)
+				assert.Equal(t, "vid", fault.Leaf)
+				assert.Equal(t, refused, fault.Value())
+				assert.Equal(t, "vid: \""+refused+"\" is outside the accepted range", fault.Problem())
+				assert.Equal(t, vlanIDMessage, fault.Why())
+				assert.Equal(t, "<1..4094>", fault.Correction())
+				assert.Equal(t, fault.Problem()+"\n"+vlanIDMessage, err.Error())
 			}
 		})
 	}
