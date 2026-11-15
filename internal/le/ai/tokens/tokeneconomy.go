@@ -41,9 +41,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/ai/tokens/contextsize"
 )
 
 // area is the command word. It omits the report verb from gate name
@@ -90,7 +92,7 @@ var PhaseRules = []PhaseRule{
 	{"review", []string{"review", "critique", "adversarial", "lens", "referee"}},
 	{"audit", []string{"audit", "conformance"}},
 	{"fix/debug", []string{"debug", "fix", "repair", "failing", "diagnose", "flake", "red "}},
-	{"test", []string{"test", "coverage", "fixture", "reproduce"}},
+	{wordTest, []string{wordTest, "coverage", "fixture", "reproduce"}},
 	{"implement", []string{"implement", "build", "wire", "port", "migrate", "refactor", "add "}},
 	{"docs/rules", []string{"doc", "rule", "spec", "learned", "summar", "index", "write"}},
 	{"research", []string{
@@ -110,21 +112,53 @@ type Call struct {
 	CacheRead  int64 `json:"cache-read"`
 	Output     int64 `json:"output"`
 	Tools      int   `json:"tools"`
+	// At is the earliest timestamp any record of the call carries, which is
+	// what a window selects a call by. It is the zero time when no record of
+	// the call carries a timestamp that parses: such a call is left out of a
+	// bounded window and counted as undated, never placed at an invented time.
+	At time.Time `json:"-"`
 }
 
 // Context answers the tokens fed to the model on this call, which is what the
-// call is charged for.
-func (c Call) Context() int64 { return c.Input + c.CacheWrite + c.CacheRead }
+// call is charged for. contextsize.Tokens holds the sum, so the agent-spawn
+// hook's handoff figure and this report count one quantity.
+func (c Call) Context() int64 { return contextsize.Tokens(c.Input, c.CacheWrite, c.CacheRead) }
 
 // ToolCall is one tool_use block, with the size of the result fed back for it.
 //
 // ResultChars is 0 when no tool_result names the block: the tool was denied,
 // the transcript ends before the result, or the result carried no text. That is
 // a real zero and is counted as one, never dropped.
+//
+// Answered says whether any tool_result names the block. Failed and Denial are
+// read from that result and mean nothing for an unanswered call, so a failure
+// rate is taken over answered calls only: an unanswered call is neither a
+// success nor a failure.
 type ToolCall struct {
 	Name        string `json:"name"`
 	FilePath    string `json:"file-path,omitempty"`
 	ResultChars int    `json:"result-chars"`
+	// Answered is true when a tool_result for the block was recorded.
+	Answered bool `json:"answered"`
+	// Failed is the result's `is_error` flag: the harness fed the model an
+	// error for this call, whether the tool ran and failed or never ran.
+	Failed bool `json:"failed"`
+	// Denial is the `toolDenialKind` of the user record that carried the
+	// result, empty when the call was not denied. A hook refusal records
+	// "permission-rule"; an auto-mode classifier that gave no verdict records
+	// "automode-unavailable".
+	Denial string `json:"denial,omitempty"`
+	// At is the time of the API call that made the tool call (Call.At).
+	At time.Time `json:"-"`
+	// UsedAt is the timestamp of the record that carries the tool_use block,
+	// and ResultAt the earliest timestamp of a record carrying its result.
+	// Either is the zero time when its record has none: the call is then not
+	// timed, never timed against an invented moment.
+	UsedAt   time.Time `json:"-"`
+	ResultAt time.Time `json:"-"`
+	// Shell is what the shell figures need from a Bash call's command
+	// (shell.go). The command text itself is not kept.
+	Shell Shell `json:"-"`
 }
 
 // Agent is one subagent transcript plus the spawn metadata beside it.
@@ -167,6 +201,11 @@ type Session struct {
 	MainCalls     []Call
 	Agents        []Agent
 	MainToolCalls []ToolCall
+	// MainTruncated is true when a bounded window left out the session's
+	// first main-thread call, so MainCalls[0] is not the session's first
+	// turn. Its zero value is a session read whole, which an unwindowed read
+	// is (applyWindow).
+	MainTruncated bool
 }
 
 // SubagentCalls answers every call made inside a subagent of this session.
@@ -452,16 +491,17 @@ func records(path string, visit func(map[string]any)) error {
 func ScanTranscript(path string) *Scan {
 	found := newScan()
 
-	// uses holds one tool-use id per API call, in first-seen order, and results
-	// holds the size fed back for each of them.
+	// useOrder holds the tool-use ids of each API call in first-seen order,
+	// uses what each tool_use block says, and results what the results fed
+	// back for each id say.
 	useOrder := map[string][]string{}
-	uses := map[string]map[string][2]string{}
-	results := map[string]int{}
+	uses := map[string]map[string]toolUse{}
+	results := map[string]toolResult{}
 
 	found.Unreadable = records(path, func(record map[string]any) {
 		message := record["message"]
 		if text(record["type"]) == "user" {
-			scanUserRecord(found, message, results)
+			scanUserRecord(found, record, results)
 			return
 		}
 		if text(record["type"]) != "assistant" {
@@ -487,6 +527,7 @@ func ScanTranscript(path string) *Scan {
 			CacheWrite: usageInt(usage["cache_creation_input_tokens"]),
 			CacheRead:  usageInt(usage["cache_read_input_tokens"]),
 			Output:     usageInt(usage["output_tokens"]),
+			At:         recordTime(record),
 		}
 		if previous, seen := found.calls[key]; seen {
 			call = merge(previous, call)
@@ -513,15 +554,21 @@ func ScanTranscript(path string) *Scan {
 			if !okID || !okName {
 				continue
 			}
-			target := text(object(block["input"])["file_path"])
+			input := object(block["input"])
+			use := toolUse{name: name, target: text(input["file_path"]), at: recordTime(record)}
+			if name == BashTool {
+				use.shell = readShell(input)
+			}
 			if uses[key] == nil {
-				uses[key] = map[string][2]string{}
+				uses[key] = map[string]toolUse{}
 				found.toolOrder = append(found.toolOrder, key)
 			}
-			if _, seen := uses[key][useID]; !seen {
+			if previous, seen := uses[key][useID]; seen {
+				use.at = earliest(previous.at, use.at)
+			} else {
 				useOrder[key] = append(useOrder[key], useID)
 			}
-			uses[key][useID] = [2]string{name, target}
+			uses[key][useID] = use
 		}
 	})
 
@@ -529,8 +576,20 @@ func ScanTranscript(path string) *Scan {
 		byUseID := uses[key]
 		calls := make([]ToolCall, 0, len(byUseID))
 		for _, useID := range useOrder[key] {
-			pair := byUseID[useID]
-			calls = append(calls, ToolCall{Name: pair[0], FilePath: pair[1], ResultChars: results[useID]})
+			use := byUseID[useID]
+			result, answered := results[useID]
+			calls = append(calls, ToolCall{
+				Name:        use.name,
+				FilePath:    use.target,
+				ResultChars: result.chars,
+				Answered:    answered,
+				Failed:      result.failed,
+				Denial:      result.denial,
+				At:          found.calls[key].At,
+				UsedAt:      use.at,
+				ResultAt:    result.at,
+				Shell:       use.shell,
+			})
 		}
 		found.tools[key] = calls
 		call := found.calls[key]
@@ -540,9 +599,44 @@ func ScanTranscript(path string) *Scan {
 	return found
 }
 
+// toolResult is what the tool_result records of one tool-use id say: the
+// largest text fed back, whether any of them carried `is_error`, and the
+// denial kind of the record that carried it.
+type toolResult struct {
+	chars  int
+	failed bool
+	denial string
+	at     time.Time
+}
+
+// toolUse is what one tool_use block says: the tool, the file it names, the
+// time of the record that carries it, and for a Bash call what its command
+// does (readShell).
+type toolUse struct {
+	name   string
+	target string
+	at     time.Time
+	shell  Shell
+}
+
+// recordTime answers the record's `timestamp`, or the zero time when it has
+// none that parses as RFC 3339.
+func recordTime(record map[string]any) time.Time {
+	at, err := time.Parse(time.RFC3339Nano, text(record["timestamp"]))
+	if err != nil {
+		return time.Time{}
+	}
+	return at.UTC()
+}
+
 // scanUserRecord reads the spawn prompt and the tool results of one user
 // record.
-func scanUserRecord(found *Scan, message any, results map[string]int) {
+//
+// The denial kind sits on the RECORD (`toolDenialKind`), beside the message,
+// not on the result block, so every result of a denied record carries it.
+func scanUserRecord(found *Scan, record map[string]any, results map[string]toolResult) {
+	message := record["message"]
+	denial := text(record["toolDenialKind"])
 	if len(found.order) == 0 && found.PromptChars == 0 {
 		// Before the first assistant record, so this is the spawn prompt
 		// rather than a tool result fed back mid-run.
@@ -570,9 +664,16 @@ func scanUserRecord(found *Scan, message any, results map[string]int) {
 		if !ok || useID == "" {
 			continue
 		}
-		if chars := resultChars(block); chars > results[useID] {
-			results[useID] = chars
+		result := results[useID]
+		result.chars = max(result.chars, resultChars(block))
+		if flag, ok := block["is_error"].(bool); ok && flag {
+			result.failed = true
 		}
+		if denial != "" {
+			result.denial = denial
+		}
+		result.at = earliest(result.at, recordTime(record))
+		results[useID] = result
 	}
 }
 
@@ -581,6 +682,9 @@ func scanUserRecord(found *Scan, message any, results map[string]int) {
 // Maximum replaces last-record-wins, so record order does not affect the merge.
 // Only the output field differs between duplicate records. ScanTranscript
 // carries the measurement behind both facts.
+//
+// The time is the one field merged by minimum: the call happened when its
+// first record was written. A zero time is no time, so it never wins.
 func merge(first, second Call) Call {
 	return Call{
 		Input:      max(first.Input, second.Input),
@@ -588,7 +692,22 @@ func merge(first, second Call) Call {
 		CacheRead:  max(first.CacheRead, second.CacheRead),
 		Output:     max(first.Output, second.Output),
 		Tools:      max(first.Tools, second.Tools),
+		At:         earliest(first.At, second.At),
 	}
+}
+
+// earliest answers the earlier of two times, a zero time losing to any other.
+func earliest(first, second time.Time) time.Time {
+	if first.IsZero() {
+		return second
+	}
+	if second.IsZero() {
+		return first
+	}
+	if second.Before(first) {
+		return second
+	}
+	return first
 }
 
 // Meta is the spawn metadata beside a subagent transcript.

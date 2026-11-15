@@ -7,8 +7,8 @@
 // corpus. Store path, project slug, and filter identify that corpus. A key
 // identifies each table, so `| json` consumers select rows directly.
 //
-// Text matches the script page line for line. Developers see no migration
-// change, and parity checks can compare bytes.
+// The eight tables match the script page line for line. The window line and
+// the agent-economy criteria are additions the script never printed.
 
 package aitokens
 
@@ -37,6 +37,9 @@ const (
 	StateEmpty State = "empty"
 	// StateUnmatched means the session filter named a prefix no session has.
 	StateUnmatched State = "unmatched"
+	// StateOutside means the store holds calls and the window holds none of
+	// them. The queue wait has its own source, so it is still reported.
+	StateOutside State = "outside"
 )
 
 // SessionRow is one row of the per-session table.
@@ -79,6 +82,18 @@ type Report struct {
 
 	Cap int `json:"cap"`
 	Top int `json:"top"`
+
+	// Window is the span the report is taken over; both sides empty is the
+	// whole store. Undated counts the main-thread calls a bounded window left
+	// out because no record of them carries a timestamp. UndatedAgents counts
+	// the subagents it left out because their first call carries none: such an
+	// agent cannot be placed, and its calls are not in Undated.
+	Window        WindowSpan `json:"window"`
+	Undated       int        `json:"undated"`
+	UndatedAgents int        `json:"undated-agents"`
+	// Criteria holds the figures the agent-economy criteria are judged by
+	// (criteria.go).
+	Criteria Criteria `json:"criteria"`
 
 	Sessions  int          `json:"sessions"`
 	Subagents int          `json:"subagents"`
@@ -173,6 +188,12 @@ func (r *Report) Lines() []string {
 			looked.Str("  Looked for:  ").Str(r.Store).String(),
 			"  The directory holds no transcript with a recorded API call, so",
 			"  there is nothing to measure.")
+	case StateOutside:
+		var store textbuf.Buffer
+		out = append(out, store.Str("  Store: ").Str(r.Store).String(), r.windowLine(),
+			"  No API call recorded in the store falls inside the window, so no",
+			"  transcript figure is measured.")
+		return append(out, r.Criteria.QueueWait.line())
 	default:
 		panic("BUG: unexpected token report state")
 	}
@@ -184,11 +205,39 @@ func (r *Report) Lines() []string {
 		out = append(out, filter.Str("  Session: ").Str(r.Session).Str(" (").
 			Int(int64(r.Sessions)).Str(" matched)").String())
 	}
-	out = append(out, "")
+	out = append(out, r.windowLine(), "")
 	return append(out, r.body()...)
 }
 
-// body renders the eight tables, which is what the script's `render` produced.
+// windowLine names the span the figures cover, and the undated calls a
+// bounded window had to leave out.
+func (r *Report) windowLine() string {
+	var tb textbuf.Buffer
+	tb.Str("  Window: ")
+	from, to := r.Window.From, r.Window.To
+	if from == "" {
+		if to == "" {
+			return tb.Str("the whole store").String()
+		}
+	}
+	if from == "" {
+		from = "the first call"
+	}
+	if to == "" {
+		to = "now"
+	}
+	tb.Str(from).Str(" to ").Str(to)
+	if r.Undated > 0 {
+		tb.Str(" (").Str(comma(int64(r.Undated))).Str(" main-thread calls with no timestamp left out)")
+	}
+	if r.UndatedAgents > 0 {
+		tb.Str(" (").Str(comma(int64(r.UndatedAgents))).Str(" subagents whose first call has no timestamp left out)")
+	}
+	return tb.String()
+}
+
+// body renders the eight tables the script's `render` produced, then the
+// agent-economy criteria the script never had.
 func (r *Report) body() []string {
 	out := r.sessionTable()
 	out = append(out, "")
@@ -205,7 +254,9 @@ func (r *Report) body() []string {
 		out = append(out, "")
 		out = append(out, r.agentTypeBlock()...)
 	}
-	return append(out, r.toolBlock()...)
+	out = append(out, r.toolBlock()...)
+	out = append(out, "")
+	return append(out, r.criteriaBlock()...)
 }
 
 func (r *Report) sessionTable() []string {

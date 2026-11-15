@@ -205,3 +205,69 @@ every slug begins with a dash and a value never does.
 
 Token counts there are characters divided by 3.6, the approximation
 `internal/le/ai/tokens/tokeneconomy.go` uses.
+
+### Taking the report over a window
+
+`from <YYYY-MM-DD>` opens the window at that UTC date, and `days <n>` gives
+it a length: `./le ai tokens report from 2026-11-20 days 14` reads the
+fortnight from 20 November, and a date alone reads from that date to now.
+`days 7` alone reads the last seven whole UTC days, from midnight seven days
+ago to midnight today, today excluded: two runs on the same day read the same
+window, which a span counted back from the moment of the run would not. With
+neither keyword, the report covers the whole store, as it always did.
+
+A call is placed by the earliest timestamp its records carry. A main session
+can run for days, so each of its calls and tool calls is kept on its own time.
+A subagent is kept or dropped whole, by the time of its first call, because
+its figures belong to the whole agent: an agent that starts inside the window
+brings every call it made, those after the window's end included, into every
+rate and total of the report. A bounded window leaves out a main-thread call
+that carries no timestamp, and a subagent whose first call carries none, and
+the window line counts each apart. A window that holds no call says so
+instead of printing zeros.
+<!-- source: internal/le/ai/tokens/criteria.go -- NewWindow, applyWindow -->
+
+### The agent-economy figures
+
+The last block of the report holds the figures the agent-economy work is
+measured by, each with one definition. A figure whose source holds nothing in
+the window prints `not measured` and the reason, never a zero.
+
+The agent-economy umbrella measured its baseline from the same transcripts:
+per assistant message, the `usage` fields summed once per message id, and per
+tool call, the call paired with its result and the two timestamps subtracted.
+The report does the same. Where the umbrella names a figure without saying
+exactly how it was counted, the row says what the report chose, so a
+comparison with the baseline knows what it compares.
+
+| Figure | Definition |
+|--------|------------|
+| First-call context of a subagent | The context of each subagent's first API call, the spawn prompt included: count, median, maximum, and how many are above 35k, the umbrella's AC-1 bound for a phase agent. Then the same per recorded agent type, because AC-1 binds phase agents and an Explore or review agent is another population. A fork is left out, because its first call carries its parent's context. The umbrella's 53k median does not say whether it counted forks, so a comparison with it sets a figure without forks against one that may hold them. An agent with no recorded type is in the overall figure and counted apart |
+| First-call context of a main session | The context of each main session's first API call, for the sessions whose first main-thread call falls in the window: count, median and maximum |
+| Subagent turns and tool calls | Over every subagent in the window, forks included: the median of its API calls and of its tool calls of any tool, and how many made at least 100 tool calls of any tool. The baseline's "344 of 1,656" counts over all subagents, so this is its figure; it is a different figure from the budget line below |
+| Subagent Bash calls with no auto-mode verdict | Of the subagent Bash calls that have a recorded result, those whose result record carries the denial kind `automode-unavailable`, which the harness writes when its auto-mode classifier gave no verdict. The calls with no recorded result are counted apart |
+| Failed Bash, Edit and Write calls | Of the calls of Bash, of Edit, of Write, and of Edit and Write together (how AC-3 states its bound), in every thread, those with a recorded result whose result carries `is_error`, whether the tool ran and failed or never ran. A call with no recorded result is counted apart: it is neither a success nor a failure |
+| `ze-work` agents at the 100-call budget | Of the `ze-work` agents that are not forks, those with at least 100 calls of Bash, Write, Edit, MultiEdit or NotebookEdit, not counting a call whose result carries the denial kind `permission-rule`. The hook binds by agent type alone, so it also counts a fork of type `ze-work`, which this figure leaves out. The harness writes `permission-rule` for every hook refusal, and the hook's counter counted some of them: it skips a call an earlier check of its own action refused, but it counts the budget's own refusal past 100 (`bumpAgentCalls` runs before the comparison) and a call another pre-tool hook refused. The record cannot tell these apart, so the figure skips them all. Skipping the budget's own refusals moves no agent, because the budget refuses only after the counter passed 100; skipping another hook's refusal can count an agent short of a budget the hook did reach. Every other denial (`automode-unavailable`, `automode-blocked`, `user-rejected`, `cancelled`, `interrupted`) is given after the hooks ran, so the counter counted it. A subagent with no recorded agent type is not judged and is counted apart |
+| Main-session context peak | Per session, the largest context any of its main-thread calls in the window carried: the number of sessions, the median, the 90th percentile and the largest peak. The percentile interpolates between the two closest ranks, the rule that makes the median the midpoint of the two middles; the umbrella's "one in ten above" does not say which rule it used |
+| Main-thread context per call | The mean context of the main-thread calls in the window, subagent calls excluded |
+| Cache-read input in subagents | The cache-read input tokens of every subagent call in the window, and their share of the cache-read input of every call. The total is the `cache-read` line of the totals block |
+| Bash commands read | The Bash calls of every thread whose command parses as bash, of all of them. A call with no command, one longer than 64 KiB, or one that does not parse is in none of the four figures below. The bound comes before the parse because the parser has no nesting limit and a stack it exhausts ends the process, which no recover catches. Of the command text the report keeps one word in memory, the file a shell read names, to compare with the thread's next call; it never prints or serializes that word or any other part of the command. A command is named by its first word, so a wrapper (`timeout`, `env`, `xargs`, `bash -c`) hides the job or the read it runs, and `go -C dir test` reads as no job. `time` is a bash keyword, not a wrapper: the command it times is read |
+| Shell file reads | The Bash calls whose command runs `grep`, `sed` or `cat` with a file: the last operand, after a pattern or script for `grep` and `sed`. An operand is a word that is neither an option nor an option's value: the value of `grep -A`, `-B`, `-C`, `-m`, `-e`, `-f` and of `sed -e`, `-f` (and their long forms) is skipped, and after `-e` or `-f` one operand is the file. A directory operand (`grep -r x internal/le`) counts as a file, and `sed -i` counts as a read. A repeat is one whose file is the file of the thread's previous tool call, a Read, Edit or Write naming it or a shell read of it. The umbrella does not say which commands it counted, how it found the file, or what "the previous call" was, so these are the report's choices. A file is compared as typed |
+| `./le help` lookups | The Bash calls with a command that runs `le help`, under any path to `le`. The umbrella's "about 800" does not say how it counted |
+| `./le commit create` calls | The Bash calls with a command that runs `le commit create`, and of them those answered with no error, which are the ones that produced a script: a refused create exits non-zero and writes none. The umbrella's "scripts produced" may have been counted another way, such as distinct script paths, which the report cannot see without keeping result text |
+| Foreground test and build runs | The Bash calls with a command that runs `le job run`, `le repo compiles`, `le go`, `le test`, `le rfc check`, `go vet`, `go test` or `go build`, the families the umbrella's table of runs names. A foreground run's wall time is its result record's timestamp less its tool_use record's timestamp, the baseline's method; a run missing either is untimed. A run started in the background is counted apart and not timed, because its result arrives before it ends. A call whose result carries a denial kind never ran, so it is counted apart as denied rather than as a run timed at its refusal. The umbrella states two figures that disagree: its headline is 102 hours in 9,742 runs, while the rows of its table of runs sum to 7,372 runs and 88.9 hours. This figure counts the families of the table, so it compares with the table's sum, not with the headline. The table lists `./le test bgp` where the report counts every `le test` |
+| Queue wait of admitted runs | From the checkout's job record, `tmp/.ze-verify-duration.txt` (see [running commands](running-commands.md), "How long a verify takes"): the runs in the window, how many carry their wait and how many were written before the wait was recorded, the seconds they ran, and the total, median and largest wait over the rows that carry one, which is not measured when no row in the window carries one. A row that does not parse is counted as unreadable |
+<!-- source: internal/le/ai/tokens/criteria.go -- FirstTurn, NoVerdict, Failures, BudgetWall, MainPeak, QueueWait, readQueueWait -->
+<!-- source: internal/le/ai/tokens/baseline.go -- MainFirstTurn, AgentRuns, SubagentCacheRead, ShellFigures, JobTime -->
+<!-- source: internal/le/ai/tokens/shell.go -- readShell -->
+<!-- source: internal/le/ai/tokens/tokeneconomy.go -- scanUserRecord, recordTime -->
+
+The budget's agent type, its tool list and its 100 are copies of the call
+budget's own declarations in `internal/le/hookruntime/budget.go`, which are
+unexported there; a change to the budget is a change to these copies, and
+`TestTheTokenReportCopiesTheCallBudget` in that package compares them. The job
+record is the checkout's: `project <checkout>` reads that checkout's record
+with its sessions, and a project directory that is not a git checkout keeps
+no record, which the queue wait line says. A run that attached to another session's identical run, or
+ran inside a parent's slot, held no slot and wrote no row, so it is in no
+queue figure.

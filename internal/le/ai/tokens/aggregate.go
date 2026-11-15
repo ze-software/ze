@@ -192,7 +192,8 @@ type ResultRow struct {
 func ResultSizes(toolCalls []ToolCall) []ResultRow {
 	order := []string{}
 	byName := map[string][]int{}
-	for _, tool := range toolCalls {
+	for i := range toolCalls {
+		tool := &toolCalls[i]
 		if _, seen := byName[tool.Name]; !seen {
 			order = append(order, tool.Name)
 		}
@@ -221,6 +222,17 @@ func ResultSizes(toolCalls []ToolCall) []ResultRow {
 // have meaningful repeats, and this tool names files.
 const ReadTool = "Read"
 
+// BashTool is the harness's shell tool: the main thread's tool mix, the
+// failure rates, the call budget and the shell figures all name it.
+const BashTool = "Bash"
+
+// EditTool and WriteTool are the harness's file-writing tools, which the
+// failure rates and the call budget name.
+const (
+	EditTool  = "Edit"
+	WriteTool = "Write"
+)
+
 // Repeats counts file reads and reads of an already-seen file.
 //
 // A group is one CONTEXT WINDOW: a thread or full session. Repeat count is total
@@ -235,7 +247,8 @@ type Repeats struct {
 func RepeatReads(group []ToolCall) Repeats {
 	seen := map[string]bool{}
 	out := Repeats{}
-	for _, tool := range group {
+	for i := range group {
+		tool := &group[i]
 		if tool.Name != ReadTool {
 			continue
 		}

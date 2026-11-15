@@ -15,8 +15,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -31,6 +33,8 @@ const (
 	capKeyword     = "cap"
 	topKeyword     = "top"
 	sessionKeyword = "session"
+	fromKeyword    = "from"
+	daysKeyword    = "days"
 
 	// reportVerb is the area's one action. A bare line, and a line that opens
 	// with a keyword, run it.
@@ -45,7 +49,22 @@ type Options struct {
 	Cap     int
 	Top     int
 	Session string
+	// Window is the span every figure is taken over; the zero Window is the
+	// whole store.
+	Window Window
+	// Jobs is the job record the queue wait is read from, in the checkout
+	// whose sessions are read. An empty Jobs names no record, and the queue
+	// wait says so, with JobsMissing as the reason when the caller knows it.
+	Jobs        string
+	JobsMissing string
 }
+
+// DaysMin and DaysMax bound the `days` keyword. Ten years is far past any
+// store a machine keeps.
+const (
+	DaysMin = 1
+	DaysMax = 3650
+)
 
 // Defaults answers the options a caller who names nothing gets.
 func Defaults() Options { return Options{Cap: DefaultCap, Top: DefaultTop} }
@@ -63,7 +82,14 @@ func Run(opts Options) (Report, int) {
 		Session: opts.Session,
 		Cap:     opts.Cap,
 		Top:     opts.Top,
+		Window:  opts.Window.span(),
 	}
+	// Every state that returns before fill still answers each figure with the
+	// reason it was not taken, never a bare zero. The queue wait has its own
+	// source, so it is read whatever the store holds; only an outside window
+	// and a full report print it.
+	report.Criteria = criteriaOf(nil)
+	report.Criteria.QueueWait = queueWaitOf(opts)
 
 	if !isDir(report.Store) {
 		report.State = StateAbsent
@@ -94,6 +120,22 @@ func Run(opts Options) (Report, int) {
 	}
 	if len(sessions) == 0 {
 		report.State = StateEmpty
+		return report, 0
+	}
+
+	// The window is applied after the session filter, so a prefix that names
+	// a session is never reported unmatched because the window missed it.
+	windowed, undated, undatedAgents := applyWindow(sessions, opts.Window)
+	report.Undated = undated
+	report.UndatedAgents = undatedAgents
+	sessions = make([]Session, 0, len(windowed))
+	for _, session := range windowed {
+		if len(session.AllCalls()) > 0 {
+			sessions = append(sessions, session)
+		}
+	}
+	if len(sessions) == 0 {
+		report.State = StateOutside
 		return report, 0
 	}
 
@@ -175,6 +217,10 @@ func (r *Report) fill(sessions []Session) {
 	r.SubHistogram = Histogram(subCalls)
 	r.Capped = CappedCounterfactual(everyCall, r.Cap)
 
+	queueWait := r.Criteria.QueueWait
+	r.Criteria = criteriaOf(sessions)
+	r.Criteria.QueueWait = queueWait
+
 	if len(agents) > 0 {
 		r.Phases = phaseRows(agents, r.SubagentContext)
 		r.AgentTypes = AgentTypeStartup(agents)
@@ -197,8 +243,8 @@ func (r *Report) fill(sessions []Session) {
 		r.SessionReads.Repeats += reads.Repeats
 	}
 	r.MainToolCalls = len(mainTools)
-	for _, tool := range mainTools {
-		if tool.Name == "Bash" {
+	for i := range mainTools {
+		if mainTools[i].Name == BashTool {
 			r.MainBash++
 		}
 	}
@@ -256,7 +302,7 @@ func table() leaction.Area {
 	return leaction.New(area, leaction.Action{
 		Verb:    reportVerb,
 		Default: true,
-		Summary: "report the tokens each session spent",
+		Summary: "report token spend and agent-economy figures over a window",
 		Why:     areaDescription,
 		Parameters: []leaction.Parameter{
 			{
@@ -278,6 +324,14 @@ func table() leaction.Area {
 			{
 				Keyword: sessionKeyword, Kind: leaction.KindLabel, Value: "prefix",
 				Help: "read only the sessions whose id starts with this prefix", Requirement: leaction.Optional,
+			},
+			{
+				Keyword: fromKeyword, Kind: leaction.KindLabel, Value: "YYYY-MM-DD",
+				Help: "the UTC date the window opens at", Requirement: leaction.Optional,
+			},
+			{
+				Keyword: daysKeyword, Kind: leaction.KindUint, Value: "n",
+				Help: "window length; no from: the last n whole UTC days", Requirement: leaction.Optional,
 			},
 		},
 		AnswerArgs: answerReport,
@@ -311,6 +365,13 @@ func answerReport(args leaction.Arguments) (any, int) {
 			return nil, refuse("no checkout, so no project slug: ", err.Error())
 		}
 		opts.Project = slug
+		// No project named, so the sessions are this checkout's, and so is
+		// the job record. A named project set its own in optionsOf.
+		checkout, err := lepath.Root()
+		if err != nil {
+			return nil, refuse("no checkout, so no job record: ", err.Error())
+		}
+		opts.Jobs = jobRecord(checkout)
 	}
 
 	report, code := Run(opts)
@@ -373,8 +434,15 @@ func optionsOf(args leaction.Arguments) (Options, int) {
 	opts.Root = args.One(rootKeyword)
 	opts.Session = args.One(sessionKeyword)
 	if args.Has(projectKeyword) {
-		opts.Project = ProjectSlug(args.One(projectKeyword))
+		checkout := args.One(projectKeyword)
+		opts.Project = ProjectSlug(checkout)
+		opts.Jobs, opts.JobsMissing = checkoutJobRecord(checkout)
 	}
+	window, refused := windowOf(args)
+	if refused != 0 {
+		return Options{}, refused
+	}
+	opts.Window = window
 	if args.Has(capKeyword) {
 		number, code := bounded(capKeyword, args.One(capKeyword), CapMin, CapMax)
 		if code != 0 {
@@ -390,6 +458,55 @@ func optionsOf(args leaction.Arguments) (Options, int) {
 		opts.Top = number
 	}
 	return opts, 0
+}
+
+// windowOf reads the `from` and `days` keywords into a window. A date that
+// does not parse is refused, never read as an open bound.
+func windowOf(args leaction.Arguments) (Window, int) {
+	from := time.Time{}
+	if args.Has(fromKeyword) {
+		date, err := time.Parse(dateLayout, args.One(fromKeyword))
+		if err != nil {
+			return Window{}, refuse("from must be a UTC date written YYYY-MM-DD, got ", args.One(fromKeyword))
+		}
+		from = date
+	}
+	days := 0
+	if args.Has(daysKeyword) {
+		number, code := bounded(daysKeyword, args.One(daysKeyword), DaysMin, DaysMax)
+		if code != 0 {
+			return Window{}, code
+		}
+		days = number
+	}
+	return NewWindow(from, days, time.Now().UTC()), 0
+}
+
+// jobRecord answers the path of the job record admission keeps in a checkout
+// (job.DurationFile).
+func jobRecord(checkout string) string {
+	return filepath.Join(checkout, filepath.FromSlash(job.DurationFile))
+}
+
+// checkoutJobRecord answers the job record of a named project, or why it has
+// none. Only a git checkout runs le jobs, so a directory that is not one gets
+// that as its reason rather than "no run released a claim".
+func checkoutJobRecord(checkout string) (string, string) {
+	if _, err := os.Stat(filepath.Join(checkout, ".git")); err != nil {
+		return "", checkout + " is not a git checkout, so it keeps no job record"
+	}
+	return jobRecord(checkout), ""
+}
+
+// queueWaitOf reads the queue wait the options name, or says why there is no
+// record to read.
+func queueWaitOf(opts Options) QueueWait {
+	if opts.Jobs == "" {
+		if opts.JobsMissing != "" {
+			return QueueWait{Measure: unmeasured(opts.JobsMissing), Wait: WaitFigure{Measure: unmeasured(opts.JobsMissing)}}
+		}
+	}
+	return readQueueWait(opts.Jobs, opts.Window)
 }
 
 // bounded parses one numeric keyword and applies the script's range. Tests
