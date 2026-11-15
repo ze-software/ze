@@ -79,8 +79,7 @@ func mraiCandidateReadRoute(t *testing.T, far net.Conn, within time.Duration) ([
 	for range 4 {
 		packet, err := core4271ReadMessage(far)
 		if err != nil {
-			var timeout net.Error
-			if errors.As(err, &timeout) {
+			if timeout, ok := errors.AsType[net.Error](err); ok {
 				if timeout.Timeout() {
 					return nil, false
 				}

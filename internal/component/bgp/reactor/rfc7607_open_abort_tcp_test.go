@@ -126,7 +126,8 @@ func rfc7607OpenTCPExchange(t *testing.T, peerAS uint32, body []byte, collision 
 	require.NoError(t, err)
 	require.Len(t, packet, n)
 	if !collision {
-		return session, far, near, session.ReadAndProcess()
+		err = session.ReadAndProcess()
+		return session, far, near, err
 	}
 	received, err := core4271ReadMessage(near)
 	require.NoError(t, err)

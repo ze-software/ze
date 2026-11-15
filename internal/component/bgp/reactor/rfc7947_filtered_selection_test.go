@@ -163,7 +163,6 @@ func (f *filteredSelectedLive) assertFiltered(t *testing.T, prefix netip.Prefix,
 // The loop is bounded at two markers, and each wait has lowEventually's bound.
 func (f *filteredSelectedLive) settle(t *testing.T) ownershipLiveProjection {
 	t.Helper()
-	var view ownershipLiveProjection
 	for range 2 {
 		f.markers++
 		marker := netip.PrefixFrom(netip.AddrFrom4([4]byte{203, 0, 120 + f.markers, 0}), 24)
@@ -172,14 +171,14 @@ func (f *filteredSelectedLive) settle(t *testing.T) ownershipLiveProjection {
 			NLRI:           ownershipLiveNLRI([]netip.Prefix{marker}),
 		})
 		f.requireSelected(t, marker)
-		view = ownershipLiveThrough(t, f.recipient, marker, firstASAttrs(4, 65003))
+		ownershipLiveThrough(t, f.recipient, marker, firstASAttrs(4, 65003))
 		lowEventually(t, func() bool { return adjOutOwedCount(f.recipient.peer) == 0 }, "recipient owes no policy decision")
 	}
 	// Recovery output may follow the last marker. Join its writer and then
 	// the socket capture before rebuilding the final route history.
 	forwardSocketBarrier(t, f.source.peer.reactor)
 	ordinaryBoundaryCapture(t, f.recipient)
-	view = ownershipLiveRead(t, f.recipient)
+	view := ownershipLiveRead(t, f.recipient)
 	ownershipLiveRoute(t, view, filteredReceivedControl(), firstASAttrs(4, 65003))
 	return view
 }

@@ -106,7 +106,7 @@ func transitionNeighborInitial(t *testing.T, source, destination *lowLivePeer) [
 func TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute(t *testing.T) {
 	for _, fast := range []bool{false, true} {
 		t.Run(map[bool]string{false: "general", true: "native-rs"}[fast], func(t *testing.T) {
-			table := &lateNeighborTable{fakeNeighborTable: fakeNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}}
+			table := &lateNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}
 			source, destination := lateNeighborLive(t, fast, table)
 			initial := transitionNeighborInitial(t, source, destination)
 			table.replace(lateNeighborEntries("fe80::88"))
@@ -128,7 +128,7 @@ func TestRFC2545KnownNeighborReplacementReadvertisesRetainedRoute(t *testing.T) 
 func TestRFC2545SharedSubnetLossReadvertisesGlobalOnly(t *testing.T) {
 	for _, fast := range []bool{false, true} {
 		t.Run(map[bool]string{false: "general", true: "native-rs"}[fast], func(t *testing.T) {
-			table := &lateNeighborTable{fakeNeighborTable: fakeNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}}
+			table := &lateNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}
 			addresses, source, destination := transitionNeighborLive(t, fast, table, nil)
 			initial := transitionNeighborInitial(t, source, destination)
 			addresses.set([]netip.Prefix{netip.MustParsePrefix("2001:db8:1::1/128")})
@@ -157,7 +157,7 @@ func TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn(t *testing.T) {
 			var hold atomic.Bool
 			var replayPeer netip.AddrPort
 			entered, release := make(chan struct{}), make(chan struct{})
-			table := &lateNeighborTable{fakeNeighborTable: fakeNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}}
+			table := &lateNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}
 			_, source, destination := transitionNeighborLive(t, fast, table, func(r *Reactor) {
 				handler := r.fwdPool.handler
 				r.fwdPool.handler = func(key fwdKey, items []fwdItem) {
@@ -219,7 +219,8 @@ func TestRFC2545WatchReplayConcurrentWithdrawalEndsWithdrawn(t *testing.T) {
 // retained native IPv6 subject. The callback can enqueue other work, including
 // markers or other peers' routes; none of it may satisfy the hold barrier.
 func transitionNeighborSubjectReplay(items []fwdItem) bool {
-	for _, item := range items {
+	for i := range items {
+		item := &items[i]
 		for _, body := range item.rawBodies {
 			update, err := message.UnpackUpdate(body)
 			if err != nil {

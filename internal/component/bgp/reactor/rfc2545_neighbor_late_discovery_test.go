@@ -90,7 +90,7 @@ func (lateNeighborListenerFactory) Listen(ctx context.Context, transport, addres
 func TestRFC2545NeighborWatchUsesAddressSnapshot(t *testing.T) {
 	addresses := &fakeAddressTable{prefixes: []netip.Prefix{netip.MustParsePrefix("2001:db8:1::1/64")}}
 	addresses.install(t)
-	table := &lateNeighborTable{fakeNeighborTable: fakeNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}}
+	table := &lateNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}
 	table.install(t)
 	r := newIfaceTestReactor(t)
 	peer := addLivePeer(t, r)
@@ -270,7 +270,7 @@ func lateNeighborStored(t *testing.T, source *Peer) {
 func TestRFC2545NeighborKnownAtReceiptReachesSocket(t *testing.T) {
 	for _, fast := range []bool{false, true} {
 		t.Run(map[bool]string{false: "general", true: "native-rs"}[fast], func(t *testing.T) {
-			table := &lateNeighborTable{fakeNeighborTable: fakeNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}}
+			table := &lateNeighborTable{entries: lateNeighborEntries(thirdPartyLinkLocal)}
 			source, destination := lateNeighborLive(t, fast, table)
 			source.send(t, message.PackTo(&message.Update{PathAttributes: mixedAttrs(mixedReach(1, netip.MustParseAddr(thirdPartyGlobal).AsSlice(), mustHex(t, "4020010db857090000")))}, nil))
 			want := append(netip.MustParseAddr(thirdPartyGlobal).AsSlice(), netip.MustParseAddr(thirdPartyLinkLocal).AsSlice()...)
@@ -301,7 +301,8 @@ func TestRFC2545LateNeighborDiscoveryReadvertisesRetainedRoute(t *testing.T) {
 					entries[1].Binding = network.NeighborBindingInvalid
 					table.entries = entries
 				case "ambiguous":
-					table.entries = append(entries, network.Neighbor{Address: netip.MustParseAddr("fe80::99"), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid})
+					entries = append(entries, network.Neighbor{Address: netip.MustParseAddr("fe80::99"), LinkAddress: thirdPartyMAC, Device: thirdPartyDevice, Binding: network.NeighborBindingValid})
+					table.entries = entries
 				case "unreadable":
 					table.readErr = errors.New("synthetic neighbor table read failure")
 				}
