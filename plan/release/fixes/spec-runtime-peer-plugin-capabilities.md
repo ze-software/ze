@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Shipped-behaviour defect: a reload adding a peer that carries a plugin capability (`role`, `software-version`, `hostname`, `graceful-restart`, `link-local-next-hop`, the ExaBGP bridge's codes) is refused, against the owner rule that a peer with any of its settings joins the running config without a restart |
@@ -26,8 +26,17 @@ closure commits). Not closed.
 | 93bd019e2d | Reactor: a capability-block edit restarts only when the plugin capability did, `TestReloadCapabilityBlockEdit` |
 | bb50677cb4 | SDK verify answer carries the candidate declaration, refusal deleted, per-plugin tests, docs (AC-7), seven reload `.ci` (five refused files replaced), judge-approved |
 
-Gates still owed by `/ze-close`: the Review Gate, and the interop decision
-(the spec states N-A: no wire format change).
+The closure review on 2026-11-15 found missing reload interoperability proof
+and stale SDK instructions. The implementation phase must supply those before
+the independent Review Gate can finish. See Blocker and the closure sections.
+
+## Blocker
+
+| Blocker | Producing surface | What clears it |
+|---------|-------------------|----------------|
+| A live plugin-capability replacement has no qualifying interoperability proof | `internal/component/bgp/reactor/peer_settings_negotiation.go` `pluginCapabilitiesKept` changes the restart decision, and `internal/component/plugin/server/config_tx_capabilities.go` `installStagedCapabilities` replaces what the next OPEN sends. `internal/le/interoplab/bgp/checkers.go` `bgpRoleFRROperations` observes startup only; `check_softver.go` `checkSoftwareVersionFRR` also observes startup only | Add and run a native scenario against another BGP implementation that exercises a capability declaration changed or added by reload; prove that its assertion fails when that runtime replacement is broken |
+| AC-7 still has stale SDK guidance | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing", says the SDK refuses capability edits and shows the removed two-argument `DeclareCapabilitiesFrom` call; `pkg/plugin/sdk/capability_declaration.go` `composeCapabilityVerify` now answers with the candidate and `DeclareCapabilitiesFrom` takes only the extractor | Correct the paragraph and example against the current SDK, then check the affected documentation |
+| The current AC-1 run stopped during host setup | `internal/test/runner` loopback setup reported `loopback_address_missing` and could not add `127.0.0.2` to `lo0`; no product assertion ran | Make that address available through the approved host setup, or run the unchanged test on a host that supplies it, then observe the named test result |
 
 ## Task
 
@@ -173,7 +182,10 @@ The SDK (public), the RPC type (wire, additive), the plugin server reload path, 
 | the seven refusal `.ci` tests | `test/reload/` | converted to the accepted behaviour (judge-gated) | |
 
 ### Interop Tests (Scope: protocol)
-N-A: no wire format changes; the OPEN is the one Ze already sends at startup.
+Required: the OPEN encoding is reused, but a reload now changes the declaration
+that reaches it and the running session's restart decision. The startup-only
+`bgp-role-frr` and `frr-software-version` scenarios do not exercise that change.
+The missing native reload scenario remains work of this spec.
 
 ## Files to Modify
 
@@ -256,3 +268,131 @@ None.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
+
+## Implementation Summary
+
+### What Was Implemented
+- The SDK's `composeCapabilityVerify` carries `CandidateCapabilities` after the plugin's own verifier accepts.
+- The server's `stageVerifiedCapabilities`, `installStagedCapabilities` and `restoreCapabilities` stage, publish and compensate complete declarations through `CapabilityInjector.ReplacePluginCapabilities`.
+- `Session.pluginCapabilitiesKept` compares the declaration sent in the OPEN with the current store; the reload and swap paths consult it even when other peer settings are unchanged.
+
+### Bugs Found/Fixed
+- No product fix was made by the closing agent. The missing interop proof and stale SDK instructions are open in Blocker.
+
+### Scoped Unit Evidence
+- On 2026-11-15 the main thread ran the native package action with the AC-2 to AC-5 selector across the SDK, plugin infrastructure, plugin server, reactor, five BGP capability plugins and ExaBGP bridge plugin: exit 0, ten package `ok` lines, no failures, skips or no-test warnings. The runner emitted no per-test PASS names, so this records the selected package run, not separate observed results for each named test.
+- The retained output is `tmp/session/2026-11-15-130223/scratch/job-unit-pkg-be6b0d3d.log`. It preserves the package results for this unresolved closure. Remove it after the completed implementation and closure record supersedes this handback evidence.
+
+### Documentation Updates
+- The prerequisite commit `e7c999863a` adds the deliverables, security and documentation checklists to this spec.
+- Existing guide and process-protocol claims were checked against the current SDK, capability stage and injector. The `DeclareAppliesNothing` instructions still need the repair named in Blocker; no documentation check result is claimed.
+
+### Deviations from Plan
+- The original interop exemption relied on unchanged encoding. The implemented reload changes what the peer receives and whether its session restarts, so interoperability proof is required.
+- Closure is handed back to implementation. No acceptance criterion is removed or transferred.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Unchanged OPEN encoding was treated as an interop exemption | Reload changes the declaration sent and the session restart decision | Read `installStagedCapabilities`, `pluginCapabilitiesKept` and the startup-only FRR scenario producers | Add a native reload scenario in this spec |
+| approach | AC-7 was described as implemented while the SDK apply-handler example retained the old refusal contract | `DeclareCapabilitiesFrom` takes one extractor and config-verify carries its candidate | Compared "DeclareAppliesNothing" with `DeclareCapabilitiesFrom` and `composeCapabilityVerify` | Repair the SDK instructions before closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A reload carries each plugin's candidate declaration | Implemented; final proof pending | `capability_declaration.go` `composeCapabilityVerify` | The scoped unit batch exited 0; native reload interop remains owed |
+| A peer added by reload sends its configured capabilities | Implemented; proof pending | `config_tx_capabilities.go` `installStagedCapabilities` | The current AC-1 run stopped at host setup |
+| A running session is restarted or kept by the negotiated-outcome rule | Implemented; proof pending | `peer_settings_negotiation.go` `pluginCapabilitiesKept` | Native interop proof is missing |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Open proof | `reload-add-peer-role-capability.ci` | Host setup prevented the current run |
+| AC-2 | Scoped batch passed | `TestComposedVerifyCarriesCandidateCapabilities` and each capability extractor's tests | Selected package run exited 0; no individual test result was printed |
+| AC-3 | Scoped batch passed | `TestReplacePluginCapabilities`, `TestReplacePluginCapabilitiesConflict`, `TestCapabilityTransactionAtomicOPENReplacement` | Selected package run exited 0; no individual test result was printed |
+| AC-4 | Scoped batch passed | `TestConfigTxBridgeInstallsAndRestoresCapabilities` | Selected package run exited 0; no individual test result was printed |
+| AC-5 | Open interop proof | `TestNegotiationPluginCapabilityChange`, `TestReloadPluginCapabilityChange`, `TestReloadCapabilityBlockEdit` | Scoped batch exited 0; native interop proof remains owed |
+| AC-6 | Done | `reload-capability-unchanged-accepted` | Main observed PASS for named test 99 on 2026-11-15, 2.5 seconds |
+| AC-7 | Open repair | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing" | Stale refusal and obsolete call remain |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| SDK, injector, bridge and reactor tests | Scoped batch passed | The test files named in Deliverables Checklist | Ten selected package results were `ok`; no per-test PASS names were printed |
+| `reload-add-peer-role-capability` | Present; run blocked | `test/reload/reload-add-peer-role-capability.ci` | Loopback setup, before product execution |
+| `reload-capability-unchanged-accepted` | Pass | `test/reload/reload-capability-unchanged-accepted.ci` | Main observed the named result |
+| Interop for a reload changing plugin capabilities | Missing | Current startup scenarios do not exercise reload | Remains within this spec |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| SDK, injector, transaction bridge and reactor producers | Present and inspected | Source locations are named in Deliverables Checklist |
+| Four documentation pages | Present; one repair owed | The obsolete SDK apply-handler guidance is named in Blocker |
+
+### Audit Summary
+- The audit is incomplete. AC-6 has a named passing run, and the scoped unit batch exited 0 for ten packages; no final completion count is claimed.
+- No item was skipped, removed or transferred to another spec.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A peer added by reload sends its plugin capabilities and establishes | Functional and interop | The AC-1 functional file directly asserts the OPEN bytes and End-of-RIB; its current run stopped during host setup. Native interop proof remains missing |
+| A changed plugin capability restarts only a session whose negotiated use can change | Unit, functional and interop | The reactor package's selected AC-5 unit run exited 0; qualifying native interop proof remains owed |
+| An unchanged declaration does not disturb the session | Functional | Main observed `reload-capability-unchanged-accepted` PASS on 2026-11-15, one TCP connection, accepted reload |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Native reload interop proof, AC-1 execution, SDK documentation repair and final independent Review Gate | Closure is handed back to implementation; no scope is removed | `plan/release/fixes/spec-runtime-peer-plugin-capabilities.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | None; no CLEAN verdict was recorded |
+| `./le spec review check` | Not run; blocking proof and documentation findings remain |
+| Rounds | Round 1 stopped with open findings; not a completed clean review |
+| Reviewer lenses used | Wiring and goal evidence; SDK refusal precedence, ownership replacement and compensation; running-session comparison |
+| Round 1 scope | Current producers and the implementation commits named above, including the later complete-set replacement fix `942ca06d90`; the generic review remains incomplete |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | Missing native interop proof for reload capability replacement and session decisions | `installStagedCapabilities`, `pluginCapabilitiesKept`; startup-only scenario producers | Open, retained in this spec |
+| 2 | ISSUE | SDK guidance still asserts the removed refusal and obsolete API call | `docs/plugin-development/handlers.md`, "DeclareAppliesNothing" | Open, retained in this spec |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/reload/reload-add-peer-role-capability.ci` | Yes | Read its full body: daemon reload, exact new-peer OPEN bytes and End-of-RIB |
+| `test/reload/reload-capability-unchanged-accepted.ci` | Yes | Read its full body: one connection and applied reload assertion |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-6 | Unchanged capabilities keep the session | Main observed the named functional PASS on 2026-11-15 |
+| AC-2 to AC-5 | Scoped package verification | The main thread's native selected batch exited 0, with ten package `ok` lines; no individual PASS names were printed |
+| AC-1, AC-5 interop, AC-7 | Final verification remains open | AC-1 stopped during host setup, the native interop proof is absent, and the SDK documentation needs repair |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Daemon reload adds a role peer | `test/reload/reload-add-peer-role-capability.ci` | The file exercises the intended path; the current run did not reach it because loopback setup failed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1, A-2 | Unresolved at handback | `installStagedCapabilities` and the reload path were inspected; the planned AC-1 validation run has no product verdict yet |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Config-verify carries a candidate and the store installs/restores it atomically | `composeCapabilityVerify`, `stageVerifiedCapabilities`, `ReplacePluginCapabilities`, `restoreCapabilities` | Current guide/protocol claims match the inspected producers; checks remain owed |
+| SDK apply-handler instructions | `DeclareCapabilitiesFrom`, `composeCapabilityVerify` | Failed: stale refusal claim and obsolete API example, retained in Blocker |
