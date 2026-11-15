@@ -126,8 +126,8 @@ is kept by hand.
 
 | Order | Child | Status | To pick it up |
 |-------|-------|--------|---------------|
-| 1 | 3 preamble | in-progress | Phases 1 to 5 are committed. What remains is the probe in a fresh session, phase 6, and the small items its "Remaining before closure" lists. `plan/handover/2026-11-14-agent-economy.md` has the steps |
-| 2 | 4 supervision | ready | Claim it and run `/ze-implement`. The owner settled its two limit values on 2026-11-14. Its kept measure (AC-7) is what this umbrella's own criteria are measured with |
+| 1 | 3 preamble | in-progress | Updated 2026-11-15: every phase and the per-definition payload report are committed. What remains is one probe in a fresh session (does removing `Skill` remove the skill listing) and two figures the owner sets. `plan/handover/2026-11-14-agent-economy.md` has the steps |
+| 2 | 4 supervision | in-progress | Updated 2026-11-15: packages 1, 2, 3, 10 and 11 and half of 9 are committed; its "Where the packages stand" table is current. Next is package 4, the derived set state and its two views. Its kept measure (AC-7) is landed: `./le ai tokens report from <date> days <n>` prints this umbrella's criteria |
 | 3 | 5 scoped gates | skeleton | Last, by owner decision D-5: it waits for the queue-wait record child 2 landed to show whether it is worth its risk |
 | 4 | this umbrella | skeleton | Its criteria are measured over the two weeks after the last child closes |
 
