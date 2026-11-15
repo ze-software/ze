@@ -142,6 +142,16 @@ is not a prerequisite for this change.
 - `RFC7947-x-4` moves from MUST to SHOULD; `RFC7947-x-5` moves from SHOULD to MAY; a new `RFC7947-2.1-1` is added at MUST.
 - `rfc/extraction/rfc7947.json` lands with its Section 2.1 site mapped.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Ordered ingress disposition | `reactor_notify.go`, `notifyOneMessage`; `filter_ordered.go`, `ingressPolicyWithdrawals` | Applies policy before event publication and can project mixed denied input into withdrawals | Extends publication at the original-input/disposition boundary; preserves ordinary policy denial |
+| Received route storage and replay | `adj_rib_in/rib.go`, `walkReplayRoutes`; `rib_replay_path.go`, `replayPathCommand` | Retains accepted paths and supplies both bulk and individual replay | Extends entries with independent import-filtered state and applies it to every replay path |
+| Validation eligibility | `adj_rib_in/rib_validation.go`, `applyToInstalled`; `rib_eligibility.go`, `routeEligible` | Applies validation decisions and determines selectable paths | Preserves policy denial independently of validation acceptance |
+| Ordered receive completion | `receive_publication.go`, `receivePublicationCut.wait`; `process/delivery.go`, `DrainEventsApplied` | Joins publication and store application after socket ingress | Reuses both barriers in live tests; does not substitute a KEEPALIVE counter for store completion |
+| Prefix limits | `session_prefix.go`, `checkPrefixLimits` | Counts offered withdrawals and announcements, including unmatched withdrawals | Preserves offered semantics; adds a separate proven bound for retained unique routes |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -183,6 +193,51 @@ is not a prerequisite for this change.
 | No duplicated functionality (extends existing, does not recreate) | No | |
 | Zero-copy preserved where applicable (refs, not copies) | No | |
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+
+## Test-campaign research: 2026-11-15
+
+The test campaign adds defect probes only. The implementation and RFC ledger
+changes remain open. RFC 7947 Section 2.1 states: "A route server MUST accept all
+UPDATE messages received from each of its clients for inclusion in its
+Adj-RIB-In." The five tests in
+`internal/component/bgp/reactor/rfc7947_filtered_received_test.go` carry
+`VALIDATES` comments, not conformance tags. They use live sessions and the real
+receive-store command handlers. The main thread formatted, compiled and ran
+their baselines; the observed failures and passing controls are recorded below.
+
+| Probe | Required observation |
+|-------|----------------------|
+| `TestRFC7947ReceivedLoopDenialRetained` | The client store retains a loop-denied UPDATE's original bytes; an ordinary peer's denied route stays absent. Accepted routes remain replayable |
+| `TestRFC7947ReceivedImportFinalDenialRetained` | Explicit final rejection and absent EBGP import policy each retain the client's original announcement |
+| `TestRFC7947ReceivedMixedDenialRetainsAnnouncement` | A mixed UPDATE removes the old key and retains its denied announcement, even when ordinary delivery accepts a withdrawal-only projection. A later explicit withdrawal removes it |
+| `TestRFC7947ReceivedDeniedReplacementSupersedesOldBytes` | A denied replacement updates the received bytes under the existing key and prevents replay of the previously accepted version |
+| `TestRFC7947ReceivedValidationCannotAcceptPolicyDenial` | An origin-validation acceptance cannot make an import-denied path eligible or replayable; the accepted control remains eligible |
+
+The current source changes several earlier assumptions in this design:
+
+| Subject | Producer evidence and consequence |
+|---------|-----------------------------------|
+| Denial provenance | `reactor_notify.go` `notifyOneMessage` returns before dispatch on `!res.accept`. However, `filter_ordered.go` `ingressPolicyWithdrawals` returns `accept=true` and a withdrawal-only `modifiedPayload` for a denied mixed UPDATE. A hook only at the false branch misses its announcements. Retention needs the original bytes and the policy disposition before that projection |
+| Replay consumers | `adj_rib_in/rib.go` `walkReplayRoutes` is shared by full and paged replay. `rib_replay_path.go` `replayPathCommand` separately returns a stored announcement. The filtered mark must govern both, plus `rib_eligibility.go` `routeEligible` |
+| Validation independence | `rib_validation.go` `applyToInstalled` replaces `RawRoute.Ineligible` with the new validation decision. The import-filtered mark must be separate, or accepting a later validation decision releases the policy denial |
+| FIFO barrier | `receive_publication.go` `receivePublicationCut.wait` joins the per-peer delivery worker's publication. `process/delivery.go` `DrainEventsApplied` then joins store application. A KEEPALIVE counter alone does not join the asynchronous UPDATE delivery worker |
+| Retained memory bound | `session_prefix.go` `checkPrefixLimits` subtracts every offered withdrawal without checking whether the store holds that key. Therefore A-2 and AC-15 cannot use the default offered tally as proof of a bound on the retained population |
+
+The population-bound counterexample is: configure maximum one in offered mode;
+receive denied A; receive an unmatched withdrawal B; receive denied C. The
+offered count moves one, zero, one, while retaining both A and C would need two
+entries. The existing offered semantics must remain intact. The implementation
+needs an independent unique-retained-population bound, or another explicit
+admission design that proves the same bound. Its test must run this exact
+sequence, require A's retention before the unmatched withdrawal, and prove that
+C cannot leave two retained entries. It must also prove that replacing A does
+not consume a second slot, withdrawing a held key releases its slot, and an
+accepted control can occupy a released slot. This is an additional design and
+test obligation, not an assertion that the current counter already provides it.
+
+The existing SHOULD levels and gap annotations for `RFC7947-x-4` and
+`RFC7947-x-5` are unchanged by this test batch. No extraction sign-off or
+discrimination record is created for these defect probes.
 
 ## Risks & Assumptions
 
@@ -528,7 +583,7 @@ until this spec closes.
 - [ ] AC-1 through AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] Scoped package and relevant functional/interop tests pass; GitHub CI supplies whole-tree verification after an authorized push. Agents do not run any `./le verify` command or test a copy of the tree
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -547,9 +602,27 @@ until this spec closes.
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
+- [ ] Any lesson is recorded in its governing surface; no separate lesson artifact is required merely for closure
 - [ ] **Commit A:** code, tests, docs, spec and learned summary
 - [ ] **Commit B:** remove the spec only (commit A preserves it in history)
+
+## Observed test-campaign results: 2026-11-15
+
+All five new `TestRFC7947Received...` probes compiled and ran in
+`tmp/session/2026-11-14-210034/scratch/job-rfc-campaign-new-batch-reds-37b87864.log`.
+They fail because a denied route is absent from received storage, or because a
+denied replacement leaves the previously accepted attribute bytes there. The
+ordinary-peer comparison passes, and the accepted-route setup assertions pass.
+
+The validation-independence test fails at its initial retained-route assertion;
+its later validation/replay assertions are not yet reached. Do not report those
+later behaviors as runtime-proven defects from this run. Source investigation
+above identifies their required safeguards for the eventual implementation.
+No product behavior, RFC level or support figure was changed by these probes.
+
+The owner authorized retaining complex fixes for later review while the test
+campaign proceeds. This spec owns that repair. Retain the shared log until all
+specs citing it have superseding evidence; no extra report copy is needed.
 
 ## Review Gate
 
