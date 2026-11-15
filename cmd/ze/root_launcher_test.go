@@ -1,3 +1,4 @@
+// Design: docs/contributing/patching-the-standard-library.md -- launcher bootstrap and patched builds.
 // VALIDATES: the tracked root launchers build one cmd/ze composition when absent
 // and exec the selected personality without changing process semantics, and that
 // `./le --name <name>` gives one session a rebuilt binary of its own.
@@ -47,6 +48,7 @@ func TestRootLaunchersBuildMissingBinary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fixture := launcherFixture(t, root, tt.launcher)
 			goRecord := filepath.Join(fixture, "go.record")
+			bootstrapRecord := filepath.Join(fixture, "bootstrap.record")
 			execRecord := filepath.Join(fixture, "exec.record")
 			writeFakeGo(t, fixture)
 			if tt.admitWith {
@@ -67,6 +69,7 @@ func TestRootLaunchersBuildMissingBinary(t *testing.T) {
 			cmd.Env = append(launcherEnv(),
 				"PATH="+filepath.Join(fixture, "fakebin")+string(os.PathListSeparator)+os.Getenv("PATH"),
 				"ZE_GO_RECORD="+goRecord,
+				"ZE_BOOTSTRAP_RECORD="+bootstrapRecord,
 				"ZE_EXEC_RECORD="+execRecord,
 				"ZE_EXEC_EXIT=37",
 				"ZE_LAUNCHER_ROOT="+fixture,
@@ -79,12 +82,19 @@ func TestRootLaunchersBuildMissingBinary(t *testing.T) {
 			}
 
 			if tt.launcher == "ze" {
+				toolchain := checkoutToolchain(t, root)
+				if !tt.admitWith {
+					// Bootstrap selects the pin, then the build keeps that tree
+					// with local so Go cannot switch away from its patches.
+					assertLauncherRecord(t, bootstrapRecord, []string{"GOTOOLCHAIN=" + toolchain})
+					toolchain = "local"
+				}
 				wantBuild := []string{
 					"cwd=" + fixture,
 					"GOCACHE=" + filepath.Join(fixture, "cache", "go-cache"),
 					"GOLANGCI_LINT_CACHE=" + filepath.Join(fixture, "cache", "golangci-lint-cache"),
 					"CGO_ENABLED=0",
-					"GOTOOLCHAIN=" + checkoutToolchain(t, root),
+					"GOTOOLCHAIN=" + toolchain,
 					"arg=build",
 					"arg=-tags",
 					"arg=" + tt.wantTags,
@@ -822,11 +832,14 @@ func writeFakeGo(t *testing.T, root string) {
 // so the fake prints a tree whose bin/go is a copy of itself. Every other call
 // is the build: it records its environment and arguments and writes produced at
 // its -o path. le's build therefore runs through the tree's go, as it does in
-// the checkout, and ze's through the go on PATH.
+// the checkout. A cold ze uses the same tree; an admitted ze delegates the build.
 func writeFakeGoProducing(t *testing.T, root, produced string) {
 	t.Helper()
 	writeExecutable(t, filepath.Join(root, "fakebin", "go"), `#!/bin/sh
 if [ "${1-}" = run ]; then
+	if [ -n "${ZE_BOOTSTRAP_RECORD-}" ]; then
+		printf 'GOTOOLCHAIN=%s\n' "$GOTOOLCHAIN" > "$ZE_BOOTSTRAP_RECORD"
+	fi
 	if [ "${2-}" != ./internal/le/go/stdpatch/goroot ]; then
 		echo "fake go: unexpected go run $*" >&2
 		exit 2
