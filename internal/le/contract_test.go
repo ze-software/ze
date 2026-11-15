@@ -74,11 +74,8 @@ func TestNoDevelopmentToolTestShellsOutToGoRun(t *testing.T) {
 		if !strings.HasSuffix(rel, "_test.go") {
 			return
 		}
-		forms := []string{`"go", ` + `"run"`, `"go",` + `"run"`, `go ` + `run `}
-		for _, form := range forms {
-			if strings.Contains(body, form) {
-				t.Errorf("%s invokes a compiled tool with %s", rel, form)
-			}
+		if err := developmentToolGoRun(body); err != nil {
+			t.Errorf("%s: %v", rel, err)
 		}
 	})
 }
