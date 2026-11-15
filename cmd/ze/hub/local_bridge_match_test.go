@@ -72,6 +72,9 @@ bgp {
 // stderr against the SSH rendering of the dispatch error. A second call per
 // command carries a word no leaf declares, and both routes must refuse it in
 // the same bytes.
+// A newly generated WireGuard keypair is checked for a valid, fresh private
+// scalar and its corresponding public key on each route, rather than equality
+// between two independently random answers (matchGeneratedKeypairs).
 //
 // A command that produces a file (registry.Meta.Artifact) names it where each
 // route is designed to keep it: the local route is given a directory of the
@@ -273,6 +276,22 @@ func matchRoutes(t *testing.T, d *pluginserver.Dispatcher, input, daemonInput st
 
 	resp, dispatchErr := d.Dispatch(&pluginserver.CommandContext{}, daemonInput)
 	remoteAnswer, remoteRefusal := matchRemoteRendering(t, daemonInput+" | json", resp, dispatchErr)
+	if input == "request wireguard keypair" {
+		if localCode != 0 {
+			t.Fatalf("local keypair route must succeed: exit %d", localCode)
+		}
+		if dispatchErr != nil {
+			t.Fatal("daemon keypair route must succeed")
+		}
+		if localWritten != "" {
+			t.Fatal("local keypair route wrote outside its answer")
+		}
+		if remoteRefusal != "" {
+			t.Fatal("daemon keypair route wrote outside its answer")
+		}
+		matchGeneratedKeypairs(t, localAnswer, remoteAnswer)
+		return
+	}
 
 	if (localCode == 0) != (dispatchErr == nil) {
 		t.Errorf("%q: local exit %d (stderr %q), daemon error %v: one route answered and the other refused", input, localCode, localWritten, dispatchErr)
