@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | A BMP receiver listen address that fails to bind is only logged while the other addresses serve, so start and reload report success with the receiver half-bound |
 | RFC gaps | - |
 | Depends | - |
-| Phase | closure - scoped proof and documentation receipt complete; landing and final pin pending |
+| Phase | complete - scoped proof and independent Review Gate clean; closure script ready |
 | Handoff | - |
 | Updated | 2026-11-15 |
 
@@ -432,7 +432,10 @@ The new fixture also points at that durable guide rather than this spec.
 | Companion hub final proof | CLI draft GREEN, 80 successful stress invocations and 240 named passing receipts, unchanged promotion and final promoted PASS 5.0s. Configured external BMP startup/reload PASS 2.6s each, omitted-hub forked watchdog PASS 2.0s |
 | Companion hub scoped lint | Host, Linux, capability, appliance and compile-out runs have no finding in changed `main.go` or the new unit. Four foreign locations remain, recorded below |
 | Final documentation receipt | Named check completed exit 1: no drift, 454 commands validated and complete help shape. Four foreign IRR source-anchor findings remain; none concerns the changed hub paragraph or BMP guide |
-| Still required | Separate guard and wiring commits, hash-pinned Review Gate and two closure commits. Status stays `in-progress` |
+| Companion startup repair landed | `74bffc217e` contains the early guard, real Run unit, plugin guide, promoted hub case, news and this scope record |
+| Final receiver wiring landed | `7535e70df6` contains the fixture, four promoted BMP cases, mechanical map publication and fixed BMP journal row |
+| Final Review Gate | Independent CLEAN, rounds 4, 18 reviewed files. Native check OK: all 13 reviewable file hashes match |
+| Closure | The main thread publishes final record A and spec removal B from one native script, then releases this agent's claim. No further source or proof work remains |
 
 The commit preparer owns reserved approval trailers. The product commit records
 independent unit judgment in ordinary prose. Fixture/draft `Test-judge` fallback
@@ -578,22 +581,21 @@ was skipped or reduced.
 
 ## Work Not Done
 
-No product scope was omitted or moved. Pending checks are work in this spec,
-not a destination or a deferral.
+No product scope was omitted, moved or left unproved.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| None | All approved product scope implemented and proved. This spec stays open until the remaining closure bookkeeping finishes | None |
+| None | All approved product scope implemented and proved | None |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Pending root guard/wiring handoff and claim release |
-| `./le spec review check` | Not run yet |
+| Artifact | `tmp/review/bmp-receiver-bind-all-or-none-01a1df36-384e-7873-a487-85e51b996435.md` |
+| `./le spec review check` | OK: CLEAN artifact, all 13 reviewable file hashes match, 18 reviewed paths |
 | Rounds | 4: two implementation reviews, independent full-population closure review, then the added hub startup guard and its consumers |
 | Reviewer lenses used | Logic/wiring, security/edge cases, style/resource lifetime. Complete historical core and wiring population read |
-| Current result | Complete receiver, fixture and added hub startup source review CLEAN. All scoped proof and final entry-point controls complete. Final hash artifact follows root guard/wiring handoff |
+| Current result | CLEAN: zero BLOCKER, zero ISSUE. Complete receiver, fixture and companion startup source reviewed; scoped proof and final entry-point controls complete |
 
 ### Findings fixed
 
