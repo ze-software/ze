@@ -96,7 +96,9 @@ func callableOwnerFixture(t *testing.T, kind string, scenario callableOwnerCase)
 
 	fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, "install(ownerProbe())"))
 	commitInventoryFixture(t, fixture.root)
-	callableOwnerOutcome(t, fixture, kind, false)
+	if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
+		t.Fatalf("direct installer lost its owner: %v", err)
+	}
 	return fixture
 }
 

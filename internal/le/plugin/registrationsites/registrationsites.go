@@ -92,7 +92,11 @@ func Judge(snapshot *repoinventory.Snapshot) (Report, error) {
 				continue
 			}
 			if rule := tree.judge(reference, &site); rule != "" {
-				report.Refused = append(report.Refused, Refusal{Site: site, Rule: rule, Fix: fixLine})
+				fix := fixLine
+				if _, held := tree.importedDirectory(reference.file, reference.selector); !held {
+					fix = "give the plugin registry import a unique explicit alias, update its references, then run ./le plugin registration-sites check"
+				}
+				report.Refused = append(report.Refused, Refusal{Site: site, Rule: rule, Fix: fix})
 				continue
 			}
 			report.Accepted = append(report.Accepted, site)
@@ -330,9 +334,22 @@ func (t *sourceTree) registrySite(reference use) (Site, bool) {
 	directory, held := t.importedDirectory(reference.file, reference.selector)
 	if !held {
 		owner, ok := reference.selector.X.(*ast.Ident)
-		alias, imports := registryAlias(reference.file.File)
-		if !ok || !imports || owner.Name != alias || owner.Obj != nil {
+		alias, imported := registryAlias(reference.file.File)
+		if !ok {
 			return Site{}, false
+		}
+		if imported == nil {
+			return Site{}, false
+		}
+		if owner.Name != alias {
+			return Site{}, false
+		}
+		// A proven local shadow is a different declaration. An unresolved
+		// qualifier remains a site to refuse, never an absent reference.
+		if same, known := t.snapshot.DeclarationReference(reference.file, owner, imported); known {
+			if !same {
+				return Site{}, false
+			}
 		}
 	} else if directory != registryDirectory {
 		return Site{}, false
@@ -350,19 +367,23 @@ func (t *sourceTree) importedDirectory(file repoinventory.SourceFile, selector *
 	return directory, held
 }
 
-// registryAlias answers the name file binds the plugin registry import to.
-func registryAlias(file *ast.File) (string, bool) {
+// registryAlias answers the registry import's name and exact retained
+// declaration. A missing import answers nil, never an invented declaration.
+func registryAlias(file *ast.File) (string, *ast.ImportSpec) {
 	for _, imported := range file.Imports {
 		name, err := strconv.Unquote(imported.Path.Value)
-		if err != nil || name != registryImport {
+		if err != nil {
+			continue
+		}
+		if name != registryImport {
 			continue
 		}
 		if imported.Name != nil {
-			return imported.Name.Name, true
+			return imported.Name.Name, imported
 		}
-		return path.Base(registryImport), true
+		return path.Base(registryImport), imported
 	}
-	return "", false
+	return "", nil
 }
 
 // dotImports refuses a dot import of the registry: its registering functions
@@ -376,9 +397,13 @@ func (t *sourceTree) dotImports(file repoinventory.SourceFile) []Refusal {
 		}
 		position := t.fset.Position(imported.Pos())
 		refused = append(refused, Refusal{
-			Site: Site{Package: path.Dir(file.Path), File: file.Path, Line: position.Line, Function: "registry (dot import)", Within: "import"},
-			Rule: "the plugin registry is dot-imported, so its registering functions are bare names this check cannot tell from the file's own",
-			Fix:  "import the plugin registry under a name, then " + fixLine,
+			Package:  path.Dir(file.Path),
+			File:     file.Path,
+			Line:     position.Line,
+			Function: "registry (dot import)",
+			Within:   "import",
+			Rule:     "the plugin registry is dot-imported, so its registering functions are bare names this check cannot tell from the file's own",
+			Fix:      "import the plugin registry under a name, then " + fixLine,
 		})
 	}
 	return refused
@@ -388,6 +413,9 @@ func (t *sourceTree) dotImports(file repoinventory.SourceFile) []Refusal {
 // names the declaration holding the site in site.Within.
 func (t *sourceTree) judge(reference use, site *Site) string {
 	site.Within = withinOf(reference)
+	if _, held := t.importedDirectory(reference.file, reference.selector); !held {
+		return "the registry qualifier has unresolved import ownership, so this check cannot identify the package that owns the registering call"
+	}
 	switch {
 	case !reference.called:
 		return "a registering function is used as a value, so the reference can reach code that runs after start-up, which the seal then refuses"
@@ -468,8 +496,10 @@ func (t *sourceTree) references(directory string, function *ast.FuncDecl) []use 
 			if home != directory {
 				continue
 			}
-			if reference.ident.Obj != nil && reference.ident.Obj.Decl != function {
-				continue
+			if same, known := t.snapshot.DeclarationReference(reference.file, reference.ident, function); known {
+				if !same {
+					continue
+				}
 			}
 			found = append(found, reference)
 			continue

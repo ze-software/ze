@@ -19,7 +19,7 @@ func TestCommittedPluginsRefuseMutatedDeclarationInputs(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := committedFixture(t)
-			path := filepath.Join(root, "internal/plugins/example/register_linux.go")
+			path := filepath.Join(root, "internal", "plugins", "example", "register_linux.go")
 			raw, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)

@@ -11,14 +11,15 @@ import (
 // declaration (name := func(...) {...}) binds to name's local variable. A
 // reassignment or a reused short declaration of the name is a separate use,
 // which the reference census records as indirect.
-func closureBinding(name *ast.Ident) (*ast.FuncLit, bool) {
-	if name.Obj == nil {
+func closureBinding(name *ast.Ident, source sourceExpr) (*ast.FuncLit, bool) {
+	binding := sourceBinding(source, name)
+	if binding == nil {
 		return nil, false
 	}
-	if name.Obj.Kind != ast.Var {
+	if binding.kind != lexicalVariable {
 		return nil, false
 	}
-	declaration, declared := name.Obj.Decl.(*ast.AssignStmt)
+	declaration, declared := binding.node.(*ast.AssignStmt)
 	if !declared {
 		return nil, false
 	}
@@ -33,7 +34,7 @@ func closureBinding(name *ast.Ident) (*ast.FuncLit, bool) {
 		if !named {
 			continue
 		}
-		if declaring.Obj != name.Obj {
+		if declaring != binding.ident {
 			continue
 		}
 		literal, closure := declaration.Rhs[index].(*ast.FuncLit)
@@ -46,12 +47,12 @@ func closureBinding(name *ast.Ident) (*ast.FuncLit, bool) {
 // file, apart from its declaring name, is the callee of a call. A copy, a
 // reassignment, a reused short declaration or an address of the name is any
 // other use, after which a call through the name may run another function.
-func closureCalledOnly(file *ast.File, binding *ast.Object) bool {
+func closureCalledOnly(file *ast.File, binding *lexicalDeclaration, snapshot *Snapshot) bool {
 	allowed := make(map[*ast.Ident]bool)
-	if declaration, declared := binding.Decl.(*ast.AssignStmt); declared {
+	if declaration, declared := binding.node.(*ast.AssignStmt); declared {
 		for _, left := range declaration.Lhs {
 			if name, named := left.(*ast.Ident); named {
-				if name.Obj == binding {
+				if name == binding.ident {
 					allowed[name] = true
 				}
 			}
@@ -71,8 +72,10 @@ func closureCalledOnly(file *ast.File, binding *ast.Object) bool {
 			callee = parenthesized.X
 		}
 		if name, named := callee.(*ast.Ident); named {
-			if name.Obj == binding {
-				allowed[name] = true
+			if declaration, known := snapshot.binding(file, name); known {
+				if declaration == binding {
+					allowed[name] = true
+				}
 			}
 		}
 		return true
@@ -83,8 +86,19 @@ func closureCalledOnly(file *ast.File, binding *ast.Object) bool {
 		if !named {
 			return true
 		}
-		if name.Obj != binding {
-			return true
+		declaration, known := snapshot.binding(file, name)
+		if known {
+			if declaration != binding {
+				return true
+			}
+		} else {
+			occurrence := snapshot.lexical.identifiers[name]
+			if !occurrence.lexical {
+				return true
+			}
+			if name.Name != binding.ident.Name {
+				return true
+			}
 		}
 		if !allowed[name] {
 			only = false

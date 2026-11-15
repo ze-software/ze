@@ -25,7 +25,7 @@ func TestCommittedPluginsRefuseUnresolvedMetadata(t *testing.T) {
 	for _, scenario := range cases {
 		t.Run(scenario.name, func(t *testing.T) {
 			root := committedFixture(t)
-			path := filepath.Join(root, "internal/plugins/example/register_linux.go")
+			path := filepath.Join(root, "internal", "plugins", "example", "register_linux.go")
 			raw, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)

@@ -114,14 +114,11 @@ func (e *expression) addressable(source sourceExpr) bool {
 	case *ast.ParenExpr:
 		return e.addressable(sourceExpr{value: operand.X, file: source.file, pkg: source.pkg})
 	case *ast.Ident:
-		binding := operand.Obj
-		if binding == nil {
-			binding = callablePackageBinding(source.pkg, operand.Name)
-		}
+		binding := sourceBinding(source, operand)
 		if binding == nil {
 			return false
 		}
-		return binding.Kind == ast.Var
+		return binding.kind == lexicalVariable
 	}
 	return false
 }
@@ -211,20 +208,17 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 	case *ast.SliceExpr:
 		return e.sliceType(source, value, depth)
 	case *ast.Ident:
-		binding := value.Obj
-		if binding == nil {
-			binding = callablePackageBinding(source.pkg, value.Name)
-		}
+		binding := sourceBinding(source, value)
 		if _, constant := predeclaredConstant(source, value.Name); constant {
 			return e.constantDefault(source, depth)
 		}
 		if binding == nil {
 			return sourceExpr{}, false
 		}
-		if binding.Kind == ast.Con {
+		if binding.kind == lexicalConstant {
 			return e.constantDefault(source, depth)
 		}
-		if binding.Kind == ast.Fun {
+		if binding.kind == lexicalFunction {
 			// A package function's static type is its signature; a generic one
 			// has no type until it is instantiated.
 			function, found := source.pkg.functions[value.Name]
@@ -236,7 +230,7 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 			}
 			return sourceExpr{value: function.decl.Type, file: function.file, pkg: function.pkg}, true
 		}
-		if binding.Kind != ast.Var {
+		if binding.kind != lexicalVariable {
 			return sourceExpr{}, false
 		}
 		// A write never changes a variable's static type. Go specification,
@@ -245,13 +239,9 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 		// the type its declaration gives it, and no write check applies here.
 		// Package declarations may live in a different retained file; imports
 		// in their types and initializers belong to that file, not the caller.
-		for _, file := range source.pkg.files {
-			if file.File.Scope.Lookup(value.Name) == binding {
-				source.file = file.File
-				break
-			}
-		}
-		switch declaration := binding.Decl.(type) {
+		source.file = binding.file
+		source.pkg = binding.pkg
+		switch declaration := binding.node.(type) {
 		case *ast.Field:
 			return sourceExpr{value: parameterType(declaration), file: source.file, pkg: source.pkg}, true
 		case *ast.ValueSpec:
@@ -259,7 +249,7 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 				return sourceExpr{value: declaration.Type, file: source.file, pkg: source.pkg}, true
 			}
 			for index, name := range declaration.Names {
-				if name.Obj != binding {
+				if name != binding.ident {
 					continue
 				}
 				if len(declaration.Names) != len(declaration.Values) {
@@ -267,22 +257,15 @@ func (e *expression) valueType(source sourceExpr, depth int) (sourceExpr, bool) 
 				}
 				return e.valueType(sourceExpr{value: declaration.Values[index], file: source.file, pkg: source.pkg}, depth+1)
 			}
+		case *ast.RangeStmt:
+			return e.rangedType(source, declaration, binding.ident, depth+1)
 		case *ast.AssignStmt:
-			// go/parser binds range variables to a synthetic short assignment
-			// with one unary RANGE RHS, not to the RangeStmt itself.
-			if len(declaration.Rhs) == 1 {
-				if ranged, ok := declaration.Rhs[0].(*ast.UnaryExpr); ok {
-					if ranged.Op == token.RANGE {
-						return e.rangedType(source, declaration, ranged, value.Name, depth+1)
-					}
-				}
-			}
 			for index, left := range declaration.Lhs {
 				name, ok := left.(*ast.Ident)
 				if !ok {
 					continue
 				}
-				if name.Obj != binding {
+				if name != binding.ident {
 					continue
 				}
 				if len(declaration.Lhs) != len(declaration.Rhs) {
@@ -384,14 +367,13 @@ func (e *expression) namesType(source sourceExpr) bool {
 // composite literal, or a call whose single result type is declared, ranges as
 // its declared type; an operand whose type is unknown leaves the variable
 // unknown. Only a defining range (:=) declares a variable.
-func (e *expression) rangedType(source sourceExpr, declaration *ast.AssignStmt, ranged *ast.UnaryExpr, variable string, depth int) (sourceExpr, bool) {
+func (e *expression) rangedType(source sourceExpr, declaration *ast.RangeStmt, variable *ast.Ident, depth int) (sourceExpr, bool) {
 	if declaration.Tok != token.DEFINE {
 		return sourceExpr{}, false
 	}
-	// One defining assignment cannot declare a name twice, so the name alone
-	// finds the variable's position; the blank identifier declares nothing.
+	// A range declaration retains its real defining identifier and slot.
 	position := -1
-	for index, left := range declaration.Lhs {
+	for index, left := range []ast.Expr{declaration.Key, declaration.Value} {
 		name, ok := left.(*ast.Ident)
 		if !ok {
 			continue
@@ -399,14 +381,14 @@ func (e *expression) rangedType(source sourceExpr, declaration *ast.AssignStmt, 
 		if name.Name == "_" {
 			continue
 		}
-		if name.Name == variable {
+		if name == variable {
 			position = index
 		}
 	}
 	if position < 0 {
 		return sourceExpr{}, false
 	}
-	collection, found := e.valueType(sourceExpr{value: ranged.X, file: source.file, pkg: source.pkg}, depth+1)
+	collection, found := e.valueType(sourceExpr{value: declaration.X, file: source.file, pkg: source.pkg}, depth+1)
 	if !found {
 		return sourceExpr{}, false
 	}
@@ -558,11 +540,11 @@ func (e *expression) sliceType(source sourceExpr, slice *ast.SliceExpr, depth in
 // definition, so the imports its type expression names resolve in that file.
 func declaringFile(owner *sourcePackage, definition *ast.TypeSpec) (*ast.File, bool) {
 	for _, file := range owner.files {
-		object := file.File.Scope.Lookup(definition.Name.Name)
-		if object == nil {
+		binding, known := owner.snapshot.binding(file.File, definition.Name)
+		if !known {
 			continue
 		}
-		if object.Decl == definition {
+		if binding.node == definition {
 			return file.File, true
 		}
 	}
@@ -607,7 +589,7 @@ func rangedElement(named, shape sourceExpr, position int) (sourceExpr, bool) {
 			return at(kind.Value)
 		}
 	case *ast.FuncType:
-		yielded, found := iteratorYields(kind)
+		yielded, found := iteratorYields(kind, shape)
 		if !found {
 			return sourceExpr{}, false
 		}
@@ -639,7 +621,7 @@ func rangedElement(named, shape sourceExpr, position int) (sourceExpr, bool) {
 // iteratorYields answers the parameter types of yield for a range-over-func
 // iterator, func(yield func(...) bool) with at most two yielded values, in
 // order. Any other function shape is no iterator.
-func iteratorYields(iterator *ast.FuncType) ([]ast.Expr, bool) {
+func iteratorYields(iterator *ast.FuncType, source sourceExpr) ([]ast.Expr, bool) {
 	if iterator.Results.NumFields() != 0 {
 		return nil, false
 	}
@@ -660,7 +642,7 @@ func iteratorYields(iterator *ast.FuncType) ([]ast.Expr, bool) {
 	if result.Name != "bool" {
 		return nil, false
 	}
-	if result.Obj != nil {
+	if !predeclaredIdentifier(sourceExpr{value: result, file: source.file, pkg: source.pkg}, "bool") {
 		return nil, false
 	}
 	var yielded []ast.Expr
@@ -694,46 +676,24 @@ func basicType(source sourceExpr) (*types.Basic, bool) {
 	return basic, ok
 }
 
-// universeType names the predeclared type name at the position of at, in its
-// file, so a type walk resolves it as the source spelling would. A retained
-// declaration that shadows name refuses rather than answer the wrong type.
+// universeType carries explicit inferred-type provenance. Its synthetic AST
+// spelling never borrows a retained source declaration that shadows the name.
 func universeType(at sourceExpr, name string) (sourceExpr, bool) {
-	result := sourceExpr{value: &ast.Ident{NamePos: at.value.Pos(), Name: name}, file: at.file, pkg: at.pkg}
-	if !predeclaredIdentifier(result, name) {
+	builtin, known := types.Universe.Lookup(name).(*types.TypeName)
+	if !known {
 		return sourceExpr{}, false
 	}
-	return result, true
+	return sourceExpr{value: &ast.Ident{NamePos: at.value.Pos(), Name: name}, file: at.file, pkg: at.pkg, universe: builtin}, true
 }
 
 // concreteType preserves the defining declaration's identity. Only direct
 // concrete definitions are admitted; aliases and named underlying chains refuse.
 func (e *expression) concreteType(source sourceExpr) (*ast.TypeSpec, *sourcePackage, bool) {
-	var binding *ast.Object
-	switch value := source.value.(type) {
-	case *ast.Ident:
-		binding = value.Obj
-		if binding == nil {
-			binding = callablePackageBinding(source.pkg, value.Name)
-		}
-	case *ast.SelectorExpr:
-		directory, imported := e.callableImport(source, value)
-		if !imported {
-			return nil, nil, false
-		}
-		pkg, retained := e.snapshot.packages[directory]
-		if !retained {
-			return nil, nil, false
-		}
-		source.pkg = pkg
-		binding = callablePackageBinding(pkg, value.Sel.Name)
-	}
+	binding := e.typeBinding(source)
 	if binding == nil {
 		return nil, nil, false
 	}
-	if binding.Kind != ast.Typ {
-		return nil, nil, false
-	}
-	definition, ok := binding.Decl.(*ast.TypeSpec)
+	definition, ok := binding.node.(*ast.TypeSpec)
 	if !ok {
 		return nil, nil, false
 	}
@@ -745,17 +705,14 @@ func (e *expression) concreteType(source sourceExpr) (*ast.TypeSpec, *sourcePack
 	}
 	// Method declarations belong to package scope. A local type with the same
 	// spelling cannot borrow the package type's method set.
-	if callablePackageBinding(source.pkg, definition.Name.Name) != binding {
+	if callablePackageBinding(binding.pkg, definition.Name.Name) != binding {
 		return nil, nil, false
 	}
 	switch underlying := definition.Type.(type) {
 	case *ast.StructType, *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.FuncType:
-		return definition, source.pkg, true
+		return definition, binding.pkg, true
 	case *ast.Ident:
-		if underlying.Obj != nil {
-			return nil, nil, false
-		}
-		if callablePackageBinding(source.pkg, underlying.Name) != nil {
+		if !predeclaredIdentifier(sourceExpr{value: underlying, file: binding.file, pkg: binding.pkg}, underlying.Name) {
 			return nil, nil, false
 		}
 		builtin, ok := types.Universe.Lookup(underlying.Name).(*types.TypeName)
@@ -763,8 +720,40 @@ func (e *expression) concreteType(source sourceExpr) (*ast.TypeSpec, *sourcePack
 			return nil, nil, false
 		}
 		if _, scalar := builtin.Type().Underlying().(*types.Basic); scalar {
-			return definition, source.pkg, true
+			return definition, binding.pkg, true
 		}
 	}
 	return nil, nil, false
+}
+
+// typeBinding shares exact named-type ownership with composite-key
+// classification; admissibility of aliases and local types stays with callers.
+func (e *expression) typeBinding(source sourceExpr) *lexicalDeclaration {
+	if source.universe != nil {
+		return nil
+	}
+	var binding *lexicalDeclaration
+	switch value := source.value.(type) {
+	case *ast.Ident:
+		binding = sourceBinding(source, value)
+	case *ast.SelectorExpr:
+		directory, imported := e.callableImport(source, value)
+		// refuse-by-default: guards concreteType -- an unknown import cannot prove a named type's declaration identity.
+		if !imported {
+			return nil
+		}
+		pkg, retained := e.snapshot.packages[directory]
+		// refuse-by-default: guards concreteType -- an unretained package cannot prove a named type's declaration identity.
+		if !retained {
+			return nil
+		}
+		binding = callablePackageBinding(pkg, value.Sel.Name)
+	}
+	if binding == nil {
+		return nil
+	}
+	if binding.kind != lexicalType {
+		return nil
+	}
+	return binding
 }

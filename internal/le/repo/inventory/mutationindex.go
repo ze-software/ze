@@ -78,9 +78,24 @@ func (file *declarationMutationFile) indexOperations() *declarationMutationOpera
 		return file.operations
 	}
 	operations := &declarationMutationOperations{}
+	// A type-switch guard declares a different variable in each case. Its
+	// shared defining identifier has no single binding to prove that fact,
+	// so classify the real guard assignment at its parent before visiting it.
+	// The table has at most one entry per retained type switch.
+	guardDefinitions := make(map[*ast.AssignStmt]bool)
 	ast.Inspect(file.file, func(node ast.Node) bool {
 		switch operation := node.(type) {
-		case *ast.AssignStmt, *ast.IncDecStmt:
+		case *ast.TypeSwitchStmt:
+			if guard, assigned := operation.Assign.(*ast.AssignStmt); assigned {
+				if guard.Tok == token.DEFINE {
+					guardDefinitions[guard] = true
+				}
+			}
+		case *ast.AssignStmt:
+			if !guardDefinitions[operation] {
+				operations.nodes = append(operations.nodes, node)
+			}
+		case *ast.IncDecStmt:
 			operations.nodes = append(operations.nodes, node)
 		case *ast.RangeStmt:
 			if operation.Tok == token.ASSIGN {
@@ -98,7 +113,7 @@ func (file *declarationMutationFile) indexOperations() *declarationMutationOpera
 }
 
 func (index *declarationMutationIndex) writes(reader *expression, reference declarationReference, check mutationCheck) error {
-	if reference.local != nil {
+	if reference.binding.scope != reader.snapshot.lexical.packages[reference.pkg] {
 		for _, file := range index.files[reference.file] {
 			if file.pkg != reference.pkg {
 				if !importsPackage(file.pkg.imports[file.file], reference.pkg.dir) {
@@ -152,9 +167,11 @@ func (file *declarationMutationFile) writes(reader *expression, reference declar
 			if assignment, assigned := node.(*ast.AssignStmt); assigned {
 				if assignment.Tok == token.DEFINE {
 					if declared, named := target.(*ast.Ident); named {
-						if declared.Obj != nil {
-							if declared.Obj.Decl == assignment {
-								continue
+						if binding, known := reader.snapshot.binding(file.file, declared); known {
+							if binding.node == assignment {
+								if binding.ident == declared {
+									continue
+								}
 							}
 						}
 					}
@@ -183,16 +200,14 @@ func (file *declarationMutationFile) writes(reader *expression, reference declar
 // an identifier replaces the local's own value and never writes through it, so
 // `fam := IPv4FlowSpec; fam = IPv6FlowSpec` leaves IPv4FlowSpec intact. A write
 // through an alias (`fam.AFI = x`, `p[i] = v`, `*p = v`) is not a bare
-// identifier and stays with refersTo. A package-level variable of this file is
-// the object its file scope holds, the resolution refersTo also relies on; one
-// declared in another file of the package is unresolved (nil Obj), because each
-// file is parsed alone, and also stays with refersTo.
+// identifier and stays with refersTo. Package variables in any retained file
+// have the package scope and remain direct writes.
 func rebindsLocal(target ast.Expr, reference declarationReference, file *ast.File) bool {
 	if name, bare := target.(*ast.Ident); bare {
-		if object := name.Obj; object != nil {
-			if object.Kind == ast.Var {
-				if object != reference.local {
-					return file.Scope.Lookup(name.Name) != object
+		if binding, known := reference.pkg.snapshot.binding(file, name); known {
+			if binding.kind == lexicalVariable {
+				if binding != reference.binding {
+					return binding.scope != reference.pkg.snapshot.lexical.packages[binding.pkg]
 				}
 			}
 		}

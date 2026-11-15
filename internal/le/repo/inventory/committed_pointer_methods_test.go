@@ -123,7 +123,9 @@ func TestCommittedPointerMethodsDoNotBorrowRegistrationAPIs(t *testing.T) {
 				fixture := pointerOwnerFixture(t, kind, scenario)
 				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
 				commitInventoryFixture(t, fixture.root)
-				callableOwnerOutcome(t, fixture, kind, false)
+				if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
+					t.Fatalf("shadowed pointer method lost its owner: %v", err)
+				}
 			})
 		}
 	}

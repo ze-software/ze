@@ -29,19 +29,19 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 			}
 			return source, true, nil
 		case *ast.Ident:
-			binding := value.Obj
+			binding := sourceBinding(source, value)
 			if binding == nil {
-				binding = callablePackageBinding(source.pkg, value.Name)
+				return sourceExpr{}, false, r.eval.problem(origin, "callable identifier "+value.Name+" has unresolved execution ownership")
 			}
-			if binding == nil {
-				switch types.Universe.Lookup(value.Name).(type) {
+			if binding.kind == lexicalUniverse {
+				switch binding.universe.(type) {
 				case *types.Builtin, *types.TypeName:
 					return source, false, nil
 				}
 				return sourceExpr{}, false, r.eval.problem(origin, "callable identifier "+value.Name+" has unresolved execution ownership")
 			}
-			switch binding.Kind {
-			case ast.Fun:
+			switch binding.kind {
+			case lexicalFunction:
 				if _, found := source.pkg.functions[value.Name]; !found {
 					return sourceExpr{}, false, r.eval.problem(origin, "callable function "+value.Name+" has unresolved execution ownership")
 				}
@@ -49,15 +49,15 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 					return sourceExpr{}, false, r.eval.problem(origin, "callable registration alias has unresolved execution ownership")
 				}
 				return source, true, nil
-			case ast.Typ:
+			case lexicalType:
 				return source, false, nil
-			case ast.Var:
+			case lexicalVariable:
 				// A local closure called only through its name executes
 				// its own literal, as zstd's fatalErr(binary.Read(...))
 				// does; any other use of the name keeps the alias refusal.
 				if !aliased {
-					if literal, bound := closureBinding(value); bound {
-						if closureCalledOnly(source.file, binding) {
+					if literal, bound := closureBinding(value, source); bound {
+						if closureCalledOnly(source.file, binding, r.eval.snapshot) {
 							return sourceExpr{value: literal, file: source.file, pkg: source.pkg}, true, nil
 						}
 					}
@@ -65,10 +65,7 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 				if !callableAliasBinding(binding) {
 					return sourceExpr{}, false, r.eval.problem(origin, "callable parameter or variable "+value.Name+" has unresolved execution ownership")
 				}
-			case ast.Bad, ast.Pkg, ast.Con, ast.Lbl:
-				return sourceExpr{}, false, r.eval.problem(origin, "callable declaration "+value.Name+" has unresolved execution ownership")
-			default:
-				// Parser object kinds remain open to additions in go/ast.
+			case lexicalUnspecified, lexicalImport, lexicalConstant, lexicalUniverse:
 				return sourceExpr{}, false, r.eval.problem(origin, "callable declaration "+value.Name+" has unresolved execution ownership")
 			}
 		case *ast.SelectorExpr:
@@ -92,10 +89,14 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 			if !found {
 				return sourceExpr{}, false, r.eval.problem(origin, "callable imported package has unresolved execution ownership")
 			}
-			if _, found := pkg.functions[value.Sel.Name]; found {
+			binding := callablePackageBinding(pkg, value.Sel.Name)
+			if binding == nil {
+				return sourceExpr{}, false, r.eval.problem(origin, "callable imported declaration has unresolved execution ownership")
+			}
+			if binding.kind == lexicalFunction {
 				return source, true, nil
 			}
-			if binding := callablePackageBinding(pkg, value.Sel.Name); binding != nil && binding.Kind == ast.Typ {
+			if binding.kind == lexicalType {
 				return source, false, nil
 			}
 			if _, found := pkg.values[value.Sel.Name]; !found {
@@ -121,26 +122,12 @@ func (r *registrations) callableSource(call *ast.CallExpr, scope initializationS
 }
 
 func registrationAPI(directory, name string) bool {
-	return directory == registrationPackage && name == "Register" ||
-		directory == "internal/component/config/yang" && name == "RegisterModule"
+	return directory == registrationPackage && name == registrationFunction ||
+		directory == moduleRegistrationPackage && name == moduleRegistrationFunction
 }
 
-// callablePackageBinding also finds uninitialized package variables and type
-// names, so either can shadow the language universe without becoming a builtin.
-func callablePackageBinding(pkg *sourcePackage, name string) *ast.Object {
-	for _, source := range pkg.files {
-		if source.File.Scope == nil {
-			continue
-		}
-		if binding := source.File.Scope.Lookup(name); binding != nil {
-			return binding
-		}
-	}
-	return nil
-}
-
-// predeclaredIdentifier excludes both lexical and cross-file package shadows.
-// A parser object alone cannot identify the language universe across files.
+// predeclaredIdentifier requires retained universe ownership or an explicitly
+// inferred universe type; unresolved syntax is never a predeclared binding.
 func predeclaredIdentifier(source sourceExpr, name string) bool {
 	identifier, found := source.value.(*ast.Ident)
 	if !found {
@@ -149,17 +136,21 @@ func predeclaredIdentifier(source sourceExpr, name string) bool {
 	if identifier.Name != name {
 		return false
 	}
-	if identifier.Obj != nil {
+	if source.universe != nil {
+		return source.universe.Name() == name
+	}
+	binding := sourceBinding(source, identifier)
+	if binding == nil {
 		return false
 	}
-	return callablePackageBinding(source.pkg, name) == nil
+	return binding.kind == lexicalUniverse
 }
 
 // callableAliasBinding admits only a declaration whose corresponding initializer
 // the existing expression.target can identify. Parameters, ranges, zero values
 // and multi-result assignments are not a fallback to a same-named package value.
-func callableAliasBinding(binding *ast.Object) bool {
-	switch declaration := binding.Decl.(type) {
+func callableAliasBinding(binding *lexicalDeclaration) bool {
+	switch declaration := binding.node.(type) {
 	case *ast.AssignStmt:
 		return len(declaration.Lhs) == len(declaration.Rhs) && len(declaration.Rhs) != 0
 	case *ast.ValueSpec:
@@ -176,6 +167,16 @@ func callableAliasBinding(binding *ast.Object) bool {
 // import of file: a local value, a binding that shadows the import, or a file
 // this snapshot did not select.
 func (s *Snapshot) ImportedDirectory(file SourceFile, selector *ast.SelectorExpr) (string, bool) {
+	if s.lexical == nil {
+		return "", false
+	}
+	selectedFile, retained := s.lexical.files[file.File]
+	if !retained {
+		return "", false
+	}
+	if selectedFile.Path != file.Path {
+		return "", false
+	}
 	pkg, selected := s.packages[path.Dir(file.Path)]
 	if !selected {
 		return "", false
@@ -190,7 +191,11 @@ func (e *expression) callableImport(source sourceExpr, selector *ast.SelectorExp
 	if !ok {
 		return "", false
 	}
-	if owner.Obj != nil && owner.Obj.Kind != ast.Pkg {
+	binding := sourceBinding(source, owner)
+	if binding == nil {
+		return "", false
+	}
+	if binding.kind != lexicalImport {
 		return "", false
 	}
 	directory, found := source.pkg.imports[source.file][owner.Name]
@@ -199,7 +204,7 @@ func (e *expression) callableImport(source sourceExpr, selector *ast.SelectorExp
 	}
 	matches := 0
 	for _, imported := range source.file.Imports {
-		if owner.Obj != nil && owner.Obj.Decl != imported {
+		if binding.node != imported {
 			continue
 		}
 		name, err := strconv.Unquote(imported.Path.Value)

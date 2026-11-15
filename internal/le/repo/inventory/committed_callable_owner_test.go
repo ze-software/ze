@@ -14,7 +14,9 @@ func runCallableOwnerCase(t *testing.T, scenario callableOwnerCase) {
 			fixture := callableOwnerFixture(t, kind, scenario)
 			fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
 			commitInventoryFixture(t, fixture.root)
-			callableOwnerOutcome(t, fixture, kind, true)
+			if _, _, err := callableOwnerOutcome(t, fixture, kind, true); err != nil {
+				callableOwnerCause(t, err)
+			}
 		})
 	}
 }
@@ -82,7 +84,9 @@ func TestCommittedCallableOwnersRetainSnapshot(t *testing.T) {
 			fixture.goFile(t, callableOwnerFile, "package ownerhelper\nfunc Install(_ uint32) {}\nfunc ArgumentInstall() uint32 { return 0 }\n")
 			marker := ordinaryDir + "/owner_later_head.go"
 			fixture.goFile(t, marker, "package ordinary\nconst LaterOwnerHead = true\n")
-			callableOwnerOutcome(t, expected, kind, true)
+			if _, _, err := callableOwnerOutcome(t, expected, kind, true); err != nil {
+				callableOwnerCause(t, err)
+			}
 			callableOwnerRetained(t, snapshot, plugins, refusal)
 
 			commitInventoryFixture(t, fixture.root)

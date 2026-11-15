@@ -156,13 +156,10 @@ func (e *expression) constantType(source sourceExpr, depth int) (sourceExpr, con
 		if kind, constant := predeclaredConstant(source, value.Name); constant {
 			return untypedConstant(source, kind)
 		}
-		binding := value.Obj
-		if binding == nil {
-			binding = callablePackageBinding(source.pkg, value.Name)
-		}
+		binding := sourceBinding(source, value)
 		if binding != nil {
-			if binding.Kind == ast.Con {
-				return e.declaredConstantType(source, value, binding, depth+1)
+			if binding.kind == lexicalConstant {
+				return e.declaredConstantType(source, binding, depth+1)
 			}
 		}
 	}
@@ -238,20 +235,16 @@ func (e *expression) binaryType(source sourceExpr, operation *ast.BinaryExpr, de
 // type of its expression. A ConstSpec with no expression list repeats the
 // first preceding non-empty list of its group, and that list's type
 // (Go specification, "Constant declarations").
-func (e *expression) declaredConstantType(source sourceExpr, name *ast.Ident, binding *ast.Object, depth int) (sourceExpr, constantKind, bool) {
-	declaration, ok := binding.Decl.(*ast.ValueSpec)
+func (e *expression) declaredConstantType(source sourceExpr, binding *lexicalDeclaration, depth int) (sourceExpr, constantKind, bool) {
+	declaration, ok := binding.node.(*ast.ValueSpec)
 	if !ok {
 		return sourceExpr{}, constantUnspecified, false
 	}
 	// A package constant may live in another retained file; its expression
 	// names the imports of that file, not the caller's.
-	for _, file := range source.pkg.files {
-		if file.File.Scope.Lookup(name.Name) == binding {
-			source.file = file.File
-			break
-		}
-	}
-	index := slices.IndexFunc(declaration.Names, func(declared *ast.Ident) bool { return declared.Obj == binding })
+	source.file = binding.file
+	source.pkg = binding.pkg
+	index := slices.Index(declaration.Names, binding.ident)
 	if index < 0 {
 		return sourceExpr{}, constantUnspecified, false
 	}

@@ -28,6 +28,7 @@ func selectedSnapshot(t testing.TB, directory string, sources map[string]string)
 	if err := snapshot.selectPackage(directory, &context); err != nil {
 		t.Fatal(err)
 	}
+	snapshot.indexLexical()
 	return snapshot
 }
 
@@ -59,7 +60,7 @@ func selectedFile(t *testing.T, pkg *sourcePackage, name string) *ast.File {
 // "case *ast.FuncLit:\n\t\treturn sourceExpr{}, false") leaves a literal
 // iterator untyped: its row goes red.
 // MUTATION: (internal/le/repo/inventory/methods.go,
-// "if binding.Kind == ast.Fun {", "if binding.Kind == ast.Bad {") leaves a
+// "if binding.kind == lexicalFunction {", "if binding.kind == lexicalUnspecified {") leaves a
 // declared iterator untyped: its rows go red.
 // MUTATION: (internal/le/repo/inventory/methods.go,
 // "if variadic, ok := field.Type.(*ast.Ellipsis); ok {",

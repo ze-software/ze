@@ -11,6 +11,9 @@ import (
 )
 
 const registrationPackage = "internal/component/plugin/registry"
+const moduleRegistrationPackage = "internal/component/config/yang"
+const registrationFunction = "Register"
+const moduleRegistrationFunction = "RegisterModule"
 
 // registeredPlugin retains report-only metadata that Plugin's published shape
 // does not carry, without dropping the family support fields of Inventory.
@@ -76,8 +79,8 @@ func (s *Snapshot) declaredRegistrations() (*registrations, error) {
 
 func sortedRegistrations(reader *registrations) []registeredPlugin {
 	result := make([]registeredPlugin, 0, len(reader.plugins))
-	for _, registration := range reader.plugins {
-		result = append(result, registration)
+	for name := range reader.plugins {
+		result = append(result, reader.plugins[name])
 	}
 	slices.SortFunc(result, func(a, b registeredPlugin) int { return strings.Compare(a.plugin.Name, b.plugin.Name) })
 	return result
@@ -269,13 +272,13 @@ func (r *registrations) children(node ast.Node, function initializationScope, co
 
 func (r *registrations) registryCall(callee sourceExpr) bool {
 	if name, unqualified := callee.value.(*ast.Ident); unqualified {
-		return callee.pkg.dir == registrationPackage && name.Name == "Register"
+		return callee.pkg.dir == registrationPackage && name.Name == registrationFunction
 	}
 	selector, ok := callee.value.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	if selector.Sel.Name != "Register" {
+	if selector.Sel.Name != registrationFunction {
 		return false
 	}
 	directory, imported := r.eval.callableImport(callee, selector)
@@ -287,20 +290,20 @@ func (r *registrations) registryCall(callee sourceExpr) bool {
 
 func (r *registrations) moduleCall(callee sourceExpr) bool {
 	if name, unqualified := callee.value.(*ast.Ident); unqualified {
-		return callee.pkg.dir == "internal/component/config/yang" && name.Name == "RegisterModule"
+		return callee.pkg.dir == moduleRegistrationPackage && name.Name == moduleRegistrationFunction
 	}
 	selector, ok := callee.value.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	if selector.Sel.Name != "RegisterModule" {
+	if selector.Sel.Name != moduleRegistrationFunction {
 		return false
 	}
 	directory, imported := r.eval.callableImport(callee, selector)
 	if !imported {
 		return false
 	}
-	return directory == "internal/component/config/yang"
+	return directory == moduleRegistrationPackage
 }
 
 func (r *registrations) registerModule(call *ast.CallExpr, function initializationScope) error {
@@ -398,7 +401,10 @@ func (r *registrations) refuseMutation(name *ast.Ident, function initializationS
 					continue
 				}
 				owner, ok := field.X.(*ast.Ident)
-				if ok && owner.Obj == name.Obj && owner.Name == name.Name {
+				if !ok {
+					continue
+				}
+				if sameBinding(owner, name, sourceExpr{file: function.file, pkg: function.pkg}) {
 					result = r.eval.problem(sourceExpr{value: left, file: function.file, pkg: function.pkg}, "registration metadata is mutated after declaration")
 				}
 			}

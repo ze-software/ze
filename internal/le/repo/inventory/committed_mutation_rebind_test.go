@@ -65,7 +65,8 @@ func writeRemote() { names.DirectRemote = 11 }
 	// MUTATION: replace `if rebindsLocal(target, reference, file.file) {` with
 	// `if true {` in declarationMutationFile.writes, and every write below is
 	// skipped. For DirectLocal alone, replacing
-	// `return file.Scope.Lookup(name.Name) != object` with `return true` in
+	// `return binding.scope != reference.pkg.snapshot.lexical.packages[binding.pkg]`
+	// with `return true` in
 	// rebindsLocal also turns it red: the package declaration reads as a local.
 	for _, scenario := range []struct {
 		directory string

@@ -39,31 +39,41 @@ func (e *expression) target(source sourceExpr) (sourceExpr, error) {
 	case *ast.ParenExpr:
 		return sourceExpr{value: node.X, file: source.file, pkg: source.pkg}, nil
 	case *ast.Ident:
-		if node.Obj != nil {
-			switch declaration := node.Obj.Decl.(type) {
+		binding := sourceBinding(source, node)
+		if binding != nil {
+			if binding.pkg == nil {
+				return sourceExpr{}, e.problem(source, "predeclared expression has no retained declaration initializer")
+			}
+			if binding.scope == e.snapshot.lexical.packages[binding.pkg] {
+				if value, known := binding.pkg.values[binding.ident.Name]; known {
+					return value, nil
+				}
+			}
+			switch declaration := binding.node.(type) {
 			case *ast.AssignStmt:
 				for index, left := range declaration.Lhs {
 					name, ok := left.(*ast.Ident)
-					if ok && name.Name == node.Name && index < len(declaration.Rhs) {
-						return sourceExpr{value: declaration.Rhs[index], file: source.file, pkg: source.pkg, name: node.Name}, nil
+					if !ok {
+						continue
+					}
+					if name != binding.ident {
+						continue
+					}
+					if index < len(declaration.Rhs) {
+						return sourceExpr{value: declaration.Rhs[index], file: binding.file, pkg: binding.pkg, name: node.Name}, nil
 					}
 				}
 			case *ast.ValueSpec:
 				for index, name := range declaration.Names {
-					if name.Name == node.Name && index < len(declaration.Values) {
-						return sourceExpr{value: declaration.Values[index], file: source.file, pkg: source.pkg, name: node.Name}, nil
+					if name != binding.ident {
+						continue
+					}
+					if index < len(declaration.Values) {
+						return sourceExpr{value: declaration.Values[index], file: binding.file, pkg: binding.pkg, name: node.Name}, nil
 					}
 				}
 			}
-			if binding := callablePackageBinding(source.pkg, node.Name); binding == node.Obj {
-				if value, known := source.pkg.values[node.Name]; known {
-					return value, nil
-				}
-			}
 			return sourceExpr{}, e.problem(source, "local declaration ownership is unresolved")
-		}
-		if value, known := source.pkg.values[node.Name]; known {
-			return value, nil
 		}
 	case *ast.SelectorExpr:
 		dir, imported := e.callableImport(source, node)
@@ -72,6 +82,10 @@ func (e *expression) target(source sourceExpr) (sourceExpr, error) {
 		}
 		pkg, known := e.snapshot.packages[dir]
 		if !known {
+			break
+		}
+		binding := callablePackageBinding(pkg, node.Sel.Name)
+		if binding == nil {
 			break
 		}
 		if value, known := pkg.values[node.Sel.Name]; known {
@@ -93,13 +107,15 @@ func (e *expression) function(source sourceExpr) (sourceFunction, bool) {
 func (e *expression) declaredFunction(source sourceExpr) (sourceFunction, bool) {
 	switch node := source.value.(type) {
 	case *ast.Ident:
-		if node.Obj != nil {
-			if node.Obj.Kind != ast.Fun {
-				return sourceFunction{}, false
-			}
+		binding := sourceBinding(source, node)
+		if binding == nil {
+			return sourceFunction{}, false
 		}
-		function, found := source.pkg.functions[node.Name]
-		return function, found
+		if binding.kind != lexicalFunction {
+			return sourceFunction{}, false
+		}
+		declaration, found := binding.node.(*ast.FuncDecl)
+		return sourceFunction{decl: declaration, file: binding.file, pkg: binding.pkg}, found
 	case *ast.SelectorExpr:
 		dir, imported := e.callableImport(source, node)
 		if !imported {
@@ -109,8 +125,15 @@ func (e *expression) declaredFunction(source sourceExpr) (sourceFunction, bool) 
 		if !found {
 			return sourceFunction{}, false
 		}
-		function, found := pkg.functions[node.Sel.Name]
-		return function, found
+		binding := callablePackageBinding(pkg, node.Sel.Name)
+		if binding == nil {
+			return sourceFunction{}, false
+		}
+		if binding.kind != lexicalFunction {
+			return sourceFunction{}, false
+		}
+		declaration, found := binding.node.(*ast.FuncDecl)
+		return sourceFunction{decl: declaration, file: binding.file, pkg: binding.pkg}, found
 	}
 	return sourceFunction{}, false
 }

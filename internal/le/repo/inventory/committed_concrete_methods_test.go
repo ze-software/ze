@@ -153,7 +153,9 @@ func TestCommittedConcreteMethodsDoNotBorrowRegistrationAPIs(t *testing.T) {
 				fixture := callableOwnerFixture(t, kind, scenario)
 				fixture.goFile(t, callableOwnerCaller, callableOwnerSource(scenario, scenario.call))
 				commitInventoryFixture(t, fixture.root)
-				callableOwnerOutcome(t, fixture, kind, false)
+				if _, _, err := callableOwnerOutcome(t, fixture, kind, false); err != nil {
+					t.Fatalf("shadowed concrete method lost its owner: %v", err)
+				}
 			})
 		}
 	}

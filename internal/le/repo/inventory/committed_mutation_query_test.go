@@ -96,10 +96,22 @@ func mutationQueryGlobal(t *testing.T, snapshot *Snapshot, directory, name strin
 	t.Helper()
 	pkg := snapshot.packages[directory]
 	for _, file := range pkg.files {
-		if object := file.File.Scope.Lookup(name); object != nil {
-			identifier := ast.NewIdent(name)
-			identifier.Obj = object
-			return sourceExpr{value: identifier, file: file.File, pkg: pkg}
+		for _, declaration := range file.File.Decls {
+			block, ok := declaration.(*ast.GenDecl)
+			if !ok {
+				continue
+			}
+			for _, spec := range block.Specs {
+				values, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for _, identifier := range values.Names {
+					if identifier.Name == name {
+						return sourceExpr{value: identifier, file: file.File, pkg: pkg}
+					}
+				}
+			}
 		}
 	}
 	t.Fatalf("authored global %s.%s was not selected", directory, name)

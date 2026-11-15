@@ -10,6 +10,7 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"path"
 	"slices"
@@ -43,9 +44,11 @@ type Snapshot struct {
 	fset        *token.FileSet
 	packages    map[string]*sourcePackage
 	gates       pluginimports.GateIndex
+	lexical     *lexicalIndex
 }
 
 type sourcePackage struct {
+	snapshot          *Snapshot
 	dir               string
 	name              string
 	files             []SourceFile
@@ -61,6 +64,9 @@ type sourceExpr struct {
 	file  *ast.File
 	pkg   *sourcePackage
 	name  string
+	// universe is present only for an inferred predeclared type. Its synthetic
+	// spelling is never submitted to the retained-source ownership index.
+	universe *types.TypeName
 }
 
 type sourceFunction struct {
@@ -115,6 +121,7 @@ func ReadCommitted(ctx context.Context, root string) (*Snapshot, error) {
 		return nil, err
 	}
 	slices.SortFunc(snapshot.files, func(a, b SourceFile) int { return strings.Compare(a.Path, b.Path) })
+	snapshot.indexLexical()
 	return snapshot, nil
 }
 
@@ -228,7 +235,7 @@ func (s *Snapshot) selectPackage(dir string, context *build.Context) error {
 		if !match {
 			continue
 		}
-		file, err := parser.ParseFile(s.fset, name, s.blobs[name], parser.ParseComments)
+		file, err := parser.ParseFile(s.fset, name, s.blobs[name], parser.ParseComments|parser.SkipObjectResolution)
 		if err != nil {
 			return fmt.Errorf("parse committed source %s: %w", name, err)
 		}

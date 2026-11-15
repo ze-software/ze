@@ -170,14 +170,11 @@ func declaredMethods(definition *ast.TypeSpec, owner *sourcePackage, name string
 			if !ok {
 				continue
 			}
-			binding := typeName.Obj
-			if binding == nil {
-				binding = callablePackageBinding(owner, typeName.Name)
-			}
+			binding, _ := owner.snapshot.binding(file.File, typeName)
 			if binding == nil {
 				continue
 			}
-			if binding.Decl != definition {
+			if binding.node != definition {
 				continue
 			}
 			methods = append(methods, sourceFunction{decl: function, file: file.File, pkg: owner})

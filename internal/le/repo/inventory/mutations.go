@@ -4,14 +4,13 @@ package repoinventory
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 )
 
 type declarationReference struct {
-	pkg   *sourcePackage
-	file  *ast.File
-	name  string
-	local *ast.Object
+	pkg     *sourcePackage
+	file    *ast.File
+	name    string
+	binding *lexicalDeclaration
 }
 
 type mutationCheck uint8
@@ -28,6 +27,9 @@ const (
 func (e *expression) immutable(source sourceExpr) error {
 	reference, found, constant := e.reference(source)
 	if !found {
+		if _, named := source.value.(*ast.Ident); named {
+			return e.problem(source, "declaration input has unresolved mutation ownership")
+		}
 		return nil
 	}
 	if constant {
@@ -50,50 +52,32 @@ func (e *expression) callableImmutable(source sourceExpr) error {
 }
 
 func (e *expression) reference(source sourceExpr) (declarationReference, bool, bool) {
-	var name string
-	pkg := source.pkg
-	var local *ast.Object
+	var binding *lexicalDeclaration
 	switch node := source.value.(type) {
 	case *ast.Ident:
-		name = node.Name
-		local = node.Obj
+		binding = sourceBinding(source, node)
 	case *ast.SelectorExpr:
 		directory, imported := e.callableImport(source, node)
 		if !imported {
 			return e.reference(sourceExpr{value: node.X, file: source.file, pkg: source.pkg})
 		}
-		var found bool
-		pkg, found = e.snapshot.packages[directory]
+		pkg, found := e.snapshot.packages[directory]
 		if !found {
 			return declarationReference{}, false, false
 		}
-		name = node.Sel.Name
+		binding = callablePackageBinding(pkg, node.Sel.Name)
 	default:
 		return declarationReference{}, false, false
 	}
-	for _, file := range pkg.files {
-		for _, declaration := range file.File.Decls {
-			group, ok := declaration.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			for _, spec := range group.Specs {
-				value, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-				for _, declared := range value.Names {
-					if declared.Name == name && (local == nil || declared.Obj == local) {
-						return declarationReference{pkg: pkg, file: file.File, name: name}, true, group.Tok == token.CONST
-					}
-				}
-			}
+	if binding == nil {
+		return declarationReference{}, false, false
+	}
+	if binding.kind != lexicalVariable {
+		if binding.kind != lexicalConstant {
+			return declarationReference{}, false, false
 		}
 	}
-	if local != nil {
-		return declarationReference{pkg: pkg, file: source.file, name: name, local: local}, true, local.Kind == ast.Con
-	}
-	return declarationReference{}, false, false
+	return declarationReference{pkg: binding.pkg, file: binding.file, name: binding.ident.Name, binding: binding}, true, binding.kind == lexicalConstant
 }
 
 func (e *expression) writes(reference declarationReference, check mutationCheck) error {
@@ -133,48 +117,36 @@ func refersTo(value ast.Expr, reference declarationReference, pkg *sourcePackage
 	}
 	switch node := value.(type) {
 	case *ast.Ident:
-		if reference.local != nil {
-			if node.Obj == reference.local {
-				return true
-			}
-		} else if pkg == reference.pkg && node.Name == reference.name {
-			if node.Obj == nil {
-				return true
-			}
-			if _, global := pkg.values[node.Name]; global {
-				if spec, ok := node.Obj.Decl.(*ast.ValueSpec); ok {
-					for _, declaration := range file.Decls {
-						group, ok := declaration.(*ast.GenDecl)
-						if !ok {
-							continue
-						}
-						for _, candidate := range group.Specs {
-							if candidate == spec {
-								return true
-							}
-						}
-					}
-				}
-			}
+		binding, known := pkg.snapshot.binding(file, node)
+		if !known {
+			occurrence := pkg.snapshot.lexical.identifiers[node]
+			// An unresolved write or alias cannot prove this declaration safe.
+			return occurrence.lexical
 		}
-		if node.Obj != nil {
-			switch declaration := node.Obj.Decl.(type) {
+		if binding == reference.binding {
+			return true
+		}
+		if binding.kind == lexicalConstant {
+			return false
+		}
+		if binding.kind == lexicalVariable {
+			switch declaration := binding.node.(type) {
 			case *ast.AssignStmt:
 				for index, left := range declaration.Lhs {
 					name, ok := left.(*ast.Ident)
 					if !ok {
 						continue
 					}
-					if name.Obj != node.Obj {
+					if name != binding.ident {
 						continue
 					}
 					if index < len(declaration.Rhs) {
-						return refersTo(declaration.Rhs[index], reference, pkg, file, depth+1)
+						return refersTo(declaration.Rhs[index], reference, binding.pkg, binding.file, depth+1)
 					}
 				}
 			case *ast.ValueSpec:
 				for index, name := range declaration.Names {
-					if name.Obj != node.Obj {
+					if name != binding.ident {
 						continue
 					}
 					if len(declaration.Values) == 0 {
@@ -183,17 +155,21 @@ func refersTo(value ast.Expr, reference declarationReference, pkg *sourcePackage
 					if len(declaration.Names) != len(declaration.Values) {
 						return true
 					}
-					return refersTo(declaration.Values[index], reference, pkg, file, depth+1)
+					return refersTo(declaration.Values[index], reference, binding.pkg, binding.file, depth+1)
 				}
 			}
 		}
 	case *ast.SelectorExpr:
-		if owner, ok := node.X.(*ast.Ident); ok && reference.local == nil {
-			lexicalImport := owner.Obj == nil
-			if owner.Obj != nil {
-				lexicalImport = owner.Obj.Kind == ast.Pkg
-			}
-			if lexicalImport {
+		if owner, ok := node.X.(*ast.Ident); ok {
+			binding, known := pkg.snapshot.binding(file, owner)
+			if !known {
+				if node.Sel.Name == reference.name {
+					return true
+				}
+			} else if binding.kind == lexicalImport {
+				if reference.binding.scope != pkg.snapshot.lexical.packages[reference.pkg] {
+					return false
+				}
 				if pkg.imports[file][owner.Name] == reference.pkg.dir {
 					if node.Sel.Name == reference.name {
 						return true

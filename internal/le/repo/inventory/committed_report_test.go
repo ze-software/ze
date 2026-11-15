@@ -46,13 +46,13 @@ func TestCollectUsesCommittedSourcesForEveryReportArea(t *testing.T) {
 	if inv.Families["ipv4/unicast"] != "thing" || inv.Capabilities["64"] != "thing" {
 		t.Errorf("report lost committed family/capability maps: %v %v", inv.Families, inv.Capabilities)
 	}
-	if len(inv.FamilySupport) != 1 {
-		t.Errorf("report family-support rows = %+v", inv.FamilySupport)
-	} else {
+	if len(inv.FamilySupport) == 1 {
 		family := inv.FamilySupport[0]
 		if family.Family != "ipv4/unicast" || family.Plugin != "thing" || !family.Decode || !family.Encode || !family.RouteEncode || !family.ConfigNLRI {
 			t.Errorf("report dropped committed family-support fields: %+v", family)
 		}
+	} else {
+		t.Errorf("report family-support rows = %+v", inv.FamilySupport)
 	}
 	if inv.TotalRPCs != 3 || inv.RPCsByModule["thing.yang"] != 2 || inv.coveredRPCs() != 2 {
 		t.Errorf("report read dirty RPC/coverage source: %+v", inv.RPCList)

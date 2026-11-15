@@ -161,7 +161,7 @@ func (e *expression) familyProjection(function sourceFunction, source sourceExpr
 	if !ok {
 		return problem()
 	}
-	if !sameBinding(set, rangedSet) {
+	if !sameBinding(set, rangedSet, sourceExpr{file: function.file, pkg: function.pkg}) {
 		return problem()
 	}
 	index, ok := iteration.Key.(*ast.Ident)
@@ -197,10 +197,10 @@ func (e *expression) familyProjection(function sourceFunction, source sourceExpr
 	if !ok {
 		return problem()
 	}
-	if !sameBinding(names, targetNames) {
+	if !sameBinding(names, targetNames, sourceExpr{file: function.file, pkg: function.pkg}) {
 		return problem()
 	}
-	if !sameBinding(index, targetIndex) {
+	if !sameBinding(index, targetIndex, sourceExpr{file: function.file, pkg: function.pkg}) {
 		return problem()
 	}
 	conversion, ok := assignment.Rhs[0].(*ast.CallExpr)
@@ -221,7 +221,7 @@ func (e *expression) familyProjection(function sourceFunction, source sourceExpr
 	if method.Sel.Name != "String" {
 		return problem()
 	}
-	if !sameBinding(family, receiver) {
+	if !sameBinding(family, receiver, sourceExpr{file: function.file, pkg: function.pkg}) {
 		return problem()
 	}
 	returned, ok := body[2].(*ast.ReturnStmt)
@@ -235,7 +235,7 @@ func (e *expression) familyProjection(function sourceFunction, source sourceExpr
 	if !ok {
 		return problem()
 	}
-	if !sameBinding(names, resultName) {
+	if !sameBinding(names, resultName, sourceExpr{file: function.file, pkg: function.pkg}) {
 		return problem()
 	}
 	collection := sourceExpr{value: set, file: function.file, pkg: function.pkg}
@@ -261,8 +261,4 @@ func (e *expression) familyProjection(function sourceFunction, source sourceExpr
 		collection = resolved
 	}
 	return nil, e.problem(source, "family projection exceeds 64 declaration steps")
-}
-
-func sameBinding(a, b *ast.Ident) bool {
-	return a.Name == b.Name && a.Obj == b.Obj
 }

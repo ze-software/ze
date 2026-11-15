@@ -88,6 +88,16 @@ source rather than assuming the schema sits beside the engine.
 An expression the reader cannot resolve, an ambiguous schema source or changed
 registration metadata refuses the inventory instead of publishing a smaller
 host-dependent list. Source reads do not export or compile a checkout.
+
+The snapshot builds lexical declaration identities from its retained syntax,
+with parser object resolution disabled. Package declarations are visible across
+selected files; imports and local declarations keep their Go scopes and exact
+defining nodes. Foreign syntax, ambiguous declarations and unresolved ownership
+cannot borrow a same-named package or predeclared binding. Inferred default
+types carry explicit universe provenance, so a source shadow cannot change them.
+The index changes no retained syntax and does not load host package types.
+<!-- source: internal/le/repo/inventory/lexical.go -- Snapshot.indexLexical, Snapshot.binding -->
+<!-- source: internal/le/repo/inventory/lexical_scope.go -- lexicalWalker -->
 <!-- source: internal/le/repo/inventory/source.go -- ReadCommitted, linuxContext, Snapshot.selectPackage -->
 <!-- source: internal/le/repo/inventory/expressions.go -- expression.text, expression.texts -->
 <!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, Snapshot.walkRegistrations, registrations.metadata -->
@@ -104,7 +114,7 @@ among them is read, and no body is followed for the call itself. A registration
 reached only through such a call is not in the declared list, and the
 comparison with the built `ze`'s registry names that missing plugin. This is
 not a method or value interpreter. Following a callable initializer also requires an immutable binding: a reused
-short declaration is a write to its existing object, and an escaping address
+short declaration is a write to its existing declaration, and an escaping address
 leaves the call opaque rather than guessing which function a pointer write
 installs. A local closure `name := func(...) {...}` whose name is used only as
 a callee executes its own literal; any other use of the name (a copy, a
@@ -197,7 +207,7 @@ fixture's source the way an interpreter would.
 | Check | What it refuses | Where it runs |
 |-------|-----------------|---------------|
 | The registry seal | A registration after `ze` has started: `registry.Seal` runs before the first command dispatches, and every registering function refuses once it has run | Every `ze` process |
-| The registration-sites check | A reference to a registering function outside initialization in a `register*.go` file, or one used as a value (an alias, a field, an element, a returned callable) | `./le plugin registration-sites check`, a stage of the verify engine |
+| The registration-sites check | A reference to a registering function outside initialization in a `register*.go` file, one used as a value (an alias, a field, an element, a returned callable), or a registry qualifier whose import ownership is unresolved | `./le plugin registration-sites check`, a stage of the verify engine |
 | The built-registry comparison | A difference between the plugins the built `ze` registers and the declared list, on every field the row and the walk both carry | `TestBuiltZeRegistersTheDeclaredPlugins`, a Linux unit test |
 
 The seal confines registration to initialization, the sites check confines it

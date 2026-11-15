@@ -12,7 +12,7 @@ import (
 // immediate closure is executed membership, not an uncalled metadata callback.
 func TestCommittedPluginsFollowImmediateInitClosures(t *testing.T) {
 	root := committedFixture(t)
-	name := filepath.Join(root, "internal/plugins/example/register_linux.go")
+	name := filepath.Join(root, "internal", "plugins", "example", "register_linux.go")
 	raw, err := os.ReadFile(name)
 	if err != nil {
 		t.Fatal(err)
