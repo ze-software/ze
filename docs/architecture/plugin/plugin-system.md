@@ -59,9 +59,17 @@ that answers a value (`registry.StartOrderEdges`,
 `registry.RegisteredSessionReady`) rather than paying for the clone. Tests
 that seal take a `registry.Snapshot` first: it records the seal state,
 `Restore` puts it back, and `Reset` clears it.
+
+A transport fixture uses `registry.WrapRunnerForTest` to wrap the connection
+passed to a real engine, for example to hide `DirectBridge` and exercise JSON
+RPC. The wrapper replaces a cloned registration without resetting declarations,
+setup results or runtime seams. It must be installed before startup; its owner
+must stop and join the runner before restoring. Restoration is one-shot and
+refuses to overwrite a later declaration change. This helper is for tests only.
 <!-- source: internal/component/plugin/registry/seal.go -- Seal, refuseSealedLocked, panicIfSealedLocked, ErrRegistrySealed -->
 <!-- source: internal/component/plugin/registry/registration_clone.go -- cloneRegistration, cloneDoctorCheck -->
 <!-- source: internal/component/plugin/registry/registry.go -- Lookup, All, ClaimsFor, ConfigRootsMap, StartOrderEdges, RegisteredSessionReady, Snapshot, Restore -->
+<!-- source: internal/component/plugin/registry/runner.go -- WrapRunnerForTest -->
 <!-- source: internal/component/plugin/registry/doctor.go -- PluginDoctorChecks -->
 <!-- source: internal/component/plugin/registry/seal_test.go -- TestEveryRegistryWriterIsGuardedOrASeam -->
 <!-- source: cmd/ze/main.go -- main -->

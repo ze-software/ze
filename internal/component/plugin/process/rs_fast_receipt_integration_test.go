@@ -36,13 +36,17 @@ func TestRSFastReceiptRecipientExactlyOnce(t *testing.T) {
 	for _, mode := range []string{"direct", "ipc"} {
 		t.Run(mode, func(t *testing.T) {
 			if mode == "ipc" {
-				reg := registry.Lookup("bgp-rs")
-				if reg == nil {
-					t.Fatal("native fixture has no registered route-server runner")
+				restore, err := registry.WrapRunnerForTest("bgp-rs", func(conn net.Conn) net.Conn {
+					return &rsFastReceiptIPCConn{Conn: conn}
+				})
+				if err != nil {
+					t.Fatal(err)
 				}
-				original := reg.RunEngine
-				reg.RunEngine = func(conn net.Conn) int { return original(&rsFastReceiptIPCConn{Conn: conn}) }
-				t.Cleanup(func() { reg.RunEngine = original })
+				t.Cleanup(func() {
+					if err := restore(); err != nil {
+						t.Error(err)
+					}
+				})
 			}
 			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 			defer cancel()
@@ -242,7 +246,7 @@ func rsReceiptSubjectID(delivery process.EventDelivery) (uint64, bool, error) {
 		return 0, false, nil
 	}
 	text := delivery.Output
-	if len(text) > 0 && text[0] == '{' {
+	if text != "" && text[0] == '{' {
 		envelope, err := rpc.ParseEventEnvelope(text)
 		if err != nil {
 			return 0, false, err

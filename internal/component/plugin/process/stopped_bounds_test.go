@@ -17,12 +17,57 @@ import (
 // subject), false when there is none.
 func raisedError(code, subject string) (report.Issue, bool) {
 	errs := report.Errors(0)
-	for i := len(errs) - 1; i >= 0; i-- {
-		if errs[i].Code == code && errs[i].Subject == subject {
-			return errs[i], true
+	for _, event := range errs {
+		if event.Code == code && event.Subject == subject {
+			return event, true
 		}
 	}
 	return report.Issue{}, false
+}
+
+// TestRaisedErrorReturnsNewestMatchingEvent proves raisedError returns the
+// newest matching bus event by raising two matches followed by newer events
+// with a different code or subject. Missing matches must remain absent.
+func TestRaisedErrorReturnsNewestMatchingEvent(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	const code = "test-stopped"
+	const subject = "test-plugin"
+	report.RaiseError("plugin", code, subject, "older matching event")
+	report.RaiseError("plugin", code, subject, "newest matching event",
+		map[string]any{"event": "newest"})
+	report.RaiseError("plugin", "test-unrelated", subject, "newer different code")
+	report.RaiseError("plugin", code, "other-plugin", "newer different subject")
+
+	event, ok := raisedError(code, subject)
+	if !ok {
+		t.Fatal("raisedError found no matching event after two were raised")
+	}
+	if event.Message != "newest matching event" {
+		t.Errorf("raisedError message = %q, want newest matching event", event.Message)
+	}
+	if event.Source != "plugin" {
+		t.Errorf("raisedError source = %q, want plugin", event.Source)
+	}
+	if event.Code != code {
+		t.Errorf("raisedError code = %q, want %q", event.Code, code)
+	}
+	if event.Subject != subject {
+		t.Errorf("raisedError subject = %q, want %q", event.Subject, subject)
+	}
+	if event.Severity != report.SeverityError {
+		t.Errorf("raisedError severity = %v, want error", event.Severity)
+	}
+	if event.Detail["event"] != "newest" {
+		t.Errorf("raisedError detail = %v, want newest event detail", event.Detail)
+	}
+	if _, found := raisedError("missing-code", subject); found {
+		t.Error("raisedError found an event for a missing code")
+	}
+	if _, found := raisedError(code, "missing-subject"); found {
+		t.Error("raisedError found an event for a missing subject")
+	}
 }
 
 // TestStopWithLongDetailStillRaises proves a stop whose detail is longer than

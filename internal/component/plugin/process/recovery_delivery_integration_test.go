@@ -83,12 +83,17 @@ func recoveryDeliveryScenario(t *testing.T, mode string, target, delayed bool) {
 	lookup := make(chan struct{})
 	var ipcCommands atomic.Int32
 	if mode == "ipc" {
-		reg := registry.Lookup("bgp-rib")
-		original := reg.RunEngine
-		reg.RunEngine = func(conn net.Conn) int {
-			return original(&recoveryIPCConn{Conn: conn, lookup: lookup, commands: &ipcCommands, match: recoveryDepartureCommand})
+		restore, err := registry.WrapRunnerForTest("bgp-rib", func(conn net.Conn) net.Conn {
+			return &recoveryIPCConn{Conn: conn, lookup: lookup, commands: &ipcCommands, match: recoveryDepartureCommand}
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-		t.Cleanup(func() { reg.RunEngine = original })
+		t.Cleanup(func() {
+			if err := restore(); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 	r, srv, peers := recoveryDeliveryRouter(t, ctx)
 	owner := ribevents.RecoveryProvider()
@@ -797,7 +802,7 @@ func recoveryWaitAnnouncement(t *testing.T, ctx context.Context, peer *recoveryT
 	for {
 		update := recoveryNextUpdate(t, ctx, peer)
 		if bytes.Equal(update.WithdrawnRoutes, []byte{24, 203, 0, 114}) {
-			t.Fatal("surviving target was withdrawn before replacement")
+			t.Fatalf("surviving target was withdrawn while waiting for 203.0.%d.0/24 from source %d with path length %d at recipient %s", prefix, source, pathLength, peer.conn.LocalAddr())
 		}
 		if !bytes.Equal(update.NLRI, []byte{24, 203, 0, prefix}) {
 			continue
