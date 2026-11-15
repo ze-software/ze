@@ -136,6 +136,54 @@ func TestConfirmWindowSaveFailureAppliesNothing(t *testing.T) {
 	assert.Equal(t, before.Deadline, after.Deadline, "the countdown is unchanged")
 }
 
+// TestConfirmWindowDeadlineRecordFailureKeepsWindow proves a commit that
+// applied, and whose record then cannot be saved with the deadline its
+// countdown started at, keeps a revert behind it. Method: the store fails
+// every save from inside Apply on, so the pre-apply save lands and the
+// post-apply one fails, for a window the commit opens and for a forced nested
+// commit. The answer must name ErrDeadlineNotRecorded and the store's error,
+// the commit stays applied, the window is open, the record from before the
+// apply still holds the first rollback, and the owner's abort reverts it.
+func TestConfirmWindowDeadlineRecordFailureKeepsWindow(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		name := "open"
+		if force {
+			name = "force"
+		}
+		t.Run(name, func(t *testing.T) {
+			d := &faultyDaemon{fakeDaemon: newFakeDaemon("v1")}
+			w := newFaultyWindow(t, d, 3)
+			if force {
+				require.NoError(t, w.Confirmed("alice", time.Hour, false, d.commit("v2")))
+			}
+
+			commit := d.commit("v3")
+			apply := commit.Apply
+			commit.Apply = func() error {
+				d.set(true, 0)
+				return apply()
+			}
+			err := w.Confirmed("alice", time.Minute, force, commit)
+			require.ErrorIs(t, err, ErrDeadlineNotRecorded)
+			require.ErrorIs(t, err, errInjectedSave)
+			assert.Equal(t, "v3", d.config(), "the commit applied")
+
+			status, open := w.Status()
+			require.True(t, open, "an applied commit keeps its window, so it can still revert")
+			assert.Equal(t, "alice", status.User)
+			assert.Positive(t, status.Left())
+			saved := d.saved()
+			require.NotNil(t, saved, "the record from before the apply stays, so a restart still reverts")
+			assert.Equal(t, "v1", string(saved.Rollback))
+
+			require.NoError(t, w.Abort("alice"))
+			assert.Equal(t, "v1", d.config())
+			_, open = w.Status()
+			assert.False(t, open)
+		})
+	}
+}
+
 // TestConfirmWindowApplyFailureClearsRecord proves a commit that fails to
 // apply leaves no record, so a restart reverts nothing it never applied.
 func TestConfirmWindowApplyFailureClearsRecord(t *testing.T) {

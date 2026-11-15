@@ -30,6 +30,15 @@ var (
 		"' to add changes and reset the countdown")
 	// ErrNoWindow refuses `commit accept` and `commit abort` with no window open.
 	ErrNoWindow = errors.New("no confirmed commit is pending")
+	// ErrDeadlineNotRecorded answers a confirmed commit that applied, and
+	// whose window is open and counting down, when the record could not be
+	// saved again with the deadline the countdown started at. The record the
+	// window saved before the apply is still in the store, so a restart still
+	// reverts the commit; only its deadline is the one from before the apply.
+	ErrDeadlineNotRecorded = errors.New("the confirmed commit applied and its countdown is running, " +
+		"but the store could not record its new deadline (a restart still reverts the commit): use '" +
+		contract.CommitCommand(contract.CommitAccept) + "' to keep it or '" +
+		contract.CommitCommand(contract.CommitAbort) + "' to revert it")
 	// ErrStopped answers every call once the window's worker has stopped.
 	ErrStopped = errors.New("the confirmed-commit window is stopped")
 )
@@ -340,7 +349,9 @@ func (w *Window) Now(user string, commit Commit) error {
 // Confirmed runs `commit confirmed <seconds> [force]`. With no window it
 // snapshots the running config, applies, and opens a window for user. Inside
 // the owner's window it is refused unless force, which applies, keeps the
-// first rollback, and restarts the countdown at seconds (AC-23).
+// first rollback, and restarts the countdown at seconds, counted from when
+// the new changes have applied (AC-23). An answer wrapping
+// ErrDeadlineNotRecorded is a commit that applied with its window open.
 func (w *Window) Confirmed(user string, seconds time.Duration, force bool, commit Commit) error {
 	return w.do(func() error {
 		if w.pending == nil {
@@ -358,19 +369,18 @@ func (w *Window) Confirmed(user string, seconds time.Duration, force bool, commi
 		if err := w.record.Save(next); err != nil {
 			return err
 		}
-		if err := w.applyArmed(next, commit); err != nil {
-			return errors.Join(err, w.record.Save(previous))
-		}
-		return nil
+		return w.applyArmed(next, seconds, commit, func() error { return w.record.Save(previous) })
 	})
 }
 
 // open snapshots the running config and opens a window over commit. The
 // record is saved BEFORE the commit applies, so no commit is ever applied
 // with no revert behind it: a failed save applies nothing, and a daemon that
-// dies after the apply boots the rollback (AC-19). A commit that fails to
-// apply clears the record again; one whose apply panics opens the window
-// (applyArmed). Called on the worker.
+// dies during or after the apply boots the rollback (AC-19). The deadline
+// that record carries is provisional: the countdown starts once the apply has
+// completed (applyArmed). A commit that fails to apply clears the record
+// again; one whose apply panics opens the window (applyArmed). Called on the
+// worker.
 func (w *Window) open(user string, seconds time.Duration, commit Commit) error {
 	rollback, err := commit.Snapshot()
 	if err != nil {
@@ -380,40 +390,58 @@ func (w *Window) open(user string, seconds time.Duration, commit Commit) error {
 	if err := w.record.Save(p); err != nil {
 		return err
 	}
-	if err := w.applyArmed(p, commit); err != nil {
-		return errors.Join(err, w.record.Clear())
-	}
-	return nil
+	return w.applyArmed(p, seconds, commit, w.record.Clear)
 }
 
 // applyArmed applies commit, whose window p is already recorded, and arms p
-// once it applies. An Apply that panics may have applied part of the commit,
-// and p is on disk, so p is armed on the way out as well: its deadline, or
-// the owner's abort, reverts what applied, as a restart would. Without it the
-// part-applied commit would stay with no revert behind it, and the record
-// left on disk would revert every later write at the next start. An error
-// Apply returns leaves p unarmed, and the caller puts the record back. Called
-// on the worker.
-func (w *Window) applyArmed(p Pending, commit Commit) error {
-	panicked := true
+// once it applies. The countdown starts when Apply returns, never when the
+// commit was asked for: validation and the reload can take as long as the
+// summed plugin reload budgets, and that time is not taken from the
+// operator's seconds. So a successful Apply sets p's deadline to seconds from
+// now, saves the record again with it, and arms p. A save that fails then
+// still arms p, because the commit has applied and must keep its revert: the
+// record saved before the apply holds the rollback, so a restart still
+// reverts, and the answer is ErrDeadlineNotRecorded joined with the save's
+// error, so the operator learns the store refused a write.
+//
+// An Apply that panics may have applied part of the commit, and p is on
+// disk, so p is armed on the way out as well, with the deadline recorded
+// before the apply: its deadline, or the owner's abort, reverts what applied,
+// as a restart would. That deadline is kept rather than restarted because the
+// commit did not complete: a part-applied config is not what the operator
+// asked for, so its revert comes no later than the one they agreed to, and
+// arming needs no store write the unwinding panic could not report. Without
+// the arm the part-applied commit would stay with no revert behind it, and
+// the record left on disk would revert every later write at the next start.
+//
+// An error Apply returns leaves p unarmed, and unrecord puts back the record
+// the window had before: a cleared record when the commit opened the window,
+// the previous deadline when it was nested. Called on the worker.
+func (w *Window) applyArmed(p Pending, seconds time.Duration, commit Commit, unrecord func() error) error {
+	unwinding := true
 	defer func() {
-		if panicked {
+		if unwinding {
 			w.arm(p)
 		}
 	}()
 
-	err := commit.Apply()
-	panicked = false
-	if err != nil {
-		return err
+	if err := commit.Apply(); err != nil {
+		unwinding = false
+		return errors.Join(err, unrecord())
 	}
+	p.Deadline = time.Now().Add(seconds)
+	recorded := w.record.Save(p)
+	unwinding = false
 	w.arm(p)
+	if recorded != nil {
+		return errors.Join(ErrDeadlineNotRecorded, recorded)
+	}
 	return nil
 }
 
-// arm makes p, already recorded, the open window and sets the timer to its
-// deadline; a failed revert of the previous deadline is forgotten, because p
-// has a deadline of its own. Called on the worker.
+// arm makes p, whose rollback is already recorded, the open window and sets
+// the timer to its deadline; a failed revert of the previous deadline is
+// forgotten, because p has a deadline of its own. Called on the worker.
 func (w *Window) arm(p Pending) {
 	if w.timer != nil {
 		w.timer.Stop()

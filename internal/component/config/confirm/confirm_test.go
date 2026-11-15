@@ -230,6 +230,76 @@ func TestConfirmWindowNestedRevertsToFirst(t *testing.T) {
 	})
 }
 
+// slowCommit is d's commit to next whose Apply takes applyTime, as a commit
+// whose validation and plugin reloads take a while does. It stores in
+// returned the moment Apply returns; the caller reads it once the window has
+// answered, which orders the read after the worker's write.
+func slowCommit(d *fakeDaemon, next string, applyTime time.Duration, returned *time.Time) Commit {
+	commit := d.commit(next)
+	apply := commit.Apply
+	commit.Apply = func() error {
+		time.Sleep(applyTime)
+		err := apply()
+		*returned = time.Now()
+		return err
+	}
+	return commit
+}
+
+// TestConfirmWindowCountdownStartsAfterApply proves the countdown of `commit
+// confirmed <seconds>` starts once the commit has applied, for a window the
+// commit opens and for the owner's forced nested commit (AC-23), so a slow
+// apply takes nothing from the operator's seconds.
+//
+// Method: an Apply that sleeps, then the deadline Status shows and the record
+// holds must be no earlier than seconds after Apply returned, and the
+// deadline revert must not come before it either. A countdown started when
+// the commit was asked for ends applyTime earlier, so it fails each check
+// whatever the machine's load: the bound is a lower one.
+func TestConfirmWindowCountdownStartsAfterApply(t *testing.T) {
+	const (
+		seconds   = 400 * time.Millisecond
+		applyTime = 300 * time.Millisecond
+	)
+	cases := []struct {
+		name  string
+		setup func(t *testing.T, w *Window, d *fakeDaemon)
+		force bool
+	}{
+		{name: "open", setup: func(*testing.T, *Window, *fakeDaemon) {}},
+		{
+			name: "force",
+			setup: func(t *testing.T, w *Window, d *fakeDaemon) {
+				require.NoError(t, w.Confirmed("alice", time.Hour, false, d.commit("v2")))
+			},
+			force: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newFakeDaemon("v1")
+			w := newTestWindow(t, d)
+			tc.setup(t, w, d)
+
+			var returned time.Time
+			require.NoError(t, w.Confirmed("alice", seconds, tc.force, slowCommit(d, "v3", applyTime, &returned)))
+			earliest := returned.Add(seconds)
+
+			status, open := w.Status()
+			require.True(t, open)
+			assert.False(t, status.Deadline.Before(earliest),
+				"the shown deadline %v is before %v, seconds after the apply returned", status.Deadline, earliest)
+			saved := d.saved()
+			require.NotNil(t, saved)
+			assert.True(t, saved.Deadline.Equal(status.Deadline),
+				"the record's deadline %v is not the shown %v", saved.Deadline, status.Deadline)
+
+			assert.Equal(t, "v1", waitRevert(t, d))
+			assert.False(t, time.Now().Before(earliest), "the window reverted before seconds had passed since the apply")
+		})
+	}
+}
+
 // TestConfirmWindowAcceptKeepsCandidateEdits proves AC-24 at the worker:
 // accept ends the window and applies nothing, so edits the owner made and did
 // not commit stay out of the daemon.

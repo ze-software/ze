@@ -707,7 +707,7 @@ from configuration mode behind `run `, and the keys are in the
 
 | Step | What happens |
 |------|-------------|
-| `commit confirmed 60` | Config saved, daemon notified, 60-second timer starts |
+| `commit confirmed 60` | Config saved, daemon notified, then, once the commit has applied, a 60-second timer starts |
 | Verify the change works | BGP sessions come up, routes propagate, etc. |
 | `commit accept` | Timer stops, config is permanent |
 | *or* `commit abort` | Config reverts immediately |
@@ -772,8 +772,9 @@ session". A web user with a page open sees the same lines in the
 notification bar, refreshed every second over the page's live-update stream:
 the countdown or whose window is pending, and how a window ended unless the
 web user closed it themselves. Inside your own window, `commit confirmed <seconds> force` applies
-your new changes and restarts the countdown at `<seconds>`; the revert still
-restores the configuration from before the first commit.
+your new changes and restarts the countdown at `<seconds>`, counted from when
+they have applied; the revert still restores the configuration from before the
+first commit.
 
 File mode (`ze config edit -f`) keeps the countdown in the editor itself
 rather than in a daemon. Inside that window, `commit now` and a plain
@@ -789,6 +790,18 @@ refuses the commit and applies nothing. If the daemon stops while the window
 is open, even just after the commit applied, the next start reverts it before
 the configuration is read, so the daemon boots the configuration from before
 the unconfirmed commit.
+
+The daemon's countdown starts when the commit has applied, not when you typed
+it: validating and reloading a large change can take a while, and that time is
+not taken from your `<seconds>`. Once the commit has applied, the record is
+saved again with the deadline the countdown started at. If that save fails,
+the commit stays applied and its window stays open and counting down, the
+record saved before the apply still makes a restart revert the commit, and
+the commit answers with the store's error and says to run `commit accept` or
+`commit abort`. A commit whose apply met a Ze defect keeps the deadline it was
+given before the apply began, so a part-applied commit reverts no later than
+the countdown you asked for.
+<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed, ErrDeadlineNotRecorded -->
 
 If the revert at the deadline fails, the window stays open and its record
 stays in the store. The daemon logs each failure and retries with a doubling
