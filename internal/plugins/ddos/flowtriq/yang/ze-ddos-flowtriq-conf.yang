@@ -46,8 +46,12 @@ module ze-ddos-flowtriq-conf {
         default "https://flowtriq.com/api/v1";
         description "Ze appends a path to this value, so a trailing slash gives a double slash in the
                      request. /agent/incidents opens and closes an incident, and /agent/heartbeat reports
-                     the baseline. Each request has a timeout of 10 seconds. After 5 failures Ze stops
-                     posting for 60 seconds, then tries again.";
+                     the baseline. The value must be an https URL that names a host, because each request
+                     carries api-key as a bearer token. Ze refuses an http URL, a loopback one included,
+                     when enabled is true. Ze follows no redirect: a 3xx answer is a failure, and its error
+                     names the Location the server answered with, so configure the final URL here. Only a
+                     2xx answer is success. Each request has a timeout of 10 seconds. After 5 failures,
+                     redirects included, Ze stops posting for 60 seconds, then tries again.";
         ze:help "Flowtriq API base URL.";
       }
     }

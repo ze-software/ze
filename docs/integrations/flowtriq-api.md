@@ -18,6 +18,19 @@ agent (v1.x). Reverse-engineered from `ftagent/agent.py`.
 Both `api_key` and `node_uuid` are configured during `ftagent --setup` and
 stored in `/etc/ftagent.conf`.
 
+Ze's reporter (`internal/plugins/ddos/flowtriq`) is stricter than ftagent about
+where the token goes. ftagent posts through Python `requests`, which follows
+redirects. Ze follows none: a 3xx answer is a failure counted on the circuit
+breaker, and its error names the Location so the operator configures the final
+`api-base`. Only a 2xx answer is success. Verify refuses an `api-base` that is
+not an https URL naming a host.
+<!-- source: internal/plugins/ddos/flowtriq/client.go -- refuseFlowtriqRedirect, redirectOf, statusSuccess -->
+<!-- source: internal/plugins/ddos/flowtriq/config.go -- validateAPIBase -->
+
+What answers success: ftagent calls `raise_for_status()` and then reads the
+JSON body, and the incident open answers its `uuid` in that body. No call
+documented here relies on a non-2xx answer.
+
 ## Circuit Breaker
 
 | Parameter | Value | Source |

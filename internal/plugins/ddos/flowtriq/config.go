@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync/atomic"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 const (
@@ -41,9 +44,13 @@ type Config struct {
 	APIBase  string `json:"api-base"`
 }
 
+// defaultAPIBase is the Flowtriq API the reporter posts to when api-base is
+// not set. The YANG default of the api-base leaf states the same URL.
+const defaultAPIBase = "https://flowtriq.com/api/v1"
+
 func DefaultConfig() *Config {
 	return &Config{
-		APIBase: "https://flowtriq.com/api/v1",
+		APIBase: defaultAPIBase,
 	}
 }
 
@@ -109,6 +116,50 @@ func (c *Config) Validate() error {
 		if c.APIBase == "" {
 			return fmt.Errorf("api-base must not be empty")
 		}
+		if err := validateAPIBase(c.APIBase); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// apiBaseWhy is why an api-base must be an https URL with a host: the reason
+// every refusal of validateAPIBase gives.
+const apiBaseWhy = "Ze sends the api-key as a bearer token, and the incident data, in every request, " +
+	"so it posts only to an https URL; over http anyone on the path reads the token"
+
+// validateAPIBase refuses an api-base that is not an https URL naming a host.
+// No http form is allowed, loopback included: nothing in Ze posts to a local
+// endpoint, and the unit tests build their client with newClient against an
+// httptest server, never through verify. url.Parse lowercases the scheme, so
+// HTTPS:// is accepted.
+func validateAPIBase(base string) error {
+	parsed, err := url.Parse(base)
+	if err != nil {
+		// The parse error quotes the raw value, which may carry a password, so
+		// the refusal does not show it.
+		return opererr.New("ddos flowtriq api-base is not a valid URL", apiBaseWhy,
+			"set ddos flowtriq api-base "+defaultAPIBase)
+	}
+	if parsed.Scheme != "https" {
+		return opererr.New("ddos flowtriq api-base "+parsed.Redacted()+" does not use https", apiBaseWhy,
+			"set ddos flowtriq api-base "+httpsAPIBase(parsed))
+	}
+	if parsed.Host == "" {
+		return opererr.New("ddos flowtriq api-base "+parsed.Redacted()+" names no host", apiBaseWhy,
+			"set ddos flowtriq api-base "+defaultAPIBase)
+	}
+	return nil
+}
+
+// httpsAPIBase answers the https form of an api-base that names a host, and
+// the default api-base for one that names none, such as a value typed without
+// a scheme, which url.Parse reads as a path.
+func httpsAPIBase(parsed *url.URL) string {
+	if parsed.Host == "" {
+		return defaultAPIBase
+	}
+	secure := *parsed
+	secure.Scheme = "https"
+	return secure.Redacted()
 }
