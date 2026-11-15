@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/ikeprobe"
@@ -449,7 +450,13 @@ func init() {
 			Check:        checkIPsecImplicitDiscard,
 		}},
 	}
-	reg.CLIHandler = func(_ []string) int { return 1 }
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.ConfigLogger = func(level string) {
+			setLogger(slogutil.PluginLogger(reg.Name, level))
+		}
+		return cli.RunPlugin(cfg, args)
+	}
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "ike: registration failed: %v\n", err)
 		os.Exit(1)

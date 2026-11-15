@@ -14,6 +14,14 @@ those answers unknown rather than drift.
 <!-- source: internal/component/ike/engine/reconcile.go -- PeerSession, reconcilePeers, startPeerSession -->
 <!-- source: internal/component/ike/engine/register.go -- runEngine, dispatchInbound, newInboundRateLimiter -->
 
+`ze plugin ike` uses the shared plugin CLI to connect to the hub through TLS
+and enter the registered IKE engine. `--log-level` selects the engine's plugin
+logger. The shared CLI answers `--features` before it connects to the hub.
+Declaration queries return from the plugin dispatcher without starting the engine.
+<!-- source: internal/component/ike/engine/register.go -- init -->
+<!-- source: internal/component/plugin/cli/cli.go -- BaseConfig, RunPlugin, connFromEnv -->
+<!-- source: internal/component/plugin/cli/main.go -- Run -->
+
 ## Decisions
 
 **An RFC 4739 second round is a second IKE_AUTH exchange, read through two

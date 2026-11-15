@@ -1,0 +1,63 @@
+# Test: a forked IKE engine returns its runtime doctor finding over TLS.
+# Spec: plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md (AC-10)
+#
+# QUESTION: does show doctor reach the real forked IKE engine's Stage 1
+# runtime check and return its unavailable-fast-path finding, with the
+# cause, severity, exact fix and complete-path cost? A direct unit dispatch
+# cannot prove the executable launch, TLS connect-back, startup declaration
+# and callback reach state held only by the child process.
+#
+# The external block uses IKE's canonical name and the actual zetest DUT's
+# ze plugin ike command. RegistryNames/hasConfiguredPlugin exclude a second,
+# auto-loaded internal IKE. The runner's bare-name shim selects this DUT for
+# ze in the run string, and startExternal preserves the backend environment
+# through ShellSafe. Thus this cause must come from the child's backend.
+# The recording backend installs no kernel state; no peer is configured, so
+# apply probes no host TUN device. This is process-boundary evidence, not a
+# BPF load, packet delivery or interoperability test.
+#
+# Before the IKE CLI handler is wired, the fork exits before it connects and
+# startup must fail this test. After that repair, removing the
+# espFormFastPathCheckDecl/answerESPFormFastPath entry from engineDoctorChecks
+# (engine/doctor_runtime.go), then rebuilding, must fail RUNTIME-OWNER below.
+# Restore the saved source and rebuild before the final passing proof.
+
+option=env:var=ze_test_ike_dataplane:value=recording-esp-form-unavailable
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=45s
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external ike {
+		run "ze plugin ike"
+		encoder json
+	}
+	external engine-steps {
+		run "le mock engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+vpn {
+	ipsec {
+		unmatched bypass
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=40s
+
+# RUNTIME-OWNER: only the forked IKE backend holds this exact cause.
+# applyJSON sorts the keys and escapes each ampersand as \u0026.
+command=show doctor config ze-bgp.conf | json
+expect=output:matches="code": ?"doctor-ipsec-esp-form-fast-path",[^}]*"fix": ?"sudo systemctl stop ze \\u0026\\u0026 sudo ze install systemd --force --start",[^}]*"message": ?"The IPsec ESP form fast path is unavailable \(the recording-esp-form-unavailable test backend loads no BPF program, as a host without CAP_BPF loads none\)[^}]*"severity": ?"warning":timeout=25
+
+# COMPLETE-PATH-COST: the surviving policy check and above-bound losses.
+expect=output:contains=Every packet is still checked against the SA's policy, but at most 5000 datagrams per second go through ze-espform: Ze's own receiver drops every datagram above that rate before XFRM sees it, so that traffic is lost.:timeout=5
+# INPUT-INTERFACE: the interface a firewall rule matches.
+expect=output:contains=A firewall rule keyed on the input interface sees ze-espform, not the link it arrived on.:timeout=5
+
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
