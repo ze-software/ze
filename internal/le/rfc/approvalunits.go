@@ -496,17 +496,32 @@ func approvalUnitTexts(path, content, name string) ([]string, error) {
 	if name == fileStem(path) {
 		return []string{content}, nil
 	}
-	var texts []string
+	// Every declaration of name in one file is one unit, joined in file order
+	// by a newline: methods of one name on several receivers (the Inc of two
+	// fake metric types) are what the weakening gate groups as one unit
+	// (weakened.unitsByName), so the approval resolves the same unit the gate
+	// flags. Split, the file would carry the unit twice and no approval of it
+	// could be recorded.
+	var text strings.Builder
+	found := false
 	units, exact := readFunctionUnits(content)
 	for _, unit := range units {
-		if unit.Name == name {
-			if !exact {
-				return nil, errors.New("approval unit " + name + " has no exact Go declaration boundary in " + path)
-			}
-			texts = append(texts, unit.Text)
+		if unit.Name != name {
+			continue
 		}
+		if !exact {
+			return nil, errors.New("approval unit " + name + " has no exact Go declaration boundary in " + path)
+		}
+		if found {
+			text.WriteByte('\n')
+		}
+		text.WriteString(unit.Text)
+		found = true
 	}
-	return texts, nil
+	if !found {
+		return nil, nil
+	}
+	return []string{text.String()}, nil
 }
 
 // approvalGit preserves blob and NUL-delimited path bytes; gitAnswer trims them.
