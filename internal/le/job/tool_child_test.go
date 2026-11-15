@@ -11,13 +11,16 @@
 // PREVENTS: a tool left running after le was hung up or sent a second
 // signal, while the registry reads le's dead PID as a free slot.
 //
-// Every case starts /bin/sh. The signal case sends signals to this test
-// process itself, which it catches too, so none of them ends the test binary.
+// The ordinary exit cases start /bin/sh; the signal case starts this test
+// executable. It sends signals to this test process itself, which catches
+// them too, so none of them ends the parent test binary.
 
 package job
 
 import (
 	"bytes"
+	"flag"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -76,25 +79,168 @@ func TestRunToolAnswersADeathBySignal(t *testing.T) {
 
 // TestRunToolForwardsEverySignalUntilTheChildExits asks whether SIGTERM,
 // then SIGHUP, then SIGQUIT sent to le each reach the child, in that order,
-// while it runs. Its method: a child that marks a file for each signal only
-// after the one before it, and exits 42 on the third; the test sends each
-// signal to itself until the child's mark for it appears, because the relay
-// is installed only once the child has started.
+// while it runs. Its method: a real child installs all three signal handlers
+// before publishing readiness, marks each signal only after the one before
+// it, and exits 42 on the third. The parent retries each signal because the
+// relay is installed only once the child has started. The parent MUST close
+// the owned control connection on every failure and MUST join the child and
+// relay before cleanup. The child's read owner MUST end when that connection
+// closes; it does not rely on the signal relay to stop.
 func TestRunToolForwardsEverySignalUntilTheChildExits(t *testing.T) {
+	if args := flag.Args(); len(args) == 4 {
+		if args[0] == "job-signal-child" {
+			deadline, err := time.Parse(time.RFC3339Nano, args[3])
+			if err != nil {
+				t.Fatal(err)
+			}
+			dialer := net.Dialer{Deadline: deadline}
+			control, err := dialer.DialContext(t.Context(), "tcp4", args[1])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := control.SetReadDeadline(deadline); err != nil {
+				if closeErr := control.Close(); closeErr != nil {
+					t.Errorf("close child control: %v", closeErr)
+				}
+				t.Fatal(err)
+			}
+			signals := make(chan os.Signal, 8)
+			signal.Notify(signals, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
+			defer signal.Stop(signals)
+			disconnected := make(chan struct{})
+			go func() {
+				defer close(disconnected)
+				var input [1]byte
+				// Every read completion stops the fixture: EOF, the original
+				// deadline, or unexpected control data.
+				if _, err := control.Read(input[:]); err == nil {
+					t.Error("unexpected child control data")
+				}
+			}()
+			defer func() {
+				if err := control.Close(); err != nil {
+					t.Errorf("close child control: %v", err)
+				}
+				<-disconnected
+			}()
+			if err := os.WriteFile(args[2]+".ready", nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			for {
+				select {
+				case <-disconnected:
+					return
+				case got := <-signals:
+					switch got {
+					case syscall.SIGTERM:
+						if err := os.WriteFile(args[2]+".term", nil, 0o600); err != nil {
+							t.Fatal(err)
+						}
+					case syscall.SIGHUP:
+						if _, err := os.Stat(args[2] + ".term"); err == nil {
+							if err := os.WriteFile(args[2]+".hup", nil, 0o600); err != nil {
+								t.Fatal(err)
+							}
+						}
+					case syscall.SIGQUIT:
+						if _, err := os.Stat(args[2] + ".hup"); err == nil {
+							os.Exit(42)
+						}
+					}
+				}
+			}
+		}
+	}
 	own := make(chan os.Signal, 8)
 	signal.Notify(own, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	t.Cleanup(func() { signal.Stop(own) })
 
 	marks := filepath.Join(t.TempDir(), "mark")
-	script := `trap 'touch "$1.term"' TERM
-trap 'test -e "$1.term" && touch "$1.hup"' HUP
-trap 'test -e "$1.hup" && exit 42' QUIT
-while :; do sleep 0.02; done`
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config net.ListenConfig
+	listener, err := config.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type acceptance struct {
+		connection net.Conn
+		err        error
+	}
+	accepted := make(chan acceptance, 1)
+	go func() {
+		defer close(accepted)
+		connection, err := listener.Accept()
+		accepted <- acceptance{connection: connection, err: err}
+	}()
+	deadline := time.Now().Add(20 * time.Second)
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	retry := time.NewTicker(50 * time.Millisecond)
+	defer retry.Stop()
 	point := centralPoint{errOut: &bytes.Buffer{}}
 	answered := make(chan int, 1)
-	go func() { answered <- point.runTool(shellTool(script, marks)) }()
+	ended := make(chan struct{})
+	go func() {
+		defer close(ended)
+		answered <- point.runTool(Tool{
+			Path: binary,
+			Argv: []string{
+				binary, "-test.run=^TestRunToolForwardsEverySignalUntilTheChildExits$",
+				"--", "job-signal-child", listener.Addr().String(), marks,
+				deadline.Format(time.RFC3339Nano),
+			},
+			Environ: os.Environ(),
+		})
+	}()
+	var control net.Conn
+	t.Cleanup(func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("close fixture listener: %v", err)
+		}
+		if control != nil {
+			if err := control.Close(); err != nil {
+				t.Errorf("stop child fixture: %v", err)
+			}
+		}
+		for result := range accepted {
+			if result.connection != nil {
+				if err := result.connection.Close(); err != nil {
+					t.Errorf("stop late child fixture: %v", err)
+				}
+			}
+		}
+		<-ended
+	})
+	select {
+	case result := <-accepted:
+		if result.err != nil {
+			t.Fatalf("accept child fixture: %v", result.err)
+		}
+		control = result.connection
+	case code := <-answered:
+		t.Fatalf("the child exited before installing its signal handlers: code %d", code)
+	case <-timer.C:
+		t.Fatal("the child never connected its cleanup control")
+	}
+	for {
+		select {
+		case code := <-answered:
+			t.Fatalf("the child exited before installing its signal handlers: code %d", code)
+		default:
+		}
+		if _, err := os.Stat(marks + ".ready"); err == nil {
+			break
+		}
+		select {
+		case <-timer.C:
+			t.Fatal("the child never installed its signal handlers")
+		case <-retry.C:
+		}
+	}
 
-	deadline := time.Now().Add(20 * time.Second)
 	steps := []struct {
 		signal syscall.Signal
 		mark   string
@@ -104,6 +250,11 @@ while :; do sleep 0.02; done`
 	}
 	for _, step := range steps {
 		for {
+			select {
+			case code := <-answered:
+				t.Fatalf("the child exited before answering %v: code %d", step.signal, code)
+			default:
+			}
 			if _, err := os.Stat(step.mark); err == nil {
 				break
 			}
