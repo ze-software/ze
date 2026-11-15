@@ -5,7 +5,7 @@ Ze, an OpenNOS
 
 Self-contained Extend with plugins Appliance option ExaBGP compatible
 
-Ze is built on a [configuration and plugin engine](https://ze-software.net/architecture/), with [pre-installed plugins](https://ze-software.net/reference/plugins/) for [BGP](https://ze-software.net/guides/bgp-peering/), [OSPF](https://ze-software.net/guides/ospf/), [IS-IS](https://ze-software.net/guides/isis/), [VPNs](https://ze-software.net/guides/ipsec/), [interfaces](https://ze-software.net/features/interfaces/), [DNS](https://ze-software.net/features/dns-resolver/), [DHCP](https://ze-software.net/reference/plugins/dhcpserver/) and [other network functions](https://ze-software.net/features/). Its single [YANG-defined configuration](https://ze-software.net/reference/configuration/) can be managed through Ze’s own [SSH server, CLI](https://ze-software.net/features/cli-commands/), [web interface](https://ze-software.net/features/web-interface/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/). You can [develop your own plugins in any programming language](https://ze-software.net/developers/plugins/) and run Ze as a [Linux daemon](https://ze-software.net/guides/ubuntu-build-install/) or an [appliance with a read-only operating system](https://ze-software.net/guides/appliance/).
+Ze is built on a [configuration and plugin engine](https://ze-software.net/architecture/), with [pre-installed plugins](https://ze-software.net/reference/plugins/) for [BGP](https://ze-software.net/guides/bgp-peering/), [OSPF](https://ze-software.net/guides/ospf/), [IS-IS](https://ze-software.net/guides/isis/), [VPNs](https://ze-software.net/guides/ipsec/), [interfaces](https://ze-software.net/features/interfaces/), [DNS](https://ze-software.net/features/dns-resolver/), [DHCP](https://ze-software.net/reference/plugins/dhcpserver/) and [other network functions](https://ze-software.net/features/). Its single [YANG-defined configuration](https://ze-software.net/reference/configuration/) can be managed through Ze’s own [SSH server, CLI](https://ze-software.net/features/cli-commands/), [web interface](https://ze-software.net/features/web-interface/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/). You can [develop your own plugins in any programming language](https://ze-software.net/developers/plugins/) and run Ze as a [Linux daemon](https://ze-software.net/guides/ubuntu-build-install/) or an [immutable OS](https://ze-software.net/guides/appliance/).
 
 [Why Ze exists →](https://ze-software.net/project/why-ze/) · Ask questions and follow development on [Discord](https://discord.gg/T8s7CjPDne).
 
@@ -53,14 +53,61 @@ Inspect BGP sessions from Ze’s own CLI.
 
 A frame from the published terminal recording. Explore the recordings in the demo gallery.
 
-Ze is built on a configuration and protocol engine. It keeps a single configuration, defined in [YANG](https://ze-software.net/features/bgp-configuration/), which you manage through its own built-in SSH server, [web interface](https://ze-software.net/features/web-interface/), [CLI](https://ze-software.net/features/cli-commands/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/): [REST](https://ze-software.net/guides/api/#rest-endpoints), [gRPC](https://ze-software.net/guides/api/#grpc-services) and [gNMI](https://ze-software.net/guides/gnmi/). You can extend Ze with plugins for automation and services of your own, and run it as a [background service (daemon)](https://ze-software.net/architecture/) or as an [appliance with a read-only operating system](https://ze-software.net/guides/appliance/).
-
  [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
 **Planned release** Initial version
 Q4 2026
 
  [**1.66 million** lines of Go source code](https://ze-software.net/project/activity/) [**1.98 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.00 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+
+## Getting started with Ze.
+
+Run the two-peer BGP lab by hand, or ask Claude Code or Codex to run it with Ze’s bundled skill. Both paths start on a Linux lab host with Go and Git.
+
+```
+# build from source
+$ git clone https://github.com/ze-software/ze.git
+$ cd ze && ./ze version
+
+# copy the supplied local lab configuration
+$ mkdir -p lab/r1 lab/r2
+$ cp examples/quickstart/r1.conf lab/r1/ze.conf
+$ cp examples/quickstart/r2.conf lab/r2/ze.conf
+
+# one peer in each terminal
+$ ./ze start lab/r1/ze.conf
+$ ./ze start lab/r2/ze.conf
+
+# inspect received routes from a third terminal
+$ ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
+```
+
+```
+# build from source
+$ git clone https://github.com/ze-software/ze.git
+$ cd ze && ./ze version
+
+# make ze available to your agent
+$ export PATH="$PWD:$PATH"
+$ ze create agent skill
+$ ze show agent skill
+
+# start Claude Code or Codex from this shell
+# in Codex, trust Ze's hook with /hooks
+```
+
+```
+Use the ze skill and docs/guide/quickstart.md
+to run the local two-peer lab.
+
+Validate both configurations, start both peers,
+and verify that the session is established.
+Check that r1 receives 198.51.100.0/24 and
+r2 receives 192.0.2.0/24. Show me the results.
+
+Stop only the lab processes you started.
+Keep the logs if a check fails.
+```
 
 ## Why Ze?
 
@@ -333,98 +380,6 @@ Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-onl
 
 The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.
 
-## Safe ways to try Ze before the first release.
-
-Feedback from trying Ze can still influence its design. A lab, a migrated ExaBGP script or spare hardware gives you a way to try it before relying on it in production.
-
-**Lab**
-
-### [Lab router](https://ze-software.net/guides/quickstart/)
-
-Network builders can bring up two BGP peers, inspect routes, and check whether Ze's operator tools fit their workflow.
-
-`Quickstart` `BGP peers` Quickstart two peer lab
-
-**AI agent**
-
-### [Test with an AI agent](https://ze-software.net/guides/ai-agent/)
-
-Use Claude Code or Codex to check a lab configuration and explore Ze's commands. ze create agent skill installs instructions that match your installed version.
-
-`Claude Code` `Codex` Use Ze with an AI agent ze create agent skill
-
-**Migration**
-
-### [ExaBGP replacement](https://ze-software.net/use-cases/exabgp-migration/)
-
-ExaBGP users can try the migrator against an existing config and see which process scripts still translate cleanly.
-
-`Migration` `Plugins` Migration path config and process scripts
-
-**Appliance**
-
-### [White-box appliance](https://ze-software.net/guides/appliance/)
-
-People with spare x86 hardware can boot the appliance image and test the same configuration model without a general-purpose shell.
-
-`ISO` `PXE` `gokrazy` Appliance guide spare hardware
-
-**Operate**
-
-### [Looking glass](https://ze-software.net/guides/public-looking-glass/)
-
-Operators who need read-only BGP visibility can publish a looking glass and inspect routes without giving shell access.
-
-`Read-only` `BGP visibility` Looking glass read-only BGP
-
-**Interop**
-
-### [Protocol testbed](https://ze-software.net/labs/bgp-interop/)
-
-Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then turn a failure into a test case.
-
-`Interop` `Docker` Interop lab real peer daemons
-
-**MCP**
-
-### [AI-assisted operations](https://ze-software.net/features/ai-first/)
-
-MCP exposes Ze commands and structured output to AI tools without a separate command set.
-
-`MCP` `CLI catalogue` AI via MCP same command catalogue
-
-## Getting started with Ze.
-
-You can start with the BGP lab, try your ExaBGP configuration, or install the appliance on spare hardware.
-
-```
-# build from source
-$ git clone https://github.com/ze-software/ze.git
-$ cd ze && ./ze version
-
-# copy the supplied local lab configuration
-$ mkdir -p lab/r1 lab/r2
-$ cp examples/quickstart/r1.conf lab/r1/ze.conf
-$ cp examples/quickstart/r2.conf lab/r2/ze.conf
-
-# one peer in each terminal
-$ ./ze start lab/r1/ze.conf
-$ ./ze start lab/r2/ze.conf
-
-# inspect received routes from a third terminal
-$ ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
-```
-
-`Good starting points`
-
-The [complete two-peer tutorial](https://ze-software.net/guides/quickstart/) explains the local lab credentials, success checks and cleanup. If you already run BGP, trying a lab peer, an ExaBGP configuration or a looking glass can help you judge how Ze fits your network. Reports of what went wrong help us improve it.
-
-- [BGP interop lab FRR, BIRD, and GoBGP in Docker](https://ze-software.net/labs/bgp-interop/)
-- [ExaBGP migration try an existing config and process script](https://ze-software.net/use-cases/exabgp-migration/)
-- [Appliance install ISO media, PXE provisioning, spare hardware](https://ze-software.net/guides/appliance/)
-- [Looking glass publish read-only BGP visibility](https://ze-software.net/guides/public-looking-glass/)
-- [AI-assisted operations MCP exposes Ze commands to tools](https://ze-software.net/features/ai-first/)
-
 ## Recent engineering notes.
 
 The update reports describe changes recorded in git and shared in Discord's `ze-news` channel.
@@ -458,14 +413,3 @@ The update reports describe changes recorded in git and shared in Discord's `ze-
 ### [Safer configuration commits, API changes and a new appliance kernel, plus BGP, RSVP-TE and IPsec fixes.](https://ze-software.net/project/changes/2026-10-05/)
 
  BGP IPsec Config API - [See all updates](https://ze-software.net/project/changes/)
-`Try safely`
-
-## Try Ze before the first release.
-
-Start where a mistake cannot affect a live network.
-
- [Run a BGP lab](https://ze-software.net/labs/bgp-interop/) [Read the quickstart](https://ze-software.net/guides/quickstart/) - **Release:** Expected Q4 2026. No stable release has shipped yet, and configuration may change.
-- **BGP lab:** Exercise Ze against FRR, BIRD, and GoBGP without touching a production router.
-- **Migration:** Try the ExaBGP migration path against an existing config before changing automation.
-- **Appliance:** Boot Ze on spare hardware with the same binary and configuration model as daemon mode.
-- **Source:** Read the code, generated docs, standards checks, and test results before deciding where Ze belongs.
