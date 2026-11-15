@@ -42,7 +42,7 @@ func TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy(t *testing.T) {
 						{name: "explicit-link-local", mode: NextHopExplicit, explicit: "fe80::9"},
 					} {
 						t.Run(tc.name, func(t *testing.T) {
-							peer, conn := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
+							peer, conn := newDefaultNextHopControlPeer(t, rail)
 							if peerClass == "internal" {
 								peer.settings.PeerAS = peer.settings.LocalAS
 							}

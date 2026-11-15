@@ -55,7 +55,7 @@ func TestQueuedDefaultNextHopDrains(t *testing.T) {
 				{name: "configured-unchanged", candidate: "10.1.0.2", mode: NextHopUnchanged, want: "10.1.0.2"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					peer, conn := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
+					peer, conn := newDefaultNextHopControlPeer(t, rail)
 					if tc.internal {
 						peer.settings.PeerAS = peer.settings.LocalAS
 					}
@@ -95,7 +95,7 @@ func TestDefaultNextHopUsesResolvedAddressFamily(t *testing.T) {
 					name = "with-extended-next-hop"
 				}
 				t.Run(name, func(t *testing.T) {
-					peer, conn := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
+					peer, conn := newDefaultNextHopControlPeer(t, rail)
 					caps := capability.EncodingCaps{}
 					if extended {
 						caps.ExtendedNextHop = map[capability.Family]capability.AFI{
@@ -142,7 +142,7 @@ func TestDefaultNextHopIPv6RequiresExactExtendedPair(t *testing.T) {
 				t.Run(policy, func(t *testing.T) {
 					for _, pair := range []string{"none", "vpn-only", "unicast"} {
 						t.Run(pair, func(t *testing.T) {
-							peer, conn := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
+							peer, conn := newDefaultNextHopControlPeer(t, rail)
 							hop := bgptypes.NewNextHopDefault(netip.MustParseAddr("2001:db8::9"))
 							switch policy {
 							case "internal-gateway":
@@ -231,7 +231,7 @@ func TestDefaultNextHopRetainsMigrationInternalGateway(t *testing.T) {
 				{"legacy-without-migration", 65010, 0, "192.0.2.1"},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					peer, conn := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
+					peer, conn := newDefaultNextHopControlPeer(t, rail)
 					peer.settings.PeerAS = tc.peerAS
 					if err := setMigrationAS(peer.settings, tc.migration); err != nil {
 						t.Fatal(err)
@@ -258,7 +258,7 @@ func TestDefaultNextHopRetainsMigrationInternalGateway(t *testing.T) {
 func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 	for _, rail := range []string{"initial-drain", "closing-drain"} {
 		t.Run(rail, func(t *testing.T) {
-			peer, _ := newDefaultNextHopControlPeer(t, rail, "192.0.2.1")
+			peer, _ := newDefaultNextHopControlPeer(t, rail)
 			old, oldClient := newConnectedLocalSession(t, peer.settings, "127.0.0.1")
 			peer.session = old
 			// The initial-sync gate and End-of-RIB mark live on the session,
@@ -331,7 +331,7 @@ func TestQueuedDefaultNextHopResolvesReplacementConnection(t *testing.T) {
 	}
 }
 
-func newDefaultNextHopControlPeer(t *testing.T, rail, local string) (*Peer, *recordingConn) {
+func newDefaultNextHopControlPeer(t *testing.T, rail string) (*Peer, *recordingConn) {
 	t.Helper()
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	// Model an established OLD-width peer consistently in the encoder and
@@ -348,7 +348,7 @@ func newDefaultNextHopControlPeer(t *testing.T, rail, local string) (*Peer, *rec
 	peer.setEncodingContexts(neg)
 	// A configured bind address must not replace the connection's identity.
 	peer.settings.LocalAddress = netip.MustParseAddr("198.51.100.99")
-	peer.session.transport.Store(&sessionTransport{local: netip.MustParseAddr(local)})
+	peer.session.transport.Store(&sessionTransport{local: netip.MustParseAddr("192.0.2.1")})
 	if rail == "direct" {
 		peer.testInitialSync().sendingInitialRoutes.Store(0)
 		peer.testInitialSync().initialSyncEOROwed.Store(false)

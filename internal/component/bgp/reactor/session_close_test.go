@@ -90,12 +90,12 @@ func closeHeldPathEvents() []report.Issue {
 // closeUnreadSession answers a Session on a net.Pipe whose peer end reads
 // nothing, with one KEEPALIVE in its write buffer: a final flush of it blocks
 // until something bounds it. No handshake runs and no goroutine reads either
-// end. It also answers the peer end and ze's end of the pipe.
-func closeUnreadSession(t *testing.T) (session *Session, client, server net.Conn) {
+// end. It also answers the peer end.
+func closeUnreadSession(t *testing.T) (session *Session, client net.Conn) {
 	t.Helper()
 
 	session = NewSession(NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301))
-	server, client = net.Pipe()
+	server, client := net.Pipe()
 	t.Cleanup(func() {
 		_ = client.Close()
 		_ = server.Close()
@@ -111,7 +111,7 @@ func closeUnreadSession(t *testing.T) (session *Session, client, server net.Conn
 	_, err := session.bufWriter.Write(message.PackTo(message.NewKeepalive(), nil))
 	session.writeMu.Unlock()
 	require.NoError(t, err)
-	return session, client, server
+	return session, client
 }
 
 // requirePeerEndClosed asserts the peer end of an unread pipe meets ze's close
@@ -651,7 +651,7 @@ func TestCloseBehindAGracefulCloseReportsNothing(t *testing.T) {
 	t.Cleanup(report.ResetForTest)
 	sink := closeLogSink(t)
 
-	session, client, _ := closeUnreadSession(t)
+	session, client := closeUnreadSession(t)
 
 	first := make(chan struct{})
 	go func() {
@@ -813,7 +813,7 @@ func TestSecondCloseWaitsForTheClaimant(t *testing.T) {
 // PREVENTS: a close that took the write path itself and then waits without
 // bound on a peer that stopped reading, with the socket open.
 func TestCloseFlushIsBounded(t *testing.T) {
-	session, client, _ := closeUnreadSession(t)
+	session, client := closeUnreadSession(t)
 
 	started := time.Now()
 	closed := make(chan struct{})
@@ -915,7 +915,7 @@ func TestTeardownDuringHeldRunDeliversCease(t *testing.T) {
 	require.Equal(t, msgtype.TypeNOTIFICATION, msgtype.MessageType(last[18]),
 		"the last message a reading peer got before the close must be the teardown's NOTIFICATION")
 	require.Equal(t, uint8(message.NotifyCease), last[19], "NOTIFICATION error code")
-	require.Equal(t, uint8(message.NotifyCeaseAdminShutdown), last[20], "NOTIFICATION error subcode")
+	require.Equal(t, message.NotifyCeaseAdminShutdown, last[20], "NOTIFICATION error subcode")
 	require.Empty(t, closeHeldPathEvents(), "a held run that ended on the seal is no held write path")
 }
 
