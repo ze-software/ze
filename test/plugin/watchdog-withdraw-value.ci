@@ -1,0 +1,70 @@
+# Question: does the configured withdraw value reach the BGP wire through the real daemon?
+# A unit test cannot prove schema delivery, plugin binding or the peer's actual UPDATEs.
+# Ordinary static, omitted-watchdog and false-watchdog routes announce initially.
+# The plugin/watchdog-withdraw-value driver waits for initial EOR and startup sends,
+# then announces and withdraws the explicitly held dnsr route three times.
+# Scoped NLRI assertions permit legal UPDATE packing and order within one group.
+
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:announced=180A0000
+expect=bgp:conn=1:seq=1:announced=180A0001
+expect=bgp:conn=1:seq=1:announced=180A0002
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:announced=180A0003
+expect=bgp:conn=1:seq=3:withdrawn=180A0003
+expect=bgp:conn=1:seq=4:announced=180A0003
+expect=bgp:conn=1:seq=5:withdrawn=180A0003
+expect=bgp:conn=1:seq=6:announced=180A0003
+expect=bgp:conn=1:seq=7:withdrawn=180A0003
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal bgp-watchdog { use bgp-watchdog; }
+    external service-watchdog {
+        run "le test fixture plugin/watchdog-withdraw-value"
+        encoder json
+    }
+}
+bgp {
+    peer peer1 {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.1; accept false; }
+        }
+        session {
+            asn { local 65533; remote 65533; }
+            router-id 10.0.0.10
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+        }
+        behavior { group-updates disable; }
+        update {
+            attribute { origin igp; next-hop 1.2.3.4; local-preference 100; }
+            nlri { ipv4/unicast add 10.0.0.0/24; }
+        }
+        update {
+            attribute { origin igp; next-hop 1.2.3.4; local-preference 100; }
+            nlri { ipv4/unicast add 10.0.1.0/24; }
+            watchdog { name initial-omitted; }
+        }
+        update {
+            attribute { origin igp; next-hop 1.2.3.4; local-preference 100; }
+            nlri { ipv4/unicast add 10.0.2.0/24; }
+            watchdog { name initial-false; withdraw false; }
+        }
+        update {
+            attribute { origin igp; next-hop 1.2.3.4; local-preference 100; }
+            nlri { ipv4/unicast add 10.0.3.0/24; }
+            watchdog { name dnsr; withdraw true; }
+        }
+        attach process bgp-watchdog {
+            receive [ state ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -139,7 +139,7 @@ func watchdogScenario(ctx context.Context, plugin *sdk.Plugin) error {
 		return errors.New("initial-sync EOR never reached the wire")
 	}
 	for range 3 {
-		for _, command := range []string{"request bgp watchdog announce dnsr", cmdWatchdogWithdrawDNSR} {
+		for _, command := range []string{cmdWatchdogAnnounceDNSR, cmdWatchdogWithdrawDNSR} {
 			status, err := Dispatch(ctx, plugin, command, nil)
 			if err != nil || status != statusDone {
 				return fmt.Errorf("%s status=%s: %w", command, status, err)

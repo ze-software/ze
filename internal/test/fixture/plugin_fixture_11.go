@@ -296,7 +296,7 @@ func watchdogCommands(ctx context.Context, _ []string) error {
 			return err
 		}
 		for range 3 {
-			for _, command := range []string{"request bgp watchdog announce dnsr", cmdWatchdogWithdrawDNSR} {
+			for _, command := range []string{cmdWatchdogAnnounceDNSR, cmdWatchdogWithdrawDNSR} {
 				status, _, err := p.DispatchCommand(ctx, command)
 				if err != nil || status != statusDone {
 					return fmt.Errorf("%s status=%s: %w", command, status, err)

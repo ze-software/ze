@@ -32,8 +32,10 @@ const (
 	envCLIFormat       = "ze.cli.format"
 	envConfigDir       = "ZE_CONFIG_DIR"
 	envConfigDirDotted = "ze.config.dir"
+	envGitAuthorDate   = "GIT_AUTHOR_DATE"
 	envGitAuthorEmail  = "GIT_AUTHOR_EMAIL"
 	envGitAuthorName   = "GIT_AUTHOR_NAME"
+	envGitCommitDate   = "GIT_COMMITTER_DATE"
 	envGitCommitEmail  = "GIT_COMMITTER_EMAIL"
 	envGitCommitName   = "GIT_COMMITTER_NAME"
 	envGitConfigGlobal = "GIT_CONFIG_GLOBAL"
@@ -208,6 +210,7 @@ const (
 	columnUptime             = "uptime"
 	headerContentType        = "Content-Type"
 	mediaTypeJSON            = "application/json"
+	pemCertificate           = "CERTIFICATE"
 	pipeCommand              = "pipe"  // The standalone pipe command.
 	pipeCount                = "count" // The pipe operator.
 	pipeFirst                = "first" // The pipe operator.
@@ -250,6 +253,7 @@ const (
 	cmdShowTestTwoTextsBoth      = "show test-twotexts both"
 	cmdShowTestTwoTextsSummary   = "show test-twotexts summary"
 	cmdShowVersion               = "show version"
+	cmdWatchdogAnnounceDNSR      = "request bgp watchdog announce dnsr"
 	cmdWatchdogWithdrawDNSR      = "request bgp watchdog withdraw dnsr"
 	flagFragment                 = "--fragment"
 	flagHelp                     = "--help"
@@ -293,6 +297,7 @@ const (
 	actionRecord                  = "record" // The le action that records evidence.
 	actionReject                  = "reject"
 	actionReleaseCandidate        = "release-candidate"
+	actionReload                  = "reload"
 	actionReport                  = "report"
 	actionRouterReport            = "report router"
 	actionRun                     = "run"
@@ -357,10 +362,12 @@ const (
 	fileGoMod                       = "go.mod"
 	fileSampleGo                    = "sample.go"
 	fileTriggersMD                  = "TRIGGERS.md"
+	fileZeMain                      = "cmd/ze/main.go"
 	gitBranchMain                   = "main" // The branch a scratch repository pushes.
 	gitCommitNoSign                 = "commit.gpgsign=false"
 	gitFixtureEmail                 = "fixture@example.invalid"
 	gitFixtureName                  = "Fixture"
+	gitFixtureTimestamp             = "2000-01-02T12:00:00Z"
 	gitInitFixtureBranch            = "--initial-branch=fixture"
 	gitInitNoTemplate               = "--template="
 	gitRemoteOrigin                 = "origin" // The git remote name, not the BGP attribute.
