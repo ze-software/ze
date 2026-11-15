@@ -1,0 +1,48 @@
+# Test: a daemon start over stored DNS answers resolves only the names whose
+#       stored answer expired, and programs the others from the store.
+# Spec: spec-fetched-data-survives-restart -- Wiring Test row 7, AC-13, user
+#       story 5
+# QUESTION: does the daemon's own start (the handshake, OnStarted, the store
+#           read, schedule.reset, the refresh worker) honour the expires-at the
+#           previous run wrote? A unit test drives configure and the worker
+#           over a store it seeded itself (TestStartDoesNotResolveAnUnexpiredName);
+#           only a second real start proves the expiry survives the process
+#           and that the handshake does not arm every name due at once.
+# VALIDATES: the group whose stored answer is an hour from expiry (alpha) is
+#            not asked for at start and keeps the address the first run
+#            stored; the group whose stored answer expired (zulu) is asked for
+#            at start.
+# PREVENTS: a reboot that asks upstream for every name, and so can enforce
+#           different addresses than the box enforced before it.
+#
+# The fixture is domainGroupRestartKeepsAnswers
+# (internal/test/fixture/netfilter_fixture_domain_group_restart.go). It serves
+# the DNS stub in process on 127.0.0.1:53, starts the daemon itself twice over
+# one config directory (so one store), and logs every question the stub
+# receives. Between the starts it waits for the daemon's table to leave the
+# kernel, so the set read after the second start cannot be the first run's
+# left behind, and it changes both answers, so an address from the second
+# answer in alpha's set says alpha was asked again. It returns an error for
+# every check that fails (fixture.Run reports it), and prints the markers
+# below only after all of them held.
+#
+# alpha sorts before zulu (lessKey, schedule.go), so a start that made every
+# unit due would ask for alpha BEFORE the zulu answer the fixture waits for:
+# the absence of an alpha query is then observable, not a race.
+#
+# The fixture binds port 53 and the daemon it starts programs nftables, so the
+# file needs CAP_NET_ADMIN and CAP_NET_BIND_SERVICE.
+option=needs-linux:caps=net-admin,net-bind
+# Port 53 and the nftables ruleset are node-wide; see
+# test/plugin/firewall-domain-group-update.ci for why one group covers both.
+option=exclusive:group=dns-stub-port-53
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture plugin/firewall-domain-group-restart-keeps-answers:timeout=85s
+expect=exit:code=0
+
+# alpha's set after the second start holds the address the first run stored.
+expect=stdout:contains=domain_v4_alpha
+expect=stdout:contains=203.0.113.20
+# The fixture checked the stub's query log: zulu was asked, alpha was not.
+expect=stdout:contains=restart-asked-for zulu.example.test not alpha.example.test
