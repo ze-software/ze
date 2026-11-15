@@ -1,0 +1,16 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges": "dcfaebf610cc05a9"
+  },
+  "note": "RFC 4271 Section 9.1.3 says: If a route in Loc-RIB is excluded from a particular Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST be withdrawn from service by means of an UPDATE message (see 9.2). Tested is \"previously advertised route\"; Gap is \"a route in Loc-RIB is excluded from a particular Adj-RIB-Out\"; Producer is internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges. Both relay matrices first assert the actual announcement, then either an exact bare withdrawal after export rejection of the newer received generation, or an accepted announcement carrying MED 77 and no withdrawal. The positive's shared-chain mutation may fail on the first general rail before the native route-server arm runs, so its named-unit red does not establish an independent route-server mutant red. These are manually driven relay proofs, not evidence that an ordinary Loc-RIB selection invokes an advertiser. The ordinary selected-route probes remain red, and publishBestChanges emits selection events rather than supplying that missing advertiser. Refresh and stale reconciliation retain separate unresolved scope in their owning spec. No complete Phase 3 or complete RFC support is claimed.",
+  "requirement_sha": "70d2c78f766a42b3",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced": "7275e119a589e30c",
+    "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute": "7275e119a589e30c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced": "996654e65a065ff2",
+    "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute": "2fbde37ec1a3d6d5"
+  },
+  "verdict": "partial"
+}

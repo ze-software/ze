@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271AcceptedGenerationRemainsAnnounced",
+    "unit-sha": "5a44bd29e5916964",
+    "claim-sha": "d5a1e425965d7885",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+    "producer-sha": "278b215192a72cbe",
+    "break": "line 277: \"res.outcome.Action != policychain.OutcomeAccept\" -\u003e \"res.outcome.Action == policychain.OutcomeAccept\""
+  },
+  {
+    "rid": "RFC4271-9.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_egress_exclusion_withdraw_proof_test.go::TestRFC4271ExportExclusionWithdrawsPreviouslyAdvertisedRoute",
+    "unit-sha": "47833b1c48296b81",
+    "claim-sha": "039bba67398151ea",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
+    "producer-sha": "278b215192a72cbe",
+    "break": "line 278: \"return egressStepResult{failed: res.outcome.Failed}\" -\u003e \"return egressStepResult{accept: true}\""
+  }
+]

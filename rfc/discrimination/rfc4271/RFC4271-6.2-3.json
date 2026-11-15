@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4271-6.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ExactOuterOPENFramingCompletesTheHandshake",
+    "unit-sha": "d900d5074f5ca6b3",
+    "claim-sha": "88c9df83c62ea3fe",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+    "producer-sha": "f1586750267dd51d",
+    "break": "line 125: \"if err != nil {\" -\u003e \"if err == nil {\""
+  },
+  {
+    "rid": "RFC4271-6.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271OuterOPENFramingErrorsNotify",
+    "unit-sha": "6d47ee0931a2b1bf",
+    "claim-sha": "88f0d2327cfa6aa8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::rejectOpenCapabilityError",
+    "producer-sha": "a9cde4c048eddd82",
+    "break": "line 266: \"s.logNotifyErr(conn, message.NotifyOpenMessage, subcode, nil)\" -\u003e \"s.logNotifyErr(conn, message.NotifyCease, subcode, nil)\""
+  },
+  {
+    "rid": "RFC4271-6.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271PendingOuterOPENFramingErrorsNotify",
+    "unit-sha": "a307e03b2519f494",
+    "claim-sha": "4701f6620fb83528",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_connection.go::handlePendingCollision",
+    "producer-sha": "a7caa0e55c7fec30",
+    "break": "line 381: \"rejectPendingConnection(conn, r.clock, message.NotifyOpenMessage, 0)\" -\u003e \"rejectConnectionCollision(conn, r.clock)\""
+  },
+  {
+    "rid": "RFC4271-6.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go::TestRFC4271ValidPendingOPENRemainsACollision",
+    "unit-sha": "1fd0c5b8c618b6ee",
+    "claim-sha": "316dc4f3d73ba3e3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_connection.go::rejectConnectionCollision",
+    "producer-sha": "a6d6ff4c7bb3db4b",
+    "break": "line 288: \"message.NotifyCease, message.NotifyCeaseConnectionCollision\" -\u003e \"message.NotifyOpenMessage, message.NotifyCeaseConnectionCollision\""
+  }
+]

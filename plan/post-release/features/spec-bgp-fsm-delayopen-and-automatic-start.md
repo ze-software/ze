@@ -505,7 +505,7 @@ the quotes in the Task section.
 - [ ] AC-1, AC-1a..AC-1g, AC-2, AC-2p, AC-3..AC-9 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes
+- [ ] Scoped package and relevant functional/interop tests pass; GitHub CI supplies whole-tree verification after an authorized push. Agents do not run any `./le verify` command or test a copy of the tree
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -527,6 +527,33 @@ the quotes in the Task section.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` only, in the same `./le commit create` script
+
+## Observed incoming-listener tests: 2026-11-15
+
+The four new `TestRFC4271ListenerIncoming...` probes compiled and ran in
+`tmp/session/2026-11-14-210034/scratch/job-core-bgp-lifecycle-advertisement-bdcd2163.log`.
+Initial passive/default OPEN, configured DelayOpen expiry, and remote OPEN
+before expiry each complete their handshake and pass. The second incoming
+connection while an outgoing connection is OpenSent fails waiting for its
+own local OPEN.
+
+The source cause is `acceptOrReject` handing that socket to
+`handlePendingCollision`, which reads the remote OPEN without starting the
+connection's own OPEN/DelayOpen lifecycle. RFC 4271 Section 8.2.1 states:
+"For each incoming connection, a state machine MUST be instantiated."
+The test reaches the actual Reactor listener; it creates no substitute FSM.
+FRR and BIRD source research supports an incoming connection alongside an
+outgoing candidate, but no versioned external interop run is claimed here.
+
+This records the completed investigation for later implementation review,
+under the owner's test-first campaign instruction. Status, existing approval
+gates and historical handoff metadata remain unchanged. Review the release
+classification of this demonstrated connection-lifecycle defect separately
+from optional timer enhancements; placement in this feature spec does not
+establish that the defect is optional.
+
+Retain the shared log until all owning specs that cite it have superseding
+evidence. No duplicate report is created.
 
 ## Owned journal rows
 

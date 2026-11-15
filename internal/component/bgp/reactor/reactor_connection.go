@@ -285,16 +285,25 @@ func (r *Reactor) rejectConnectionCollisionWithSettings(conn net.Conn, settings 
 // and closes the connection, bounded by the normal control-write maximum.
 // RFC 4271 Section 6.8 requires Cease for this OPEN-bearing collision loser.
 func rejectConnectionCollision(conn net.Conn, clk clock.Clock) {
+	rejectPendingConnection(conn, clk, message.NotifyCease, message.NotifyCeaseConnectionCollision)
+}
+
+// rejectPendingConnection bounds a refusal on a connection with no Session
+// writer. OPEN decode errors retain their own code before collision resolution.
+func rejectPendingConnection(conn net.Conn, clk clock.Clock, code message.NotifyErrorCode, subcode uint8) {
 	defer closeConnQuietly(conn)
 	if err := conn.SetWriteDeadline(clk.Now().Add(fwdWriteDeadlineDefault)); err != nil {
+		reactorLogger().Debug("pending BGP refusal could not set its write deadline", "peer", conn.RemoteAddr(), "error", err)
 		return
 	}
 	notif := &message.Notification{
-		ErrorCode:    message.NotifyCease,
-		ErrorSubcode: message.NotifyCeaseConnectionCollision,
+		ErrorCode:    code,
+		ErrorSubcode: subcode,
 	}
 	data := message.PackTo(notif, nil)
-	_, _ = conn.Write(data)
+	if _, err := conn.Write(data); err != nil {
+		reactorLogger().Debug("pending BGP refusal could not send its NOTIFICATION", "peer", conn.RemoteAddr(), "error", err)
+	}
 }
 
 // handlePendingCollision reads OPEN from a pending connection and resolves collision.
@@ -365,7 +374,11 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
 	if err != nil {
 		peer.clearPendingConnection()
-		rejectConnectionCollision(conn, r.clock)
+		// RFC 4271 Section 6.2: "All errors detected while processing the
+		// OPEN message MUST be indicated by sending the NOTIFICATION message
+		// with the Error Code OPEN Message Error." No valid OPEN has reached
+		// collision resolution yet, so Cease would report the wrong cause.
+		rejectPendingConnection(conn, r.clock, message.NotifyOpenMessage, 0)
 		return
 	}
 	// The pending deadline bounds only the first OPEN. The winning Session

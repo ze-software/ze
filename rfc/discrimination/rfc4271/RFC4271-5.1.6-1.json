@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5.1.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_relay_proof_test.go::TestRFC4271AtomicAggregateRelayPreservesExactNLRI",
+    "unit-sha": "5ddd083d0311cf93",
+    "claim-sha": "d2bdd618292f4f88",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayloadWithLimit",
+    "producer-sha": "ec6bb8bea33d42e6",
+    "break": "line 457: \"off += copy(buf[off:], payload[attrEnd:])\" -\u003e \"off += copy(buf[off:], payload[attrEnd:]); if len(payload[attrEnd:]) \u003e 0 { buf[off-len(payload[attrEnd:])]++ }\""
+  },
+  {
+    "rid": "RFC4271-5.1.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_relay_proof_test.go::TestRFC4271IndependentSpecificRoutesRemainAdvertisable",
+    "unit-sha": "d3ab71d2024c7388",
+    "claim-sha": "b91a4fd7e229ef90",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayloadWithLimit",
+    "producer-sha": "ec6bb8bea33d42e6",
+    "break": "line 457: \"off += copy(buf[off:], payload[attrEnd:])\" -\u003e \"if len(payload[attrEnd:]) \u003e 0 \u0026\u0026 payload[attrEnd] \u003e 24 { return nil, 0, modifyFailureOverflow }; off += copy(buf[off:], payload[attrEnd:])\""
+  }
+]
