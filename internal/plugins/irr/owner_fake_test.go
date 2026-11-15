@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // fakeState is the daemon store as the SDK state RPCs show it, with a log of
@@ -274,7 +275,7 @@ func (h *ownerHarness) writeInterest(consumer string, in store.Interest) {
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	if err := h.state.StatePut(context.Background(), store.InterestKey(consumer), value); err != nil {
+	if err := h.state.StatePut(context.Background(), zefs.KeyIRRInterest.Key(consumer), value); err != nil {
 		h.t.Fatal(err)
 	}
 }

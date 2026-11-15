@@ -24,7 +24,7 @@ import (
 const firewallIRRPlugin = "firewall-irr"
 
 // TestIRRConsumerReadsDatasetWithoutOwner proves spec assumption A-9
-// (plan/release/fixes/spec-fetched-data-survives-restart.md): reading the IRR
+// (spec-fetched-data-survives-restart): reading the IRR
 // owner's keys needs no owner process. A consumer reads a stored dataset
 // through store.ReadGeneration and store.ReadSet, over the SDK's StateGet and
 // the daemon dispatcher, with its own read grant, while the owner is stopped

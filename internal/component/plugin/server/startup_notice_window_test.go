@@ -108,7 +108,7 @@ func awaitWindow(t *testing.T, emitted <-chan windowEmit, arrivals <-chan window
 }
 
 // TestStartupSubscriptionLiveBeforeOnStartedRead proves spec assumption A-3
-// (plan/release/fixes/spec-fetched-data-survives-restart.md): a consumer's
+// (spec-fetched-data-survives-restart): a consumer's
 // stage 5 subscription is live before its OnStarted read, so an IRR
 // dataset-stored notice sent in that window is not lost, on both transports.
 //

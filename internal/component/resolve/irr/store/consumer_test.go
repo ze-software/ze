@@ -37,10 +37,11 @@ func (s *consumerState) EmitEvent(_ context.Context, namespace, eventType, _, _,
 	return 1, nil
 }
 
-// storeSet writes asSet's dataset and a pointer naming it, in the owner's
+// storeSet writes AS-TEST's dataset and a pointer naming it, in the owner's
 // order, and returns the pointer.
-func storeSet(t *testing.T, s *consumerState, asSet string, generation uint32, prefixes ...string) Pointer {
+func storeSet(t *testing.T, s *consumerState, generation uint32, prefixes ...string) Pointer {
 	t.Helper()
+	const asSet = "AS-TEST"
 	in := DatasetInput{ASSet: asSet, Server: "whois.radb.net", RefreshedAt: time.Unix(1_700_000_000, 0), CheckedAt: time.Unix(1_700_000_600, 0)}
 	for _, text := range prefixes {
 		in.IPv4 = append(in.IPv4, netip.MustParsePrefix(text))
@@ -63,7 +64,7 @@ func storeSet(t *testing.T, s *consumerState, asSet string, generation uint32, p
 // METHOD: store a set as the owner does, ReadSet it.
 func TestReadSetReadsThePointedDataset(t *testing.T) {
 	s := newConsumerState()
-	pointer := storeSet(t, s, "AS-TEST", 3, "10.0.0.0/24", "10.0.1.0/24")
+	pointer := storeSet(t, s, 3, "10.0.0.0/24", "10.0.1.0/24")
 	got, err := ReadSet(context.Background(), s, "AS-TEST")
 	if err != nil {
 		t.Fatalf("ReadSet: %v", err)
@@ -92,7 +93,7 @@ func TestReadSetNothingStored(t *testing.T) {
 // pointer names; then remove the dataset.
 func TestReadSetRefusesADatasetThePointerDoesNotName(t *testing.T) {
 	s := newConsumerState()
-	pointer := storeSet(t, s, "AS-TEST", 3, "10.0.0.0/24")
+	pointer := storeSet(t, s, 3, "10.0.0.0/24")
 	value := s.values[pointer.DatasetKey("AS-TEST")]
 	pointer.Digest = hex.EncodeToString(make([]byte, 32))
 	s.values[pointer.DatasetKey("AS-TEST")] = value
@@ -109,6 +110,82 @@ func TestReadSetRefusesADatasetThePointerDoesNotName(t *testing.T) {
 	_, err = ReadSet(context.Background(), s, "AS-TEST")
 	if !errors.Is(err, ErrDatasetNotPointed) || errors.Is(err, ErrNotStored) {
 		t.Fatalf("missing dataset: err = %v, want ErrDatasetNotPointed", err)
+	}
+}
+
+// flipOnRead is a consumerState in which the owner flips one set's pointer
+// at the moment the reader asks for the dataset the old pointer names: the new
+// dataset and its pointer are stored and the old dataset is removed, the
+// owner's order (datasets.go writeDataset), before the read is answered.
+type flipOnRead struct {
+	*consumerState
+	oldKey string
+	flip   func()
+}
+
+func (s *flipOnRead) StateGet(ctx context.Context, key string) ([]byte, bool, error) {
+	if key == s.oldKey && s.flip != nil {
+		s.flip()
+		s.flip = nil
+	}
+	return s.consumerState.StateGet(ctx, key)
+}
+
+// VALIDATES: a reader that read a pointer just before the owner flipped it,
+// and asks for the replaced dataset just after the owner removed it, reads the
+// new pointer and its dataset; it is not refused (ErrDatasetNotPointed), so a
+// firewall commit is not refused and no false stored-copy-unreadable WARN is
+// raised at a refresh. A pointer that did not move still refuses a missing
+// dataset (TestReadSetRefusesADatasetThePointerDoesNotName).
+// METHOD: store generation 3, flip to generation 4 inside the read of the
+// generation-3 dataset, ReadSet.
+func TestReadSetFollowsAPointerThatMovedUnderTheRead(t *testing.T) {
+	s := &flipOnRead{consumerState: newConsumerState()}
+	old := storeSet(t, s.consumerState, 3, "10.0.0.0/24")
+	s.oldKey = old.DatasetKey("AS-TEST")
+	var current Pointer
+	s.flip = func() {
+		current = storeSet(t, s.consumerState, 4, "10.0.0.0/24", "10.9.0.0/16")
+		delete(s.values, old.DatasetKey("AS-TEST"))
+	}
+	got, err := ReadSet(context.Background(), s, "AS-TEST")
+	if err != nil {
+		t.Fatalf("ReadSet across a flip: %v", err)
+	}
+	if got.Pointer != current {
+		t.Fatalf("pointer = %+v, want the moved one %+v", got.Pointer, current)
+	}
+	if len(got.Dataset.IPv4()) != 2 {
+		t.Fatalf("dataset = %v, want the two prefixes of generation 4", got.Dataset.IPv4())
+	}
+}
+
+// VALIDATES: a stored pointer whose server no dataset key can carry is
+// refused as malformed when read, so a value written by `ze data write` or
+// left by a damaged store never reaches the zefs.KeyEntry.Key panic on ".."
+// when a reader forms the dataset key. A server key form, an IPv6 literal with
+// its "_port" included, still reads.
+// METHOD: store pointers by hand and ReadSet each; a panic fails the test.
+func TestReadSetRefusesAPointerServerNoKeyCarries(t *testing.T) {
+	digest := hex.EncodeToString(make([]byte, 32))
+	for _, server := range []string{"whois..radb.net", "..", "whois.radb.net/x"} {
+		s := newConsumerState()
+		encoded, err := EncodePointer(Pointer{Server: server, Generation: 1, Digest: digest})
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.values[PointerKey("AS-TEST")] = encoded
+		_, err = ReadSet(context.Background(), s, "AS-TEST")
+		if !errors.Is(err, ErrPointerMalformed) {
+			t.Fatalf("server %q: err = %v, want ErrPointerMalformed", server, err)
+		}
+	}
+	encoded, err := EncodePointer(Pointer{Server: "2001:db8::1_4343", Generation: 1, Digest: digest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DecodePointer(encoded); err != nil {
+		t.Fatalf("an IPv6 server key form is refused: %v", err)
 	}
 }
 
@@ -155,13 +232,13 @@ func TestPublishInterestWritesBeforeItNotifies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PublishInterest: %v", err)
 	}
-	if len(s.calls) != 2 || s.calls[0] != "put "+InterestKey("bgp-filter-irr") {
+	if len(s.calls) != 2 || s.calls[0] != "put "+interestKey("bgp-filter-irr") {
 		t.Fatalf("calls = %q, want the put first", s.calls)
 	}
 	if s.calls[1] != `emit irr/interest-changed {"consumer":"bgp-filter-irr"}` {
 		t.Fatalf("notice = %q", s.calls[1])
 	}
-	in, err := DecodeInterest(s.values[InterestKey("bgp-filter-irr")])
+	in, err := DecodeInterest(s.values[interestKey("bgp-filter-irr")])
 	if err != nil || len(in.ASSets) != 1 || in.ASSets[0] != "AS-TEST" || in.ASNs[0] != 65002 {
 		t.Fatalf("stored interest = %+v, %v", in, err)
 	}

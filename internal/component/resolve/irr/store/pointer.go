@@ -76,8 +76,9 @@ func EncodePointer(p Pointer) ([]byte, error) {
 	return json.Marshal(p)
 }
 
-// DecodePointer reads a stored pointer. A value with no server, a zero
-// generation or a digest that is not 64 hex digits is refused.
+// DecodePointer reads a stored pointer. A value with no server, a server no
+// dataset key can carry, a zero generation or a digest that is not 64 hex
+// digits is refused.
 func DecodePointer(value []byte) (Pointer, error) {
 	var p Pointer
 	if err := json.Unmarshal(value, &p); err != nil {
@@ -85,6 +86,16 @@ func DecodePointer(value []byte) (Pointer, error) {
 	}
 	if p.Server == "" {
 		return Pointer{}, fmt.Errorf("%w: no server", ErrPointerMalformed)
+	}
+	// The server is a segment of the dataset key the pointer names
+	// (DatasetKey), and zefs.KeyEntry.Key panics on a segment holding "..": a
+	// stored value never reaches that panic. No server key form holds '/'
+	// (DatasetServer), which DatasetKeyASSet relies on to split a key.
+	if strings.Contains(p.Server, "..") {
+		return Pointer{}, fmt.Errorf("%w: server %q holds \"..\"", ErrPointerMalformed, p.Server)
+	}
+	if strings.Contains(p.Server, "/") {
+		return Pointer{}, fmt.Errorf("%w: server %q holds '/'", ErrPointerMalformed, p.Server)
 	}
 	if p.Generation == 0 {
 		return Pointer{}, fmt.Errorf("%w: generation 0", ErrPointerMalformed)
@@ -158,8 +169,8 @@ type Interest struct {
 	ASNs   []uint32 `json:"asns"`
 }
 
-// InterestKey returns the state key of consumer's interest.
-func InterestKey(consumer string) string {
+// interestKey returns the state key of consumer's interest.
+func interestKey(consumer string) string {
 	return zefs.KeyIRRInterest.Key(consumer)
 }
 

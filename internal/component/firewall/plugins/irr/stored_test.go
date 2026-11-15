@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // fakeConsumerState is the daemon store as the plugin reaches it, holding what
@@ -278,7 +279,7 @@ func TestStartedReadProgramsStoredSets(t *testing.T) {
 	if _, ok := sets["irr_v6_AS-TEST"]; !ok {
 		t.Error("the term's IPv6 twin names irr_v6_AS-TEST, and the table does not declare it")
 	}
-	interest, err := store.DecodeInterest(state.values[store.InterestKey(pluginName)])
+	interest, err := store.DecodeInterest(state.values[zefs.KeyIRRInterest.Key(pluginName)])
 	if err != nil {
 		t.Fatalf("interest key: %v", err)
 	}
@@ -302,7 +303,7 @@ func TestNoticeProgramsTheNamedSet(t *testing.T) {
 	if got := v4Elements(t, backend, "AS-TEST"); got != -1 {
 		t.Fatalf("a cold start programmed irr_v4_AS-TEST with %d elements, want no set", got)
 	}
-	if _, ok := state.values[store.InterestKey(pluginName)]; !ok {
+	if _, ok := state.values[zefs.KeyIRRInterest.Key(pluginName)]; !ok {
 		t.Fatal("a cold start wrote no interest key, so the irr plugin is never asked")
 	}
 
@@ -387,7 +388,7 @@ func TestASNReferenceFollowsBinding(t *testing.T) {
 	if got := v4Elements(t, backend, "AS65546"); got != 2 {
 		t.Fatalf("irr_v4_AS65546 holds %d elements, want the 2 of the bound AS-CUSTOMER", got)
 	}
-	interest, err := store.DecodeInterest(state.values[store.InterestKey(pluginName)])
+	interest, err := store.DecodeInterest(state.values[zefs.KeyIRRInterest.Key(pluginName)])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -802,7 +803,7 @@ func TestStoredCopiesRuntimeFindings(t *testing.T) {
 			after: func(t *testing.T, s *fakeConsumerState) { s.storeList(t, "AS-OTHER", prefixV4) }},
 		{name: "interest unsaved", code: codeIRRInterestUnsaved, setup: func(t *testing.T, s *fakeConsumerState) {
 			s.storeList(t, "AS-TEST", prefixV4)
-			s.failWrite(store.InterestKey(pluginName), "store full")
+			s.failWrite(zefs.KeyIRRInterest.Key(pluginName), "store full")
 		}},
 		{name: "not programmed", code: codeIRRNotProgrammed, setup: func(t *testing.T, s *fakeConsumerState) {
 			withPrefixBound(t, 2)

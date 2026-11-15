@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // fakeConsumerState is the daemon store as the filter reaches it, holding what
@@ -252,7 +253,7 @@ func TestStartWritesInterestAfterPublish(t *testing.T) {
 	state := newFakeConsumerState()
 	plug := storedPlugin(state, map[uint32]string{65001: "as-test", 65002: ""})
 	readStored(plug)
-	value, found, _ := state.StateGet(context.Background(), store.InterestKey(pluginName))
+	value, found, _ := state.StateGet(context.Background(), zefs.KeyIRRInterest.Key(pluginName))
 	if !found {
 		t.Fatalf("no interest key written; puts = %q", state.puts)
 	}
@@ -426,7 +427,7 @@ func TestReloadRemovingTheSetFollowsTheBinding(t *testing.T) {
 	if got := announceFor(plug, "65001", "10.0.0.0/24"); got != sdk.FilterReject {
 		t.Fatalf("with no binding stored the deleted set's list is enforced: action = %v, want reject", got)
 	}
-	value, found, _ := state.StateGet(context.Background(), store.InterestKey(pluginName))
+	value, found, _ := state.StateGet(context.Background(), zefs.KeyIRRInterest.Key(pluginName))
 	if !found {
 		t.Fatal("no interest key written after the reload")
 	}

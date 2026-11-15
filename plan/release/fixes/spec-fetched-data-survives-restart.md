@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 WIP cap exception: Thomas approved this spec on 2026-11-15 and authorised starting its implementation above the in-progress cap (12 of 12 at the time), as one extra in-progress spec. The permission covers this spec only.
 
-Implementation state (2026-11-15): phases 1 to 7 are implemented and committed, and every first-closure blocker (B-1 to B-5) is cleared. The second closure (`/ze-close`, 2026-11-15) stopped in round 1 of the Review Gate on the findings in "Blocker" below; no closure section is appended yet.
+Implementation state (2026-11-15): phases 1 to 7 are implemented and committed, every first-closure blocker (B-1 to B-5) is cleared, and the second closure's Review Gate findings (R1-1 to R1-3) are cleared by b3c34bcb90. The third closure (`/ze-close`, 2026-11-15) appended the closure sections below and ran the Review Gate from round 1.
 
 | Commit | What it carries |
 |--------|-----------------|
@@ -37,6 +37,8 @@ Implementation state (2026-11-15): phases 1 to 7 are implemented and committed, 
 | 3a486798b4 | B-1: the domain-group restart fixture reads the nft table inventory as text (`internal/test/fixture/netfilter_fixture_domain_group_inventory.go`), because the guest's nft has no JSON support |
 | 3d4b4bc98d | B-1: `test/plugin/firewall-domain-group-restart-keeps-answers.ci` promoted from the draft |
 | 61ea7e8f6d | B-2: `test/plugin/filter-irr-modify-mp.ci` waits for the stored list and pins dest-peer `next-hop unchanged`; no expect or reject line changed |
+| b3c34bcb90 | R1-1 to R1-3: a dataset is stored under its digest, so a torn write keeps the old copy; the store's AS-SET discovery deleted; stale prose naming the consumers as client holders fixed |
+| 1063ce9adb | Outside this spec, found by it: `show doctor` lists a fault a plugin check reports once |
 
 Outside this spec, found by this work: 1063ce9adb makes `show doctor` list a fault a plugin check reports once (it listed a plugin runtime-check fault twice, from the runtime check and from recent events). The wiki command catalog was regenerated and pushed.
 
@@ -66,19 +68,19 @@ Not blockers, recorded so the next closure does not rediscover them:
 | `cmd/ze/hub/main_system.go` and `bgp/plugins/cmd/peer/prefix_update.go` construct IRR and PeeringDB clients outside `internal/plugins/irr` | Not a second fetcher. The first serves the daemon form of `ze resolve irr` (`resolve/cmd/resolve.go`). The second is the PeeringDB max-prefix update, which this spec leaves out of scope |
 | Stale comments seen at the closure read, for the Review Gate to fix: `resolve/irr/store/clear.go` header names "bgp-filter-irr and firewall-irr" as holding clients; `firewall/plugins/domain/schedule.go` header says "firewall-irr refreshes every reference on one `refresh-interval`" | Fixed in 5c42ec5f1e |
 
-## Blocker
+## Second-closure blockers (all cleared)
 
-The second closure (2026-11-15) ran Review Gate round 1 over the implementation commits listed above, read from source, and stopped on R1-1: its fix changes the stored dataset key the "Stored values and notices" table declares, so it is implementation work (`/ze-implement`), with its own test, before the gate can run again. R1-2 and R1-3 ride with it. Each later round reruns the whole gate, its style pass included.
+The second closure (2026-11-15) ran Review Gate round 1 over the implementation commits listed above, read from source, and stopped on R1-1: its fix changed the stored dataset key the "Stored values and notices" table declares, so it was implementation work (`/ze-implement`), with its own test. R1-2 and R1-3 rode with it. All three are cleared by b3c34bcb90 (2026-11-15): datasets are keyed `meta/irr-data/{server}/{as-set}/{digest}`, `internal/plugins/irr/datasets.go` `removeTorn` and `removeUnpointed` remove what no pointer names (`TestTornPointerWriteKeepsOldCopy`, `TestStartRemovesUnpointedDatasets`, each red under its break: overwriting the old key went red on `ErrDatasetNotPointed`, dropping `removeTorn` on "want only the pointed one", an early return in `removeUnpointed` on "start kept ..."); `store.PrefixStore.Refresh(ctx, asSet)` with the store's discovery deleted and its five tests removed under `ze-test-judge` approval (`Weakening-approved:` trailers of b3c34bcb90); the stale prose names the `irr` plugin. The third closure ran the gate again from round 1 over everything (see "Review Gate"). The rows below keep the findings as they were recorded.
 
-| # | Severity | Finding | Where it is produced | What clears it |
-|---|----------|---------|----------------------|----------------|
+| # | Severity | Finding | Where it was produced | What cleared it (b3c34bcb90 took the [source] route) |
+|---|----------|---------|-----------------------|----------------|
 | R1-1 | ISSUE | A refresh from an unchanged server is not an atomic switch. The dataset is written under the key the current pointer already names, before the new pointer is written. When the generation increment or the pointer write then fails, the store keeps the new dataset under the old pointer, and every reader refuses it as `ErrDatasetNotPointed` (the digests differ). At the next start both consumers enforce no list for that AS-SET until the owner fetches it again: with the IRR server unreachable at that boot, BGP rejects the peer's announcements and the firewall holds its table back, although a valid dataset is stored. That breaks the Task's goal, a reboot enforcing what it enforced before. In normal operation a reader between the two writes (a firewall commit verify, a consumer's `OnStarted` read, a generation-gap re-read, the post-config doctor check) gets the same refusal: a refused commit or a false `stored-copy-unreadable` WARN. The Design Insight "a pointer written last gives an atomic switch" holds only across a server change | `internal/plugins/irr/datasets.go` `writeDataset` puts the value at `store.Dataset.Key()` = `meta/irr-data/{server}/{as-set}` (`internal/component/resolve/irr/store/dataset.go`), the key `store.Pointer.DatasetKey` (`pointer.go`) gives the current pointer when the server is the same. `TestPointerFlipsAfterWrite` (`internal/plugins/irr/irr_test.go`) fails only the dataset write, never the pointer write after it | [source] Give each written dataset a key of its own. One way: raise the generation first and store under `meta/irr-data/{server}/{as-set}/{generation}`. The pointer names that key. The previous dataset is removed after every flip, not only after a server change. `load` removes any dataset key no pointer names. `DecodeDataset`'s identity check, `Pointer.DatasetKey`, `zefs.KeyIRRDataset`, the "Stored values and notices" and "Changed-Wire Census" rows, `docs/architecture/irr-owner.md` and `docs/architecture/zefs-format.md` follow. New test: the pointer write fails after the dataset write, and the store still serves the old copy under the old pointer, read by a consumer reader; red today. [workaround, rejected] Consumers accept a dataset whose own digest passes when the pointer's differs: that enforces a copy the owner recorded as unpublished, and it drops the pointer contract instead of removing the torn write. The agreed design (Key Design Decisions, "Pointer `meta/irr-set/{as-set}` flipped after the dataset write", whose reason is that "the pointer keeps the old copy enforced") calls for the source fix, so this is no owner question; the key pattern is `pkg/zefs`, a public contract, so the change carries its pages |
 | R1-2 | ISSUE | Layering: AS-SET discovery for a bare ASN exists twice. The owner discovers through its own PeeringDB client and copies the store's fallback rule ("as the store did"). The store's discovery path is reached only by tests, because the owner always passes the AS-SET | Production: `internal/plugins/irr/owner.go` `discoverASN`, through `resolver.go` `storeResolver.discover`. Dead: `internal/component/resolve/irr/store/store.go` `discoverASSet`, `lookupASSet`, `parseBareASN`, and the empty-`asSet` branch of `Refresh`/`resolve`. The only production caller is `resolver.go` `refresh`, `Refresh(ctx, asSet, asSet)`. `store_test.go` calls `Refresh(..., "")` | Delete the store's discovery path, so `Refresh` takes the AS-SET it queries. Remove the `store_test.go` cases that drive that path: the owner's `discovery_test.go` covers discovery. Removing a test is judged by `ze-test-judge` (`ai/META-DECISIONS.md`, "Test changes") |
 | R1-3 | ISSUE | Stale prose names `bgp-filter-irr` and `firewall-irr` as holders of IRR and PeeringDB clients, or as callers of the store. Only the `irr` plugin holds them (`internal/plugins/irr/irr.go` `runIRR`, `OnResolverCacheClear`) | `internal/component/resolve/irr/store/store.go`: the `commit` doc ("bgp-filter-irr cancels the lookups a reload superseded") and `markStale` ("bgp-filter-irr refreshASN", "firewall-irr keptDataError"). `clear.go` `clearPeeringDBClient` doc ("firewall-irr before its first configure"). `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang`: the `clear peeringdb` and `clear irr cache` descriptions ("such as bgp-filter-irr and firewall-irr, clears its own"). `docs/guide/command-reference.md`, "clear peeringdb cache / clear irr cache / clear cymru cache" ("`bgp-filter-irr` and `firewall-irr` hold an IRR and a PeeringDB client"). `docs/architecture/resolve.md`, the `commit` paragraph ("bgp-filter-irr cancels the lookups a reload superseded") | Name the `irr` plugin. Say what the store's cancellation check now guards: the owner's lookups end with the plugin's context, at stop. A changed YANG description also reaches the generated help and site pages that copy it |
 
 NOTE, not blocking: `internal/le/site/testdata/published-command-paths.txt` and `published-configuration.md` still list `update bgp irr`, `update firewall irr`, `clear firewall irr` and the old `peeringdb-url` and `refresh-interval` leaves. They are frozen site-generator fixtures from aa6ebb8d15 (2026-11-11), not a page an operator reads.
 
-Review Gate round 1 was not finished: the firewall reader (`firewall/plugins/irr/stored.go`), the owner's `completion.go`, `register_commands.go` and `metrics.go`, and the tooling and fixture files were not read, and no `./le spec review record` was written. The next closure runs every round from the start, after the R1 fixes land.
+That round 1 was not finished: the firewall reader (`firewall/plugins/irr/stored.go`), the owner's `completion.go`, `register_commands.go` and `metrics.go`, and the tooling and fixture files were not read, and no `./le spec review record` was written. The third closure read them in its own round 1.
 
 ## Task
 
@@ -664,6 +666,8 @@ Every key below is registered in `pkg/zefs/keys.go`. Times are UTC, encoded as U
 | Domain answers honour the stored expiry | `test/plugin/firewall-domain-group-restart-keeps-answers.ci` |
 | Config converted | grep of `test/` and `docs/` for the removed leaves returns nothing |
 
+Deliverables evidence (third closure): `grep -rln 'irr.NewIRR\|peeringdb.NewPeeringDB'` outside tests hits `internal/plugins/irr/resolver.go`, the offline `ze resolve` CLI (`resolve/cli/cmd_irr.go`, `cmd_peeringdb.go`), the PeeringDB client package itself, `cmd/ze/hub/main_system.go` (the daemon form of `ze resolve irr`) and `bgp/plugins/cmd/peer/prefix_update.go` (PeeringDB max-prefix, out of scope): no consumer fetches. The restart, shared-dataset and domain rows are the functional tests named in Goal Validation.
+
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
@@ -688,7 +692,7 @@ Every key below is registered in `pkg/zefs/keys.go`. Times are UTC, encoded as U
 
 - `RefreshedAt` cannot anchor a schedule: it dates the oldest data an entry holds (`store.go` `CachedEntry`).
 - Daemon stop sends no `bye`; nothing can be written at stop.
-- With one writer, a pointer written last gives an atomic switch between datasets without any multi-key transaction.
+- With one writer, a pointer written last gives an atomic switch between datasets without any multi-key transaction, provided each dataset has a key of its own: the key ends in the value's digest (b3c34bcb90), and a reader that finds the dataset of a pointer it just read removed reads the pointer once more and follows it (`store.ReadDataset`, third closure).
 - The generation is raised before the pointer write, so the pointer carries the generation of its own write (`internal/plugins/irr/datasets.go` `writeDataset`: dataset put, `StateIncrement`, pointer put, old-server dataset removed, notice). The Data Flow listed flip-then-increment; see the decision under step 4.
 - The `clear irr` hold lives in the owner's worker memory (`owner.go` `heldSets`, `heldASNs`), not in a stored key: a restart while a consumer still references a cleared set fetches it again. A consumer interest that newly names the set also releases the hold (`datasets.go` `readInterest`).
 - A binding change sends a notice for the new set only, so the BGP consumer re-reads every ASN whose set PeeringDB chooses on every notice (`filter_irr/stored.go` `readNamed`: a target with no configured set is always read), and the firewall reader does the same for its ASN references.
@@ -803,3 +807,159 @@ Not protocol scope. The domain expiry code carries the RFC 1035 Section 3.2.1 TT
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-fetched-data-survives-restart.md` only, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- The `irr` plugin (`internal/plugins/irr/`): `system irr { server; source-address; refresh-interval }`, interest-driven fetch, schedule from `checked-at`, digest-keyed datasets with pointer flip, generation and notice, `update irr`, `clear irr`, `show irr`, legacy conversion, doctor checks, metrics, AS-SET completion (commits in the table at the top).
+- `bgp-filter-irr` and `firewall-irr` read the stored copies through `resolve/irr/store/consumer.go` and fetch nothing; their consumer commands and settings leaves are deleted.
+- `firewall-domain` stores `expires-at`, renewed on every answer, and arms each name at it.
+- Third closure: `store.ReadDataset` follows a pointer that moved under the read; `store.DecodePointer` refuses a server no dataset key can carry; the stale `numberparse-allowlist.txt` line and the IRR feature declaration are fixed.
+
+### Bugs Found/Fixed
+- The rows of "Defects found and fixed in this work" above, and the Review Gate findings below, each with its test.
+
+### Documentation Updates
+- Every page of the Documentation Update Checklist, edited with the phase that changed it (commits above); third closure: `docs/architecture/irr-owner.md` "What a consumer reads" (`ReadDataset` row, anchor `consumer.go -- ReadDataset`), `features/irr-bgp-import-filtering.md` (Description, Components, tests; anchors `filter_irr/stored.go -- storeReader`, `irr/datasets.go -- writeDataset`).
+- `./le doc check all`: fails only on 36 OSPF "unknown operator group label" findings of another session; no finding names a file of this spec.
+
+### Deviations from Plan
+- The implementation departures recorded under Key Design Decisions (AC-17 `meta/bgp/irr-cache` ignored, `show bgp irr` without next refresh, generation raised before the pointer write, one AS-SET spelling) and the dataset key `meta/irr-data/{server}/{as-set}/{digest}` (b3c34bcb90).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The rows of "Mistake Log: Wrong Assumptions" above (A-5, A-4, phase-1 test, phase-7 fixture, phase 3, phase 4, tooling) | As recorded there | Implementation and the first closure | Fixed in the commits named there |
+| approach | The dataset key named the server and the set only, so a same-server refresh overwrote the bytes the current pointer named (R1-1) | Each value needs a key of its own for the pointer flip to be the only switch | Second closure, Review Gate round 1 | b3c34bcb90 |
+| approach | Removing the replaced dataset after every flip (b3c34bcb90) left a reader that read the old pointer before the flip refused after the removal | The reader must follow a pointer that moved | Third closure, round 1 | `store.ReadDataset` follows once |
+| approach | The third closure's round 2 passed a test helper parameter that only ever took one value, and an exported `store.InterestKey` that only tests outside the package used | Lint (unparam) and `./le repo check` refuse both, and a review round does not replace running them | The main thread's owed lint and repo check | C3-5, C3-6, reviewed in round 3 |
+| approach | The feature declaration `features/irr-bgp-import-filtering.md` (Documentation checklist row 1) was not updated by phase 4 and still said the lists live in memory only | Phase 4 owed it | Third closure, step 4 | Rewritten in the third closure |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Fetched IRR data saved in its own stored values, loaded at start | Done | `internal/plugins/irr/datasets.go` `load`, `writeDataset`; `resolve/irr/store/consumer.go` | |
+| Refreshed only at the configured frequency | Done | `internal/plugins/irr/schedule.go`, `config.go` | 0 = manual only |
+| One fetcher, shared copy for BGP and firewall | Done | `internal/plugins/irr/`; consumers read only | |
+| DNS answers loaded at start, resolved after stored expiry | Done | `firewall/plugins/domain/schedule.go` `reset`, `cache.go` | |
+| Config stays small (`system irr`) | Done | `internal/plugins/irr/yang/ze-irr-conf.yang` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/irr-restart-keeps-bgp-list.ci` | |
+| AC-2 | Done | `test/plugin/irr-restart-keeps-firewall-sets.ci` (QEMU guest) | |
+| AC-3 | Done | `internal/plugins/irr/schedule_test.go` `TestDueFromCheckedAt` | |
+| AC-4 | Done | `test/reload/bgp-filter-irr-*.ci`; owner schedule unchanged by configure | |
+| AC-5 | Done | `test/reload/irr-bgp-commit-new-set.ci` | |
+| AC-6 | Done | `test/plugin/irr-cold-start-stores.ci` | |
+| AC-7 | Done | `TestFailedFetchKeepsPointer`, `TestRefreshOutcomeCountsEmptyDistinctly` | |
+| AC-8 | Done | `test/plugin/irr-shared-dataset.ci`, `TestNoticeGapRereads` | |
+| AC-9 | Done | `TestServerChangeKeepsOldUntilNew` | |
+| AC-10 | Done | `ze-irr-conf.yang` range and default; `schedule_test.go` | |
+| AC-11 | Done | `TestDiscoveryFollowsPeeringDB`, `TestStoreResolverDiscover` | |
+| AC-12 | Done | `TestDatasetLargeFitsOneKey`, `TestPluginStateDeclaredBoundBothTransports` | |
+| AC-13 | Done | `test/plugin/firewall-domain-group-restart-keeps-answers.ci`, `TestResetUsesStoredExpiry`, `TestEveryAnswerRenewsExpiry` | |
+| AC-14 | Done | `TestReadmitterNoLookup` | |
+| AC-15 | Done | `test/plugin/filter-irr-update.ci`, `firewall-irr-update.ci` | |
+| AC-16 | Done | `clear_hold_test.go`; `clear irr` names the consumers | |
+| AC-17 | Changed | `TestLegacyEntryConverted`; `meta/bgp/irr-cache` ignored (Key Design Decisions) | |
+| AC-18 | Done | No evaluator wait: reject, hold, re-admit (`filter_irr/readmit.go`) | |
+| AC-19 | Done | `internal/plugins/irr/doctor.go`, firewall and domain doctor checks | |
+| AC-20 | Done | Deliverable grep below returns nothing | |
+| AC-21 | Done | `TestHandshakeConfigureAppliesNothing` | |
+| AC-22 | Done | `TestDatasetDigestRefused`, `TestReadSetRefusesADatasetThePointerDoesNotName` | |
+| AC-23 | Done | `test/plugin/irr-update-then-firewall-commit.ci`, `TestVerifyRefusesNoPointer` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit tests of the TDD table | Done | the files that table names | green in `job-r3-units-cc92635e.log` and the 6e67f01e6d evidence |
+| Seven functional tests | Done | the Functional Tests table | darwin plugin suite and QEMU guest |
+| `TestReadSetFollowsAPointerThatMovedUnderTheRead`, `TestReadSetRefusesAPointerServerNoKeyCarries` | Done | `resolve/irr/store/consumer_test.go` | third closure; owed run below |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Files to Create | Done | committed in the commits at the top; `internal/plugins/irr/` also holds `owner.go`, `datasets.go`, `resolver.go`, `legacy.go`, `completion.go`, `metrics.go` |
+
+### Audit Summary
+- **Total items:** 5 requirements, 23 ACs, the TDD table, the file plan
+- **Done:** all but AC-17
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** AC-17 (recorded in Key Design Decisions and Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A reboot leaves the router enforcing the IRR lists it enforced before | functional | `test/plugin/irr-restart-keeps-bgp-list.ci` (same `refreshed-at`, zero IRR queries, listed UPDATE accepted with no reject line) and `irr-restart-keeps-firewall-sets.ci` in Ze's QEMU guest; in the 14-test darwin run `job-r3-func-bd2358e1.log` and the 15 guest tests (`job-g-*`) |
+| Refreshed only at the configured frequency | unit + functional | `TestDueFromCheckedAt`, `TestColdReferenceDueNow`; `irr-cold-start-stores.ci` (exactly one fetch, none at restart) |
+| One shared stored copy for BGP and firewall | functional | `test/plugin/irr-shared-dataset.ci` |
+| DNS answers survive a reboot until their TTL expires | functional | `firewall-domain-group-restart-keeps-answers.ci`, green in the guest and red under the `OnConfigure` break (B-1 row) |
+| A torn or concurrent write never leaves a stored copy unenforced | unit | `TestTornPointerWriteKeepsOldCopy`, `TestStartRemovesUnpointedDatasets` (each red under its break, b3c34bcb90), `TestReadSetFollowsAPointerThatMovedUnderTheRead` (owed) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | Every AC is done; AC-17's departure is recorded | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/fetched-data-survives-restart-89674350-7290-4834-a71c-6fad00afe6e8.md` (15 files, `numberparse-allowlist.txt` by `hunks`) |
+| `./le spec review check` | `review_gate: OK (9 code files, clean, hashes match ...)` |
+| Rounds | 3 |
+| Reviewer lenses used | round 1: wiring, removed behaviour, logic and races, security and stored-input panics, docs drift, style pass over every changed Go file; round 2: the round-1 fixes; round 3: the main thread's lint and repo-check fixes (C3-5, C3-6), clean |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| C3-1 | ISSUE | `./le repo check`: `numberparse-allowlist.txt` still pre-authorizes a 32-bit parse in `store.go`, whose only one (`parseBareASN`) b3c34bcb90 deleted | `internal/le/repo/numberparse-allowlist.txt` | Line removed (committed by `hunks`, another session's hunk in the file stays) |
+| C3-2 | ISSUE | Since b3c34bcb90 the owner removes the replaced dataset after every flip (`datasets.go` `writeDataset`), so a consumer that read the old pointer before the flip and the dataset after the removal got `ErrDatasetNotPointed`: a false `stored-copy-unreadable` WARN (`firewall/plugins/irr/stored.go` `record`, BGP `storeReader`) and a firewall commit refused at verify (`irr.go` `readStoredCopy`) | `resolve/irr/store/consumer.go` `ReadDataset` | Reads the pointer once more on a missing dataset and follows a pointer that moved; `TestReadSetFollowsAPointerThatMovedUnderTheRead` |
+| C3-3 | ISSUE | Style pass, panic: `DecodePointer` accepted a server holding `..`, and `Pointer.DatasetKey` then reached `zefs.KeyEntry.Key`'s `..` panic in the owner's `load` and in both consumers' readers; reachable from stored bytes (`ze data write`, a damaged store), not from a socket | `resolve/irr/store/pointer.go` `DecodePointer` | Refuses a server holding `..` or `/` as `ErrPointerMalformed`; `TestReadSetRefusesAPointerServerNoKeyCarries` |
+| C3-5 | ISSUE | Lint (unparam): the test helper `storeSet` only ever got "AS-TEST" | `resolve/irr/store/consumer_test.go` `storeSet` | Parameter dropped, a local `const asSet = "AS-TEST"`; callers follow; no assertion changed |
+| C3-6 | ISSUE | `./le repo check`: exported `store.InterestKey` had no cross-package non-test caller | `resolve/irr/store/pointer.go` | Unexported as `interestKey` (body `zefs.KeyIRRInterest.Key(consumer)`, unchanged); the four outside tests (`irr/completion_test.go`, `irr/owner_fake_test.go`, `firewall/plugins/irr/stored_test.go`, `filter_irr/stored_test.go`) name `zefs.KeyIRRInterest.Key(...)`, the same key, so each asserts what it did |
+| C3-4 | ISSUE | Documentation checklist row 1: `features/irr-bgp-import-filtering.md` said the lists live in memory only and the filter registers refresh commands | `features/irr-bgp-import-filtering.md` | Description, Components, tests and doc review rewritten |
+
+NOTEs (not blocking): `ze_irr_data_age_seconds` reads 0 with nothing stored (`metrics.go` `publishMetrics`), as the firewall gauge it replaced did; `daemonKnownASSets` (`completion.go`) logs its WARN on every completion while an interest key is unreadable; `irrCountQueries` answers 0 for a missing query log, which the cold-start test's exactly-once count excludes for the shared runner layout; `features/irr-bgp-import-filtering.md` Extra criteria names `test/plugin/filter-irr-recorded-mirror.ci`, which never existed in git; `internal/le/site/testdata/published-*` are frozen site-generator fixtures.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/plugins/irr/{register,irr,schedule,command,doctor,config}.go`, `yang/ze-irr-conf.yang`, `yang/ze-irr-cmd.yang` | Yes | `ls`, third closure |
+| `internal/component/resolve/irr/store/dataset.go`, `docs/architecture/irr-owner.md` | Yes | `ls`, third closure |
+| The seven `.ci` files of the Functional Tests table | Yes | `ls`, third closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-6, AC-8, AC-23 | Restart, cold start, shared set, update-then-commit | `job-r3-func-bd2358e1.log` (14 IRR plugin tests, darwin), `job-g-*` (15 firewall IRR tests, QEMU guest) |
+| AC-20 | No removed leaf or command left | `grep -rlnE` over `test` and `docs` for `policy irr`, `peeringdb-url`, `update bgp irr`, `update firewall irr` and `clear firewall irr` returns nothing (third closure) |
+| AC-22 | Unusable dataset refused, never "nothing stored" | `job-r3-units-cc92635e.log` (`resolve/irr/store` green); owed rerun below |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Daemon restart, BGP and firewall consumers; cold start; shared set; BGP commit; update then firewall commit; domain restart | the seven Wiring Test `.ci` files | Read in the third closure: `irr_owner_fixture.go` `irrRestartScenario`, `register_irr_restart_keeps_bgp_list.go` `irrRestartKeepsBGPList` assert stored copy, same `refreshed-at` and zero queries |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 to A-4, A-6 to A-9 | confirmed | the Assumptions table above, each row's evidence |
+| A-5 | broken | Mistake Log row A-5; phase 1 added `--query-log` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `irr-owner.md` `ReadDataset` row | `consumer.go` `ReadDataset` | Yes |
+| `features/irr-bgp-import-filtering.md` | `filter_irr/stored.go` `storeReader`, `irr/datasets.go` `writeDataset` | Yes |
+| No page still says the IRR lists live in memory only | `grep -rni 'memory only' docs features` hits only the reversal paragraph of `filter-irr.md` | Yes |

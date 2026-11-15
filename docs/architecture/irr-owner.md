@@ -300,7 +300,7 @@ allows:
 | `ReadGeneration` | `meta/irr-generation` | The last generation raised, 0 when none was; a value that is not 4 bytes is `ErrGenerationMalformed` |
 | `ReadBinding` | `meta/irr-asn/{asn}` | The set PeeringDB named for a bare AS number, or `ErrNotStored` |
 | `ReadPointer` | `meta/irr-set/{as-set}` | The pointer, or `ErrNotStored` |
-| `ReadDataset` | the dataset a pointer names | A `StoredSet` (pointer and decoded `Dataset`), refused when the dataset is missing, fails its own digest or decode, or is not the one the pointer names (`ErrDatasetNotPointed`) |
+| `ReadDataset` | the dataset a pointer names | A `StoredSet` (pointer and decoded `Dataset`), refused when the dataset fails its own digest or decode, or is not the one the pointer names (`ErrDatasetNotPointed`). A missing dataset reads the pointer once more: the owner removes the replaced dataset right after a flip, so a pointer that moved is followed and its dataset answered with it; one that did not move is refused (`ErrDatasetNotPointed`), and one `clear irr` removed answers `ErrNotStored` <!-- source: internal/component/resolve/irr/store/consumer.go -- ReadDataset --> |
 | `ReadSet` | pointer, then dataset | `ReadPointer` then `ReadDataset` |
 | `PublishInterest` | writes `meta/irr-interest/{consumer}`, then emits `irr/interest-changed` | The first error |
 | `DecodeDatasetNotice` | an `irr/dataset-stored` payload | The notice, its AS-SET in `ASSetName` form; generation 0 refused |

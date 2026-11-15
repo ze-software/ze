@@ -1,6 +1,6 @@
 # Handover 40: fetched data survives a restart
 
-Spec: `plan/release/fixes/spec-fetched-data-survives-restart.md` (in-progress,
+Spec: spec-fetched-data-survives-restart (closed 2026-11-15; was in-progress,
 claimed by session bb434b3e, approved by Thomas 2026-11-15, authorised above the
 WIP cap). Per-phase handoffs, file digests and every agent's owed commands:
 `tmp/session/2026-11-15-023133/state/session-state-fetched-data-survives-restart-bb434b3e-5d37-4a2e-841c-a015ab81dd1b.md`.

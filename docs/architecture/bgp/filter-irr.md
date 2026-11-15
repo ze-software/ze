@@ -25,7 +25,7 @@ client.** Until 2026-11-15 the filter imported `resolve/irr` and fetched on its
 own schedule, from `OnStarted`, every reload and a ticker. Thomas ruled that
 data fetched from the internet must survive a restart unchanged and refresh only
 at the frequency the configuration sets, with one fetcher for every consumer
-(`plan/release/fixes/spec-fetched-data-survives-restart.md`). The filter now
+(spec-fetched-data-survives-restart; `docs/architecture/irr-owner.md`). The filter now
 names what it enforces in its interest key and reads the stored copies through
 the shared reader in `internal/component/resolve/irr/store` (`consumer.go`).
 It reaches the owner only through stored keys and notices, so it works the same

@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 
 	// The firewall-irr leaves carry `ze:validate "irr-as-set"`; linking their
 	// YANG puts them in the schema the editor completes over.
@@ -38,7 +39,7 @@ func seedASSetState(t *testing.T, put func(key string, value []byte)) {
 	for consumer, in := range interest {
 		value, err := store.EncodeInterest(in)
 		require.NoError(t, err)
-		put(store.InterestKey(consumer), value)
+		put(zefs.KeyIRRInterest.Key(consumer), value)
 	}
 	pointer, err := store.EncodePointer(testPointer)
 	require.NoError(t, err)
@@ -80,11 +81,11 @@ func TestKnownASSetsReadsInterestAndPointers(t *testing.T) {
 func TestKnownASSetsKeepsTheReadableBesideAMalformedInterest(t *testing.T) {
 	state := newFakeState()
 	seedASSetState(t, func(key string, value []byte) { state.values[key] = value })
-	state.values[store.InterestKey("broken")] = []byte("{not json")
+	state.values[zefs.KeyIRRInterest.Key("broken")] = []byte("{not json")
 
 	known, err := knownASSets(context.Background(), state)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), store.InterestKey("broken"))
+	assert.Contains(t, err.Error(), zefs.KeyIRRInterest.Key("broken"))
 	assert.Equal(t, wantKnown, known)
 }
 

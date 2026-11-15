@@ -108,23 +108,66 @@ func ReadPointer(ctx context.Context, r StateReader, asSet string) (Pointer, err
 // consumer keeps what it enforces. The key ends in the pointer's digest and
 // DecodeDataset refuses a value whose own digest is another, so a value that
 // is not the pointed one answers ErrDatasetNotPointed.
+//
+// The owner removes the dataset a flip replaced right after the flip, so a
+// reader that read the pointer before the flip and reads the dataset after the
+// removal finds nothing under the key. A missing dataset is therefore not
+// refused at once: the pointer is read again, once, and a pointer that moved
+// names the dataset now published, which is read and answered with that
+// pointer. A pointer that did not move names a dataset that is truly missing;
+// a pointer `clear irr` removed meanwhile answers ErrNotStored. The one re-read
+// bounds the follow: a reader overtaken by two flips of one set is refused and
+// recovers at the next notice.
 func ReadDataset(ctx context.Context, r StateReader, asSet string, pointer Pointer) (StoredSet, error) {
-	key := pointer.DatasetKey(asSet)
-	value, found, err := r.StateGet(ctx, key)
+	stored, found, err := readPointedDataset(ctx, r, asSet, pointer)
+	if err != nil {
+		return StoredSet{}, err
+	}
+	if found {
+		return stored, nil
+	}
+	moved, err := ReadPointer(ctx, r, asSet)
+	if err != nil {
+		return StoredSet{}, err
+	}
+	if moved == pointer {
+		return StoredSet{}, missingDatasetError(asSet, pointer)
+	}
+	stored, found, err = readPointedDataset(ctx, r, asSet, moved)
 	if err != nil {
 		return StoredSet{}, err
 	}
 	if !found {
-		return StoredSet{}, fmt.Errorf("%w: %s is named by its pointer and not stored", ErrDatasetNotPointed, key)
+		return StoredSet{}, missingDatasetError(asSet, moved)
+	}
+	return stored, nil
+}
+
+// missingDatasetError is the refusal of a pointer whose dataset is not stored.
+func missingDatasetError(asSet string, pointer Pointer) error {
+	return fmt.Errorf("%w: %s is named by its pointer and not stored", ErrDatasetNotPointed, pointer.DatasetKey(asSet))
+}
+
+// readPointedDataset reads the dataset pointer names for asSet. found is false,
+// with no error, only when no value is stored under that key; every value that
+// is stored and cannot be used is an error.
+func readPointedDataset(ctx context.Context, r StateReader, asSet string, pointer Pointer) (stored StoredSet, found bool, err error) {
+	key := pointer.DatasetKey(asSet)
+	value, found, err := r.StateGet(ctx, key)
+	if err != nil {
+		return StoredSet{}, false, err
+	}
+	if !found {
+		return StoredSet{}, false, nil
 	}
 	dataset, err := DecodeDataset(key, value)
 	if errors.Is(err, ErrDatasetIdentity) {
-		return StoredSet{}, fmt.Errorf("%w: %w", ErrDatasetNotPointed, err)
+		return StoredSet{}, false, fmt.Errorf("%w: %w", ErrDatasetNotPointed, err)
 	}
 	if err != nil {
-		return StoredSet{}, err
+		return StoredSet{}, false, err
 	}
-	return StoredSet{Pointer: pointer, Dataset: dataset}, nil
+	return StoredSet{Pointer: pointer, Dataset: dataset}, true, nil
 }
 
 // ReadSet reads the pointer of asSet, then the dataset it names.
@@ -147,7 +190,7 @@ func PublishInterest(ctx context.Context, w InterestPublisher, consumer string, 
 	if err != nil {
 		return err
 	}
-	if err := w.StatePut(ctx, InterestKey(consumer), value); err != nil {
+	if err := w.StatePut(ctx, interestKey(consumer), value); err != nil {
 		return err
 	}
 	payload, err := json.Marshal(InterestNotice{Consumer: consumer})

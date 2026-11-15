@@ -87,7 +87,6 @@
 1 internal/component/policy/match_route.go
 1 internal/component/resolve/irr/client.go
 4 internal/component/resolve/irr/rir.go
-1 internal/component/resolve/irr/store/store.go
 1 internal/component/sysctl/backend_darwin.go
 1 internal/component/traffic/config.go
 2 internal/component/vpp/config.go

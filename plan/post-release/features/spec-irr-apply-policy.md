@@ -13,6 +13,23 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Amendment 2026-11-15: rebased on one IRR owner
+
+spec-fetched-data-survives-restart (closed 2026-11-15) replaced the model this spec was designed on, so this
+spec MUST be redesigned on the new one before it is implemented: its Data Flow, Wiring Test, AC and
+Files sections describe code that no longer exists (two `PrefixStore` instances, `meta/irr/{name}`,
+`update bgp irr`, `update firewall irr`, `clear firewall irr`, `firewall irr { server; peeringdb-url;
+refresh-interval }`). Thomas's owner decisions Q-1 to Q-8 stand. What the redesign starts from
+(`docs/architecture/irr-owner.md`, and "Existing Mechanisms" below):
+
+| Item | Amendment |
+|------|-----------|
+| Depends | Nothing open: the spec it rests on is closed and its work is in the tree |
+| Fetched list | The owner's dataset behind `meta/irr-set/{as-set}`, not `meta/irr/{name}`; the fetch and its timing are the `irr` plugin's (`internal/plugins/irr`), set once in `system irr { server; source-address; refresh-interval }` |
+| A-1 | Withdrawn: datasets are per server, and there is one server setting |
+| Applied snapshot | Written by the consumer as `meta/irr-applied/<consumer>/{as-set}`, naming the dataset generation it applied; read by name |
+| Apply windows | A consumer decides when it publishes a new generation; the owner's schedule decides only when it is fetched |
+
 ## Amendment 2026-10-08
 
 Two owner decisions taken while designing `plan/post-release/features/spec-netbox-0-umbrella.md` (its D-15 and D-16)
@@ -146,6 +163,17 @@ N-A: no protocol behavior changes. IRR whois (RPSL queries) is untouched; only w
 - `immediate` with a `delay` above 0 holds each change until its due time: exactly `minimum` minutes after the fetch for a fixed delay, or a uniform random time between `minimum` and `maximum` minutes for a range.
 - With `system apply-policy shrink-threshold` set, an automatic apply that would remove more than that share of a family is held and raises the `irr-shrink-held` warning.
 - New `clear bgp irr asn <n>` and `clear bgp irr as-set <name>`.
+
+## Existing Mechanisms (MANDATORY)
+
+Written 2026-11-15, when the IRR owner landed; the redesign named in "Amendment 2026-11-15" fills the last column per mechanism.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| The IRR owner | `internal/plugins/irr` (`datasets.go` `writeDataset`, `owner.go`); `docs/architecture/irr-owner.md` | Fetches, schedules and stores every AS-SET a consumer enforces, as a digest-keyed dataset behind the pointer `meta/irr-set/{as-set}`, and sends `irr/dataset-stored` with a generation | Extends: the fetched list is that dataset; a hold or an apply window acts on which generation a consumer publishes, never on the fetch |
+| The consumer reader | `internal/component/resolve/irr/store/consumer.go` `ReadSet`, `ReadDataset` | `bgp-filter-irr` and `firewall-irr` read the pointer, then the dataset it names, and publish it | Extends: an applied snapshot names the generation the consumer applied |
+| Per-family last-known-good | `resolve/irr/store/store.go` `commit`, `markStale` | A refresh that learns nothing keeps the stored list, marked stale | Does not apply: unchanged, it runs before any apply decision |
+| Owner commands | `internal/plugins/irr/command.go` (`update irr`, `clear irr`, `show irr`) | Fetch now, remove the stored copy, report the schedule | Extends: an apply or held-change verb is added where its subject lives |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
