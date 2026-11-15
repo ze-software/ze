@@ -2,10 +2,22 @@
 # VALIDATES: AC-2 -- verify rejects with actionable error naming the missing AS-SET.
 # PREVENTS: config commit silently accepting uncached interface AS-SET references.
 #
+# One question: does a commit that adds an interface binding for an AS-SET the
+# irr plugin holds nothing for get refused, by name, before any table reaches
+# the kernel? A unit test of verifyStored decides the refusal text over a fake
+# store; only the daemon decides that a SIGHUP commit runs OnConfigVerify
+# against the real store and that the refused config programs nothing.
+#
+# A daemon START runs no verify (it reads its config through OnConfigure), so
+# the refusal is driven by a reload, as firewall-irr-table-term-uncached-reject
+# does for the table form. The refusal text "nothing is stored for as-set" is
+# produced by notStoredError (internal/component/firewall/plugins/irr/irr.go),
+# which only verifyStored calls: a start never prints it.
+#
 # Flow:
-# 1. No IRR data fetched (cold cache)
-# 2. Config contains interface eth1 with source-as-set AS-MISSING
-# 3. Config verify rejects with error naming AS-MISSING
+# 1. The daemon starts with no interface binding and fetches nothing.
+# 2. The native reload driver swaps in a config binding eth1 to AS-MISSING and SIGHUPs.
+# 3. The commit is refused naming AS-MISSING, and no irr_iface table reaches the kernel.
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
 # skip-os:value=darwin only hid it from macOS: on an unprivileged Linux host it
@@ -27,10 +39,10 @@ option=needs-linux:caps=net-admin
 # requires this exclusion group.
 option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
-option=timeout:value=20s
+option=timeout:value=30s
 
 
-stdin=ze-fw:terminator=EOF_CONF
+tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external firewall-irr-iface-reject-test {
 		run "le test fixture plugin/firewall-irr-iface-reject"
@@ -38,7 +50,7 @@ plugin {
 	}
 }
 system {
-	irr { server 127.0.0.1:43; }
+	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
 	backend nft;
@@ -61,8 +73,38 @@ bgp {
 		}
 	}
 }
+EOF_CONF2
+
+stdin=ze-fw:terminator=EOF_CONF
+plugin {
+	external firewall-irr-iface-reject-test {
+		run "le test fixture plugin/firewall-irr-iface-reject"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+firewall {
+	backend nft;
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
+cmd=background:seq=1:exec=le mock irr --port $PORT2
+cmd=background:seq=2:exec=le test fixture plugin/firewall-irr-iface-reject/reload
+cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=nothing is stored for as-set AS-MISSING

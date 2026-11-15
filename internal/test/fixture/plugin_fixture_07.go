@@ -33,12 +33,12 @@ func init() {
 		"plugin/firewall-irr-empty-answer-keeps-last-good": firewallIRREmptyAnswer07,
 		"plugin/firewall-irr-iface-commit":                 firewallIRRIfaceCommit07,
 		"plugin/firewall-irr-iface-no-blackhole":           firewallIRRIfaceNoBlackhole07,
-		"plugin/firewall-irr-iface-reject":                 observerMessage07("OK: reached observer (verify rejection tested via stderr pattern)"),
+		"plugin/firewall-irr-iface-reject":                 firewallIRRRefusedCommit07("irr_iface"),
 		"plugin/firewall-irr-refresh":                      firewallIRRRefresh07,
-		"plugin/firewall-irr-reject":                       observerMessage07("OK: reached observer (verify rejection tested via stderr pattern)"),
+		"plugin/firewall-irr-reject":                       firewallIRRRefusedCommit07("wan"),
 		"plugin/firewall-irr-show":                         firewallIRRShow07,
 		"plugin/firewall-irr-table-term-commit":            firewallIRRTableTermCommit07,
-		"plugin/firewall-irr-table-term-uncached-reject":   firewallIRRTableTermUncached07,
+		"plugin/firewall-irr-table-term-uncached-reject":   firewallIRRRefusedCommit07("wan"),
 		"plugin/firewall-irr-update":                       firewallIRRUpdate07,
 		"plugin/flowspec-announce":                         flowSpecAnnounce07,
 		"plugin/flowspec-fw-legacy-table-removed":          flowSpecLegacyTable07,
@@ -62,9 +62,16 @@ func init() {
 	Register("plugin/firewall-irr-table-term-commit/reload", func(ctx context.Context, _ []string) error {
 		return reloadFirewallIRR07(ctx, "observer.fetched")
 	})
-	Register("plugin/firewall-irr-table-term-uncached-reject/reload", func(ctx context.Context, _ []string) error {
-		return reloadFirewallIRR07(ctx, "observer.ready")
-	})
+	// Each refused-commit test swaps in its config once the observer is ready.
+	for _, name := range []string{
+		"plugin/firewall-irr-iface-reject",
+		"plugin/firewall-irr-reject",
+		"plugin/firewall-irr-table-term-uncached-reject",
+	} {
+		Register(name+"/reload", func(ctx context.Context, _ []string) error {
+			return reloadFirewallIRR07(ctx, "observer.ready")
+		})
+	}
 	Register("plugin/flowspec-fw-legacy-table-removed/seed", flowSpecLegacySeed07)
 }
 
@@ -215,13 +222,6 @@ func quiesce07(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("quiesce: status=%s error=<nil>", result.status)
 	}
 	return nil
-}
-
-func observerMessage07(message string) ObserverScenario {
-	return func(_ context.Context, _ *sdk.Plugin) error {
-		fmt.Fprintln(os.Stderr, message)
-		return nil
-	}
 }
 
 func waitForPeerUpdate07() ObserverScenario {

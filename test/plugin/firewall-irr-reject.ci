@@ -2,10 +2,24 @@
 # VALIDATES: AC-5 -- verify rejects with actionable error naming the missing ASN
 # PREVENTS: config commit silently accepting uncached ASN references
 #
+# One question: does a commit that adds a table term for an AS number the irr
+# plugin holds no binding for get refused, by name, before its table reaches
+# the kernel? A unit test of verifyStored decides the refusal text over a fake
+# store; only the daemon decides that a SIGHUP commit runs OnConfigVerify
+# against the real store and that the refused config programs nothing.
+#
+# A daemon START runs no verify (it reads its config through OnConfigure), so
+# the refusal is driven by a reload, as firewall-irr-table-term-uncached-reject
+# does for the AS-SET form. The refusal text "nothing is stored for AS99999" is
+# produced by notStoredError (internal/component/firewall/plugins/irr/irr.go),
+# which only verifyStored calls: a start never prints it. Because the refused
+# config is never applied, the firewall's interest key never names AS 99999,
+# so the irr plugin asks PeeringDB nothing: the commit sends no query.
+#
 # Flow:
-# 1. No IRR data fetched (cold cache)
-# 2. Config contains source-asn 99999 in a firewall term
-# 3. Config verify rejects with error naming AS99999
+# 1. The daemon starts with no firewall table and fetches nothing.
+# 2. The native reload driver swaps in a config whose term names source-asn 99999 and SIGHUPs.
+# 3. The commit is refused naming AS99999, and no wan table reaches the kernel.
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
 # skip-os:value=darwin only hid it from macOS: on an unprivileged Linux host it
@@ -27,10 +41,10 @@ option=needs-linux:caps=net-admin
 # requires this exclusion group.
 option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
-option=timeout:value=20s
+option=timeout:value=30s
 
 
-stdin=ze-fw:terminator=EOF_CONF
+tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external firewall-irr-reject-test {
 		run "le test fixture plugin/firewall-irr-reject"
@@ -38,7 +52,7 @@ plugin {
 	}
 }
 system {
-	irr { server 127.0.0.1:43; }
+	irr { server 127.0.0.1:$PORT2; }
 }
 firewall {
 	backend nft;
@@ -73,8 +87,39 @@ bgp {
 		}
 	}
 }
+EOF_CONF2
+
+stdin=ze-fw:terminator=EOF_CONF
+plugin {
+	external firewall-irr-reject-test {
+		run "le test fixture plugin/firewall-irr-reject"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+firewall {
+	backend nft;
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
+cmd=background:seq=1:exec=le mock irr --port $PORT2
+cmd=background:seq=2:exec=le test fixture plugin/firewall-irr-reject/reload
+cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=nothing is stored for AS99999
+reject=stderr:pattern=references unknown set

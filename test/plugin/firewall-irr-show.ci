@@ -3,10 +3,17 @@
 # VALIDATES: AC-11 -- show firewall irr prefix lists cached prefixes
 # PREVENTS: show command returning empty or malformed JSON
 #
+# `show firewall irr` answers one entry per reference the firewall config
+# names, from the copy this plugin enforces (showIRR,
+# internal/component/firewall/plugins/irr/command.go): the irr plugin fetches
+# and stores, the firewall reads. A config naming no reference therefore lists
+# no entry, so the config binds eth1 to AS-TEST.
+#
 # Flow:
-# 1. Mock IRR server provides AS-TEST data
-# 2. Observer fetches AS-TEST via update command
-# 3. Observer dispatches "show firewall irr" and verifies JSON structure
+# 1. Mock IRR server provides AS-TEST data; the eth1 binding names AS-TEST
+# 2. Observer fetches AS-TEST via update irr as-set
+# 3. Observer polls "show firewall irr" until the AS-TEST entry is enforced,
+#    then checks its server and prefix counts
 # 4. Observer dispatches "show firewall irr prefix AS-TEST" and verifies prefix list
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
@@ -44,6 +51,11 @@ system {
 }
 firewall {
 	backend nft;
+	irr {
+		interface eth1 {
+			source-as-set AS-TEST;
+		}
+	}
 }
 bgp {
 	peer peer1 {

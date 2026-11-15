@@ -65,7 +65,7 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 			return entry != nil && entry["status"] == "ok"
 		})
 		if entry := irrBGPEntry(listed); entry == nil || entry["status"] != "ok" {
-			return fmt.Errorf("show bgp irr never reported %s enforced: status=%s error=%v data=%s", irrTestASSet, listed.status, listed.err, text07(listed.data))
+			return fmt.Errorf("show bgp irr never reported %s enforced: status=%s error=%w data=%s", irrTestASSet, listed.status, listed.err, text07(listed.data))
 		}
 		if err := os.WriteFile(filterIRRListedMarker, []byte("ok"), 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", filterIRRListedMarker, err)
@@ -336,7 +336,7 @@ func firewallIRREmptyAnswer07(ctx context.Context, p *sdk.Plugin) error {
 	}
 	for _, row := range array07(object07(shown.data)["entries"]) {
 		entry := object07(row)
-		if entry["name"] != "AS-TEST" {
+		if entry["name"] != irrTestASSet {
 			continue
 		}
 		if number07(entry["ipv4-count"]) != v4 || number07(entry["ipv6-count"]) != v6 || entry["status"] != statusStale || entry["stale-since"] == nil {
@@ -386,9 +386,30 @@ func firewallIRRShow07(ctx context.Context, p *sdk.Plugin) error {
 	if _, err := updateASSet07(ctx, p, "AS-TEST"); err != nil {
 		return err
 	}
-	shown := done07(ctx, p, "show firewall irr")
-	if shown.status != statusDone || object07(shown.data)["server"] == nil {
-		return fmt.Errorf("show firewall irr missing server: status=%s data=%s", shown.status, text07(shown.data))
+	// The firewall lists the references its config names, each with the copy
+	// it enforces; the copy arrives on the irr plugin's notice, after the
+	// update answered, so the observer waits for the entry to be enforced.
+	var entry map[string]any
+	shown := until07(ctx, p, "show firewall irr", 40, 250*time.Millisecond, func(r commandResult07) bool {
+		entry = nil
+		if r.status != statusDone {
+			return false
+		}
+		for _, row := range array07(object07(r.data)["entries"]) {
+			if candidate := object07(row); candidate["name"] == "AS-TEST" {
+				entry = candidate
+			}
+		}
+		return entry != nil && entry["status"] == "ok"
+	})
+	if entry == nil || entry["status"] != "ok" {
+		return fmt.Errorf("show firewall irr never listed AS-TEST enforced: status=%s data=%s error=%w", shown.status, text07(shown.data), shown.err)
+	}
+	if server, ok := entry["server"].(string); !ok || server == "" {
+		return fmt.Errorf("show firewall irr entry AS-TEST names no server: %s", text07(entry))
+	}
+	if number07(entry["ipv4-count"]) < 1 {
+		return fmt.Errorf("show firewall irr entry AS-TEST lists no ipv4 prefixes: %s", text07(entry))
 	}
 	prefixes := done07(ctx, p, "show firewall irr prefix AS-TEST")
 	ipv4 := array07(object07(prefixes.data)["ipv4"])
@@ -428,17 +449,24 @@ func firewallIRRTableTermCommit07(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
-func firewallIRRTableTermUncached07(ctx context.Context, p *sdk.Plugin) error {
-	if err := os.WriteFile("observer.ready", []byte("ok"), 0o600); err != nil {
-		return err
+// firewallIRRRefusedCommit07 observes a test whose reload commits an IRR
+// reference the irr plugin holds nothing for. It signals the reload driver,
+// waits for the reload, and requires table to stay out of the kernel. The
+// refusal text itself is the .ci's stderr expectation, because a daemon start
+// runs no verify: only the reload's OnConfigVerify prints it.
+func firewallIRRRefusedCommit07(table string) ObserverScenario {
+	return func(ctx context.Context, p *sdk.Plugin) error {
+		if err := os.WriteFile("observer.ready", []byte("ok"), 0o600); err != nil {
+			return err
+		}
+		if !Poll(ctx, 200, 100*time.Millisecond, func() bool { _, err := os.Stat("reload.done"); return err == nil }) {
+			return errors.New("reload trigger never created reload.done marker")
+		}
+		if result := done07(ctx, p, "show firewall ruleset "+table); result.status == statusDone {
+			return fmt.Errorf("refused config reached kernel: %s", text07(result.data))
+		}
+		return nil
 	}
-	if !Poll(ctx, 200, 100*time.Millisecond, func() bool { _, err := os.Stat("reload.done"); return err == nil }) {
-		return errors.New("reload trigger never created reload.done marker")
-	}
-	if result := done07(ctx, p, "show firewall ruleset wan"); result.status == statusDone {
-		return fmt.Errorf("refused config reached kernel: %s", text07(result.data))
-	}
-	return nil
 }
 
 func firewallIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
