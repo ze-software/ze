@@ -293,7 +293,7 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 // always querying the server. It returns and caches what LookupPrefixes does,
 // and it never reads that cache.
 //
-// A refresh exists to reach the server. "update firewall irr as-set X" is the
+// A refresh exists to reach the server. "update irr as-set X" is the
 // one command an operator has to correct data the server has changed, and an
 // answer served from the 1h cache would report a refresh that queried nothing.
 // The durable cache of the answer is the prefix store

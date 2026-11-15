@@ -77,7 +77,10 @@ func TestUpdateFailurePreservesState(t *testing.T) {
 		t.Fatalf("AS-TEST scheduled at %s (scheduled %v) after a failed update, want the retry at %s", retry, scheduled, want)
 	}
 	var row *datasetRow
-	show := second.owner.showIRR()
+	show, err := second.owner.showIRR()
+	if err != nil {
+		t.Fatalf("show irr after a failed update: %v", err)
+	}
 	for i := range show.Datasets {
 		if show.Datasets[i].ASSet == "AS-TEST" {
 			row = &show.Datasets[i]

@@ -178,9 +178,6 @@ func TestHandleConfigureDoesNotEnrollPeerWithoutIRR(t *testing.T) {
 
 	// A peer with a remote ASN and nothing else: no filter chain, no as-set.
 	plug.configureOf(map[string]any{
-		"policy": map[string]any{
-			"irr": map[string]any{"server": "127.0.0.1:1", "peeringdb-url": "http://127.0.0.1:1"},
-		},
 		"peer": map[string]any{
 			"10.0.0.1": map[string]any{
 				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
@@ -469,21 +466,11 @@ func TestExtractASNFromFilterBoundaries(t *testing.T) {
 
 // irrConfigFor builds the bgp subtree handleConfigure reads: one peer of AS
 // 65001 importing bgp-filter-irr:65001 with the given as-set ("" lets
-// PeeringDB choose it). The policy irr leaves are still in the schema and
-// nothing the filter does reads them.
+// the irr plugin's PeeringDB discovery choose it). The PeeringDB URL a
+// discovery queries is the irr plugin's config, so the bgp root carries none.
 func irrConfigFor(asSet string) map[string]any {
-	return irrConfigWithPeeringDB("127.0.0.1:43", "http://127.0.0.1:1", "65001", asSet)
-}
-
-// irrConfigWithPeeringDB is irrConfigFor with the PeeringDB URL a discovery
-// queries.
-func irrConfigWithPeeringDB(server, peeringDBURL, asn, asSet string) map[string]any {
-	policy := map[string]any{"irr": map[string]any{"server": server, "peeringdb-url": peeringDBURL}}
-	if asn == "" {
-		return map[string]any{"policy": policy}
-	}
+	const asn = "65001"
 	return map[string]any{
-		"policy": policy,
 		"peer": map[string]any{
 			"10.0.0.1": map[string]any{
 				"session": map[string]any{

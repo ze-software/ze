@@ -20,8 +20,6 @@ option=storage:value=disk
 option=env:var=ze.log.irr:value=debug
 option=timeout:value=60s
 
-# policy irr server keeps the BGP filter's own fetch on the mock while the
-# filter still fetches for itself; the leaf and this block go when it stops.
 stdin=ze-irr:terminator=EOF_CONF
 plugin {
 	external irr-cold-start-stores-test {
@@ -30,9 +28,6 @@ plugin {
 	}
 }
 system {
-	irr { server 127.0.0.1:$PORT2; }
-}
-policy {
 	irr { server 127.0.0.1:$PORT2; }
 }
 bgp {

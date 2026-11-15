@@ -11,8 +11,8 @@ module ze-firewall-irr {
                  references and populates nftables interval sets. Augments the
                  firewall from-block with source-asn, source-as-set, destination-asn,
                  and destination-as-set leaves, and adds a firewall irr container
-                 for interface bindings. Its server, refresh-interval and
-                 peeringdb-url leaves are no longer read: system irr holds them.";
+                 for interface bindings. The IRR server, the PeeringDB URL and
+                 the refresh period are system irr and system peeringdb config.";
 
     revision 2026-06-17 {
         description "Initial revision";
@@ -24,43 +24,8 @@ module ze-firewall-irr {
                          enforces, from the server and at the interval system irr names; the
                          BGP IRR filter enforces the same stored copy, so one query serves
                          both. A commit that names a reference with nothing stored is refused
-                         with the update irr command that fetches it. The server,
-                         peeringdb-url and refresh-interval leaves below are no longer read.";
-            ze:help "IRR policy settings for firewall prefix-list resolution.";
-
-            leaf server {
-                type string;
-                default "whois.radb.net";
-                description "The default is whois.radb.net. Ze adds port 43 when the value names
-                             no port, so a host:port value reaches the port you name. One query
-                             waits 10 seconds at most, and Ze holds each answer for one hour.";
-                ze:help "IRR whois server hostname or host:port.";
-            }
-
-            leaf peeringdb-url {
-                type string {
-                    pattern 'https?://.*';
-                }
-                default "https://www.peeringdb.com";
-                description "The default is https://www.peeringdb.com. Ze adds /api/net?asn=<N>
-                             to this value for each query, and holds each answer for one hour.
-                             Ze skips TLS verification for the host 127.0.0.1 alone, which is
-                             what makes a local test server work.";
-                ze:help "Base URL for PeeringDB API queries.
-                         Override for testing with a mock server.";
-            }
-
-            leaf refresh-interval {
-                type uint32 {
-                    range "0 | 60..86400";
-                }
-                default "0";
-                units "seconds";
-                description "No longer read: the irr plugin refreshes every stored list at
-                             system irr refresh-interval, and 'update irr' fetches one by
-                             hand.";
-                ze:help "Seconds between automatic IRR re-queries.";
-            }
+                         with the update irr command that fetches it.";
+            ze:help "Per-interface IRR source validation.";
 
             list interface {
                 key "name";

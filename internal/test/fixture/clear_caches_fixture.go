@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -120,24 +121,33 @@ func clearPeeringDBCache04(ctx context.Context, p *sdk.Plugin) error {
 	return runSteps04(steps)
 }
 
-// clearIRRCache04 proves clear irr cache reaches the IRR client the
-// bgp-filter-irr plugin built, through the plugin's resolver-cache-clear
-// callback: the hub's own resolver never looks AS-TEST up, so the entries can
-// only be the plugin's, and the answer names the plugin as the owner that
-// removed them. The same steps run with the plugin internal and external.
+// clearIRRCache04 proves clear irr cache reaches the IRR client the irr plugin
+// built, through the plugin's resolver-cache-clear callback: the hub's own
+// resolver never looks AS-TEST up, and the irr plugin fetches it because
+// bgp-filter-irr enforces it, so the entries can only be the irr plugin's, and
+// the answer names it as the owner that removed them. bgp-filter-irr holds no
+// IRR client, so the answer must not list it as an owner
+// (docs/architecture/resolve.md, "Clearing a resolver cache"). The same steps
+// run with the irr plugin internal and external.
 func clearIRRCache04(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitPeerEOR04(ctx, p); err != nil {
 		return err
 	}
 	command := "clear irr cache as-set AS-TEST"
+	var found map[string]any
 	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
 		status, value, err := command04(ctx, p, command)
-		data, _ := value.(map[string]any)
-		return err == nil && status == statusDone && data["found"] == true && ownerRemoved04(data, "bgp-filter-irr") > 0
+		found, _ = value.(map[string]any)
+		return err == nil && status == statusDone && found["found"] == true && ownerRemoved04(found, "irr") > 0
 	}) {
-		return errors.New(command + ": never found the AS-SET the IRR filter refreshed in the bgp-filter-irr owner")
+		return errors.New(command + ": never found the AS-SET the irr plugin fetched in the irr owner")
 	}
-	fmt.Fprintf(os.Stderr, "OK: %s -> found true, removed by owner bgp-filter-irr\n", command)
+	if ownerRemoved04(found, "bgp-filter-irr") != -1 {
+		return errors.New(command + ": bgp-filter-irr answered as a cache owner, but only the irr plugin holds an IRR client")
+	}
+	var tb textbuf.Buffer
+	tb.Str("OK: ").Str(command).Str(" -> found true, removed by owner irr\n").
+		StdErr() //nolint:errcheck // fixture output; the .ci reads it
 	steps := []func() error{
 		func() error {
 			_, err := requireAnswer04(ctx, p, command, map[string]any{clearKeyAction04: clearActionEntry04, fieldName: "AS-TEST", clearKeyFound04: false})

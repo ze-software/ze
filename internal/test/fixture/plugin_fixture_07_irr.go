@@ -13,6 +13,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// filterIRRListedMarker is the file filterIRRDecision07 writes once the filter
+// enforces AS-TEST; filter-irr.ci's peer sends nothing until it exists.
+const filterIRRListedMarker = "irr-listed"
+
 // filterIRRDecision07 observes test/plugin/filter-irr.ci. Its goal is to hold
 // the daemon up until the IRR import filter has decided the one UPDATE the
 // peer sends, and to check that decision kept 10.0.0.0/24 and dropped
@@ -50,7 +54,22 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 		p.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 		return nil
 	}
-	scenario := func(ctx context.Context, _ *sdk.Plugin) error {
+	scenario := func(ctx context.Context, p *sdk.Plugin) error {
+		// A first start stores nothing, so the filter enforces AS-TEST only
+		// once the irr plugin fetched and stored it; an UPDATE judged before
+		// that is rejected and held by design. The peer holds its UPDATE
+		// until filterIRRListedMarker exists (option=await-file), and this
+		// writes it only once show bgp irr reports AS-TEST enforced.
+		listed := until07(ctx, p, "show bgp irr", 50, 200*time.Millisecond, func(r commandResult07) bool {
+			entry := irrBGPEntry(r)
+			return entry != nil && entry["status"] == "ok"
+		})
+		if entry := irrBGPEntry(listed); entry == nil || entry["status"] != "ok" {
+			return fmt.Errorf("show bgp irr never reported %s enforced: status=%s error=%v data=%s", irrTestASSet, listed.status, listed.err, text07(listed.data))
+		}
+		if err := os.WriteFile(filterIRRListedMarker, []byte("ok"), 0o600); err != nil {
+			return fmt.Errorf("write %s: %w", filterIRRListedMarker, err)
+		}
 		wait := WaitBudget(50, 10*time.Second)
 		var update string
 		select {
@@ -74,11 +93,12 @@ func filterIRRDecision07(ctx context.Context, _ []string) error {
 // filterIRRReadmit07 observes test/plugin/filter-irr-readmit.ci. Its goal is
 // to prove that a route rejected because its ASN's IRR list could not be
 // resolved is accepted once the list arrives, with no action by the peer's
-// operator. Method: the mock IRR fails the first query, so the first
-// resolution fails and the peer's UPDATE is rejected as no-prefix-list. Once
-// the ASN shows the error and the peer's following End-of-RIB is counted, the
-// initial filter verdict and held-route tracking have completed. The observer
-// refreshes the ASN the way an operator does; the filter must then send a
+// operator. Method: the mock IRR fails the first query, so the irr plugin's
+// first fetch of AS-TEST fails, nothing is stored, and the peer's UPDATE is
+// rejected as no-prefix-list. Once `show irr` reports AS-TEST failing and the
+// peer's following End-of-RIB is counted, the initial filter verdict and
+// held-route tracking have completed. The observer refreshes the set the way
+// an operator does (`update irr all`); the filter must then send a
 // ROUTE-REFRESH (the peer's script checks it before sending the route again).
 // Shutdown waits for that route here, delivered only after the import chain
 // accepted it (reactor_notify.go).
@@ -110,21 +130,15 @@ func filterIRRReadmit07(ctx context.Context, _ []string) error {
 		return nil
 	}
 	scenario := func(ctx context.Context, p *sdk.Plugin) error {
-		var failed commandResult07
+		// The failed fetch is the irr plugin's: it reports AS-TEST failing
+		// (internal/plugins/irr/command.go rowOf), and the filter holds no list.
+		var failed map[string]any
+		var failedErr error
 		if !Poll(ctx, 40, 250*time.Millisecond, func() bool {
-			failed = command07(ctx, p, "show bgp irr")
-			if failed.status != statusDone {
-				return false
-			}
-			for _, row := range array07(object07(failed.data)["entries"]) {
-				entry := object07(row)
-				if number07(entry["asn"]) == 65001 && entry["status"] == statusError {
-					return true
-				}
-			}
-			return false
+			failed, failedErr = irrStoredRow(ctx, p, "AS-TEST")
+			return failedErr == nil && failed["status"] == "failing"
 		}) {
-			return fmt.Errorf("ASN 65001 never reported its initial IRR failure: status=%s data=%s error=%w", failed.status, text07(failed.data), failed.err)
+			return fmt.Errorf("AS-TEST never reported its initial IRR failure: row=%s error=%w", text07(failed), failedErr)
 		}
 		// updates-received advances before the import filter runs. The next
 		// frame's EOR counter advances only after that verdict and hold finish.
@@ -144,8 +158,8 @@ func filterIRRReadmit07(ctx context.Context, _ []string) error {
 			return fmt.Errorf("the IRR filter accepted a route before its list resolved: update=%s", update)
 		default:
 		}
-		if result := done07(ctx, p, "update bgp irr all"); result.status != statusDone {
-			return fmt.Errorf("update bgp irr all status=%s error=%w", result.status, result.err)
+		if result := done07(ctx, p, "update irr all"); result.status != statusDone {
+			return fmt.Errorf("update irr all status=%s error=%w", result.status, result.err)
 		}
 		wait := WaitBudget(50, 10*time.Second)
 		select {
@@ -163,28 +177,41 @@ func filterIRRReadmit07(ctx context.Context, _ []string) error {
 	return observeConfigured(ctx, name, &sdk.Registration{}, setup, scenario)
 }
 
+// filterIRRFail07 observes test/plugin/filter-irr-fail.ci. Its goal is to
+// prove that an IRR fetch that stores no list is reported as a failure, on the
+// command and in `show irr`, and that the BGP filter then enforces no list for
+// the ASN rather than an empty one. Method: PeeringDB names no AS-SET for
+// 65100, so the irr plugin binds the literal AS65100 (owner.go discoverASN,
+// resolver.go discover), and the IRR server at 127.0.0.1:1 never answers. The
+// observer waits for `show irr` to report AS65100 failing (the fetch at start
+// failed, owner.go refreshSet), runs `update irr asn 65100` and requires the
+// refusal of a fetch that stored nothing (command.go fetchAnswer), then
+// requires `show irr` to still report AS65100 failing with no prefix and
+// `show bgp irr` to report ASN 65100 pending: nothing stored, nothing enforced.
 func filterIRRFail07(ctx context.Context, p *sdk.Plugin) error {
-	until07(ctx, p, "show bgp irr", 20, 500*time.Millisecond, func(result commandResult07) bool {
-		for _, row := range array07(object07(result.data)["entries"]) {
-			entry := object07(row)
-			if number07(entry["asn"]) == 65100 && entry["status"] != "pending" {
-				return true
-			}
-		}
-		return false
-	})
-	// The refresh must fail on the IRR lookup itself (updateASN, command.go).
+	failing := func() (map[string]any, bool) {
+		row, err := irrStoredRow(ctx, p, "AS65100")
+		return row, err == nil && row["status"] == "failing"
+	}
+	if !Poll(ctx, 20, 500*time.Millisecond, func() bool { _, ok := failing(); return ok }) {
+		row, _ := failing()
+		return fmt.Errorf("show irr does not report AS65100 failing after the fetch at start: %s", text07(row))
+	}
+	// The refresh must fail on the IRR fetch itself (updateASN, command.go).
 	// A status alone was also satisfied by the usage error the plugin answered
 	// when the forwarder dropped the ASN argument.
-	result := command07(ctx, p, "update bgp irr asn 65100")
+	result := command07(ctx, p, "update irr asn 65100")
 	if result.status != statusError {
-		return fmt.Errorf("update bgp irr asn 65100 status=%s, want error", result.status)
+		return fmt.Errorf("update irr asn 65100 status=%s, want error", result.status)
 	}
 	if result.err == nil {
-		return errors.New("update bgp irr asn 65100 returned no error, want the failed refresh of ASN 65100")
+		return errors.New("update irr asn 65100 returned no error, want the failed fetch of AS65100")
 	}
-	if !strings.Contains(result.err.Error(), "ASN 65100 refresh failed") {
-		return fmt.Errorf("update bgp irr asn 65100 error=%w, want the failed refresh of ASN 65100", result.err)
+	if !strings.Contains(result.err.Error(), "update irr as-set AS65100 stored nothing") {
+		return fmt.Errorf("update irr asn 65100 error=%w, want the failed fetch of AS65100", result.err)
+	}
+	if row, ok := failing(); !ok || number07(row["ipv4-count"]) != 0 || number07(row["ipv6-count"]) != 0 {
+		return fmt.Errorf("show irr after the failed update: %s, want AS65100 failing with no prefix", text07(row))
 	}
 	result = command07(ctx, p, "show bgp irr")
 	if result.status != statusDone {
@@ -192,19 +219,23 @@ func filterIRRFail07(ctx context.Context, p *sdk.Plugin) error {
 	}
 	for _, row := range array07(object07(result.data)["entries"]) {
 		entry := object07(row)
-		if number07(entry["asn"]) == 65100 && entry["status"] == statusError {
-			return nil
+		if number07(entry["asn"]) != 65100 {
+			continue
 		}
+		if entry["status"] != "pending" {
+			return fmt.Errorf("show bgp irr reports ASN 65100 %s, want pending: nothing is stored to enforce", text07(entry))
+		}
+		return nil
 	}
-	return errors.New("show bgp irr does not show error status for ASN 65100")
+	return fmt.Errorf("show bgp irr has no row for ASN 65100: %s", text07(result.data))
 }
 
 func filterIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitForPeerUpdate07()(ctx, p); err != nil {
 		return err
 	}
-	if result := done07(ctx, p, "update bgp irr all"); result.status != statusDone {
-		return fmt.Errorf("update bgp irr all status=%s error=%w", result.status, result.err)
+	if result := done07(ctx, p, "update irr all"); result.status != statusDone {
+		return fmt.Errorf("update irr all status=%s error=%w", result.status, result.err)
 	}
 	if result := command07(ctx, p, "show bgp irr"); result.status != statusDone {
 		return fmt.Errorf("show bgp irr status=%s error=%w", result.status, result.err)
@@ -220,9 +251,9 @@ func filterIRRUpdate07(ctx context.Context, p *sdk.Plugin) error {
 }
 
 func updateASSet07(ctx context.Context, p *sdk.Plugin, name string) (map[string]any, error) {
-	result := done07(ctx, p, "update firewall irr as-set "+name)
+	result := done07(ctx, p, "update irr as-set "+name)
 	if result.status != statusDone {
-		return nil, fmt.Errorf("update firewall irr as-set %s: status=%s error=%w", name, result.status, result.err)
+		return nil, fmt.Errorf("update irr as-set %s: status=%s error=%w", name, result.status, result.err)
 	}
 	return object07(result.data), nil
 }
@@ -259,8 +290,29 @@ func firewallIRRCommit07(ctx context.Context, p *sdk.Plugin) error {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "OK: cached AS-TEST: v4=%d v6=%d\n", number07(data["ipv4-count"]), number07(data["ipv6-count"]))
-	if result := done07(ctx, p, "update firewall irr all"); result.status != statusDone {
-		return fmt.Errorf("update firewall irr all: status=%s error=%w", result.status, result.err)
+	if result := done07(ctx, p, "update irr all"); result.status != statusDone {
+		return fmt.Errorf("update irr all: status=%s error=%w", result.status, result.err)
+	}
+	return nil
+}
+
+// updateEmptyAnswer07 runs `update irr as-set <name>` over a stored list and
+// requires the answer to say the refresh learned nothing. An empty answer over
+// a stored list keeps that list and answers its row marked stale, with
+// stale-since set (internal/plugins/irr/command.go fetchAnswer and rowOf). A
+// done status alone proves nothing: a fresh full answer is done too, and its
+// row is stored, not stale.
+func updateEmptyAnswer07(ctx context.Context, p *sdk.Plugin, name string) error {
+	result := done07(ctx, p, "update irr as-set "+name)
+	if result.status != statusDone {
+		return fmt.Errorf("refresh of %s that learned nothing over a stored list: status=%s error=%w", name, result.status, result.err)
+	}
+	row := object07(result.data)
+	if row["status"] != statusStale {
+		return fmt.Errorf("refresh of %s answered %s, want status stale: the refresh must report that it learned nothing", name, text07(row))
+	}
+	if since, ok := row["stale-since"].(string); !ok || since == "" {
+		return fmt.Errorf("refresh of %s answered %s, want stale-since set: the refresh must report that it learned nothing", name, text07(row))
 	}
 	return nil
 }
@@ -274,8 +326,9 @@ func firewallIRREmptyAnswer07(ctx context.Context, p *sdk.Plugin) error {
 	if v4 < 1 {
 		return fmt.Errorf("expected v4 prefixes on first refresh, got %d", v4)
 	}
-	if result := done07(ctx, p, "update firewall irr as-set AS-TEST"); result.status == statusDone {
-		return errors.New("refresh that learned nothing reported success")
+	// AC-4: the refresh reports that it learned nothing.
+	if err := updateEmptyAnswer07(ctx, p, "AS-TEST"); err != nil {
+		return err
 	}
 	shown := done07(ctx, p, "show firewall irr")
 	if shown.status != statusDone {
@@ -307,8 +360,9 @@ func firewallIRRIfaceNoBlackhole07(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil || number07(data["ipv4-count"]) < 1 {
 		return fmt.Errorf("initial update did not return v4 prefixes: data=%s error=%w", text07(data), err)
 	}
-	if result := done07(ctx, p, "update firewall irr as-set AS-TEST"); result.status == statusDone {
-		return errors.New("refresh that learned nothing reported success")
+	// The precondition: the second refresh got the empty answer.
+	if err := updateEmptyAnswer07(ctx, p, "AS-TEST"); err != nil {
+		return err
 	}
 	result := done07(ctx, p, "show firewall ruleset irr_iface")
 	if result.status != statusDone || !strings.Contains(text07(result.data), "iface_eth1_v4") {

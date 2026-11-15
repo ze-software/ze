@@ -220,7 +220,7 @@ func checkTopicIRR() error {
 	if err := loadShowcaseSections("topics/irr/2-as-set.conf"); err != nil {
 		return err
 	}
-	if _, err := showcaseCLI("update bgp irr as-set AS-TEST"); err != nil {
+	if _, err := showcaseCLI("update irr as-set AS-TEST"); err != nil {
 		return err
 	}
 	if err := runShowcaseLab("control", []string{showcaseCustomerPeer, controlReannounce}, io.Discard); err != nil {

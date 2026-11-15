@@ -1,14 +1,20 @@
-# Test: auto-refresh with fail-closed semantics
-# VALIDATES: AC-12 -- refresh-interval 0 disables auto-refresh
-# VALIDATES: AC-13 -- refresh-interval > 0 starts periodic refresh
-# VALIDATES: AC-14 -- failed refresh preserves last-good cache
-# PREVENTS: auto-refresh corrupting cache on IRR server failure
+# Test: a daemon with system irr refresh-interval 60 and firewall-irr loaded
+#       stores a fetched AS-SET and firewall-irr still answers show firewall irr
+# VALIDATES: a non-default system irr refresh-interval (the irr plugin's
+#            schedule, which replaced the firewall's own interval) is accepted
+#            at boot beside firewall-irr
+# PREVENTS: the owner's schedule settings breaking the firewall consumer's
+#           start or its show command
+#
+# The schedule itself (due at checked-at plus the interval, a failed fetch
+# keeping the stored copy) is proven by internal/plugins/irr schedule_test.go
+# and irr_test.go: a 60 s interval cannot fire inside this test's budget.
 #
 # Flow:
 # 1. Mock IRR server provides AS-TEST data
-# 2. Plugin configured with refresh-interval 2 (short for testing)
-# 3. Observer fetches initial data, verifies refresh loop runs
-# 4. Observer verifies cached data survives even when refresh interval fires
+# 2. The irr plugin is configured with refresh-interval 60
+# 3. Observer runs update irr as-set AS-TEST and requires IPv4 prefixes stored
+# 4. Observer requires show firewall irr to answer
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
 # skip-os:value=darwin only hid it from macOS: on an unprivileged Linux host it
@@ -40,12 +46,14 @@ plugin {
 		encoder json
 	}
 }
-firewall {
-	backend nft;
+system {
 	irr {
 		server 127.0.0.1:$PORT2;
 		refresh-interval 60;
 	}
+}
+firewall {
+	backend nft;
 }
 bgp {
 	peer peer1 {

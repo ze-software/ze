@@ -42,13 +42,8 @@ expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000014400101
 action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
-# policy irr server keeps the BGP filter's own fetch on the mock while the
-# filter still fetches for itself; the leaf and this block go when it stops.
 stdin=ze-bgp:terminator=EOF_CONF
 system {
-	irr { server 127.0.0.1:$PORT2; }
-}
-policy {
 	irr { server 127.0.0.1:$PORT2; }
 }
 
@@ -92,9 +87,6 @@ EOF_CONF
 # the only differences.
 tmpfs=config2.conf:terminator=EOF_CONF2
 system {
-	irr { server 127.0.0.1:$PORT2; }
-}
-policy {
 	irr { server 127.0.0.1:$PORT2; }
 }
 

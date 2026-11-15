@@ -50,11 +50,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 	table wan {
 		family inet;
 		chain input {
@@ -103,11 +103,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 }
 bgp {
 	peer peer1 {

@@ -231,6 +231,7 @@ func (h *ownerHarness) boot() {
 	ctx := context.Background()
 	h.owner.absorb(ctx)
 	h.owner.load(ctx)
+	h.owner.publishView()
 	h.pass()
 }
 

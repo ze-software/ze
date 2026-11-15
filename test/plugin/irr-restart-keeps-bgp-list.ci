@@ -1,5 +1,5 @@
 # Test: a restart enforces the stored BGP IRR list with no whois query
-# VALIDATES: spec-fetched-data-survives-restart AC-1 (same AS-SET, counts and refreshed-at; zero queries at start)
+# VALIDATES: spec-fetched-data-survives-restart AC-1 (same AS-SET, counts and refreshed-at; zero queries at start; a listed prefix accepted with no hold)
 # PREVENTS: a reboot changing the IRR import filter because the list was fetched again
 # WIRING: daemon restart with a stored dataset -> owner start read, consumer OnStarted read, publishLocked
 #
@@ -9,19 +9,37 @@
 # restart until the first daemon has exited and released the store
 # (docs/functional-tests.md, the daemon/await-exit barrier). Each OK line sits
 # under the start that prints it. le mock irr logs every whois query
-# to irr-queries.log; the observer (internal/test/fixture/irr_owner_fixture.go)
-# waits for the stored dataset in the first run and records the query count
-# and refreshed-at, and the second run requires both unchanged while show bgp
-# irr names AS-TEST.
+# to irr-queries.log; the observer (internal/test/fixture/irr_owner_fixture.go,
+# register_irr_restart_keeps_bgp_list.go) waits for the stored dataset in the
+# first run and records the query count and refreshed-at. In the restart it
+# requires show bgp irr to report AS-TEST enforced, the peer's UPDATE
+# announcing the listed 10.0.0.0/24 to reach it (the reactor delivers an
+# UPDATE only after the import chain accepted it), and the query count and
+# refreshed-at unchanged.
 #
-# Red until the irr plugin stores datasets: show irr answers "not available yet".
+# The peer serves one session per start (tcp_connections 2) and announces
+# 10.0.0.0/24 from AS 65001 on each. In the first start nothing is stored, so
+# that UPDATE may be rejected and held; the reject line under the restart
+# refuses the filter's reject in the restart only, which is how a hold starts.
 
 option=storage:value=disk
 option=env:var=ze.log.irr:value=debug
+# The filter logs its reject at info: without it the reject line below could
+# not see a reject, and would pass vacuously.
+option=env:var=ze.log.bgp.filter.irr:value=info
 option=timeout:value=60s
 
-# policy irr server keeps the BGP filter's own fetch on the mock while the
-# filter still fetches for itself; the leaf and this block go when it stops.
+stdin=peer:terminator=EOF_PEER
+# Linger: between the two sessions the peer holds the first until ze closes it,
+# and after the second it never closes, so no session-down withdraws the route
+# before the observer reads it.
+option=linger:value=true
+option=tcp_connections:value=2
+# UPDATE from AS 65001: ORIGIN IGP, AS_PATH [65001], NEXT_HOP 1.1.1.1, NLRI 10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
 stdin=ze-irr:terminator=EOF_CONF
 plugin {
 	external irr-restart-keeps-bgp-list-test {
@@ -30,9 +48,6 @@ plugin {
 	}
 }
 system {
-	irr { server 127.0.0.1:$PORT2; }
-}
-policy {
 	irr { server 127.0.0.1:$PORT2; }
 }
 bgp {
@@ -51,17 +66,24 @@ bgp {
 			export { final accept; }
 			import { filters [ bgp-filter-irr:65001 ]; final accept; }
 		}
+		# The observer counts the accepted UPDATE, so the peer delivers it the
+		# received UPDATEs.
+		attach process irr-restart-keeps-bgp-list-test {
+			receive [ update ]
+		}
 	}
 }
 EOF_CONF
 
 cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 # The steps carry no timeout=: a foreground timeout= replaces the whole test
 # budget, and both starts and the barrier share the 60s above.
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-irr
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-irr
 expect=stderr:pattern=OK: first run stored AS-TEST
-cmd=foreground:seq=3:exec=le test fixture daemon/await-exit
-cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-irr
+cmd=foreground:seq=4:exec=le test fixture daemon/await-exit
+cmd=foreground:seq=5:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-irr
 expect=exit:code=0
 expect=stderr:pattern=OK: restart enforced the stored AS-TEST with no IRR query
+reject=stderr:contains=irr filter reject
 reject=stderr:pattern=panic

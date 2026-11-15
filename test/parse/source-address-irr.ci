@@ -1,7 +1,11 @@
-# Test: IRR filter with source-address parses successfully
+# Test: system irr with a source-address parses successfully
+# VALIDATES: the irr owner's system irr container accepts server and
+#            source-address beside a BGP config
+# PREVENTS: ze-irr-conf.yang losing source-address, the leaf the owner binds
+#           its whois connections to
 
 stdin=config:terminator=EOF_CONF
-policy {
+system {
     irr {
         server whois.radb.net;
         source-address 198.51.100.1;

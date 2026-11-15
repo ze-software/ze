@@ -38,11 +38,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 	table wan {
 		family inet;
 		chain input {
@@ -83,11 +83,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 }
 bgp {
 	peer peer1 {
@@ -108,5 +108,5 @@ cmd=background:seq=1:exec=le mock irr --port $PORT2
 cmd=background:seq=2:exec=le test fixture plugin/firewall-irr-table-term-uncached-reject/reload
 cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
-expect=stderr:pattern=no cached prefix data for as-set AS-MISSING
+expect=stderr:pattern=nothing is stored for as-set AS-MISSING
 reject=stderr:pattern=references unknown set

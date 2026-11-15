@@ -18,8 +18,6 @@ option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.irr:value=debug
 option=timeout:value=40s
 
-# The policy irr and firewall irr server leaves keep the consumers' own fetches
-# on the mock while they still fetch for themselves; they go when they stop.
 stdin=ze-irr:terminator=EOF_CONF
 plugin {
 	external irr-shared-dataset-test {
@@ -30,12 +28,8 @@ plugin {
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
-policy {
-	irr { server 127.0.0.1:$PORT2; }
-}
 firewall {
 	backend nft;
-	irr { server 127.0.0.1:$PORT2; }
 	table wan {
 		family inet;
 		chain input {

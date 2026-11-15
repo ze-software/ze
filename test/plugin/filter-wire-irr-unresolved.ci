@@ -53,7 +53,7 @@ plugin {
 		use bgp-rib
 	}
 }
-policy {
+system {
 	irr {
 		server 127.0.0.1:$PORT2
 		refresh-interval 3600

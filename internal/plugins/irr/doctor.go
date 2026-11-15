@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -100,18 +101,34 @@ var irrDiagnosticCodes = []diagnostic.CodeMeta{
 // ownerView is what the worker publishes for show irr and the doctor
 // callback.
 type ownerView struct {
-	show     showAnswer
-	findings []sdk.DoctorCheckDiagnostic
+	// published is false until the worker's first publishView, after it read
+	// the store. Before it, the zero show (no server, interval 0, no dataset)
+	// and the empty findings are not answers, so both readers refuse instead.
+	published bool
+	show      showAnswer
+	findings  []sdk.DoctorCheckDiagnostic
+}
+
+// errNotLoaded refuses show irr and the doctor check before the worker has
+// read the store: inside the startup handshake, or while its first read runs.
+func errNotLoaded() error {
+	return opererr.New("the irr plugin has not read its stored IRR datasets yet",
+		"It answers from what it read from the store, and its first read runs once its startup has finished.",
+		"show irr")
 }
 
 // answerDoctorCheck is the plugin's doctor callback. It answers the one
-// runtime check the plugin declares and refuses a name it did not declare.
+// runtime check the plugin declares and refuses a name it did not declare,
+// and refuses before the worker's first view rather than report no finding.
 func (o *owner) answerDoctorCheck(name string) ([]sdk.DoctorCheckDiagnostic, error) {
 	if name != datasetCheckName {
 		return nil, fmt.Errorf("irr: unknown doctor check %s", name)
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if !o.view.published {
+		return nil, errNotLoaded()
+	}
 	return slices.Clone(o.view.findings), nil
 }
 
@@ -141,6 +158,7 @@ func (o *owner) publishView() {
 		schedule = nextManual
 	}
 	view := ownerView{
+		published: true,
 		show: showAnswer{
 			Server: o.cfg.server, RefreshInterval: uint32(o.cfg.refreshInterval / time.Second), //nolint:gosec // at most 86400
 			Schedule: schedule, Datasets: rows,

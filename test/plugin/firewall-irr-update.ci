@@ -1,14 +1,16 @@
-# Test: update firewall irr asn fetches IRR data and caches it
-# VALIDATES: AC-1 -- prefixes for ASN saved to zefs, command reports counts
-# VALIDATES: AC-2 -- AS-SET expansion and cache
+# Test: update irr as-set fetches IRR data and stores it, with firewall-irr loaded
+# VALIDATES: AC-1 -- prefixes saved to zefs, command reports counts
+# VALIDATES: AC-2 -- AS-SET expansion and store
+# VALIDATES: spec-fetched-data-survives-restart AC-15 -- the irr plugin owns the
+#            update command; firewall-irr has none
 # PREVENTS: update command silently failing or not persisting data
 #
 # Flow:
 # 1. Mock IRR server provides AS-TEST -> 10.0.0.0/24, 10.0.1.0/24, 172.16.0.0/16, 2001:db8::/32
-# 2. Observer dispatches "update firewall irr asn 65001"
-# 3. Observer verifies command reports success with prefix counts
-# 4. Observer dispatches "update firewall irr as-set AS-TEST"
-# 5. Observer verifies AS-SET fetch succeeds
+# 2. Observer dispatches "update irr as-set AS-TEST"; no firewall rule names it,
+#    so this command is the only fetch
+# 3. Observer verifies the command reports success with a positive IPv4 count
+# 4. The irr plugin logs the stored dataset ("irr dataset stored")
 
 # This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
 # skip-os:value=darwin only hid it from macOS: on an unprivileged Linux host it
@@ -31,6 +33,7 @@ option=needs-linux:caps=net-admin
 # requires this exclusion group.
 option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
+option=env:var=ze.log.irr:value=info
 option=timeout:value=20s
 
 
@@ -41,11 +44,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 }
 bgp {
 	peer peer1 {
@@ -65,4 +68,4 @@ EOF_CONF
 cmd=background:seq=1:exec=le mock irr --port $PORT2
 cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=irr.*refreshed
+expect=stderr:pattern=irr dataset stored

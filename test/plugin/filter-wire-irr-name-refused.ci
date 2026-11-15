@@ -14,11 +14,13 @@
 # declaration; the refused reference fails startup and ze exits 1 by itself.
 
 stdin=ze-bgp:terminator=EOF_CONF
-policy {
+system {
 	irr {
 		server 127.0.0.1:1
-		peeringdb-url http://127.0.0.1:1
 		refresh-interval 3600
+	}
+	peeringdb {
+		url http://127.0.0.1:1
 	}
 }
 

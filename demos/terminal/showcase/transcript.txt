@@ -74,7 +74,7 @@ ze# commit now
 $ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
 ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
 ze# commit now
-$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze cli -c 'update irr as-set AS-TEST | yaml | no-more'
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 

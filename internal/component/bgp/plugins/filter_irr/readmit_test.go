@@ -394,7 +394,6 @@ func TestReadmitRetainDropsRemovedPeer(t *testing.T) {
 		t.Fatalf("held = %d, want 1", got)
 	}
 	plug.configureOf(map[string]any{
-		"policy": map[string]any{"irr": map[string]any{"server": irrAddr}},
 		"peer": map[string]any{
 			"peer2": map[string]any{
 				"connection": map[string]any{"remote": map[string]any{"ip": "127.0.0.2"}},

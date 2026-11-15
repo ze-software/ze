@@ -686,8 +686,9 @@ system {
 }
 ```
 
-The `server`, `peeringdb-url` and `refresh-interval` leaves under `firewall
-irr` are no longer read.
+The PeeringDB endpoint asked for a bare ASN is `system peeringdb url`.
+`firewall irr` holds only the interface bindings; it has no server, URL or
+interval of its own.
 
 A commit is refused when a referenced ASN or AS-SET has nothing stored, or a
 stored list holding no prefixes, with an error naming the reference and the

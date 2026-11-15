@@ -39,7 +39,6 @@ system {
 }
 firewall {
 	backend nft;
-	irr { server 127.0.0.1:$PORT2; }
 	table wan {
 		family inet;
 		chain input {

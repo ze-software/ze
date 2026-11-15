@@ -91,7 +91,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 			if err := quiesce(ctx, p); err != nil {
 				return fmt.Errorf("settle IRR peer initial sync: %w", err)
 			}
-			if status, _, err := p.DispatchCommand(ctx, "update bgp irr asn 65001"); err != nil || status != rpc.StatusDone {
+			if status, _, err := p.DispatchCommand(ctx, "update irr asn 65001"); err != nil || status != rpc.StatusDone {
 				return fmt.Errorf("resolve IRR before input: status=%s: %w", status, err)
 			}
 		}

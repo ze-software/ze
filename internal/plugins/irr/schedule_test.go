@@ -65,9 +65,19 @@ func TestManualIntervalNeverDue(t *testing.T) {
 // TestRefreshIntervalBoundary proves the parser keeps the YANG range
 // 0 | 60..86400: 0, 60 and 86400 are accepted, 59 and 86401 refused.
 func TestRefreshIntervalBoundary(t *testing.T) {
-	for _, accepted := range []string{"0", "60", "86400"} {
-		if _, err := readSeconds(accepted); err != nil {
+	for accepted, want := range map[string]uint64{"0": 0, "60": 60, "86400": 86400} {
+		got, err := readSeconds(accepted)
+		if err != nil {
 			t.Errorf("refresh-interval %s refused: %v", accepted, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("refresh-interval %s = %d seconds, want %d", accepted, got, want)
+		}
+	}
+	for accepted, want := range map[float64]uint64{60: 60, 86400: 86400} {
+		if got, err := readSeconds(accepted); err != nil || got != want {
+			t.Errorf("refresh-interval %v as a JSON number = %d, %v, want %d", accepted, got, err, want)
 		}
 	}
 	for _, refused := range []string{"1", "59", "86401", "-1", "x"} {

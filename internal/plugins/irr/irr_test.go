@@ -304,7 +304,10 @@ func TestManualShowsSchedule(t *testing.T) {
 	h.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST"}})
 	h.boot()
 
-	show := h.owner.showIRR()
+	show, err := h.owner.showIRR()
+	if err != nil {
+		t.Fatalf("show irr after boot: %v", err)
+	}
 	if show.Schedule != nextManual || len(show.Datasets) != 1 || show.Datasets[0].NextRefresh != nextManual {
 		t.Fatalf("show irr %+v, want a manual schedule", show)
 	}

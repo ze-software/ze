@@ -21,20 +21,11 @@ import (
 // "bgp-filter-irr:65001" is the only spelling that can reach this plugin.
 const pluginName = "bgp-filter-irr"
 
-const (
-	defaultServer          = "whois.radb.net"
-	defaultPeeringDBURL    = "https://www.peeringdb.com"
-	defaultRefreshInterval = uint32(3600)
-	minRefreshInterval     = uint32(60)
-	maxRefreshInterval     = uint32(86400)
-)
-
+// irrConfig is what the filter enforces: the peers that opted into IRR
+// filtering. Where and how often the lists are fetched is the irr plugin's
+// config (system irr, system peeringdb), not the filter's.
 type irrConfig struct {
-	Server          string
-	PeeringDBURL    string
-	SourceAddress   string
-	RefreshInterval uint32
-	Peers           []peerIRRConfig
+	Peers []peerIRRConfig
 }
 
 type peerIRRConfig struct {
@@ -69,29 +60,10 @@ type peerIRRConfig struct {
 	UsesIRR bool
 }
 
-// parseIRRConfig reads the IRR settings from policy { irr { } } and the peers
-// that opted into IRR filtering from the bgp root.
-func parseIRRConfig(policyCfg, bgpCfg map[string]any) *irrConfig {
-	cfg := &irrConfig{
-		Server:          defaultServer,
-		PeeringDBURL:    defaultPeeringDBURL,
-		RefreshInterval: defaultRefreshInterval,
-	}
-
-	if irrBlock, ok := policyCfg["irr"].(map[string]any); ok {
-		if srv, ok := irrBlock["server"].(string); ok && srv != "" {
-			cfg.Server = srv
-		}
-		if pdbURL, ok := irrBlock["peeringdb-url"].(string); ok && pdbURL != "" {
-			cfg.PeeringDBURL = pdbURL
-		}
-		if sa, ok := irrBlock["source-address"].(string); ok && sa != "" {
-			cfg.SourceAddress = sa
-		}
-		if v, ok := readUint(irrBlock["refresh-interval"]); ok {
-			cfg.RefreshInterval = clampRefreshInterval(v)
-		}
-	}
+// parseIRRConfig reads the peers that opted into IRR filtering from the bgp
+// root.
+func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
+	cfg := &irrConfig{}
 
 	globalChained := chainReferencesIRR(bgpCfg)
 
@@ -296,16 +268,6 @@ func parsePeerIRR(peerAddr string, peerMap map[string]any) peerIRRConfig {
 	}
 
 	return p
-}
-
-func clampRefreshInterval(v uint64) uint32 {
-	if v < uint64(minRefreshInterval) {
-		return minRefreshInterval
-	}
-	if v > uint64(maxRefreshInterval) {
-		return maxRefreshInterval
-	}
-	return uint32(v) //nolint:gosec // range checked above
 }
 
 func readUint(v any) (uint64, bool) {

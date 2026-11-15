@@ -15,7 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -201,10 +200,8 @@ func runFilterIRR(conn net.Conn) int {
 	})
 
 	if err := p.Run(ctx, &sdk.Registration{
-		Commands: commandDecls(),
-		// A forked program has no registry row to supply ConfigReads, so its
-		// Stage 1 declaration must request the policy settings as well as peers.
-		WantsConfig:  []string{configRootBGP, policy.RootName},
+		Commands:     commandDecls(),
+		WantsConfig:  []string{configRootBGP},
 		Filters:      filterDecls(),
 		DoctorChecks: []sdk.DoctorCheckDecl{storedCopyCheckDecl},
 	}); err != nil {
@@ -220,7 +217,7 @@ func runFilterIRR(conn net.Conn) int {
 // the new one, never a mix. It reads and writes no store: the reader does,
 // on its own worker, once the plugin has started.
 func (plug *irrPlugin) handleConfigure(delivery irrDelivery) {
-	cfg := parseIRRConfig(delivery.policy, delivery.bgp)
+	cfg := parseIRRConfig(delivery.bgp)
 
 	newByASN := make(map[uint32]*asnState)
 	for _, peer := range cfg.Peers {

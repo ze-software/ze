@@ -47,7 +47,7 @@ $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
 $ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
 $ ze cli -c 'show bgp adj-rib-in | no-more'
 
-Load 2-as-set.conf again and commit the repair. Run update bgp irr as-set
+Load 2-as-set.conf again and commit the repair. Run update irr as-set
 AS-TEST, then ze-demo run showcase-lab control customer reannounce. Inspect
 the accepted decision, 10.0.0.0/24 and its final 10.0.1.0/24 control again.
 The wrong-set control and outside route must be absent. Ze stays running.
@@ -59,7 +59,7 @@ ze# show | compare
 ze# commit now
 ze# exit
 ze> exit
-$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze cli -c 'update irr as-set AS-TEST | yaml | no-more'
 $ ze-demo run showcase-lab control customer reannounce
 $ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
 $ ze cli -c 'show bgp adj-rib-in | no-more'

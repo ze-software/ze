@@ -79,11 +79,12 @@ auto-injected.** The reactor has no dynamic filter injection API, and
 which serves a dynamic group's members only: a static peer naming a variable is
 refused at load (`docs/guide/bgp-peering.md`, dynamic groups).
 
-**The `policy irr` leaves are no longer read for fetching.** `server`,
-`source-address`, `peeringdb-url` and `refresh-interval` are still in
-`ze-filter-irr.yang` and still parsed by `parseIRRConfig`, and nothing the
-filter does uses them: the `irr` plugin's `system irr` and `system peeringdb
-url` decide where and when. The config conversion removes them.
+**The filter has no IRR settings of its own.** Where and when a list is
+fetched is the `irr` plugin's `system irr { server; source-address;
+refresh-interval }` and `system peeringdb url`. `ze-filter-irr.yang` no longer
+augments the policy root, and `parseIRRConfig` reads the bgp root alone: a peer
+names only its `irr { as-set; enable }` and its `bgp-filter-irr:<asn>` import
+filter.
 
 **A commit reaches the filter through the reload pair, not through
 `OnConfigure`.** `OnConfigure` fires once, at boot. A live commit is delivered

@@ -41,7 +41,7 @@ plugin {
  external observer { run "le test fixture plugin/filter-wire-transports irr internal 5 6 0"; encoder json; }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT3; } } }
-policy { irr { server 127.0.0.1:$PORT2; refresh-interval 3600; } }
+system { irr { server 127.0.0.1:$PORT2; refresh-interval 3600; } }
 bgp {
 peer source {
  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }
@@ -111,7 +111,7 @@ plugin {
  external observer { run "le test fixture plugin/filter-wire-transports irr forked 5 0 6"; encoder json; }
 }
 telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT3; } } }
-policy { irr { server 127.0.0.1:$PORT2; refresh-interval 3600; } }
+system { irr { server 127.0.0.1:$PORT2; refresh-interval 3600; } }
 bgp {
 peer source {
  connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } }

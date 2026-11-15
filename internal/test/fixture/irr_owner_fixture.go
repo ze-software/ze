@@ -294,8 +294,13 @@ func irrAwaitStored(ctx context.Context, p *sdk.Plugin, asSet string) (map[strin
 }
 
 // irrStoredRow answers the `show irr` row of asSet, or why there is none.
+// `show irr` refuses until the irr plugin has read the store, which a
+// restart observer can ask before, so a refusal is asked again for up to five
+// seconds; the first answer is judged, and one that lacks asSet fails at once.
 func irrStoredRow(ctx context.Context, p *sdk.Plugin, asSet string) (map[string]any, error) {
-	result := command07(ctx, p, "show irr")
+	result := until07(ctx, p, "show irr", 50, 100*time.Millisecond, func(r commandResult07) bool {
+		return r.status == statusDone
+	})
 	if result.status != statusDone {
 		return nil, fmt.Errorf("show irr: status=%s error=%w", result.status, result.err)
 	}

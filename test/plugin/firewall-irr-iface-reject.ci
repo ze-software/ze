@@ -37,10 +37,12 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:43; }
+}
 firewall {
 	backend nft;
 	irr {
-		server 127.0.0.1:43;
 		interface eth1 {
 			source-as-set AS-MISSING;
 		}
@@ -63,4 +65,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=no cached prefix data for as-set AS-MISSING
+expect=stderr:pattern=nothing is stored for as-set AS-MISSING

@@ -47,9 +47,9 @@ system root by `yang/ze-irr-conf.yang`. `server` defaults to `whois.radb.net`;
 `refresh-interval` is `0 | 60..86400` seconds, default 3600, and 0 means manual
 only: no automatic refresh, while an AS-SET with nothing stored is still
 fetched once, and `update irr` fetches on demand. The PeeringDB endpoint is
-`system peeringdb url`. A consumer names only the AS-SET or ASN it enforces.
-The consumers' own `policy irr` and `firewall irr` server, URL and interval
-leaves are still in their YANG and are no longer read: no consumer fetches.
+`system peeringdb url`. A consumer names only the AS-SET or ASN it enforces:
+neither consumer's YANG carries a server, URL or interval leaf, because no
+consumer fetches.
 
 The config reaches the owner through the SDK's config transaction
 (`sdk.NewConfigTx` over `parseOwnerConfig`): at boot and on every commit. A
@@ -70,8 +70,12 @@ pointers, bindings and datasets read from the store, and the schedule. A config
 install and an interest notice set a flag and wake it (a channel of depth
 one); a command runs as a closure on it, so a fetch a command starts is the
 only fetch of that set. `show irr` and the doctor callback read a snapshot the
-worker publishes after each pass, so they answer while it fetches. Nothing is
-read or fetched inside the startup handshake.
+worker publishes after each pass, so they answer while it fetches. The first
+snapshot is published right after the worker's first read of the store and
+before its first fetch; until then both refuse ("has not read its stored IRR
+datasets yet") rather than answer the empty snapshot, whose blank server,
+interval 0 and empty dataset list are neither the config nor the store.
+Nothing is read or fetched inside the startup handshake.
 
 At its first pass the worker converts the old firewall lists, then reads every
 interest key, every pointer with the dataset it names, and every binding. Each

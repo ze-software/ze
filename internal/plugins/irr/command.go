@@ -27,7 +27,11 @@ func (o *owner) handleCommand(command string, args []string) (string, any, error
 	var answer commandAnswer
 	switch command {
 	case cmdShowIRR:
-		return statusDone, o.showIRR(), nil
+		show, err := o.showIRR()
+		if err != nil {
+			return statusError, nil, err
+		}
+		return statusDone, show, nil
 	case cmdUpdateIRRAll:
 		answer = o.do(o.updateAll)
 	case cmdUpdateIRRAsn:
@@ -288,11 +292,16 @@ type showAnswer struct {
 	Datasets        []datasetRow `json:"datasets"`
 }
 
-// showIRR answers the snapshot the worker published.
-func (o *owner) showIRR() showAnswer {
+// showIRR answers the snapshot the worker published, and refuses before the
+// first one: the zero showAnswer names no server and interval 0, which is
+// not the config, and no dataset, which is not what the store holds.
+func (o *owner) showIRR() (showAnswer, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return o.view.show
+	if !o.view.published {
+		return showAnswer{}, errNotLoaded()
+	}
+	return o.view.show, nil
 }
 
 // stamp writes t as RFC 3339 UTC, and an unset time as nothing.

@@ -105,10 +105,11 @@ for, so an outage never changes the queried set (`discoverASSet`). PeeringDB
 reports an ASN it does not know as an error, so that case also keeps the
 cached set. The PeeringDB client caches each answer for an hour, and a caller asks only
 when it refreshes, so an upstream AS-SET change is followed at the first
-refresh after the cached answer expires: up to about two hours at
-bgp-filter-irr's default `refresh-interval` of 3600 seconds, and up to a day at
-86400. A reload resets the cache, because `handleConfigure` builds a new
-PeeringDB client.
+refresh after the cached answer expires: up to about two hours at the `irr`
+plugin's default `system irr refresh-interval` of 3600 seconds, and up to a day
+at 86400. A commit that changes `system irr` or `system peeringdb url` resets
+the cache, because the `irr` plugin then builds new clients (`installConfig`,
+`useClients`); a commit that leaves both unchanged keeps it.
 
 The `irr` plugin is the only user of a `PrefixStore`, one per configured
 server. It stores each answer itself as a dataset

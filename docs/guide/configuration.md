@@ -1848,15 +1848,18 @@ prefix-list itself ([Route Policy at the Loc-RIB](route-policy.md)).
 ### IRR Prefix-List Filter
 
 The `bgp-filter-irr` plugin generates prefix-list filters from IRR (Internet
-Routing Registry) data. It queries a whois server for an AS-SET's prefixes
-and applies them as import filters, replacing the external bgpq4 workflow.
+Routing Registry) data and applies them as import filters, replacing the
+external bgpq4 workflow. The `irr` plugin queries the whois server for each
+AS-SET's prefixes and stores them; the filter enforces what it stored.
 
 ```
-policy {
+system {
     irr {
         server whois.radb.net    // IRR whois server (default)
-        peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
-        refresh-interval 3600   // seconds between re-queries (60-86400)
+        refresh-interval 3600    // seconds between re-queries: 0 (manual only) or 60-86400
+    }
+    peeringdb {
+        url https://www.peeringdb.com  // PeeringDB API base URL (default)
     }
 }
 
@@ -1876,15 +1879,17 @@ bgp {
 ```
 
 The suffix in `bgp-filter-irr:65001` is the peer's remote ASN. Use the
-corresponding ASN in each peer's filter reference. The plugin queries IRR for
-the AS-SET's prefixes and builds a prefix-list keyed by ASN. Routes with
+corresponding ASN in each peer's filter reference. The filter builds a
+prefix-list keyed by ASN from the AS-SET the `irr` plugin stored. Routes with
 prefixes in the list are accepted; all others are rejected (implicit deny).
 
-When `irr { as-set }` is omitted, the plugin auto-discovers the AS-SET from
-PeeringDB using the peer's remote ASN. If PeeringDB has no AS-SET registered
-for the ASN, the plugin falls back to querying IRR directly using
-`AS<number>` (e.g. `AS65001`). If the IRR query also fails, the existing
-prefix-list is preserved and the error is reported via `show bgp irr`.
+When `irr { as-set }` is omitted, the `irr` plugin auto-discovers the AS-SET
+from PeeringDB using the peer's remote ASN. If PeeringDB has no AS-SET
+registered for the ASN, it falls back to querying IRR directly using
+`AS<number>` (e.g. `AS65001`). If the IRR query also fails, the stored
+prefix-list is preserved and `show irr` reports the set as `failing`; with
+nothing stored yet, `show bgp irr` reports the ASN `pending` and its
+announcements are rejected.
 Set `irr { enable disable; }` to opt a peer out of IRR filtering entirely.
 
 For a complete configuration, verification workflow, troubleshooting table,
@@ -4851,7 +4856,7 @@ local interface or the connection fails with `cannot assign requested address`.
 | BMP | `bgp bmp sender collector <name>` | `source-address` | TCP |
 | RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | Mutual TLS, or explicitly trusted TCP |
 | Flow Export | `flow-export collector <name>` | `source-address` | UDP |
-| IRR (filter) | `policy irr` | `source-address` | TCP |
+| IRR (whois) | `system irr` | `source-address` | TCP |
 | Managed hub | `plugin hub client <name>` | `source-address` | TLS |
 | LDP | `ldp` | `transport-address` | TCP |
 

@@ -14,10 +14,6 @@ import (
 func TestParseFirewallIRRConfig(t *testing.T) {
 	data := `{
 		"firewall": {
-			"irr": {
-				"server": "whois.radb.net",
-				"refresh-interval": "0"
-			},
 			"table": {
 				"wan": {
 					"family": "inet",
@@ -188,30 +184,6 @@ func TestExtractRefsASSet(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected AS-SET ref for AS-CLOUDFLARE, got %v", refs)
-	}
-}
-
-// VALIDATES: refresh-interval parsed from both string and float64.
-// PREVENTS: numeric JSON value silently defaulting to 0.
-func TestParseRefreshIntervalNumeric(t *testing.T) {
-	sections := []sdk.ConfigSection{{
-		Root: "firewall",
-		Data: `{"firewall":{"irr":{"refresh-interval":3600}}}`,
-	}}
-	cfg := parseIRRConfig(sections)
-	if cfg.RefreshInterval != 3600 {
-		t.Errorf("refresh-interval from float64 = %d, want 3600", cfg.RefreshInterval)
-	}
-}
-
-func TestParseRefreshIntervalString(t *testing.T) {
-	sections := []sdk.ConfigSection{{
-		Root: "firewall",
-		Data: `{"firewall":{"irr":{"refresh-interval":"1800"}}}`,
-	}}
-	cfg := parseIRRConfig(sections)
-	if cfg.RefreshInterval != 1800 {
-		t.Errorf("refresh-interval from string = %d, want 1800", cfg.RefreshInterval)
 	}
 }
 

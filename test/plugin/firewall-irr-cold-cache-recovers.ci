@@ -1,19 +1,26 @@
-# Test: a cold IRR cache costs one table, and an update command wins it back.
+# Test: a cold IRR store costs one table, and an update command wins it back.
 # VALIDATES: the reconcile is held back per TABLE, not for every owner. The
-#            table whose term names an unregistered IRR set waits; every other
-#            table is programmed on the same reconcile.
-# VALIDATES: `update firewall irr as-set` programs what it fetched, so the wait
-#            ends. Nothing else ends it: refresh-interval defaults to 0.
-# PREVENTS:  a fresh install, a wiped store, or an unreadable cache
+#            table whose term names an IRR set with nothing stored waits; every
+#            other table is programmed on the same reconcile.
+# VALIDATES: spec-fetched-data-survives-restart AC-6 -- the irr plugin fetches a
+#            cold reference at once, and while that fetch fails the table stays
+#            held back.
+# VALIDATES: `update irr as-set` stores what it fetched and firewall-irr
+#            programs it, so the wait ends. Inside this test nothing else ends
+#            it: the owner retries a failed fetch only a minute later.
+# PREVENTS:  a fresh install, a wiped store, or an unreadable stored copy
 #            leaving the WHOLE firewall out of the kernel behind one WARN, with
 #            no operator command able to change it.
 #
 # Flow:
-# 1. The daemon starts with two tables and an empty prefix cache. `wan` names
-#    AS-TEST, which no owner has registered; `lan` names nothing.
-# 2. The observer reads the ruleset back: `lan` is programmed, `wan` is not.
-# 3. The observer fetches AS-TEST from the mock IRR server.
-# 4. `wan` is now programmed, with the term and its IPv6 twin.
+# 1. The daemon starts with two tables and an empty store. `wan` names
+#    AS-TEST, which nothing has stored; `lan` names nothing.
+# 2. The irr plugin fetches AS-TEST at once; the mock IRR server fails that
+#    first query (--fail-first 1), so nothing is stored and the irr plugin
+#    logs the failed fetch.
+# 3. The observer reads the ruleset back: `lan` is programmed, `wan` is not.
+# 4. The observer runs `update irr as-set AS-TEST`; the second query answers.
+# 5. `wan` is now programmed, with the term and its IPv6 twin.
 
 # The runner assigns each daemon a separate tree store beside its explicit
 # source, so this scenario starts with an empty prefix cache. Kernel nftables
@@ -32,6 +39,7 @@ option=needs-linux:caps=net-admin
 # Per-daemon tree isolation does not isolate those kernel objects.
 option=exclusive:group=firewall-irr-nft
 option=env:var=ze.log.firewall.irr:value=debug
+option=env:var=ze.log.irr:value=info
 option=timeout:value=30s
 
 
@@ -42,11 +50,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 	table wan {
 		family inet;
 		chain input {
@@ -97,8 +105,9 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=le mock irr --port $PORT2
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --fail-first 1
 cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
+expect=stderr:pattern=irr: the IRR server did not answer
 expect=stderr:pattern=lan stayed programmed, and the update brought wan back
 reject=stderr:pattern=references unknown set

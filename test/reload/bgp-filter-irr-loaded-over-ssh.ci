@@ -1,8 +1,9 @@
 # Test: the IRR topic's three sections, load-merged in the SSH editor and
 #       committed, reach the running IRR filter with no BGP restart
-# Initial config: peer customer (AS 65001) established, no `policy irr`, no
+# Initial config: peer customer (AS 65001) established, no `system irr`, no
 #                 `irr as-set`, no import filter. bgp-filter-irr runs anyway:
-#                 its ConfigRoots is bgp.
+#                 its ConfigRoots is bgp, and it starts the irr plugin, which
+#                 fetches and stores what the filter enforces.
 # Live change:    an SSH session editor load-merges the server, the as-set and
 #                 the import filter, one section at a time as the IRR topic
 #                 tape does (demos/terminal/topics/irr/configure.tape), then
@@ -90,7 +91,7 @@ bgp {
 EOF_CONF
 
 tmpfs=1-server.conf:terminator=EOF_SERVER
-policy {
+system {
     irr {
         server 127.0.0.1:$PORT2
         refresh-interval 3600

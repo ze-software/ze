@@ -1,6 +1,6 @@
 # Test: config commit succeeds with cached ASN data
 # VALIDATES: AC-4 -- verify passes with cached data, interval sets created
-# VALIDATES: AC-8 -- update firewall irr all refreshes all entries
+# VALIDATES: AC-8 -- update irr all refreshes every referenced entry
 # PREVENTS: commit failing despite valid cache or sets not being generated
 #
 # Flow:
@@ -38,11 +38,11 @@ plugin {
 		encoder json
 	}
 }
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
 firewall {
 	backend nft;
-	irr {
-		server 127.0.0.1:$PORT2;
-	}
 }
 bgp {
 	peer peer1 {

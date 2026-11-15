@@ -4,12 +4,14 @@
 # PREVENTS: a valid route staying rejected until the peer happens to send it again
 #
 # Flow:
-# 1. The mock IRR fails its first query, so AS65001's first resolution fails.
+# 1. The mock IRR fails its first query, so the irr plugin's first fetch of
+#    AS-TEST fails and nothing is stored for AS65001's set.
 # 2. The peer sends 10.0.0.0/24; the filter rejects it as no-prefix-list and
 #    holds it for re-evaluation.
-# 3. The peer sends an End-of-RIB after that UPDATE. The observer waits for the
-#    failed resolution and eor-received, which proves the preceding filter
-#    decision and hold completed, then runs `update bgp irr all` to resolve AS-TEST.
+# 3. The peer sends an End-of-RIB after that UPDATE. The observer waits for
+#    `show irr` to report AS-TEST failing and for eor-received, which proves the
+#    preceding filter decision and hold completed, then runs `update irr all`;
+#    the irr plugin stores AS-TEST and notifies the filter.
 # 4. The filter sees that the held prefix is in the new list and sends a
 #    ROUTE-REFRESH for ipv4/unicast; the peer answers by sending the route again.
 # 5. The observer receives the accepted 10.0.0.0/24 (internal/test/fixture/
@@ -44,7 +46,7 @@ plugin {
 		use bgp-rib
 	}
 }
-policy {
+system {
 	irr {
 		server 127.0.0.1:$PORT2
 		refresh-interval 3600

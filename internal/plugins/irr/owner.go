@@ -230,6 +230,10 @@ func (o *owner) run(ctx context.Context) {
 	defer close(o.done)
 	o.absorb(ctx)
 	o.load(ctx)
+	// The first view is published before the first fetch: show irr and the
+	// doctor refuse until a view exists (showIRR), and a cold fetch can hold
+	// the worker for the whole whois timeout.
+	o.publishView()
 	timer := time.NewTimer(time.Hour)
 	defer timer.Stop()
 	for {

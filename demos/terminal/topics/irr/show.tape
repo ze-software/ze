@@ -86,9 +86,9 @@ Wait+Screen /operational\]/
 Type "exit"
 Enter
 Wait+Screen /\$ /
-Type "ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'"
+Type "ze cli -c 'update irr as-set AS-TEST | yaml | no-more'"
 Enter
-Wait+Screen /refreshed:/
+Wait+Screen /ipv4-count:/
 Type "ze-demo run showcase-lab control customer reannounce"
 Enter
 Wait+Screen /Customer routes announced/

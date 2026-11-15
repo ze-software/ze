@@ -7,73 +7,7 @@ import (
 
 // VALIDATES: AC-8 -- explicit AS-SET parsed from config.
 // VALIDATES: AC-14 -- irr enable disable parsed.
-// VALIDATES: AC-19 -- refresh-interval parsed with default 3600.
 // PREVENTS: Config parsing silently ignores IRR settings.
-
-func TestParseIRRConfig(t *testing.T) {
-	tests := []struct {
-		name       string
-		bgpCfg     map[string]any
-		wantSrv    string
-		wantPDBURL string
-		wantInt    uint32
-	}{
-		{
-			"defaults",
-			map[string]any{},
-			"whois.radb.net", "https://www.peeringdb.com", 3600,
-		},
-		{
-			"explicit server and interval",
-			map[string]any{
-				"policy": map[string]any{
-					"irr": map[string]any{
-						"server":           "whois.ripe.net",
-						"refresh-interval": "1800",
-					},
-				},
-			},
-			"whois.ripe.net", "https://www.peeringdb.com", 1800,
-		},
-		{
-			"explicit peeringdb-url",
-			map[string]any{
-				"policy": map[string]any{
-					"irr": map[string]any{
-						"peeringdb-url": "http://127.0.0.1:9999",
-					},
-				},
-			},
-			"whois.radb.net", "http://127.0.0.1:9999", 3600,
-		},
-		{
-			"interval as float64",
-			map[string]any{
-				"policy": map[string]any{
-					"irr": map[string]any{
-						"refresh-interval": float64(7200),
-					},
-				},
-			},
-			"whois.radb.net", "https://www.peeringdb.com", 7200,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := parseIRRConfigOf(tt.bgpCfg)
-			if cfg.Server != tt.wantSrv {
-				t.Errorf("Server = %q, want %q", cfg.Server, tt.wantSrv)
-			}
-			if cfg.PeeringDBURL != tt.wantPDBURL {
-				t.Errorf("PeeringDBURL = %q, want %q", cfg.PeeringDBURL, tt.wantPDBURL)
-			}
-			if cfg.RefreshInterval != tt.wantInt {
-				t.Errorf("RefreshInterval = %d, want %d", cfg.RefreshInterval, tt.wantInt)
-			}
-		})
-	}
-}
-
 func TestParseIRRConfigPeerEntries(t *testing.T) {
 	bgpCfg := map[string]any{
 		"peer": map[string]any{
@@ -153,35 +87,6 @@ func TestParseIRRConfigDisabledPeer(t *testing.T) {
 		if p.RemoteASN == 65002 && p.Disabled {
 			t.Error("peer 65002 should not be Disabled")
 		}
-	}
-}
-
-// VALIDATES: refresh-interval boundary: 60-86400.
-func TestParseIRRConfigBoundary(t *testing.T) {
-	tests := []struct {
-		name  string
-		value any
-		want  uint32
-	}{
-		{"minimum valid", "60", 60},
-		{"maximum valid", "86400", 86400},
-		{"below minimum clamps", "30", 60},
-		{"above maximum clamps", "100000", 86400},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bgpCfg := map[string]any{
-				"policy": map[string]any{
-					"irr": map[string]any{
-						"refresh-interval": tt.value,
-					},
-				},
-			}
-			cfg := parseIRRConfigOf(bgpCfg)
-			if cfg.RefreshInterval != tt.want {
-				t.Errorf("RefreshInterval = %d, want %d", cfg.RefreshInterval, tt.want)
-			}
-		})
 	}
 }
 

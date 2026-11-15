@@ -42,7 +42,7 @@ served for that ASN: 1 on the first, 2 on the next. A client that answers
 AS-SERVED-1 twice served the second answer from its cache.
 
 The server listens on 127.0.0.1 and prints the actual port to stderr.
-Point ze config peeringdb-url at http://127.0.0.1:<port> to use.
+Point ze config system peeringdb url at http://127.0.0.1:<port> to use.
 
 Flags:
 `)

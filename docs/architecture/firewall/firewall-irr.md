@@ -191,8 +191,9 @@ and need separate terms. A future change could split terms and hide this.
 
 A firewall IRR set refreshes every 3600 seconds by default, the same dataset
 BGP refreshes, at `system irr refresh-interval`; `system irr refresh-interval 0`
-makes every consumer's refresh manual (Thomas, Q-6). The `firewall irr server`,
-`peeringdb-url` and `refresh-interval` leaves are no longer read. A refresh
+makes every consumer's refresh manual (Thomas, Q-6). `firewall irr` holds only
+the `interface` bindings: the server, the PeeringDB URL and the refresh period
+are `system irr` and `system peeringdb url`. A refresh
 cannot empty a firewall set: an answer with nothing for a family keeps that
 family's stored prefixes (below), and a list too long for a set is refused.
 

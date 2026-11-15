@@ -190,7 +190,7 @@ func (b *recordingBackend) count() int {
 
 // termConfig is a config whose table ze_wan has one term per AS-SET named.
 func termConfig(asSets ...string) *irrConfig {
-	cfg := &irrConfig{Server: defaultServer}
+	cfg := &irrConfig{}
 	for _, name := range asSets {
 		cfg.refs = append(cfg.refs, irrRef{Name: name, IsASSet: true, TableName: "ze_wan"})
 	}

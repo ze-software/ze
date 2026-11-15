@@ -1,15 +1,17 @@
-# Test: clear irr cache reaches the IRR client of bgp-filter-irr running external
+# Test: clear irr cache reaches the IRR client of the irr plugin running external
 # Exercises: dispatch-command -> ze-resolve:clear-irr-cache-{all,as-set}
-#            -> ze-plugin-callback:resolver-cache-clear to bgp-filter-irr
-# Verifies: the filter refreshes AS-SET AS-TEST from the mock, and
-#           clear irr cache as-set AS-TEST finds it, with the owner
-#           bgp-filter-irr reporting the entries it removed (the hub's own IRR
-#           resolver never looked it up); a second clear finds nothing; the
-#           bare clear irr cache is refused; all answers clear-all.
-# The plugin runs as its own process here, so its client is in another
+#            -> ze-plugin-callback:resolver-cache-clear to irr
+# Verifies: the irr plugin fetches AS-SET AS-TEST from the mock because
+#           bgp-filter-irr enforces it, and clear irr cache as-set AS-TEST
+#           finds it, with the owner irr reporting the entries it removed (the
+#           hub's own IRR resolver never looked it up) and bgp-filter-irr, which
+#           holds no IRR client, not answering as an owner; a second clear
+#           finds nothing; the bare clear irr cache is refused; all answers
+#           clear-all.
+# The irr plugin runs as its own process here, so its client is in another
 # address space: only the resolver-cache-clear callback over the plugin
-# connection can reach it.
-# Related: clear-irr-cache.ci runs the same steps with the plugin internal.
+# connection can reach it. bgp-filter-irr runs external too.
+# Related: clear-irr-cache.ci runs the same steps with the plugins internal.
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER
@@ -26,12 +28,15 @@ plugin {
 		run "le test fixture plugin/clear-irr-cache"
 		encoder json
 	}
+	external irr {
+		run "ze plugin irr"
+	}
 	external bgp-filter-irr {
 		run "ze plugin bgp-filter-irr"
 	}
 }
 
-policy {
+system {
 	irr {
 		server 127.0.0.1:$PORT2
 		refresh-interval 3600

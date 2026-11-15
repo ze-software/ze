@@ -15,25 +15,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// splitIRRConfig splits a test config written as one bgp map into the two
-// roots the filter reads: its "policy" entry is the policy root, and the rest
-// is the bgp root.
+// splitIRRConfig makes a test config written as one bgp map the delivery the
+// filter reads: the bgp root is the only root it reads.
 func splitIRRConfig(cfg map[string]any) irrDelivery {
-	policyCfg, _ := cfg["policy"].(map[string]any)
-	bgpCfg := make(map[string]any, len(cfg))
-	for k, v := range cfg {
-		if k == "policy" {
-			continue
-		}
-		bgpCfg[k] = v
-	}
-	return irrDelivery{policy: policyCfg, bgp: bgpCfg}
+	return irrDelivery{bgp: cfg}
 }
 
 // parseIRRConfigOf parses a test config written as one bgp map.
 func parseIRRConfigOf(cfg map[string]any) *irrConfig {
-	split := splitIRRConfig(cfg)
-	return parseIRRConfig(split.policy, split.bgp)
+	return parseIRRConfig(splitIRRConfig(cfg).bgp)
 }
 
 // configureOf installs a test config written as one bgp map.

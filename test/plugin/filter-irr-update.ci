@@ -1,15 +1,19 @@
-# Test: update bgp irr triggers immediate refresh
-# VALIDATES: AC-6a -- update bgp irr all refreshes all peers
-# VALIDATES: AC-20 -- manual refresh via update bgp irr all
+# Test: update irr all triggers an immediate refresh of what BGP enforces
+# VALIDATES: AC-6a -- update irr all refreshes every AS-SET a peer is filtered by
+# VALIDATES: AC-20 -- manual refresh via update irr all
+# VALIDATES: spec-fetched-data-survives-restart AC-15 -- the irr plugin owns the
+#            update command; the BGP filter has none
 # PREVENTS: Manual refresh command silently fails or has no effect
 #
 # Flow:
 # 1. Mock IRR server provides AS-TEST -> prefixes
-# 2. ze starts with IRR filter configured
-# 3. Observer issues "update bgp irr all" and verifies it succeeds
+# 2. ze starts with IRR filter configured; the irr plugin fetches AS-TEST and
+#    stores it ("irr dataset stored")
+# 3. Observer issues "update irr all" and verifies it succeeds
 # 4. Observer verifies show bgp irr returns status
 
 option=env:var=ze.log.bgp.filter.irr:value=info
+option=env:var=ze.log.irr:value=info
 
 stdin=peer:terminator=EOF_PEER
 # Keep the scripted connection open until the manual refresh observer finishes.
@@ -29,7 +33,7 @@ plugin {
 		encoder json
 	}
 }
-policy {
+system {
 	irr {
 		server 127.0.0.1:$PORT2
 		refresh-interval 3600
@@ -73,4 +77,4 @@ cmd=background:seq=1:exec=le mock irr --port $PORT2
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=irr: refreshed
+expect=stderr:pattern=irr dataset stored

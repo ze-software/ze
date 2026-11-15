@@ -1,17 +1,24 @@
-# Test: update bgp irr asn fails when PeeringDB returns no AS-SET
+# Test: update irr asn fails when the IRR fetch of the ASN's set stores nothing
 # VALIDATES: ISSUE-2 -- command-failure path returns error, state preserved
 # PREVENTS: Refresh silently succeeds with empty prefix-list when AS-SET undiscoverable
 #
 # Flow:
-# 1. Mock PeeringDB server returns empty irr_as_set for ASN 65100 (65100 % 3 == 0)
+# 1. Mock PeeringDB server returns empty irr_as_set for ASN 65100 (65100 % 3 == 0),
+#    so the irr plugin binds the literal AS65100; the IRR server 127.0.0.1:1
+#    never answers
 # 2. ze starts with IRR filter configured, no explicit as-set (forces PeeringDB discovery)
-# 3. Observer issues "update bgp irr asn 65100" and verifies it returns status=error
-# 4. Observer verifies "show bgp irr" reports error status for ASN 65100
+# 3. The irr plugin's fetch at start fails and logs it; observer waits for
+#    "show irr" to report AS65100 failing
+# 4. Observer issues "update irr asn 65100" and verifies it returns status=error
+#    naming the fetch that stored nothing
+# 5. Observer verifies "show irr" still reports AS65100 failing with no prefix,
+#    and "show bgp irr" reports ASN 65100 pending: no list, so none enforced
 #
 # ASN 65100 chosen because: (a) 65100 % 3 == 0, so mock PeeringDB returns empty
 # irr_as_set; (b) no other filter-irr test uses this ASN, so no cache interference.
 
 option=env:var=ze.log.bgp.filter.irr:value=info
+option=env:var=ze.log.irr:value=info
 
 # Peer UPDATE carries AS_PATH with AS 65100 so the filter name resolves.
 # Marker(16) + Len=0x002F(47) + Type=02 + WdLen=0000 + AttrLen=0x0014(20)
@@ -37,11 +44,13 @@ plugin {
 		encoder json
 	}
 }
-policy {
+system {
 	irr {
 		server 127.0.0.1:1
-		peeringdb-url http://127.0.0.1:$PORT2
 		refresh-interval 3600
+	}
+	peeringdb {
+		url http://127.0.0.1:$PORT2
 	}
 }
 
@@ -83,4 +92,4 @@ cmd=background:seq=1:exec=le mock peeringdb --port $PORT2
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=irr: lookup failed
+expect=stderr:pattern=irr: the IRR server did not answer

@@ -361,7 +361,7 @@ func (s *PrefixStore) Purge(name string) bool {
 //
 // The lookup goes through RefreshPrefixes, which always queries the server. A
 // refresh answered from the client's 1h cache would stamp a new RefreshedAt on
-// data nobody re-read, and "update firewall irr as-set X" exists to reach the
+// data nobody re-read, and "update irr as-set X" exists to reach the
 // server. This store keeps the cache in memory; the irr plugin stores it.
 func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	if err := validateName(name); err != nil {

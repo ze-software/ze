@@ -7,7 +7,6 @@ import (
 	firryang "github.com/ze-software/ze/internal/component/bgp/plugins/filter_irr/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -36,10 +35,9 @@ func init() {
 		Features:    "yang",
 		YANG:        firryang.ZeFilterIrrYANG,
 		ConfigRoots: []string{configRootBGP},
-		ConfigReads: []string{policy.RootName},
 		// The irr plugin fetches and stores the lists this filter enforces, so it
 		// starts whenever the filter runs, and before it.
-		Dependencies: []string{configRootBGP, policy.PluginName, store.OwnerPlugin},
+		Dependencies: []string{configRootBGP, store.OwnerPlugin},
 		RunEngine:    runFilterIRR,
 		Commands:     commandDecls(),
 		Filters:      filterDecls(), // the Stage 1 declaration: config load knows irr serves filters

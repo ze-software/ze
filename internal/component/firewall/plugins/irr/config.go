@@ -5,33 +5,9 @@ package irr
 import (
 	"encoding/json"
 	"sort"
-	"strconv"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
-)
-
-func readUint(v any) (uint64, bool) {
-	switch n := v.(type) {
-	case float64:
-		if n < 0 {
-			return 0, false
-		}
-		return uint64(n), true
-	case string:
-		x, err := strconv.ParseUint(n, 10, 64)
-		if err != nil {
-			return 0, false
-		}
-		return x, true
-	default:
-		return 0, false
-	}
-}
-
-const (
-	defaultServer       = "whois.radb.net"
-	defaultPeeringDBURL = "https://www.peeringdb.com"
 )
 
 type ifaceBinding struct {
@@ -39,12 +15,12 @@ type ifaceBinding struct {
 	ASSet     string
 }
 
+// irrConfig is what the firewall enforces: the references its terms and
+// interface bindings name. Where and how often the lists are fetched is the
+// irr plugin's config (system irr), not the firewall's.
 type irrConfig struct {
-	Server          string
-	PeeringDBURL    string
-	RefreshInterval uint32
-	refs            []irrRef
-	ifaceBindings   []ifaceBinding
+	refs          []irrRef
+	ifaceBindings []ifaceBinding
 }
 
 type irrRef struct {
@@ -85,10 +61,7 @@ func (c *irrConfig) termRefs() []irrRef {
 }
 
 func parseIRRConfig(sections []sdk.ConfigSection) *irrConfig {
-	cfg := &irrConfig{
-		Server:       defaultServer,
-		PeeringDBURL: defaultPeeringDBURL,
-	}
+	cfg := &irrConfig{}
 	for _, s := range sections {
 		if s.Root != configRoot {
 			continue
@@ -102,17 +75,6 @@ func parseIRRConfig(sections []sdk.ConfigSection) *irrConfig {
 			continue
 		}
 		if irrBlock, ok := fw["irr"].(map[string]any); ok {
-			if srv, ok := irrBlock["server"].(string); ok && srv != "" {
-				cfg.Server = srv
-			}
-			if pdbURL, ok := irrBlock["peeringdb-url"].(string); ok && pdbURL != "" {
-				cfg.PeeringDBURL = pdbURL
-			}
-			if v := irrBlock["refresh-interval"]; v != nil {
-				if n, ok := readUint(v); ok && n <= 86400 {
-					cfg.RefreshInterval = uint32(n) //nolint:gosec // range checked
-				}
-			}
 			if ifaceMap, ok := irrBlock["interface"].(map[string]any); ok {
 				cfg.ifaceBindings = parseIfaceBindings(ifaceMap)
 			}
