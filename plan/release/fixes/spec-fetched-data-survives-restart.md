@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Routing and filtering can change across a reboot with no operator action, because data fetched from the internet is fetched again at start: a startup and lifecycle correctness defect of shipped capabilities (BGP IRR import filter, firewall IRR and domain sets). |
@@ -219,7 +219,7 @@ write" ("The steady state writes nothing").
 - One writer: the `irr` plugin (`internal/plugins/irr/`) fetches, schedules and stores; `bgp-filter-irr` and `firewall-irr` read its keys through a read-only state grant and learn of a new copy from its `emit-event` notice.
 - One place says where and when: `system irr` holds `server`, `source-address`, `refresh-interval` (default 3600, 0 = manual only); the PeeringDB URL is `system peeringdb url`. A consumer names only the AS-SET or ASN it enforces. No consumer can name its own server today (one `server` leaf per consumer, none per peer or rule), so nothing is lost.
 - The owner learns what to fetch from each consumer's stored interest key (`meta/irr-interest/{consumer}`), written by the consumer and read by the owner, with a notice on change: it survives either side restarting and works forked.
-- A consumer reads the per-AS-SET pointer `meta/irr-set/{as-set}` (which dataset is current), then the dataset `meta/irr-data/{server}/{as-set}`; the owner flips the pointer only after a new dataset is stored, so a server change never leaves a consumer with nothing.
+- A consumer reads the per-AS-SET pointer `meta/irr-set/{as-set}` (which dataset is current), then the dataset `meta/irr-data/{server}/{as-set}/{digest}` it names; the owner flips the pointer only after a new dataset is stored, so a server change never leaves a consumer with nothing.
 - A monotonic generation (`StateIncrement` on `meta/irr-generation`) rides on every notice; a consumer that sees a gap re-reads every pointer, so a lost notice is recovered at once and a restart cannot change data.
 - The schedule is anchored on a stored `checked-at`, never `refreshed-at`, which dates the oldest prefixes and would make a one-family set due every tick.
 - A dataset is one key, compact binary, with a per-key value bound derived from the consumer caps, under `MaxMessageSize`.
@@ -340,9 +340,9 @@ Every key below is registered in `pkg/zefs/keys.go`. Times are UTC, encoded as U
 
 | Key or event | Encoding | Field | Type | Description |
 |--------------|----------|-------|------|-------------|
-| `meta/irr-data/{server}/{as-set}` | binary, declared bound 12,000,000 bytes (base64 16,000,000, under `MaxMessageSize` 16,777,216 with room for the envelope) | version | uint8 | Format version, 1 |
+| `meta/irr-data/{server}/{as-set}/{digest}` | binary, declared bound 12,000,000 bytes (base64 16,000,000, under `MaxMessageSize` 16,777,216 with room for the envelope); `{digest}` is the value's own SHA-256 in lower-case hex, the digest the pointer carries, so a write never replaces the value the current pointer names (R1-1) | version | uint8 | Format version, 1 |
 | same | same | refreshed-at, checked-at, stale-since | 3 x int64 | As `CachedEntry`; `checked-at` is the last time the server answered; 0 means unset |
-| same | same | as-set, server | length-prefixed strings | Identity, compared with the key on read |
+| same | same | as-set, server | length-prefixed strings | Identity, compared with the key on read together with the digest |
 | same | same | ipv4 count, ipv4 prefixes | uint32, then per prefix a length byte and the significant address bytes | As NLRI encodes a prefix |
 | same | same | ipv6 count, ipv6 prefixes | uint32, then the same per prefix | |
 | same | same | digest | 32 bytes | SHA-256 over every byte before it; a mismatch reads as absent |
@@ -360,11 +360,11 @@ Every key below is registered in `pkg/zefs/keys.go`. Times are UTC, encoded as U
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| IRR dataset `meta/irr-data/{server}/{as-set}` | writer | `internal/plugins/irr` refresh, through the codec in `internal/component/resolve/irr/store` | today `store.persist` writes `meta/irr/{name}` | create; compact value, digest |
-| IRR dataset `meta/irr-data/{server}/{as-set}` | reader | `bgp-filter-irr` and `firewall-irr` notice and start handlers; `firewall-irr` verify; the owner at start; both doctor checks | today `store.Open` lists and decodes JSON | create; read by name, digest checked |
-| IRR dataset `meta/irr-data/{server}/{as-set}` | writer | `internal/component/config/storage/cli/data_rpc.go` `update data key`, `delete data key`; `ze data write` | key-agnostic; refused while a granted writer runs (`PluginKeyOwners`) | preserve; names the `irr` plugin |
-| IRR dataset `meta/irr-data/{server}/{as-set}` | reader | `data_rpc.go` `show data`; `ze data`; `ze data backup` | key-agnostic | preserve |
-| IRR dataset `meta/irr-data/{server}/{as-set}` | reader | a third-party plugin outside the repository | grants come only from compiled registration | preserve: none can read it |
+| IRR dataset `meta/irr-data/{server}/{as-set}/{digest}` | writer | `internal/plugins/irr` refresh, through the codec in `internal/component/resolve/irr/store` | today `store.persist` writes `meta/irr/{name}` | create; compact value, digest |
+| IRR dataset `meta/irr-data/{server}/{as-set}/{digest}` | reader | `bgp-filter-irr` and `firewall-irr` notice and start handlers; `firewall-irr` verify; the owner at start; both doctor checks | today `store.Open` lists and decodes JSON | create; read by name, digest checked |
+| IRR dataset `meta/irr-data/{server}/{as-set}/{digest}` | writer | `internal/component/config/storage/cli/data_rpc.go` `update data key`, `delete data key`; `ze data write` | key-agnostic; refused while a granted writer runs (`PluginKeyOwners`) | preserve; names the `irr` plugin |
+| IRR dataset `meta/irr-data/{server}/{as-set}/{digest}` | reader | `data_rpc.go` `show data`; `ze data`; `ze data backup` | key-agnostic | preserve |
+| IRR dataset `meta/irr-data/{server}/{as-set}/{digest}` | reader | a third-party plugin outside the repository | grants come only from compiled registration | preserve: none can read it |
 | AS-SET pointer `meta/irr-set/{as-set}` | writer | `internal/plugins/irr` after a dataset write | new | create; flipped last |
 | AS-SET pointer `meta/irr-set/{as-set}` | reader | both consumers, the owner at start, doctor checks | new | create |
 | ASN binding `meta/irr-asn/{asn}` | writer | `internal/plugins/irr` after a PeeringDB answer | new | create |

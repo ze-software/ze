@@ -17,7 +17,7 @@ import (
 // beside it declares nothing and keeps StateDataMax: StateDataMax validates,
 // StateDataMax+1 is refused even though it is far under the dataset's bound.
 func TestStateBoundPerKey(t *testing.T) {
-	dataset := zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST")
+	dataset := zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	if got := StateDataMaxFor(dataset); got != zefs.IRRDatasetValueMax {
 		t.Fatalf("StateDataMaxFor(%s) = %d, want %d", dataset, got, zefs.IRRDatasetValueMax)
 	}

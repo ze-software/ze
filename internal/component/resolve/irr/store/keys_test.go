@@ -62,11 +62,12 @@ func TestStoredKeysHoldColonNames(t *testing.T) {
 			RefreshedAt: time.Unix(1_700_000_000, 0), CheckedAt: time.Unix(1_700_000_600, 0),
 		})
 		value := encodeDataset(t, dataset)
-		if writeErr := first.WriteKey(dataset.Key(), value); writeErr != nil {
-			t.Fatalf("write dataset %s: %v", dataset.Key(), writeErr)
-		}
 		digest := DatasetDigest(value)
-		pointer, encodeErr := EncodePointer(Pointer{Server: dataset.Server(), Generation: set.generation, Digest: hex.EncodeToString(digest[:])})
+		named := Pointer{Server: dataset.Server(), Generation: set.generation, Digest: hex.EncodeToString(digest[:])}
+		if writeErr := first.WriteKey(named.DatasetKey(set.name), value); writeErr != nil {
+			t.Fatalf("write dataset %s: %v", named.DatasetKey(set.name), writeErr)
+		}
+		pointer, encodeErr := EncodePointer(named)
 		if encodeErr != nil {
 			t.Fatal(encodeErr)
 		}
@@ -118,7 +119,7 @@ func TestBadNamesFormNoKey(t *testing.T) {
 		if got, err := ASSetName(bad); err == nil {
 			t.Errorf("ASSetName(%q) = %q, want a refusal", bad, got)
 		}
-		if got, err := DatasetKey("whois.radb.net", bad); err == nil {
+		if got, err := DatasetKey("whois.radb.net", bad, zeroDigest); err == nil {
 			t.Errorf("DatasetKey(%q) = %q, want a refusal", bad, got)
 		}
 		if _, err := NewDataset(DatasetInput{ASSet: bad, Server: "whois.radb.net", IPv4: prefixes}); err == nil {
@@ -135,7 +136,7 @@ func TestBadNamesFormNoKey(t *testing.T) {
 	if _, err := ASSetName("AS-OK"); err != nil {
 		t.Errorf("ASSetName(AS-OK): %v", err)
 	}
-	if _, err := DatasetKey("whois.radb.net", "AS-OK"); err != nil {
+	if _, err := DatasetKey("whois.radb.net", "AS-OK", zeroDigest); err != nil {
 		t.Errorf("DatasetKey(AS-OK): %v", err)
 	}
 	if _, err := NewDataset(DatasetInput{ASSet: "AS-OK", Server: "whois.radb.net", IPv4: prefixes}); err != nil {

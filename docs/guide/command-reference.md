@@ -1825,9 +1825,8 @@ names the config to commit.
 
 Each owner of a resolver client clears the client it uses now. The hub clears
 the one `resolve peeringdb`, `resolve irr` or `resolve cymru` uses, and every
-plugin that declared that cache clears its own: `bgp-filter-irr` and
-`firewall-irr` hold an IRR and a PeeringDB client, inside the daemon or as their
-own process. A client a plugin replaced on a reload is not cleared or counted.
+plugin that declared that cache clears its own: the `irr` plugin holds an IRR
+and a PeeringDB client, inside the daemon or as its own process. A client a plugin replaced on a reload is not cleared or counted.
 The client `bgp peer prefix update` builds lives for one command, so no clear
 reaches it. The bare form is refused and lists the two forms: clearing
 everything needs the word `all`.
@@ -1845,12 +1844,12 @@ Every answer carries `removed`, the entries removed in total, and `owners`, one
 row per owner with its `owner` name and its `removed` count. A keyed form also
 answers `found`, true when any owner held the key. An owner that does not answer
 makes the command an error that names it, says how many entries the others
-removed, and points at `show plugin list`. The IRR filters' stored prefix lists
-are not a cache and stay.
+removed, and points at `show plugin list`. The prefix lists the `irr` plugin
+stores are not a cache and stay: `clear irr as-set` removes one.
 
 ```
 clear irr cache all | json
-{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"bgp-filter-irr","removed":3}]}
+{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"irr","removed":3}]}
 ```
 
 <!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearPeeringDBCacheASN, handleClearIRRCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAll, handleClearCymruCacheAddress, clearAnswer -->

@@ -135,8 +135,8 @@ func (s *fakeConsumerState) storeInput(t *testing.T, in store.DatasetInput) stri
 	digest := store.DatasetDigest(value)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.values[dataset.Key()] = value
 	pointer := store.Pointer{Server: dataset.Server(), Generation: s.raise(), Digest: hex.EncodeToString(digest[:])}
+	s.values[pointer.DatasetKey(asSet)] = value
 	encoded, err := store.EncodePointer(pointer)
 	if err != nil {
 		t.Fatal(err)
@@ -407,10 +407,11 @@ func TestReloadKeepsTheEnforcedCopy(t *testing.T) {
 	if err := plug.reader.passNow(context.Background()); err != nil {
 		t.Fatalf("first pass: %v", err)
 	}
-	datasetKey, err := store.DatasetKey("whois.radb.net", "AS-TEST")
+	pointer, err := store.ReadPointer(context.Background(), state, "AS-TEST")
 	if err != nil {
-		t.Fatalf("DatasetKey: %v", err)
+		t.Fatalf("ReadPointer: %v", err)
 	}
+	datasetKey := pointer.DatasetKey("AS-TEST")
 	state.failRead(datasetKey, "the dataset must not be read again")
 	applies := backend.count()
 

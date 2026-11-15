@@ -16,16 +16,24 @@ import (
 )
 
 // fakeState is the daemon store as the SDK state RPCs show it, with a log of
-// every write in order and per-key write failures. Safe for concurrent use.
+// every write in order and per-key write failures: failPut refuses one key,
+// failPutPrefix every key under a prefix (a dataset key ends in a digest the
+// test cannot name in advance), and failRemove one removal. Safe for
+// concurrent use.
 type fakeState struct {
-	mu      sync.Mutex
-	values  map[string][]byte
-	ops     []string
-	failPut map[string]error
+	mu            sync.Mutex
+	values        map[string][]byte
+	ops           []string
+	failPut       map[string]error
+	failPutPrefix map[string]error
+	failRemove    map[string]error
 }
 
 func newFakeState() *fakeState {
-	return &fakeState{values: make(map[string][]byte), failPut: make(map[string]error)}
+	return &fakeState{
+		values: make(map[string][]byte), failPut: make(map[string]error),
+		failPutPrefix: make(map[string]error), failRemove: make(map[string]error),
+	}
 }
 
 func (s *fakeState) StateGet(_ context.Context, key string) ([]byte, bool, error) {
@@ -42,6 +50,12 @@ func (s *fakeState) StatePut(_ context.Context, key string, data []byte) error {
 		s.ops = append(s.ops, "put-refused "+key)
 		return err
 	}
+	for prefix, err := range s.failPutPrefix {
+		if strings.HasPrefix(key, prefix) {
+			s.ops = append(s.ops, "put-refused "+key)
+			return err
+		}
+	}
 	s.ops = append(s.ops, "put "+key)
 	s.values[key] = slices.Clone(data)
 	return nil
@@ -50,6 +64,10 @@ func (s *fakeState) StatePut(_ context.Context, key string, data []byte) error {
 func (s *fakeState) StateRemove(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if err := s.failRemove[key]; err != nil {
+		s.ops = append(s.ops, "remove-refused "+key)
+		return err
+	}
 	s.ops = append(s.ops, "remove "+key)
 	delete(s.values, key)
 	return nil
@@ -86,6 +104,12 @@ func (s *fakeState) has(key string) bool {
 	defer s.mu.Unlock()
 	_, ok := s.values[key]
 	return ok
+}
+
+// keysUnder lists the stored keys under prefix, in order.
+func (s *fakeState) keysUnder(prefix string) []string {
+	keys, _ := s.StateList(context.Background(), prefix)
+	return keys
 }
 
 func (s *fakeState) value(key string) []byte {

@@ -30,7 +30,7 @@ func TestPrefixStoreConcurrentRefresh(t *testing.T) {
 	var wg sync.WaitGroup
 	for _, n := range names {
 		wg.Go(func() {
-			if _, err := s.Refresh(context.Background(), n, ""); err != nil {
+			if _, err := s.Refresh(context.Background(), n); err != nil {
 				t.Errorf("Refresh(%s): %v", n, err)
 			}
 		})

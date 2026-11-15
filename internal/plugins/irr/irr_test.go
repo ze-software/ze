@@ -55,17 +55,17 @@ func TestPointerFlipsAfterWrite(t *testing.T) {
 
 	h.boot()
 
-	datasetKey := "meta/irr-data/whois.radb.net/AS-TEST"
+	pointer, _ := h.pointer("AS-TEST")
+	datasetKey := pointer.DatasetKey("AS-TEST")
 	order := indexOf(state.log(), "put "+datasetKey, "increment "+store.GenerationKey(), "put "+store.PointerKey("AS-TEST"))
 	if !slices.IsSorted(order) || slices.Contains(order, -1) {
 		t.Fatalf("write order %v in %v, want dataset, generation, pointer", order, state.log())
 	}
-	pointer, _ := h.pointer("AS-TEST")
 	if pointer.Generation != 1 || h.notices.count() != 1 {
 		t.Fatalf("pointer generation %d, %d notices, want 1 and 1", pointer.Generation, h.notices.count())
 	}
 
-	state.failPut["meta/irr-data/whois.radb.net/AS-OTHER"] = errors.New("store full")
+	state.failPutPrefix["meta/irr-data/whois.radb.net/AS-OTHER/"] = errors.New("store full")
 	h.resolver.answers["AS-OTHER"] = fakeAnswer{ipv4: prefixes("198.51.100.0/24")}
 	h.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST", "AS-OTHER"}})
 	h.owner.interestChanged()
@@ -75,6 +75,104 @@ func TestPointerFlipsAfterWrite(t *testing.T) {
 	}
 	if at, ok := h.owner.schedule.at("AS-OTHER"); !ok || !at.Equal(h.clock.at.Add(retryInterval)) {
 		t.Fatalf("refused write re-armed at %s ok=%v, want a retry in a minute", at, ok)
+	}
+}
+
+// TestTornPointerWriteKeepsOldCopy proves a refresh from an unchanged server
+// whose pointer write fails leaves the old pointer naming the old dataset,
+// intact, so a consumer's reader still gets the copy enforced before; the
+// dataset the write stored is removed, and the set is retried in a minute
+// (R1-1).
+// PREVENTS: the new dataset written over the key the old pointer names, which
+// every reader then refuses as not the pointed one (ErrDatasetNotPointed), so
+// a restart with the server unreachable enforces nothing.
+// METHOD: boot one set, refuse the pointer write, answer a new list an hour
+// later, read the set through store.ReadSet as bgp-filter-irr and firewall-irr
+// do, and list the set's dataset keys.
+func TestTornPointerWriteKeepsOldCopy(t *testing.T) {
+	state := newFakeState()
+	h := newHarness(t, state, defaultOwnerConfig())
+	h.resolver.answers["AS-TEST"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+	h.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST"}})
+	h.boot()
+	before, ok := h.pointer("AS-TEST")
+	if !ok {
+		t.Fatal("boot stored no pointer: the test cannot tell")
+	}
+
+	state.failPut[store.PointerKey("AS-TEST")] = errors.New("store full")
+	h.clock.at = h.clock.at.Add(time.Hour)
+	h.resolver.answers["AS-TEST"] = fakeAnswer{ipv4: prefixes("198.51.100.0/24")}
+	h.pass()
+	if !slices.Contains(state.log(), "put-refused "+store.PointerKey("AS-TEST")) {
+		t.Fatalf("the pass never reached the pointer write: %v", state.log())
+	}
+
+	read, err := store.ReadSet(context.Background(), state, "AS-TEST")
+	if err != nil {
+		t.Fatalf("a consumer read after the torn write: %v, want the old copy", err)
+	}
+	if read.Pointer != before {
+		t.Fatalf("the reader got pointer %+v, want the old one %+v", read.Pointer, before)
+	}
+	if got := read.Dataset.IPv4(); !slices.Equal(got, prefixes("192.0.2.0/24")) {
+		t.Fatalf("the reader got %v, want the list enforced before the torn write", got)
+	}
+	setPrefix := store.DatasetPrefix + "whois.radb.net/AS-TEST/"
+	if got := state.keysUnder(setPrefix); !slices.Equal(got, []string{before.DatasetKey("AS-TEST")}) {
+		t.Fatalf("datasets of AS-TEST after the torn write: %v, want only the pointed one", got)
+	}
+	if at, ok := h.owner.schedule.at("AS-TEST"); !ok || !at.Equal(h.clock.at.Add(retryInterval)) {
+		t.Fatalf("torn write re-armed at %s ok=%v, want a retry in a minute", at, ok)
+	}
+}
+
+// TestStartRemovesUnpointedDatasets proves the owner's start removes every
+// stored dataset no pointer names, and keeps the pointed one and every dataset
+// of a set whose pointer it could not read (R1-1).
+// PREVENTS: a dataset a failed removal or a crash left behind staying in the
+// store for good, one per failed write.
+// METHOD: boot one set, plant an orphan of that set under another digest, an
+// old two-segment key, a dataset of a set with no pointer, and a dataset of a
+// set whose pointer is malformed; start a second owner over the store.
+func TestStartRemovesUnpointedDatasets(t *testing.T) {
+	ctx := context.Background()
+	state := newFakeState()
+	first := newHarness(t, state, defaultOwnerConfig())
+	first.resolver.answers["AS-TEST"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+	first.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST"}})
+	first.boot()
+	pointed, _ := first.pointer("AS-TEST")
+	other := strings.Repeat("a", 64)
+	orphans := []string{
+		store.DatasetPrefix + "whois.radb.net/AS-TEST/" + other,
+		store.DatasetPrefix + "whois.radb.net/AS-TEST",
+		store.DatasetPrefix + "whois.radb.net/AS-GONE/" + other,
+	}
+	kept := store.DatasetPrefix + "whois.radb.net/AS-BROKEN/" + other
+	for _, key := range append(slices.Clone(orphans), kept) {
+		if err := state.StatePut(ctx, key, []byte("leftover")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := state.StatePut(ctx, store.PointerKey("AS-BROKEN"), []byte("not a pointer")); err != nil {
+		t.Fatal(err)
+	}
+
+	second := newHarness(t, state, defaultOwnerConfig())
+	second.clock.at = first.dataset("AS-TEST").CheckedAt().Add(10 * time.Minute)
+	second.boot()
+
+	for _, key := range orphans {
+		if state.has(key) {
+			t.Errorf("start kept %s, which no pointer names", key)
+		}
+	}
+	if !state.has(pointed.DatasetKey("AS-TEST")) {
+		t.Error("start removed the dataset the pointer of AS-TEST names")
+	}
+	if !state.has(kept) {
+		t.Error("start removed a dataset of AS-BROKEN, whose pointer it could not read and which may name it")
 	}
 }
 
@@ -166,7 +264,8 @@ func TestServerChangeKeepsOldUntilNew(t *testing.T) {
 	h.resolver.answers["AS-TEST"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
 	h.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST"}})
 	h.boot()
-	oldKey := "meta/irr-data/whois.radb.net/AS-TEST"
+	first, _ := h.pointer("AS-TEST")
+	oldKey := first.DatasetKey("AS-TEST")
 
 	cfg := defaultOwnerConfig()
 	cfg.server = "rr.ntt.net"
@@ -238,6 +337,8 @@ func TestClearNamesConsumers(t *testing.T) {
 	h.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST"}})
 	h.writeInterest(consumerFirewall, store.Interest{ASSets: []string{"AS-TEST"}})
 	h.boot()
+	stored, _ := h.pointer("AS-TEST")
+	datasetKey := stored.DatasetKey("AS-TEST")
 
 	answer := h.owner.clearASSet(context.Background(), "AS-TEST")
 	cleared, ok := answer.data.(clearAnswer)
@@ -247,7 +348,7 @@ func TestClearNamesConsumers(t *testing.T) {
 	if want := []string{consumerBGP, consumerFirewall}; !slices.Equal(cleared.Consumers, want) {
 		t.Fatalf("clear named %v, want %v", cleared.Consumers, want)
 	}
-	if state.has(store.PointerKey("AS-TEST")) || state.has("meta/irr-data/whois.radb.net/AS-TEST") {
+	if state.has(store.PointerKey("AS-TEST")) || state.has(datasetKey) {
 		t.Fatal("clear left the pointer or the dataset")
 	}
 	if !strings.Contains(h.notices.sent[len(h.notices.sent)-1], `"removed":true`) {

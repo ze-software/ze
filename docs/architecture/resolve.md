@@ -16,7 +16,7 @@ and is constructed explicitly at hub startup.
 | `resolve/cymru/` | Team Cymru ASN name resolution via TXT DNS | 1h via shared cache |
 | `resolve/peeringdb/` | PeeringDB HTTP client for prefix counts | 1h via shared cache + 1s rate limit |
 | `resolve/irr/` | IRR whois client for AS-SET expansion | 1h via shared cache |
-| `resolve/irr/store/` | IRR prefix resolution and PeeringDB discovery (`PrefixStore`), and the stored dataset, pointer, binding and interest values with their reader | In-memory map; the `irr` plugin's keys under `meta/irr-*` |
+| `resolve/irr/store/` | IRR prefix resolution (`PrefixStore`), and the stored dataset, pointer, binding and interest values with their reader | In-memory map; the `irr` plugin's keys under `meta/irr-*` |
 
 <!-- source: internal/component/resolve/dns/resolver.go -- DNS resolver -->
 <!-- source: internal/component/resolve/cymru/cymru.go -- Cymru resolver -->
@@ -54,7 +54,7 @@ than this one.
 cymru --> resolve/dns (sibling import, TXT queries)
 peeringdb --> resolve/irr (AS-SET name validation)
 irr/store --> resolve/irr (PrefixList, LookupPrefixes)
-irr/store --> resolve/peeringdb (AS-SET discovery)
+irr/store --> resolve/peeringdb (the client `clear peeringdb cache` reaches)
 ```
 
 These are genuine data dependencies, not architectural coupling. `irr/store` is
@@ -93,19 +93,18 @@ it cannot import the reactor package.
 
 <!-- source: internal/component/resolve/irr/store/store.go -- PrefixStore -->
 
-`resolve/irr/store` is a shared cache of IRR-resolved prefix lists keyed by name
-(an ASN like `AS13335` or an AS-SET like `AS-CLOUDFLARE`). It owns the full
-resolution pipeline: AS-SET discovery for bare ASNs via PeeringDB, the IRR
-prefix lookup, and the in-memory cache of the answers. It writes nothing
-durable. Discovery
-uses the literal `AS<asn>` name when PeeringDB answers with no AS-SET, when no
-PeeringDB client is configured, or when PeeringDB fails and nothing is cached.
-A PeeringDB failure for a cached name keeps the AS-SET the entry was resolved
-for, so an outage never changes the queried set (`discoverASSet`). PeeringDB
-reports an ASN it does not know as an error, so that case also keeps the
-cached set. The PeeringDB client caches each answer for an hour, and a caller asks only
-when it refreshes, so an upstream AS-SET change is followed at the first
-refresh after the cached answer expires: up to about two hours at the `irr`
+`resolve/irr/store` is a cache of IRR-resolved prefix lists keyed by the AS-SET
+each was queried for (`Refresh(ctx, asSet)`): the IRR prefix lookup and the
+in-memory copy of the answers. It writes nothing durable, and it discovers no
+AS-SET. The `irr` plugin asks PeeringDB for the set of a bare AS number itself
+and stores the answer as a binding (`docs/architecture/irr-owner.md`): the
+first AS-SET PeeringDB names, the literal `AS<asn>` when it names none, and on
+a PeeringDB failure the set already bound, or the literal when nothing is
+bound, so an outage never changes the queried set. The store holds a PeeringDB
+client only for `clear peeringdb cache`. The PeeringDB client caches each
+answer for an hour, and the `irr` plugin asks only when a set is due, so an
+upstream AS-SET change is followed at the first refresh after the cached
+answer expires: up to about two hours at the `irr`
 plugin's default `system irr refresh-interval` of 3600 seconds, and up to a day
 at 86400. A commit that changes `system irr` or `system peeringdb url` resets
 the cache, because the `irr` plugin then builds new clients (`installConfig`,
@@ -158,9 +157,9 @@ answer for the new set is not merged either. The entry `Refresh` returns on that
 path names the queried set and carries the prefixes still enforced.
 A lookup whose context is cancelled before the install commits nothing: the
 check runs under the store lock, `Refresh` returns the context's error and the
-entry still enforced. bgp-filter-irr cancels the lookups a reload superseded,
-so an answer nobody wants never becomes the cached AS-SET `discoverASSet`
-falls back to.
+entry still enforced. The `irr` plugin runs every lookup under the plugin's
+own context, which ends when the plugin stops, so a lookup still in flight at
+stop installs nothing in the cache the stored datasets are merged from.
 <!-- source: internal/component/resolve/irr/store/store.go -- commit -->
 
 `CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to

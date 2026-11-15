@@ -368,8 +368,8 @@ from the cache. Only the hit, miss, eviction and expiry counters go to zero.";
             config false;
             description "Each owner of a PeeringDB client clears the client it uses now: the
 hub clears the one resolve peeringdb uses, and every plugin that declared the PeeringDB
-cache, such as bgp-filter-irr and firewall-irr, clears its own, whether it runs inside the
-daemon or as its own process. A client an owner replaced on a reload is not its own any
+cache, such as the irr plugin, clears its own, whether it runs inside the daemon or as its
+own process. A client an owner replaced on a reload is not its own any
 more and is not cleared or counted. The client bgp peer prefix update builds lives for one
 command, so no clear reaches it. Nothing here reaches the network.";
             ze:help "PeeringDB client cache clearing operations.";
@@ -423,9 +423,8 @@ keeps. Nothing here reaches the network.";
             container cache {
                 config false;
                 description "Each owner of an IRR client clears the client it uses now: the hub
-clears the one resolve irr uses, and every plugin that declared the IRR cache, such as
-bgp-filter-irr and firewall-irr, clears its own, whether it runs inside the daemon or as its
-own process. A client an owner replaced on a reload is not cleared or counted. The stored
+clears the one resolve irr uses, and every plugin that declared the IRR cache, such as the
+irr plugin, clears its own, whether it runs inside the daemon or as its own process. A client an owner replaced on a reload is not cleared or counted. The stored
 prefix lists are not a cache and stay. The cache holds the members and the prefix list of
 each AS-SET for one hour. Name what to clear: all, or as-set followed by a name. The bare
 form clears nothing.";

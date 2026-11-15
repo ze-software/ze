@@ -118,19 +118,31 @@ only when its set is due, and a PeeringDB failure then keeps the stored set.
 
 ## Writing a dataset
 
-Each write runs in one order: the dataset, then `StateIncrement` on the
-generation, then the pointer carrying that generation, then the notice. The
-generation is raised before the pointer because the pointer carries it; a
-pointer write that then fails leaves a generation no pointer names, which a
-consumer reads as a gap and recovers by reading every pointer. When the new
-pointer names another server than the old one, the old server's dataset is
-removed after the flip. Every write logs `irr dataset stored` with the AS-SET,
-server, counts and generation.
+A dataset key ends in the hex SHA-256 the value ends with, the digest its
+pointer carries, so each distinct value has a key of its own and a write never
+replaces the bytes the current pointer names. That makes the pointer flip the
+only switch: until the new pointer is written, every reader still reads the old
+pointer and the old dataset, both intact, whether the server changed or not.
+
+Each write runs in one order: the dataset under its digest key, then
+`StateIncrement` on the generation, then the pointer carrying that generation,
+then the notice. The generation is raised before the pointer because the
+pointer carries it; a pointer write that then fails leaves a generation no
+pointer names, which a consumer reads as a gap and recovers by reading every
+pointer. A failed generation or pointer write also removes the dataset it just
+wrote, which no pointer names. After the flip, the dataset the old pointer
+named is removed, unless the new value is byte for byte the old one and so
+shares its key. At start, after reading every pointer, the owner removes every
+dataset key no pointer names, except under an AS-SET whose pointer is listed
+but could not be read: a store write or removal that failed, or a crash
+between two writes, leaves no copy behind for longer than one start. Every
+write logs `irr dataset stored` with the AS-SET, server, counts and
+generation.
 
 AS-SET names are keyed in upper case (`store.ASSetName`), so a consumer that
 wrote `AS-Foo` and an operator who typed `AS-FOO` name one dataset.
 
-<!-- source: internal/plugins/irr/datasets.go -- writeDataset, removeSet, emitNotice -->
+<!-- source: internal/plugins/irr/datasets.go -- writeDataset, removeTorn, removeUnpointed, removeSet, emitNotice -->
 <!-- source: internal/component/resolve/irr/store/pointer.go -- ASSetName, Pointer, Binding, Interest -->
 
 ## Commands
@@ -207,7 +219,7 @@ command. A stopped owner is reported by the engine's plugin-stopped check.
 
 | Key or event | Writer | Reader | Holds |
 |--------------|--------|--------|-------|
-| `meta/irr-data/{server}/{as-set}` | owner | consumers, owner, doctor | One AS-SET's prefixes from one server, compact binary with a SHA-256 digest |
+| `meta/irr-data/{server}/{as-set}/{digest}` | owner | consumers, owner, doctor | One AS-SET's prefixes from one server, compact binary ending in a SHA-256 digest; `{digest}` is that digest in lower-case hex, the one the pointer carries |
 | `meta/irr-set/{as-set}` | owner | consumers, owner, doctor | Which dataset is enforced now; written only after that dataset |
 | `meta/irr-asn/{asn}` | owner | consumers, owner, doctor | The AS-SET PeeringDB named for a bare ASN |
 | `meta/irr-generation` | owner (`StateIncrement`) | consumers | Raised once per pointer write or removal |
@@ -264,7 +276,7 @@ over it is refused whole with both counts in the error and the previous copy
 stays. A read refuses, each with its own error, a value that is truncated, over
 the bound, of another version, malformed (a prefix length over the family, host
 bits set, bytes after the IPv6 list), fails its digest, or names another
-AS-SET or server than its key. The caller reads every refusal as "no stored
+AS-SET, server or digest than its key. The caller reads every refusal as "no stored
 copy" and never as an empty list.
 
 `DatasetServer` gives the server's key form, so every spelling of one server

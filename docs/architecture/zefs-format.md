@@ -299,7 +299,7 @@ All known key patterns are registered in `pkg/zefs/keys.go` via `MustRegister()`
 
 ValueMax is the bound, in bytes, of a value a plugin reads or writes under the
 key through the plugin state RPCs. Zero takes those RPCs' default of one MiB
-(`rpc.StateDataMax`). One key declares more: `meta/irr-data/{server}/{as-set}`
+(`rpc.StateDataMax`). One key declares more: `meta/irr-data/{server}/{as-set}/{digest}`
 holds a whole IRR prefix list and declares `IRRDatasetValueMax`, 12,000,000
 bytes, which is 500,000 IPv4 and 500,000 IPv6 prefixes at their widest plus
 the header. Its base64 form, 16,000,000 bytes, still fits one RPC message

@@ -24,8 +24,8 @@ import (
 func TestClearAfterRefusedWriteStoresNothing(t *testing.T) {
 	state := newFakeState()
 	h := newHarness(t, state, defaultOwnerConfig())
-	datasetKey := "meta/irr-data/whois.radb.net/AS-TEST"
-	state.failPut[datasetKey] = errors.New("store full")
+	datasetPrefix := store.DatasetPrefix + "whois.radb.net/AS-TEST/"
+	state.failPutPrefix[datasetPrefix] = errors.New("store full")
 	h.resolver.answers["AS-TEST"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
 	h.writeInterest(consumerBGP, store.Interest{ASSets: []string{"AS-TEST"}})
 	h.boot()
@@ -45,7 +45,7 @@ func TestClearAfterRefusedWriteStoresNothing(t *testing.T) {
 		t.Errorf("clear named %v, want %v", cleared.Consumers, []string{consumerBGP})
 	}
 
-	delete(state.failPut, datasetKey)
+	delete(state.failPutPrefix, datasetPrefix)
 	h.resolver.queries = nil
 	h.clock.at = h.clock.at.Add(2 * time.Hour)
 	h.pass()
@@ -53,7 +53,7 @@ func TestClearAfterRefusedWriteStoresNothing(t *testing.T) {
 	if len(h.resolver.queries) != 0 {
 		t.Fatalf("a cleared set was fetched again: %v", h.resolver.queries)
 	}
-	if state.has(datasetKey) || state.has(store.PointerKey("AS-TEST")) {
+	if len(state.keysUnder(datasetPrefix)) != 0 || state.has(store.PointerKey("AS-TEST")) {
 		t.Fatal("a pass after the clear stored the set the operator removed")
 	}
 }

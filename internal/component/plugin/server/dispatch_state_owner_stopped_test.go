@@ -60,13 +60,14 @@ func TestIRRConsumerReadsDatasetWithoutOwner(t *testing.T) {
 	value := make([]byte, dataset.EncodedLen())
 	require.Equal(t, len(value), dataset.WriteTo(value, 0))
 	digest := store.DatasetDigest(value)
+	datasetKey := store.Pointer{Server: dataset.Server(), Digest: hex.EncodeToString(digest[:])}.DatasetKey(asSet)
 	pointerKey := store.PointerKey(asSet)
 	generationKey := store.GenerationKey()
 
 	// Red: remove the RegisterPluginReadKeys call from
 	// firewall/plugins/irr/register.go. The guard fails here, and the read
 	// below would be refused.
-	for _, key := range []string{dataset.Key(), pointerKey, generationKey} {
+	for _, key := range []string{datasetKey, pointerKey, generationKey} {
 		require.True(t, statestore.PluginKeyWritable(store.OwnerPlugin, key),
 			"the irr plugin's write grant on %s is not registered in this binary", key)
 		require.True(t, statestore.PluginKeyReadable(firewallIRRPlugin, key),
@@ -83,7 +84,7 @@ func TestIRRConsumerReadsDatasetWithoutOwner(t *testing.T) {
 			ctx, cancel := stateRPCContext(t)
 			defer cancel()
 			owner := stateRPCClientAs(t, direct, store.OwnerPlugin)
-			require.NoError(t, owner.StatePut(ctx, dataset.Key(), value))
+			require.NoError(t, owner.StatePut(ctx, datasetKey, value))
 			generation, err := owner.StateIncrement(ctx, generationKey)
 			require.NoError(t, err)
 			pointer, err := store.EncodePointer(store.Pointer{
@@ -94,7 +95,7 @@ func TestIRRConsumerReadsDatasetWithoutOwner(t *testing.T) {
 			require.NoError(t, owner.Close(), "stopping the owner")
 		}},
 		{"owner never started", func(t *testing.T, _ bool) {
-			require.NoError(t, statestore.Write(dataset.Key(), value))
+			require.NoError(t, statestore.Write(datasetKey, value))
 			require.NoError(t, statestore.Write(generationKey, binary.BigEndian.AppendUint32(nil, 1)))
 			pointer, err := store.EncodePointer(store.Pointer{
 				Server: dataset.Server(), Generation: 1, Digest: hex.EncodeToString(digest[:]),

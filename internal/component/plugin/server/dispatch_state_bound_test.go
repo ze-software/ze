@@ -46,7 +46,7 @@ func useStateTestStore(t *testing.T) {
 func TestPluginStateDeclaredBoundBothTransports(t *testing.T) {
 	const owner = "state-bound-test"
 	statestore.RegisterPluginKeys(owner, zefs.KeyIRRDataset, zefs.KeyIRRSet)
-	dataset := zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST")
+	dataset := zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	value := bytes.Repeat([]byte{0xa5, 0x5a, 0x00, 0xff}, zefs.IRRDatasetValueMax/4)
 	for _, direct := range []bool{false, true} {
 		name := "socket"

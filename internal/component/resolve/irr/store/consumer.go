@@ -15,7 +15,6 @@ package store
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,7 +105,9 @@ func ReadPointer(ctx context.Context, r StateReader, asSet string) (Pointer, err
 // ReadDataset reads the dataset pointer names for asSet and refuses one that
 // is missing, fails its own digest or decode, or is not the dataset the
 // pointer names. None of these is ErrNotStored: a pointer exists, so the
-// consumer keeps what it enforces.
+// consumer keeps what it enforces. The key ends in the pointer's digest and
+// DecodeDataset refuses a value whose own digest is another, so a value that
+// is not the pointed one answers ErrDatasetNotPointed.
 func ReadDataset(ctx context.Context, r StateReader, asSet string, pointer Pointer) (StoredSet, error) {
 	key := pointer.DatasetKey(asSet)
 	value, found, err := r.StateGet(ctx, key)
@@ -117,12 +118,11 @@ func ReadDataset(ctx context.Context, r StateReader, asSet string, pointer Point
 		return StoredSet{}, fmt.Errorf("%w: %s is named by its pointer and not stored", ErrDatasetNotPointed, key)
 	}
 	dataset, err := DecodeDataset(key, value)
+	if errors.Is(err, ErrDatasetIdentity) {
+		return StoredSet{}, fmt.Errorf("%w: %w", ErrDatasetNotPointed, err)
+	}
 	if err != nil {
 		return StoredSet{}, err
-	}
-	digest := DatasetDigest(value)
-	if hex.EncodeToString(digest[:]) != pointer.Digest {
-		return StoredSet{}, fmt.Errorf("%w: %s digests differ", ErrDatasetNotPointed, key)
 	}
 	return StoredSet{Pointer: pointer, Dataset: dataset}, nil
 }

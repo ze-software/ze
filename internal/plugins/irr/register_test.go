@@ -43,9 +43,11 @@ func TestIRROwnerRegistered(t *testing.T) {
 // daemon's state dispatch asks (statestore.PluginKeyWritable for put, remove
 // and increment, statestore.PluginKeyReadable for get).
 func TestIRROwnerGrantsItsKeysOnly(t *testing.T) {
+	// testDigest is a digest segment in the form a dataset key carries.
+	const testDigest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	for _, key := range []string{
-		"meta/irr-data/whois.radb.net/AS-TEST",
-		"meta/irr-data/127.0.0.1:4343/RIPE::AS-TEST",
+		"meta/irr-data/whois.radb.net/AS-TEST/" + testDigest,
+		"meta/irr-data/127.0.0.1:4343/RIPE::AS-TEST/" + testDigest,
 		"meta/irr-set/AS-TEST",
 		"meta/irr-asn/65001",
 		"meta/irr-generation",
@@ -70,6 +72,7 @@ func TestIRROwnerGrantsItsKeysOnly(t *testing.T) {
 		zefs.KeyFirewallDomainGroup.Key("office", "www.example.com", "ipv4"),
 		"meta/bgp/irr-cache",
 		"meta/irr-data/whois.radb.net",
+		"meta/irr-data/whois.radb.net/AS-TEST",
 	} {
 		if statestore.PluginKeyReadable(pluginName, key) {
 			t.Errorf("owner holds a grant on %s it must not hold", key)

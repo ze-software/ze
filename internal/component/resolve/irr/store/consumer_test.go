@@ -47,9 +47,9 @@ func storeSet(t *testing.T, s *consumerState, asSet string, generation uint32, p
 	}
 	dataset := mustDataset(t, in)
 	value := encodeDataset(t, dataset)
-	s.values[dataset.Key()] = value
 	digest := DatasetDigest(value)
 	pointer := Pointer{Server: dataset.Server(), Generation: generation, Digest: hex.EncodeToString(digest[:])}
+	s.values[pointer.DatasetKey(asSet)] = value
 	encoded, err := EncodePointer(pointer)
 	if err != nil {
 		t.Fatal(err)
@@ -88,11 +88,14 @@ func TestReadSetNothingStored(t *testing.T) {
 // VALIDATES: a pointer whose dataset is missing or not the one it names is
 // unusable, never "nothing stored", so the consumer keeps what it enforces
 // (AC-22).
-// METHOD: corrupt the pointer's digest; then remove the dataset.
+// METHOD: point at another digest and store the old value under the key that
+// pointer names; then remove the dataset.
 func TestReadSetRefusesADatasetThePointerDoesNotName(t *testing.T) {
 	s := newConsumerState()
 	pointer := storeSet(t, s, "AS-TEST", 3, "10.0.0.0/24")
+	value := s.values[pointer.DatasetKey("AS-TEST")]
 	pointer.Digest = hex.EncodeToString(make([]byte, 32))
+	s.values[pointer.DatasetKey("AS-TEST")] = value
 	encoded, err := EncodePointer(pointer)
 	if err != nil {
 		t.Fatal(err)

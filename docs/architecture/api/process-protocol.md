@@ -1962,7 +1962,7 @@ and a plugin that only reads a key does not block it.
 `StateInput.key` is bounded to 512 bytes. A value is bounded by its key's
 registration: one MiB (`rpc.StateDataMax`) unless the key's `zefs.KeyEntry`
 declares its own `ValueMax`. The IRR dataset key
-`meta/irr-data/{server}/{as-set}` declares 12,000,000 bytes, which travel as
+`meta/irr-data/{server}/{as-set}/{digest}` declares 12,000,000 bytes, which travel as
 16,000,000 bytes of base64 inside the 16 MiB message. The SDK
 (`rpc.ValidateStateInput` before sending, the result check after) and the
 daemon (`stateInput` on every request, `opStateGet` on the stored value) apply

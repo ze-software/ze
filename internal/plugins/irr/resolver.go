@@ -23,8 +23,8 @@ import (
 // It is called from the worker goroutine only.
 type resolver interface {
 	// refresh fetches asSet from the server and merges the answer into the
-	// last-known-good copy (store.PrefixStore.Refresh with the set as both
-	// name and query, so it never asks PeeringDB).
+	// last-known-good copy (store.PrefixStore.Refresh). It never asks
+	// PeeringDB: discover does, and the worker refreshes the set it chose.
 	refresh(ctx context.Context, asSet string) (*store.CachedEntry, error)
 	// seed installs a stored dataset as the copy the next answer merges into.
 	seed(entry store.CachedEntry) error
@@ -65,7 +65,7 @@ func newClients(cfg ownerConfig) (*irr.IRR, *peeringdb.PeeringDB) {
 }
 
 func (r *storeResolver) refresh(ctx context.Context, asSet string) (*store.CachedEntry, error) {
-	return r.prefixes.Refresh(ctx, asSet, asSet)
+	return r.prefixes.Refresh(ctx, asSet)
 }
 
 func (r *storeResolver) seed(entry store.CachedEntry) error {

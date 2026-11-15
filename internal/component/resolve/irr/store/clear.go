@@ -54,8 +54,8 @@ func clearIRRClient(irrClient *irr.IRR, input rpc.ResolverCacheClearInput) (int,
 }
 
 // clearPeeringDBClient applies input to the PeeringDB client. A store built
-// with no PeeringDB client (firewall-irr before its first configure) has no
-// PeeringDB cache, so it holds no entry and zero is the true count.
+// with no PeeringDB client (store.New with a nil pdb, as a test builds one)
+// has no PeeringDB cache, so it holds no entry and zero is the true count.
 func clearPeeringDBClient(pdb *peeringdb.PeeringDB, input rpc.ResolverCacheClearInput) (int, error) {
 	switch input.Action {
 	case rpc.ResolverCacheClearAll:

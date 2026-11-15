@@ -18,7 +18,7 @@ import (
 func TestFirewallIRRGrantsReadOwnerWriteOwnInterest(t *testing.T) {
 	const consumer = "firewall-irr"
 	for _, key := range []string{
-		zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST"),
+		zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
 		zefs.KeyIRRSet.Key("AS-TEST"),
 		zefs.KeyIRRASN.Key("65001"),
 		zefs.KeyIRRGeneration.Key(),

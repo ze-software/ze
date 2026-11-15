@@ -62,11 +62,13 @@ func PointerKey(asSet string) string {
 	return zefs.KeyIRRSet.Key(asSet)
 }
 
-// DatasetKey returns the key of the dataset the pointer names for asSet. The
-// pointer already holds the server in its key form, so the key is formed
-// without normalising it again.
+// DatasetKey returns the key of the dataset the pointer names for asSet: its
+// server, the set and its digest. The pointer already holds the server in its
+// key form, so the key is formed without normalising it again. The digest in
+// the key is what makes each stored value's key its own: a write of another
+// value never lands on the key a pointer names.
 func (p Pointer) DatasetKey(asSet string) string {
-	return zefs.KeyIRRDataset.Key(p.Server, asSet)
+	return zefs.KeyIRRDataset.Key(p.Server, asSet, p.Digest)
 }
 
 // EncodePointer returns the stored form of p.
@@ -164,11 +166,12 @@ func InterestKey(consumer string) string {
 // InterestPrefix is the listing prefix of every consumer's interest key.
 const InterestPrefix = "meta/irr-interest/"
 
-// PointerPrefix and BindingPrefix are the listing prefixes of every pointer and
-// every binding.
+// PointerPrefix, BindingPrefix and DatasetPrefix are the listing prefixes of
+// every pointer, every binding and every dataset.
 const (
 	PointerPrefix = "meta/irr-set/"
 	BindingPrefix = "meta/irr-asn/"
+	DatasetPrefix = "meta/irr-data/"
 )
 
 // GenerationKey is the state key of the generation counter.

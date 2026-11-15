@@ -21,9 +21,10 @@ func TestKeyEntryMatches(t *testing.T) {
 		{"meta/irr-set/{as-set}", "meta/irr-set/AS-TEST", true},
 		{"meta/irr-set/{as-set}", "meta/irr-set/", false},
 		{"meta/irr-set/{as-set}", "meta/irr-set/AS-TEST/extra", false},
-		{"meta/irr-data/{server}/{as-set}", "meta/irr-data/127.0.0.1:4343/RIPE::AS-TEST", true},
-		{"meta/irr-data/{server}/{as-set}", "meta/irr-data/whois.radb.net", false},
-		{"meta/irr-data/{server}/{as-set}", "meta/irr-data//AS-TEST", false},
+		{"meta/irr-data/{server}/{as-set}/{digest}", "meta/irr-data/127.0.0.1:4343/RIPE::AS-TEST/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", true},
+		{"meta/irr-data/{server}/{as-set}/{digest}", "meta/irr-data/127.0.0.1:4343/RIPE::AS-TEST", false},
+		{"meta/irr-data/{server}/{as-set}/{digest}", "meta/irr-data/whois.radb.net", false},
+		{"meta/irr-data/{server}/{as-set}/{digest}", "meta/irr-data//AS-TEST/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", false},
 		{"meta/ospf/gr-fact-{instance}", "meta/ospf/gr-fact-default", true},
 		{"meta/ospf/gr-fact-{instance}", "meta/ospf/gr-fact-", false},
 		{"meta/ssh/{host}/{port}/username", "meta/ssh/router/22/username", true},
@@ -45,7 +46,7 @@ func TestKeyEntryMatches(t *testing.T) {
 // key, which declares none, and a key nothing registers. The largest declared
 // bound is the dataset's.
 func TestLookupFindsTheDeclaredBound(t *testing.T) {
-	entry, found := Lookup("meta/irr-data/whois.radb.net/AS-TEST")
+	entry, found := Lookup("meta/irr-data/whois.radb.net/AS-TEST/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	if !found || entry.Pattern != KeyIRRDataset.Pattern || entry.ValueMax != IRRDatasetValueMax {
 		t.Fatalf("dataset key: entry=%+v found=%v, want %s with ValueMax %d", entry, found, KeyIRRDataset.Pattern, IRRDatasetValueMax)
 	}

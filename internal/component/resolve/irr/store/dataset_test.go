@@ -3,6 +3,7 @@ package store
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"net/netip"
 	"slices"
@@ -23,6 +24,16 @@ func encodeDataset(t *testing.T, d Dataset) []byte {
 	}
 	return buf
 }
+
+// storedKey is the key the owner stores value, the encoding of d, under: its
+// server, its AS-SET and its own digest.
+func storedKey(d Dataset, value []byte) string {
+	digest := DatasetDigest(value)
+	return zefs.KeyIRRDataset.Key(d.Server(), d.ASSet(), hex.EncodeToString(digest[:]))
+}
+
+// zeroDigest is a well-formed digest segment no test value carries.
+var zeroDigest = strings.Repeat("0", 64)
 
 func mustDataset(t *testing.T, in DatasetInput) Dataset {
 	t.Helper()
@@ -54,7 +65,8 @@ func sampleInput() DatasetInput {
 func TestDatasetRoundTrip(t *testing.T) {
 	in := sampleInput()
 	original := mustDataset(t, in)
-	decoded, err := DecodeDataset(original.Key(), encodeDataset(t, original))
+	encoded := encodeDataset(t, original)
+	decoded, err := DecodeDataset(storedKey(original, encoded), encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +82,7 @@ func TestDatasetRoundTrip(t *testing.T) {
 	if written := stale.WriteTo(buf, offset); written != stale.EncodedLen() {
 		t.Fatalf("WriteTo at offset wrote %d, want %d", written, stale.EncodedLen())
 	}
-	decoded, err = DecodeDataset(stale.Key(), buf[offset:])
+	decoded, err = DecodeDataset(storedKey(stale, buf[offset:]), buf[offset:])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +132,7 @@ func TestDatasetLargeFitsOneKey(t *testing.T) {
 	if len(value) > zefs.IRRDatasetValueMax {
 		t.Fatalf("largest dataset is %d bytes, over the declared %d", len(value), zefs.IRRDatasetValueMax)
 	}
-	decoded, err := DecodeDataset(d.Key(), value)
+	decoded, err := DecodeDataset(storedKey(d, value), value)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,11 +174,11 @@ func TestDatasetDigestRefused(t *testing.T) {
 	for _, offset := range []int{3, 30, len(value) - 40, len(value) - 1} {
 		corrupt := slices.Clone(value)
 		corrupt[offset] ^= 0x01
-		if _, err := DecodeDataset(d.Key(), corrupt); !errors.Is(err, ErrDatasetDigest) {
+		if _, err := DecodeDataset(storedKey(d, value), corrupt); !errors.Is(err, ErrDatasetDigest) {
 			t.Fatalf("byte %d flipped: error = %v, want ErrDatasetDigest", offset, err)
 		}
 	}
-	if _, err := DecodeDataset(d.Key(), value); err != nil {
+	if _, err := DecodeDataset(storedKey(d, value), value); err != nil {
 		t.Fatalf("intact value refused: %v", err)
 	}
 }
@@ -181,7 +193,7 @@ func TestDatasetTruncatedRefused(t *testing.T) {
 	d := mustDataset(t, sampleInput())
 	value := encodeDataset(t, d)
 	for size := range value {
-		_, err := DecodeDataset(d.Key(), value[:size])
+		_, err := DecodeDataset(storedKey(d, value), value[:size])
 		if err == nil {
 			t.Fatalf("value cut to %d of %d bytes decoded", size, len(value))
 		}
@@ -192,16 +204,23 @@ func TestDatasetTruncatedRefused(t *testing.T) {
 }
 
 // TestDatasetIdentityRefused proves a value read under another dataset's key
-// is refused: the key and the value must name the same AS-SET and server.
+// is refused: the key and the value must name the same AS-SET, server and
+// digest, so a value written over the key a pointer names is never read as
+// the pointed one.
 //
-// Method: decode one encoded dataset under the key of another AS-SET and of
-// another server.
+// Method: decode one encoded dataset under the key of another AS-SET, of
+// another server, of another digest, and under the two-segment key with no
+// digest; each differs from the value's own key in that part alone.
 func TestDatasetIdentityRefused(t *testing.T) {
 	d := mustDataset(t, sampleInput())
 	value := encodeDataset(t, d)
+	digest := DatasetDigest(value)
+	own := hex.EncodeToString(digest[:])
 	for _, key := range []string{
-		zefs.KeyIRRDataset.Key("whois.radb.net", "AS-OTHER"),
-		zefs.KeyIRRDataset.Key("rr.ntt.net", "RIPE::AS-TEST"),
+		zefs.KeyIRRDataset.Key("whois.radb.net", "AS-OTHER", own),
+		zefs.KeyIRRDataset.Key("rr.ntt.net", "RIPE::AS-TEST", own),
+		zefs.KeyIRRDataset.Key("whois.radb.net", "RIPE::AS-TEST", zeroDigest),
+		"meta/irr-data/whois.radb.net/RIPE::AS-TEST",
 	} {
 		if _, err := DecodeDataset(key, value); !errors.Is(err, ErrDatasetIdentity) {
 			t.Fatalf("read under %s: error = %v, want ErrDatasetIdentity", key, err)
@@ -216,7 +235,7 @@ func TestDatasetIdentityRefused(t *testing.T) {
 // Method: two zero-filled values, at the bound and one over; the first fails
 // on its version byte, the second on its size.
 func TestDatasetValueSizeBoundary(t *testing.T) {
-	key := zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST")
+	key := zefs.KeyIRRDataset.Key("whois.radb.net", "AS-TEST", zeroDigest)
 	if _, err := DecodeDataset(key, make([]byte, zefs.IRRDatasetValueMax)); !errors.Is(err, ErrDatasetVersion) {
 		t.Fatalf("value at the bound: error = %v, want ErrDatasetVersion (judged on content)", err)
 	}
@@ -231,21 +250,27 @@ func TestDatasetValueSizeBoundary(t *testing.T) {
 // Method: whois.radb.net, upper case, a trailing dot and the explicit whois
 // port 43 all give the key of whois.radb.net; port 4343 keeps its port; an
 // IPv6 literal at port 43 and without a port agree, and one at another port
-// carries it after an underscore; a host a key cannot carry is refused.
+// carries it after an underscore; a host a key cannot carry is refused, and so
+// is a digest segment that is not 64 lower-case hex digits.
 func TestServerIdentityNormalised(t *testing.T) {
-	want, err := DatasetKey("whois.radb.net", "AS-TEST")
+	want, err := DatasetKey("whois.radb.net", "AS-TEST", zeroDigest)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, server := range []string{"WHOIS.RADB.NET", "whois.radb.net:43", "Whois.Radb.Net.:043", " whois.radb.net "} {
-		got, err := DatasetKey(server, "AS-TEST")
+		got, err := DatasetKey(server, "AS-TEST", zeroDigest)
 		if err != nil || got != want {
 			t.Fatalf("DatasetKey(%q) = %q, %v, want %q", server, got, err, want)
 		}
 	}
-	other, err := DatasetKey("whois.radb.net:4343", "AS-TEST")
-	if err != nil || other != zefs.KeyIRRDataset.Key("whois.radb.net:4343", "AS-TEST") {
+	other, err := DatasetKey("whois.radb.net:4343", "AS-TEST", zeroDigest)
+	if err != nil || other != zefs.KeyIRRDataset.Key("whois.radb.net:4343", "AS-TEST", zeroDigest) {
 		t.Fatalf("port 4343: %q, %v", other, err)
+	}
+	for _, digest := range []string{"", "abc", strings.Repeat("A", 64), strings.Repeat("0", 63) + "/"} {
+		if got, err := DatasetKey("whois.radb.net", "AS-TEST", digest); err == nil {
+			t.Fatalf("DatasetKey with digest %q = %q, want a refusal", digest, got)
+		}
 	}
 	for server, wantForm := range map[string]string{
 		"2001:DB8::1":        "2001:db8::1",

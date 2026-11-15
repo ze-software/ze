@@ -509,10 +509,10 @@ func (o *owner) rediscoverBoundTo(ctx context.Context, asSet string, dueAt time.
 	return moved
 }
 
-// discoverASN asks PeeringDB for the set of asn and stores the binding. A
-// PeeringDB failure keeps a valid binding; with none, the literal AS<asn> is
-// bound, as the store did (store.PrefixStore discoverASSet), so the set is
-// fixed until the next due time rather than flipping per outage.
+// discoverASN asks PeeringDB for the set of asn and stores the binding. It is
+// the one AS-SET discovery Ze runs for a bare AS number. A PeeringDB failure
+// keeps a valid binding; with none, the literal AS<asn> is bound, so the set
+// is fixed until the next due time rather than flipping per outage.
 func (o *owner) discoverASN(ctx context.Context, asn uint32) {
 	delete(o.discoverDue, asn)
 	defer func() {

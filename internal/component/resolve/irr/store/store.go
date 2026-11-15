@@ -1,15 +1,19 @@
 // Design: docs/architecture/resolve.md -- shared IRR prefix resolution
 //
 // Package store provides PrefixStore, an in-memory cache of IRR-resolved
-// prefix lists keyed by name (an ASN like "AS13335" or an AS-SET like
-// "AS-CLOUDFLARE"). It resolves prefixes via the IRR whois client and
-// discovers AS-SETs for bare ASNs via PeeringDB. It writes nothing durable:
-// the irr plugin (internal/plugins/irr) stores what it resolved as datasets
-// (dataset.go, pointer.go), and seeds the cache from them at start (Seed).
+// prefix lists keyed by name, the AS-SET a lookup queries (an aut-num such as
+// "AS13335" is queried as the set of that name). It resolves prefixes via the
+// IRR whois client. It discovers no AS-SET: the irr plugin asks PeeringDB for
+// the set of a bare AS number itself (internal/plugins/irr owner.go
+// discoverASN) and refreshes the set it chose. It writes nothing durable: the
+// irr plugin stores what it resolved as datasets (dataset.go, pointer.go), and
+// seeds the cache from them at start (Seed).
 //
 // It lives in a subpackage of resolve/irr (not package irr) so it can import
 // resolve/peeringdb directly: peeringdb imports resolve/irr, and irr never
-// imports this store, so store -> peeringdb -> irr is acyclic.
+// imports this store, so store -> peeringdb -> irr is acyclic. The store holds
+// a PeeringDB client only so `clear peeringdb cache` reaches the one its
+// plugin uses (clear.go).
 package store
 
 import (
@@ -17,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +28,6 @@ import (
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var logger = slogutil.LazyLogger("resolve.irr.store")
@@ -106,8 +108,8 @@ func New(irrClient *irr.IRR, pdb *peeringdb.PeeringDB) *PrefixStore {
 // for the new address would answer every Get with nil, and the rules naming
 // those prefixes would filter nothing until the next fetch.
 //
-// irrClient MUST be non-nil. pdb MAY be nil, and AS-SET discovery is then
-// skipped. Safe for concurrent use.
+// irrClient MUST be non-nil. pdb MAY be nil: the store then holds no PeeringDB
+// cache to clear. Safe for concurrent use.
 func (s *PrefixStore) UseClients(irrClient *irr.IRR, pdb *peeringdb.PeeringDB) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -159,12 +161,9 @@ func (s *PrefixStore) Seed(entry CachedEntry) error {
 	return nil
 }
 
-// Refresh resolves prefixes for name and installs the result in memory.
-//
-// name is the identity and the cache key (e.g. "AS13335" or "AS-CLOUDFLARE").
-// asSet, when non-empty, is the AS-SET to query. When asSet is empty, the store
-// queries name directly if it is an AS-SET, or discovers the AS-SET via
-// PeeringDB if name is a bare ASN (falling back to the literal "AS<asn>" name).
+// Refresh resolves the prefixes of asSet and installs the result in memory
+// under asSet, the cache key. The caller names the set to query; the store
+// asks no PeeringDB question.
 //
 // A refresh that does not learn prefixes never replaces what is cached. The
 // previously resolved prefixes stay cached and stay enforced,
@@ -179,15 +178,15 @@ func (s *PrefixStore) Seed(entry CachedEntry) error {
 //
 // On success the in-memory cache is updated. StaleSince is cleared when both
 // families answered.
-func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
-	entry, err := s.resolve(ctx, name, asSet)
+func (s *PrefixStore) Refresh(ctx context.Context, asSet string) (*CachedEntry, error) {
+	entry, err := s.resolve(ctx, asSet)
 	if err != nil {
-		return s.markStale(name, entry), err
+		return s.markStale(asSet, entry), err
 	}
 	if entry.PrefixList().Empty() {
-		return s.markStale(name, entry), fmt.Errorf("%w for %s (as-set %s)", ErrNoPrefixes, name, entry.ASSet)
+		return s.markStale(asSet, entry), fmt.Errorf("%w for %s", ErrNoPrefixes, asSet)
 	}
-	return s.commit(ctx, name, entry)
+	return s.commit(ctx, asSet, entry)
 }
 
 // canceledAnswer is what Refresh returns for a lookup canceled before its
@@ -227,16 +226,18 @@ func canceledAnswer(name string, kept, fresh *CachedEntry) *CachedEntry {
 //
 // Only an entry resolved for the same AS-SET is merged. A cached family of
 // another AS-SET answers a question nobody asked any more, and keeping it would
-// enforce the old set's prefixes under the new set's name. A lookup that a
-// reload superseded can commit its old-set entry before the reload's lookup
-// commits the new one, so the store cannot rely on its callers to purge first.
+// enforce the old set's prefixes under the new set's name. Refresh caches each
+// answer under the set it queried, but Seed installs whatever entry its caller
+// hands it, whose AS-SET can differ from its name, so the store cannot rely on
+// its callers to keep the two equal.
 //
 // A lookup whose context was canceled before the install commits nothing and
 // returns ctx's error, with the entry still enforced as markStale reports it.
-// A caller cancels a lookup when the answer stops being wanted (bgp-filter-irr
-// cancels the lookups a reload superseded), and an answer nobody wants must not
-// become the cached AS-SET discoverASSet falls back to. The check runs under
-// s.mu, so a cancel that returned before the install is always seen.
+// The irr plugin, the only caller, runs every lookup under the plugin's own
+// context, which ends when the plugin stops: a lookup still in flight then
+// installs nothing in the copy the stored datasets are merged from. The check
+// runs under s.mu, so a cancel that returned before the install is always
+// seen.
 func (s *PrefixStore) commit(ctx context.Context, name string, fresh *CachedEntry) (*CachedEntry, error) {
 	keptV4, keptV6 := false, false
 
@@ -327,9 +328,8 @@ func (s *PrefixStore) markStale(name string, fresh *CachedEntry) *CachedEntry {
 	s.mu.Unlock()
 
 	// The caller gets the prefixes still enforced for name under the AS-SET it
-	// queried, so a consumer records the set the config or PeeringDB now names
-	// (bgp-filter-irr refreshASN) and reports what stays enforced (firewall-irr
-	// keptDataError). This copy is never stored.
+	// queried, so the irr plugin stores what stays enforced under the set it
+	// asked for (refreshSet). This copy is never stored here.
 	answer := *kept
 	if fresh.ASSet != "" {
 		answer.ASSet = fresh.ASSet
@@ -357,112 +357,30 @@ func (s *PrefixStore) Purge(name string) bool {
 	return found
 }
 
-// resolve performs AS-SET resolution and the IRR lookup without mutating state.
+// resolve performs the IRR lookup of asSet without mutating state.
 //
 // The lookup goes through RefreshPrefixes, which always queries the server. A
 // refresh answered from the client's 1h cache would stamp a new RefreshedAt on
 // data nobody re-read, and "update irr as-set X" exists to reach the
 // server. This store keeps the cache in memory; the irr plugin stores it.
-func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedEntry, error) {
-	if err := validateName(name); err != nil {
+func (s *PrefixStore) resolve(ctx context.Context, asSet string) (*CachedEntry, error) {
+	if err := validateName(asSet); err != nil {
 		return nil, err
 	}
 
-	irrClient, pdb := s.clients()
+	irrClient, _ := s.clients()
 
-	effective := asSet
-	if effective == "" {
-		if asn, ok := parseBareASN(name); ok {
-			effective = s.discoverASSet(ctx, pdb, name, asn)
-		} else {
-			effective = name
-		}
-	}
-
-	pl, err := irrClient.RefreshPrefixes(ctx, effective)
+	pl, err := irrClient.RefreshPrefixes(ctx, asSet)
 	if err != nil {
-		return &CachedEntry{Name: name, ASSet: effective}, err
+		return &CachedEntry{Name: asSet, ASSet: asSet}, err
 	}
 	return &CachedEntry{
-		Name:        name,
-		ASSet:       effective,
+		Name:        asSet,
+		ASSet:       asSet,
 		IPv4:        pl.IPv4,
 		IPv6:        pl.IPv6,
 		RefreshedAt: time.Now(),
 	}, nil
-}
-
-// discoverASSet returns the AS-SET to query for the bare ASN name.
-//
-// A PeeringDB answer decides it: its first AS-SET, or the literal "AS<asn>"
-// when PeeringDB holds none for the ASN. A PeeringDB failure decides nothing,
-// so the AS-SET name's cached entry was resolved for is kept, and the literal is
-// used only when nothing is cached. Falling back to the literal on a failure
-// would flip the queried set on every PeeringDB outage, and commit merges a
-// family only for the same AS-SET: an answer carrying one family would then
-// drop the other, and firewall-irr would keep its drop term without that
-// family's accept term (internal/component/firewall/plugins/irr/sets.go).
-// With no PeeringDB client the literal is the configured answer.
-//
-// pdb is passed in rather than read from the store, so the whole lookup runs on
-// the client resolve took.
-func (s *PrefixStore) discoverASSet(ctx context.Context, pdb *peeringdb.PeeringDB, name string, asn uint32) string {
-	if pdb == nil {
-		return asnName(asn)
-	}
-	set, err := lookupASSet(ctx, pdb, asn)
-	if err == nil {
-		return set
-	}
-
-	s.mu.RLock()
-	cached := s.entries[name]
-	s.mu.RUnlock()
-	if cached == nil || cached.ASSet == "" {
-		logger().Warn("irr/store: PeeringDB lookup failed and nothing is cached, querying the ASN itself",
-			"name", name, "as-set", asnName(asn), "error", err)
-		return asnName(asn)
-	}
-	logger().Warn("irr/store: PeeringDB lookup failed, keeping the cached AS-SET",
-		"name", name, "as-set", cached.ASSet, "error", err)
-	return cached.ASSet
-}
-
-// lookupASSet answers with the AS-SET PeeringDB holds for asn, the literal
-// "AS<asn>" when it holds none, or the error when PeeringDB did not answer.
-func lookupASSet(ctx context.Context, pdb *peeringdb.PeeringDB, asn uint32) (string, error) {
-	sets, err := pdb.LookupASSet(ctx, asn)
-	if err != nil {
-		return "", err
-	}
-	if len(sets) == 0 {
-		return asnName(asn), nil
-	}
-	return sets[0], nil
-}
-
-// asnName renders an ASN as its canonical "AS<n>" name.
-func asnName(asn uint32) string {
-	var tb textbuf.Buffer
-	return tb.Str("AS").Uint32(asn).String()
-}
-
-// parseBareASN reports whether name is a bare ASN ("13335" or "AS13335"),
-// returning the ASN. AS-SET names ("AS-CLOUDFLARE", "RIPE::AS-FOO") are not
-// bare ASNs.
-func parseBareASN(name string) (uint32, bool) {
-	num := name
-	if len(name) >= 2 && (name[0] == 'A' || name[0] == 'a') && (name[1] == 'S' || name[1] == 's') {
-		num = name[2:]
-	}
-	if num == "" {
-		return 0, false
-	}
-	n, err := strconv.ParseUint(num, 10, 32)
-	if err != nil || n == 0 {
-		return 0, false
-	}
-	return uint32(n), true
 }
 
 // validateName rejects names that are empty, contain characters invalid for an

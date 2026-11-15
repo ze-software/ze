@@ -73,8 +73,11 @@ var (
 // the only writer of the dataset, pointer, binding and generation keys;
 // bgp-filter-irr and firewall-irr read them, and each consumer writes its own
 // interest key, which tells the owner what to fetch
-// (docs/architecture/irr-owner.md). A pointer is written only after the
-// dataset it names, so a consumer never reads a pointer to nothing.
+// (docs/architecture/irr-owner.md). A dataset key ends in the digest of its
+// value, so a write never replaces the bytes a pointer already names. The
+// pointer is written only after the dataset it names, so a consumer never
+// reads a pointer to nothing, and a pointer write that fails leaves the old
+// pointer naming the old copy.
 //
 // IRRDatasetValueMax bounds one dataset value: 500,000 IPv4 prefixes at five
 // bytes and 500,000 IPv6 prefixes at seventeen bytes are 11,000,000 bytes, and
@@ -84,7 +87,7 @@ var (
 const IRRDatasetValueMax = 12_000_000
 
 var (
-	KeyIRRDataset    = MustRegister(KeyEntry{Pattern: "meta/irr-data/{server}/{as-set}", Description: "IRR prefix dataset of one AS-SET from one server (binary, digest-checked)", ValueMax: IRRDatasetValueMax})
+	KeyIRRDataset    = MustRegister(KeyEntry{Pattern: "meta/irr-data/{server}/{as-set}/{digest}", Description: "IRR prefix dataset of one AS-SET from one server, keyed by its own SHA-256 (binary, digest-checked)", ValueMax: IRRDatasetValueMax})
 	KeyIRRSet        = MustRegister(KeyEntry{Pattern: "meta/irr-set/{as-set}", Description: "The IRR dataset currently enforced for one AS-SET (JSON pointer)"})
 	KeyIRRASN        = MustRegister(KeyEntry{Pattern: "meta/irr-asn/{asn}", Description: "The AS-SET PeeringDB named for a bare ASN (JSON)"})
 	KeyIRRGeneration = MustRegister(KeyEntry{Pattern: "meta/irr-generation", Description: "IRR dataset generation, raised on every pointer write or removal (4-byte counter)"})

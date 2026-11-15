@@ -119,8 +119,8 @@ func (s *fakeConsumerState) storeList(t *testing.T, asSet, prefixes string) stri
 	digest := store.DatasetDigest(value)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.values[dataset.Key()] = value
 	pointer := store.Pointer{Server: dataset.Server(), Generation: s.raise(), Digest: hex.EncodeToString(digest[:])}
+	s.values[pointer.DatasetKey(asSet)] = value
 	encoded, err := store.EncodePointer(pointer)
 	if err != nil {
 		t.Fatal(err)
@@ -489,7 +489,7 @@ func readWhileReloading(t *testing.T, reloadTo string) (*irrPlugin, *asnState) {
 	captured := plug.byASN[65001]
 	var once sync.Once
 	state.onGet = func(key string) {
-		if !strings.HasPrefix(key, "meta/irr-data/") || !strings.HasSuffix(key, "/AS-OLD") {
+		if !strings.HasPrefix(key, "meta/irr-data/") || !strings.Contains(key, "/AS-OLD/") {
 			return
 		}
 		once.Do(func() { plug.configureOf(irrConfigFor(reloadTo)) })

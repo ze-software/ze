@@ -2,12 +2,15 @@
 // Related: owner.go -- the worker, the only caller
 // Related: legacy.go -- the one-time conversion of meta/irr/{name}
 //
-// Every write follows one order, so a consumer never reads a pointer to a
-// dataset that is not there: the dataset first, then the generation, then the
-// pointer carrying that generation, then the notice. The generation is raised
-// before the pointer is written because the pointer carries it; a pointer
-// write that then fails leaves a generation no pointer names, which a
-// consumer reads as a gap and recovers by reading every pointer again.
+// A dataset is stored under a key that ends in its own digest, so a write never
+// replaces the bytes the current pointer names, and the pointer flip is the
+// only switch. Every write follows one order, so a consumer never reads a
+// pointer to a dataset that is not there: the dataset first, then the
+// generation, then the pointer carrying that generation, then the notice. The
+// generation is raised before the pointer is written because the pointer
+// carries it; a pointer write that then fails leaves a generation no pointer
+// names, which a consumer reads as a gap and recovers by reading every pointer
+// again, and the old pointer still names the old dataset, intact.
 
 package irr
 
@@ -31,11 +34,15 @@ func isEmptyAnswer(err error) bool {
 // load reads what the store holds: the interest of every consumer, every
 // pointer with the dataset it names, every binding. It runs once, first on
 // the worker. A list that fails leaves that kind empty and says so: the
-// sets it would have named are then fetched as if nothing were stored.
+// sets it would have named are then fetched as if nothing were stored. Once
+// the pointers are read, the datasets no pointer names are removed.
 func (o *owner) load(ctx context.Context) {
 	o.convertLegacy(ctx)
 	o.readInterest(ctx)
-	o.readPointers(ctx)
+	unread, listed := o.readPointers(ctx)
+	if listed {
+		o.removeUnpointed(ctx, unread)
+	}
 	o.readBindings(ctx)
 	o.plan()
 }
@@ -90,27 +97,65 @@ func errNotFound(found bool) error {
 
 // readPointers reads every pointer and the dataset it names, and seeds the
 // resolver with each dataset of the configured server, so the next answer
-// merges per family into what is enforced (AC-7).
-func (o *owner) readPointers(ctx context.Context) {
+// merges per family into what is enforced (AC-7). It answers the AS-SETs whose
+// pointer is listed and could not be read, and whether the listing answered:
+// removeUnpointed keeps every dataset of such a set, and removes nothing at
+// all without a listing.
+func (o *owner) readPointers(ctx context.Context) (unread map[string]bool, listed bool) {
 	keys, err := o.state.StateList(ctx, store.PointerPrefix)
 	if err != nil {
 		o.unreadable(store.PointerPrefix, err)
-		return
+		return nil, false
 	}
+	unread = make(map[string]bool)
 	for _, key := range keys {
 		asSet := strings.TrimPrefix(key, store.PointerPrefix)
 		value, found, err := o.state.StateGet(ctx, key)
 		if err != nil || !found {
+			unread[asSet] = true
 			o.unreadable(key, errors.Join(err, errNotFound(found)))
 			continue
 		}
 		pointer, err := store.DecodePointer(value)
 		if err != nil {
+			unread[asSet] = true
 			o.unreadable(key, err)
 			continue
 		}
 		o.pointers[asSet] = pointer
 		o.readDataset(ctx, asSet, pointer)
+	}
+	return unread, true
+}
+
+// removeUnpointed removes every stored dataset no pointer names: one a write
+// left when its generation or pointer write failed and its own removal failed
+// too, one a flip or a clear could not remove, or one written by a crash
+// between two writes. A dataset of a set whose pointer is listed and could not
+// be read is kept, because that pointer may name it. A key that is not a
+// dataset key names nothing and is removed. A removal that fails is logged and
+// tried again at the next start.
+func (o *owner) removeUnpointed(ctx context.Context, unread map[string]bool) {
+	keys, err := o.state.StateList(ctx, store.DatasetPrefix)
+	if err != nil {
+		o.unreadable(store.DatasetPrefix, err)
+		return
+	}
+	for _, key := range keys {
+		if asSet, ok := store.DatasetKeyASSet(key); ok {
+			if unread[asSet] {
+				continue
+			}
+			if o.pointerNames(asSet, key) {
+				continue
+			}
+		}
+		if err := o.state.StateRemove(ctx, key); err != nil {
+			logger().Warn("irr: a stored dataset no pointer names could not be removed, the next start tries again",
+				"key", key, "error", err, "code", codeIRRDatasetUnpublished, "fix", "update irr all")
+			continue
+		}
+		logger().Info("irr: removed a stored dataset no pointer names", "key", key)
 	}
 }
 
@@ -125,14 +170,12 @@ func (o *owner) readDataset(ctx context.Context, asSet string, pointer store.Poi
 		o.unreadable(key, errors.Join(err, errNotFound(found)))
 		return
 	}
+	// The key ends in the pointer's digest, and DecodeDataset refuses a value
+	// whose own digest is another (ErrDatasetIdentity): a dataset that is not
+	// the one its pointer names is unreadable here.
 	dataset, err := store.DecodeDataset(key, value)
 	if err != nil {
 		o.unreadable(key, err)
-		return
-	}
-	digest := store.DatasetDigest(value)
-	if hex.EncodeToString(digest[:]) != pointer.Digest {
-		o.unreadable(key, errors.New("the dataset is not the one its pointer names: the digests differ"))
 		return
 	}
 	o.resolve(key, codeIRRDatasetUnreadable)
@@ -199,31 +242,42 @@ func (o *owner) writeDataset(ctx context.Context, asSet string, entry store.Cach
 	o.resolve(asSet, codeIRRDatasetOversized)
 	value := make([]byte, dataset.EncodedLen())
 	dataset.WriteTo(value, 0)
-	if err := o.state.StatePut(ctx, dataset.Key(), value); err != nil {
+	digest := store.DatasetDigest(value)
+	// The generation is filled in once it is raised; the key needs only the
+	// server and the digest, so the dataset is written first.
+	pointer := store.Pointer{Server: dataset.Server(), Digest: hex.EncodeToString(digest[:])}
+	key := pointer.DatasetKey(asSet)
+	previous, had := o.pointers[asSet]
+	// sharesKey is a guard: a value byte for byte the one the old pointer names
+	// lands on that pointer's own key, which then must neither be removed as
+	// the torn write's leftover nor as the dataset the flip replaced.
+	sharesKey := had && previous.DatasetKey(asSet) == key
+	if err := o.state.StatePut(ctx, key, value); err != nil {
 		return o.unpublished(asSet, checkedAt, err)
 	}
 	generation, err := o.state.StateIncrement(ctx, store.GenerationKey())
 	if err != nil {
+		o.removeTorn(ctx, asSet, key, sharesKey)
 		return o.unpublished(asSet, checkedAt, err)
 	}
-	digest := store.DatasetDigest(value)
-	pointer := store.Pointer{Server: dataset.Server(), Generation: generation, Digest: hex.EncodeToString(digest[:])}
+	pointer.Generation = generation
 	encoded, err := store.EncodePointer(pointer)
 	if err != nil {
+		o.removeTorn(ctx, asSet, key, sharesKey)
 		return o.unpublished(asSet, checkedAt, err)
 	}
 	if err := o.state.StatePut(ctx, store.PointerKey(asSet), encoded); err != nil {
+		o.removeTorn(ctx, asSet, key, sharesKey)
 		return o.unpublished(asSet, checkedAt, err)
 	}
-	previous, had := o.pointers[asSet]
 	o.pointers[asSet] = pointer
 	o.datasets[asSet] = infoOf(dataset)
 	o.resolve(asSet, codeIRRDatasetUnpublished)
-	if had && previous.Server != pointer.Server {
-		// The pointer names the new server's copy now, so the old one is
-		// enforced by nobody (R-7).
+	if had && !sharesKey {
+		// The pointer names the new copy now, so the old one is enforced by
+		// nobody (R-7), whether the server changed or not.
 		if err := o.state.StateRemove(ctx, previous.DatasetKey(asSet)); err != nil {
-			logger().Warn("irr: the previous server's dataset could not be removed, no pointer names it",
+			logger().Warn("irr: the previous dataset could not be removed, no pointer names it; the next start removes it",
 				"as-set", asSet, "error", err, "code", codeIRRDatasetUnpublished, "fix", "update irr as-set "+asSet)
 		}
 	}
@@ -231,6 +285,30 @@ func (o *owner) writeDataset(ctx context.Context, asSet string, entry store.Cach
 	logger().Info("irr dataset stored", "as-set", asSet, "server", pointer.Server,
 		"ipv4-count", len(dataset.IPv4()), "ipv6-count", len(dataset.IPv6()), "generation", generation)
 	return nil
+}
+
+// pointerNames reports whether the pointer of asSet the owner read names key.
+func (o *owner) pointerNames(asSet, key string) bool {
+	pointer, pointed := o.pointers[asSet]
+	if !pointed {
+		return false
+	}
+	return pointer.DatasetKey(asSet) == key
+}
+
+// removeTorn removes the dataset a write stored under key before its
+// generation or pointer write failed: no pointer names it, and every retry
+// would otherwise leave one more. A value that shares the old pointer's key is
+// that pointer's dataset and stays. A removal that fails is left to load's
+// removeUnpointed at the next start.
+func (o *owner) removeTorn(ctx context.Context, asSet, key string, sharesKey bool) {
+	if sharesKey {
+		return
+	}
+	if err := o.state.StateRemove(ctx, key); err != nil {
+		logger().Warn("irr: an unpublished dataset could not be removed, no pointer names it; the next start removes it",
+			"as-set", asSet, "key", key, "error", err, "code", codeIRRDatasetUnpublished, "fix", "update irr as-set "+asSet)
+	}
 }
 
 // unpublished records a dataset the store or the notice refused, and arms a

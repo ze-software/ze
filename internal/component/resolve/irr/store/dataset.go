@@ -3,8 +3,11 @@
 // Related: notice.go -- the notice that names a stored dataset
 //
 // A dataset is one AS-SET's prefixes as one IRR server answered them, stored
-// under meta/irr-data/{server}/{as-set} by the irr plugin and read by
-// bgp-filter-irr and firewall-irr. It is compact binary, not JSON: 500,000
+// under meta/irr-data/{server}/{as-set}/{digest} by the irr plugin and read by
+// bgp-filter-irr and firewall-irr. The key ends in the value's own digest, so
+// every distinct value has a key of its own and the pointer names exactly one
+// (docs/architecture/irr-owner.md, "Writing a dataset"). It is compact binary,
+// not JSON: 500,000
 // prefixes of each family must fit one state value (zefs.IRRDatasetValueMax),
 // and a JSON list of a million prefixes is about 20 MB.
 
@@ -14,10 +17,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +71,7 @@ var (
 	ErrDatasetDigest    = errors.New("irr dataset: digest does not match the content")
 	ErrDatasetVersion   = errors.New("irr dataset: unknown format version")
 	ErrDatasetMalformed = errors.New("irr dataset: value is malformed")
-	ErrDatasetIdentity  = errors.New("irr dataset: value names another AS-SET or server than its key")
+	ErrDatasetIdentity  = errors.New("irr dataset: value names another AS-SET, server or digest than its key")
 	ErrDatasetTooLarge  = errors.New("irr dataset: over the stored size bound")
 	ErrDatasetServer    = errors.New("irr dataset: server has no key form")
 )
@@ -177,9 +182,6 @@ func (d Dataset) CheckedAt() time.Time { return d.checkedAt }
 // StaleSince is when a refresh first learned nothing; zero means current.
 func (d Dataset) StaleSince() time.Time { return d.staleSince }
 
-// Key returns the state key the dataset is stored under.
-func (d Dataset) Key() string { return zefs.KeyIRRDataset.Key(d.server, d.asSet) }
-
 // EncodedLen returns the bytes WriteTo writes. It is fixed at construction.
 func (d Dataset) EncodedLen() int { return d.encodedLen }
 
@@ -212,8 +214,8 @@ func DatasetDigest(value []byte) [sha256.Size]byte {
 
 // DecodeDataset reads the value stored under key. It refuses a value that is
 // truncated, fails its digest, carries another version, is malformed, or names
-// another AS-SET or server than key, each with its named error; it never
-// answers an empty dataset in place of a refused one.
+// another AS-SET, server or digest than key, each with its named error; it
+// never answers an empty dataset in place of a refused one.
 func DecodeDataset(key string, value []byte) (Dataset, error) {
 	if len(value) > zefs.IRRDatasetValueMax {
 		return Dataset{}, fmt.Errorf("%w: %d bytes", ErrDatasetTooLarge, len(value))
@@ -256,12 +258,12 @@ func DecodeDataset(key string, value []byte) (Dataset, error) {
 	if !bytes.Equal(digest[:], value[len(reader.body):]) {
 		return Dataset{}, ErrDatasetDigest
 	}
-	named, valid := datasetKeyOf(server, asSet)
+	named, valid := datasetKeyOf(server, asSet, hex.EncodeToString(digest[:]))
 	if !valid {
 		return Dataset{}, fmt.Errorf("%w: value holds %q from %q, which names no key", ErrDatasetIdentity, asSet, server)
 	}
 	if named != key {
-		return Dataset{}, fmt.Errorf("%w: value holds %q from %q, key is %s", ErrDatasetIdentity, asSet, server, key)
+		return Dataset{}, fmt.Errorf("%w: value is %s, key is %s", ErrDatasetIdentity, named, key)
 	}
 	return Dataset{
 		asSet: asSet, server: server, ipv4: ipv4, ipv6: ipv6,
@@ -269,9 +271,10 @@ func DecodeDataset(key string, value []byte) (Dataset, error) {
 	}, nil
 }
 
-// DatasetKey returns the state key of one AS-SET from one server, after the
-// same validation NewDataset applies.
-func DatasetKey(server, asSet string) (string, error) {
+// DatasetKey returns the state key of the value with digest (lower-case hex,
+// as a Pointer carries it) of one AS-SET from one server, after the same
+// validation NewDataset applies to the names.
+func DatasetKey(server, asSet, digest string) (string, error) {
 	if err := validateName(asSet); err != nil {
 		return "", err
 	}
@@ -279,7 +282,29 @@ func DatasetKey(server, asSet string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return zefs.KeyIRRDataset.Key(normalised, asSet), nil
+	if !isHexDigest(digest) {
+		return "", fmt.Errorf("%w: digest %q is not 64 lower-case hex digits", ErrDatasetMalformed, digest)
+	}
+	return zefs.KeyIRRDataset.Key(normalised, asSet, digest), nil
+}
+
+// DatasetKeyASSet returns the AS-SET segment of a dataset key, and false for a
+// key that is not server, AS-SET and digest under DatasetPrefix: neither a
+// server key form nor an AS-SET name holds a '/', so the three segments are
+// unambiguous.
+func DatasetKeyASSet(key string) (string, bool) {
+	rest, found := strings.CutPrefix(key, DatasetPrefix)
+	if !found {
+		return "", false
+	}
+	segments := strings.Split(rest, "/")
+	if len(segments) != 3 {
+		return "", false
+	}
+	if slices.Contains(segments, "") {
+		return "", false
+	}
+	return segments[1], true
 }
 
 // DatasetServer returns the key form of an IRR server, so that every spelling
@@ -339,11 +364,11 @@ func DatasetServer(server string) (string, error) {
 	return key.String(), nil
 }
 
-// datasetKeyOf forms the key a decoded value names. A name KeyEntry.Key would
-// panic on (empty, or holding "..") names no key, so the second result is
-// false and the identity check refuses the value: stored bytes never reach a
-// panic.
-func datasetKeyOf(server, asSet string) (string, bool) {
+// datasetKeyOf forms the key a decoded value names: its server, its AS-SET and
+// its own digest. A name KeyEntry.Key would panic on (empty, or holding "..")
+// names no key, so the second result is false and the identity check refuses
+// the value: stored bytes never reach a panic. digest is always 64 hex digits.
+func datasetKeyOf(server, asSet, digest string) (string, bool) {
 	if server == "" {
 		return "", false
 	}
@@ -356,7 +381,7 @@ func datasetKeyOf(server, asSet string) (string, bool) {
 	if strings.Contains(asSet, "..") {
 		return "", false
 	}
-	return zefs.KeyIRRDataset.Key(server, asSet), true
+	return zefs.KeyIRRDataset.Key(server, asSet, digest), true
 }
 
 // significantBytes is the address bytes a prefix of bits bits carries.
