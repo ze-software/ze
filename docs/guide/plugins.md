@@ -1599,8 +1599,8 @@ edge fails by name.
 
 The BGP filter-type plugins (`bgp-filter-prefix`, `bgp-filter-family`,
 `bgp-filter-modify`, `bgp-filter-aspath`, `bgp-filter-aspath-length`,
-`bgp-filter-community-match`, `bgp-filter-remove-private-as`,
-`bgp-filter-path-asn` and `bgp-filter-irr`) own the `bgp` root
+`bgp-filter-community-match`, `bgp-filter-remove-private-as` and
+`bgp-filter-path-asn`) own the `bgp` root
 (`ConfigRoots ["bgp"]`) and read the `policy` root (`ConfigReads ["policy"]`),
 where their named instances live. They serve BGP chains only, so a `bgp { }`
 block loads them, and a config holding `policy` with no `bgp` block loads
@@ -1612,14 +1612,15 @@ their BGP settings. A Loc-RIB chain naming a `prefix-list`, `modify` or
 in and run inside the `policy` plugin (see [Route policy](route-policy.md)).
 `TestPolicyOnlyConfigLoadsNoBGP` derives the plugins a policy-only config
 selects from the registry and refuses one that depends on `bgp`.
-`bgp-filter-irr` also depends on the `irr` plugin, which fetches, schedules and
-stores the IRR prefix lists it enforces, so a config using the filter starts
-`irr` before it; the filter fetches nothing itself and reads the stored lists
+`bgp-filter-irr` owns the `bgp` root and depends on the `irr` plugin, which
+fetches, schedules and stores the IRR prefix lists it enforces, so a config
+using the filter starts `irr` before it; the filter fetches nothing itself and
+reads the stored lists
 (see [IRR filtering](irr-filtering.md), "After a restart").
 <!-- source: internal/component/bgp/plugins/filter_family/register.go -- ConfigRoots, ConfigReads -->
 <!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestPolicyOnlyConfigLoadsNoBGP -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBEvaluator -->
-<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, ConfigReads -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, Dependencies -->
 <!-- source: internal/component/policy/section.go -- SectionsParser -->
 
 `StartAfter` is separate from either kind of dependency. It orders two plugins

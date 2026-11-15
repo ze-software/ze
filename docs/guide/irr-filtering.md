@@ -150,7 +150,8 @@ when the `irr` plugin fetches is `system irr` and `system peeringdb url`
 <!-- source: internal/component/bgp/plugins/filter_irr/config_tx.go -- newIRRConfigTx -->
 <!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure -->
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR, clearResolverCache -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- runFilterIRR -->
+<!-- source: internal/plugins/irr/irr.go -- clearResolverCache -->
 
 ## Verify before carrying traffic
 
@@ -237,7 +238,7 @@ A `send` list on the peer replaces the group's, so a peer that states its own `s
 
 An UPDATE that announces some routes the list authorizes and some it does not keeps the authorized ones and drops the rest, in the IPv4 NLRI field and in a multiprotocol block of IPv4 or IPv6 unicast, multicast or labeled unicast alike. An UPDATE that withdraws routes keeps its withdrawals even when the filter rejects every route it announces, and even before the ASN has a list. The exception is a rejected route in a multiprotocol block of another family, a FlowSpec rule for example, which Ze cannot remove from the UPDATE: that UPDATE is rejected whole, its authorized routes and its withdrawals included. The filter then asks the peer for the authorized routes again every minute, and the peer answers with the same UPDATE, so those routes stay rejected until the peer stops announcing the refused one.
 
-<!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- readmitter, heldPrefixMax, readmitRetryInterval -->
+<!-- source: internal/component/bgp/plugins/filter_irr/readmit.go -- readmitter, heldPrefixMax, readmitInterval -->
 
 <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- show, check, and manual refresh commands -->
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh, last-known-good, and the firewall plugin's persistence -->

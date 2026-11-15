@@ -166,16 +166,19 @@ falls back to.
 `CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to
 remove prefixes for a name that is gone upstream.
 
-The cache validates both its lookup name and the identity of each stored entry.
+The cache validates lookup names. The `irr` owner validates stored entries.
 
 - `validateName` rejects `.` and names containing `..` before constructing a
   key. These names cannot identify a cache entry safely.
   <!-- source: internal/component/resolve/irr/store/store.go -- validateName -->
-- `Open` compares each key's name segment with the JSON `Name`. A value under
-  `meta/irr/AS13335` that claims `"name":"AS99999"` is skipped with a warning.
-- Persistence uses raw keys through the supplied owner. A cache never opens
-  a writer of its own, and read-only doctor handles refuse mutations.
-  <!-- source: internal/component/resolve/irr/store/store.go -- Open, migrate -->
+- During conversion of legacy JSON entries, `convertLegacyKey` compares each
+  key's name segment with the JSON `Name`. A value under `meta/irr/AS13335`
+  that claims `"name":"AS99999"` stays stored and is reported as unreadable.
+  <!-- source: internal/plugins/irr/legacy.go -- convertLegacy, convertLegacyKey -->
+- The cache stays in memory. The `irr` owner persists datasets through the
+  supplied state interface; neither opens a separate writer.
+  <!-- source: internal/component/resolve/irr/store/store.go -- New -->
+  <!-- source: internal/plugins/irr/datasets.go -- writeDataset -->
 
 ## RIR Delegation Table
 
