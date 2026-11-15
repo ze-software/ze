@@ -18,6 +18,8 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+const bgpModule = "bgp"
+
 type stateRow struct {
 	State string `json:"state"`
 }
@@ -134,7 +136,7 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 			if node.Hostname == "" {
 				continue
 			}
-			remaining, inspectErr := c.liveCommand(cleanup, directory, "docker", "ps", "--all", "--filter", "name=^/"+regexp.QuoteMeta(node.Hostname)+"$", "--format", "{{.Names}}")
+			remaining, inspectErr := c.liveCommand(cleanup, directory, dockerCommand, "ps", "--all", "--filter", "name=^/"+regexp.QuoteMeta(node.Hostname)+"$", "--format", "{{.Names}}")
 			err = errors.Join(err, inspectErr)
 			if strings.TrimSpace(remaining) != "" {
 				err = errors.Join(err, fmt.Errorf("netlab teardown left container %s", node.Hostname))
@@ -168,7 +170,7 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 		if !exists {
 			return fmt.Errorf("reference lab is missing %s", name)
 		}
-		modules := []string{"bgp"}
+		modules := []string{bgpModule}
 		if name != "r3" {
 			modules = append(modules, "ospf", "isis", "bfd", "routing")
 		}
@@ -201,7 +203,7 @@ func (c *Checker) RunLive(ctx context.Context, directory string) (err error) {
 				return fmt.Errorf("%s has no destination loopback", targetName)
 			}
 			_, _, err := interoplab.Wait(ctx, liveWait(sourceName+" ping "+targetName), func(probe context.Context) (string, error) {
-				return c.liveCommand(probe, directory, "docker", "exec", source.Hostname, "ping", "-I", address(source.Loopback.IPv4), "-c", "1", "-W", "1", address(target.Loopback.IPv4))
+				return c.liveCommand(probe, directory, dockerCommand, "exec", source.Hostname, "ping", "-I", address(source.Loopback.IPv4), "-c", "1", "-W", "1", address(target.Loopback.IPv4))
 			}, func(string) bool { return true })
 			if err != nil {
 				return err
@@ -242,7 +244,7 @@ func nodeProofs(node liveNode) []liveProof {
 	}
 	// enumeration: exempt (these are the adjacency proofs this lab supports, not a plugin inventory)
 	return []liveProof{
-		{"bgp", "show bgp", "established", "bgp.json", bgp},
+		{bgpModule, "show bgp", "established", "bgp.json", bgp},
 		{"ospf", "show ospf neighbor", "full", "ospf-neighbor.json", ospf},
 		{"isis", "show isis neighbor", "up", "isis-neighbor.json", isis},
 		{"bfd", "show bfd sessions", "up", "bfd.json", bfd},
@@ -258,11 +260,11 @@ func (c *Checker) proveNode(ctx context.Context, directory, name string, node li
 			return fmt.Errorf("%s declares %s but has no adjacency to prove", name, proof.module)
 		}
 		_, _, err := interoplab.Wait(ctx, liveWait(name+" "+proof.module), func(probe context.Context) ([]stateRow, error) {
-			body, err := c.liveCommand(probe, directory, "docker", "exec", node.Hostname, "ze", "cli", "-c", proof.command+" | json compact")
+			body, err := c.liveCommand(probe, directory, dockerCommand, "exec", node.Hostname, "ze", "cli", "-c", proof.command+" | json compact")
 			if err != nil {
 				return nil, err
 			}
-			if proof.module == "bgp" {
+			if proof.module == bgpModule {
 				var response struct {
 					Peers []stateRow `json:"peers"`
 				}
@@ -290,7 +292,7 @@ func (c *Checker) proveNode(ctx context.Context, directory, name string, node li
 		return errors.New("r1 static next hop is absent from the live topology")
 	}
 	_, _, err := interoplab.Wait(ctx, liveWait(name+" static routes"), func(probe context.Context) ([]routeRow, error) {
-		body, err := c.liveCommand(probe, directory, "docker", "exec", node.Hostname, "ip", "-j", "route", "show")
+		body, err := c.liveCommand(probe, directory, dockerCommand, "exec", node.Hostname, "ip", "-j", "route", "show")
 		if err != nil {
 			return nil, err
 		}

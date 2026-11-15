@@ -42,7 +42,8 @@ func ProspectiveCommit(root string, paths, removed []string, selection hunks.Sel
 // already built. Callers MUST supply the recorded parent and that same tree.
 func ProspectiveTree(root, parent, tree string, paths, removed []string) (Prospective, []string) {
 	result := Prospective{Paths: slices.Clone(paths), Removed: slices.Clone(removed)}
-	args := []string{"--literal-pathspecs", "diff-tree", "-r", "--name-status", "-z", "--find-renames=1%", "-l0", "--diff-filter=R", parent, tree, "--"}
+	args := make([]string, 0, 11+len(paths)+len(removed))
+	args = append(args, "--literal-pathspecs", "diff-tree", "-r", "--name-status", "-z", "--find-renames=1%", "-l0", "--diff-filter=R", parent, tree, "--")
 	args = append(args, paths...)
 	args = append(args, removed...)
 	output, stderr, code, started := gitCapture(root, args...)

@@ -30,9 +30,9 @@ exit 0
 //
 // The tree is a git repository with one commit, because job admission
 // fingerprints its inputs from HEAD: a tree with no HEAD refuses every
-// admitted build before its root is ever asked. ParentVariable is cleared, so
-// a run under `./le job run` admits through the queue as a raw `go test` does,
-// rather than running inside the job that started the test.
+// admitted build before its root is ever asked. Every spelling of the parent
+// identity is cleared, so a run under `./le job run` admits through the queue as
+// a raw `go test` does, rather than running inside the job that started the test.
 //
 // The patched toolchain is activated first, over the real checkout: activation
 // puts its bin at the head of PATH once per process, and the stub must stand
@@ -59,9 +59,7 @@ func stageDockerLabTree(t *testing.T) (string, string) {
 	}
 
 	commitTree(t, tree)
-	t.Setenv(job.ParentVariable, "")
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
+	dockerLabWithoutParent(t)
 
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(recordingGo), 0o755); err != nil { //nolint:gosec // a stub on a test's own PATH must be executable
@@ -71,6 +69,20 @@ func stageDockerLabTree(t *testing.T) (string, string) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("GO_RECORD", record)
 	return tree, record
+}
+
+// dockerLabWithoutParent isolates independent admission fixtures from every
+// spelling of the outer test job, and restores those spellings after the test.
+func dockerLabWithoutParent(t *testing.T) {
+	t.Helper()
+	t.Cleanup(env.ResetCache)
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if env.Normalize(name) == env.Normalize(job.ParentKey) {
+			t.Setenv(name, "")
+		}
+	}
+	env.ResetCache()
 }
 
 // commitTree makes tree a git repository whose one commit holds every file

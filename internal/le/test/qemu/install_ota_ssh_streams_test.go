@@ -23,7 +23,7 @@ func TestApplianceOTASSHSeparatesAnswerFrame(t *testing.T) {
 	fixture.sshStderr = otaSSHDocumentFrame(1, "")
 	fixture.mu.Unlock()
 	guest := &otaGuest{installer: fixture.installer, sshPort: fixture.sshPort}
-	output, err := guest.ssh(context.Background(), HostnameQuery, "")
+	output, err := guest.ssh(context.Background(), HostnameQuery)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestApplianceOTASSHRetainsStderrFailure(t *testing.T) {
 	fixture.mu.Unlock()
 	guest := &otaGuest{installer: fixture.installer, sshPort: fixture.sshPort}
 	const command = "show nonexistent proof item"
-	_, err := guest.ssh(context.Background(), command, "")
+	_, err := guest.ssh(context.Background(), command)
 	if err == nil {
 		t.Fatal("remote failure became successful SSH output")
 	}

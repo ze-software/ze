@@ -15,6 +15,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const dockerCommand = "docker"
+
 type liveCapture struct {
 	file string
 	args []string
@@ -51,8 +53,8 @@ func (c *Checker) keepLiveDiagnostics(ctx context.Context, directory, startupOut
 			continue
 		}
 		for _, capture := range []liveCapture{
-			{name + ".inspect.json", []string{"docker", "inspect", node.Hostname}},
-			{name + ".log", []string{"docker", "logs", "--tail", "200", node.Hostname}},
+			{name + ".inspect.json", []string{dockerCommand, "inspect", node.Hostname}},
+			{name + ".log", []string{dockerCommand, "logs", "--tail", "200", node.Hostname}},
 		} {
 			err = errors.Join(err, c.keepLiveCommand(ctx, directory, artifacts, capture.file, capture.args))
 		}
@@ -84,7 +86,7 @@ func (c *Checker) keepLiveDiagnostics(ctx context.Context, directory, startupOut
 			if node.Hostname == "" {
 				continue
 			}
-			argv := append([]string{"docker", "exec", node.Hostname}, capture.args...)
+			argv := append([]string{dockerCommand, "exec", node.Hostname}, capture.args...)
 			err = errors.Join(err, c.keepLiveCommand(ctx, directory, artifacts, name+"."+capture.file, argv))
 		}
 	}

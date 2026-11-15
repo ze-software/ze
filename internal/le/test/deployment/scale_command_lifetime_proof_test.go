@@ -48,7 +48,10 @@ func TestScaleSimulatorCancellationJoinsActualDescendants(t *testing.T) {
 		}
 		cancel()
 		select {
-		case <-done:
+		case err := <-done:
+			if !errors.Is(err, context.Canceled) {
+				t.Errorf("simulator cleanup lost originating cancellation: %v", err)
+			}
 		case <-time.After(5 * time.Second):
 			t.Error("actual simulator command could not be joined even after fixture cleanup")
 		}

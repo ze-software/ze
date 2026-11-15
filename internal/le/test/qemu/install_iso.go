@@ -280,14 +280,16 @@ func (installer *Installer) regularFile(path string) bool {
 	return err == nil && info.Mode().IsRegular()
 }
 
+const isoDriveArg = "-drive"
+
 func (installer *Installer) isoCDROMArgs(iso string) []string {
 	var tb textbuf.Buffer
 	if installer.Options.Arch == ArchARM64 {
 		drive := tb.Str("file=").Str(iso).Str(",if=none,id=cdrom,media=cdrom,readonly=on").String()
-		return []string{"-drive", drive, "-device", "virtio-scsi-pci,id=scsi0", "-device", "scsi-cd,drive=cdrom,bus=scsi0.0"}
+		return []string{isoDriveArg, drive, "-device", "virtio-scsi-pci,id=scsi0", "-device", "scsi-cd,drive=cdrom,bus=scsi0.0"}
 	}
 	drive := tb.Str("file=").Str(iso).Str(",media=cdrom,readonly=on,if=ide").String()
-	return []string{"-drive", drive, "-boot", "d"}
+	return []string{isoDriveArg, drive, "-boot", "d"}
 }
 
 // ISOArgv returns the complete UEFI ISO installer invocation.
@@ -304,7 +306,7 @@ func (installer *Installer) ISOArgv(iso, disk, extraDisk, firmware string) ([]st
 	targetDrive := tb.Str("file=").Str(disk).Str(",format=raw,if=virtio").String()
 	tb.Reset()
 	extraDrive := tb.Str("file=").Str(extraDisk).Str(",format=raw,if=virtio").String()
-	return append(argv, "-drive", targetDrive, "-drive", extraDrive), nil
+	return append(argv, isoDriveArg, targetDrive, isoDriveArg, extraDrive), nil
 }
 
 // isoFirmwareArgs keeps split firmware variable stores private to this QEMU
@@ -324,7 +326,7 @@ func (installer *Installer) isoFirmwareArgs(firmware string) ([]string, error) {
 		// QEMU docs/interop/firmware.json, FirmwareFlashMode: "the executable
 		// file contains code and variable storage is not persisted", and a
 		// flash device maps the executable into a pflash chip, never -bios.
-		return []string{"-drive", codeDrive}, nil
+		return []string{isoDriveArg, codeDrive}, nil
 	}
 	vars := ""
 	for _, candidate := range pairing.vars {
@@ -336,7 +338,7 @@ func (installer *Installer) isoFirmwareArgs(firmware string) ([]string, error) {
 	if vars != "" {
 		b.Reset()
 		varsDrive := b.Str("if=pflash,unit=1,format=raw,snapshot=on,file=").Str(vars).String()
-		return []string{"-drive", codeDrive, "-drive", varsDrive}, nil
+		return []string{isoDriveArg, codeDrive, isoDriveArg, varsDrive}, nil
 	}
 	override := "ZE_INSTALL_X86_UEFI_BIOS"
 	if installer.Options.Arch == ArchARM64 {

@@ -4,12 +4,14 @@
 package testqemu
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -74,7 +76,7 @@ func (installer *Installer) executeApplianceConfigPush(ctx context.Context) (rep
 		return report, err
 	}
 	defer clear(private)
-	home, socket, stopIdentity, err := installer.configPushIdentity(identityDir, private)
+	home, socket, stopIdentity, err := installer.configPushIdentity(ctx, identityDir, private)
 	if err != nil {
 		return report, err
 	}
@@ -535,9 +537,7 @@ func configPushTarget(path string, port int, username string) error {
 		if section == nil {
 			return errors.New("owned named appliance has an absent target section")
 		}
-		for key, value := range edits {
-			section[key] = value
-		}
+		maps.Copy(section, edits)
 		encoded, err := json.Marshal(section)
 		if err != nil {
 			return err
@@ -619,5 +619,5 @@ func (guest *otaGuest) configPushReady(ctx context.Context, verify ssh.HostKeyCa
 }
 
 func sshKeysEqual(left, right ssh.PublicKey) bool {
-	return string(left.Marshal()) == string(right.Marshal())
+	return bytes.Equal(left.Marshal(), right.Marshal())
 }

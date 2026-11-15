@@ -25,7 +25,7 @@ type labAnswer struct {
 }
 
 func packageHere(args leaction.Arguments) (any, int) {
-	directory := args.One("directory")
+	directory := args.One(directoryKeyword)
 	if directory == "" {
 		leaction.ReportError(opererr.New("netlab package needs a destination directory",
 			"Export creates a new self-contained lab directory. Supply an unused destination path.",
@@ -53,8 +53,8 @@ func runLiveHere(args leaction.Arguments) (any, int) {
 	defer stop()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
-	if args.One("runtime") == "host" {
-		directory := args.One("directory")
+	if args.One("runtime") == runtimeHost {
+		directory := args.One(directoryKeyword)
 		if directory == "" {
 			leaction.ReportError(opererr.New("netlab runtime host needs a packaged lab directory",
 				"Host mode runs inside the prepared tool environment with Docker, netlab and containerlab available, a staged ze binary, and a reachable Docker daemon running Ze's kernel. Supply that packaged lab's path.",
@@ -73,10 +73,10 @@ func runLiveHere(args leaction.Arguments) (any, int) {
 		}
 		return labAnswer{Directory: directory, Clean: true}, 0
 	}
-	if args.Has("directory") {
+	if args.Has(directoryKeyword) {
 		leaction.ReportError(opererr.New("netlab run directory requires runtime host",
 			"Container mode creates its own lab directory. Use host mode for the named package inside the prepared tool environment on the Ze Docker host.",
-			netlabHostCommand(args.One("directory"))))
+			netlabHostCommand(args.One(directoryKeyword))))
 		return nil, 2
 	}
 	root, err := lepath.Root()
@@ -161,9 +161,9 @@ func runContainerLab(ctx context.Context, root string) (directory string, err er
 		mounts = append(mounts, interoplab.Mount{Source: path, Target: path})
 	}
 	_, err = docker.RunOneShot(ctx, interoplab.OneShotContainer{
-		Image: image.Reference, Network: "host", Mounts: mounts,
+		Image: image.Reference, Network: runtimeHost, Mounts: mounts,
 		Arguments: []string{"--privileged", "--pid=host", "--workdir", directory},
-		Command:   []string{"/usr/local/bin/le", "test", "netlab", "run", "runtime", "host", "directory", directory},
+		Command:   []string{"/usr/local/bin/le", "test", "netlab", "run", "runtime", runtimeHost, directoryKeyword, directory},
 		Timeout:   20 * time.Minute, Stdout: os.Stdout, Stderr: os.Stderr,
 	})
 	if err != nil {
@@ -174,7 +174,7 @@ func runContainerLab(ctx context.Context, root string) (directory string, err er
 		if snapshotErr == nil {
 			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Minute)
 			_, cleanupErr := docker.RunOneShot(cleanup, interoplab.OneShotContainer{
-				Image: image.Reference, Network: "host", Mounts: mounts,
+				Image: image.Reference, Network: runtimeHost, Mounts: mounts,
 				Arguments: []string{"--privileged", "--pid=host", "--workdir", directory},
 				Command:   []string{"netlab", "down", "--cleanup"},
 				Timeout:   2 * time.Minute, Stdout: os.Stdout, Stderr: os.Stderr,

@@ -14,7 +14,7 @@ func (c *Checker) Package(destination string) (err error) {
 	if destination == "" {
 		return errors.New("package destination is required")
 	}
-	if err := os.Mkdir(destination, 0o755); err != nil {
+	if err := os.Mkdir(destination, 0o750); err != nil {
 		return fmt.Errorf("create new lab directory %s: %w", destination, err)
 	}
 	defer func() {

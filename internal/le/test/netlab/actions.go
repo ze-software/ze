@@ -11,12 +11,17 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-const area = "test netlab"
+const (
+	area             = "test netlab"
+	directoryKeyword = "directory"
+	runtimeHost      = "host"
+)
 
 type actionRunner func() (any, int)
 
 func actionTable(runCheck, runUpdate actionRunner, additional ...leaction.Action) leaction.Area {
-	base := []leaction.Action{
+	base := make([]leaction.Action, 0, 2+len(additional))
+	base = append(base,
 		leaction.Action{Verb: "check", Heavy: true, Summary: "render netlab topologies and compare goldens", Why: "render contrib/netlab with the installed netlab, compare every node with its golden file," +
 			" and prove each golden is accepted by ze config validate",
 			Answer: runCheck},
@@ -28,7 +33,7 @@ func actionTable(runCheck, runUpdate actionRunner, additional ...leaction.Action
 			Writes:  true,
 			Answer:  runUpdate,
 		},
-	}
+	)
 	return leaction.New(area, append(base, additional...)...)
 }
 
@@ -36,15 +41,15 @@ var actions = actionTable(runCheckHere, runUpdateHere,
 	leaction.Action{
 		Verb: "package", Does: "build", Summary: "export a self-contained netlab topology", Writes: true,
 		Why:        "copy the topology, local daemon definition and templates into a new directory, ready for netlab up without a source checkout",
-		Parameters: []leaction.Parameter{{Keyword: "directory", Kind: leaction.KindPath, Value: "path", Requirement: leaction.Required, Help: "create this new lab directory"}},
+		Parameters: []leaction.Parameter{{Keyword: directoryKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Required, Help: "create this new lab directory"}},
 		AnswerArgs: packageHere,
 	},
 	leaction.Action{
 		Verb: "run", Heavy: true, Summary: "prove live protocols, routes and traffic, then stop", Writes: true,
 		Why: "build a local Ze lab image and pinned upstream tools, run the reference topology on the Ze Docker host, assert every declared adjacency and route plus loopback traffic, and tear down the lab",
 		Parameters: []leaction.Parameter{
-			{Keyword: "runtime", Kind: leaction.KindEnum, Value: "runtime", Requirement: leaction.Optional, Help: "run tools in a container or this Docker host namespace", Values: []string{"container", "host"}, ValueHelp: map[string]string{"container": "build and run the tool container on the Ze Docker host", "host": "run the packaged lab inside the prepared tool container"}},
-			{Keyword: "directory", Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional, Help: "prepared lab directory for runtime host"},
+			{Keyword: "runtime", Kind: leaction.KindEnum, Value: "runtime", Requirement: leaction.Optional, Help: "run tools in a container or this Docker host namespace", Values: []string{"container", runtimeHost}, ValueHelp: map[string]string{"container": "build and run the tool container on the Ze Docker host", runtimeHost: "run the packaged lab inside the prepared tool container"}},
+			{Keyword: directoryKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional, Help: "prepared lab directory for runtime host"},
 		},
 		AnswerArgs: runLiveHere,
 	},

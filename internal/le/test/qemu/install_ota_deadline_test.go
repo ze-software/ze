@@ -38,7 +38,7 @@ func TestApplianceOTASSHCancellation(t *testing.T) {
 				guest.installer, guest.sshPort = fixture.installer, fixture.sshPort
 				started, stop = fixture.stallExec, fixture.closeSSH
 			} else {
-				listener, err := net.Listen("tcp", net.JoinHostPort(forwardHost, "0"))
+				listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", net.JoinHostPort(forwardHost, "0"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -81,7 +81,7 @@ func TestApplianceOTASSHCancellation(t *testing.T) {
 			}
 			defer stop()
 			result := make(chan error, 1)
-			go func() { _, err := guest.ssh(ctx, HostnameQuery, ""); result <- err }()
+			go func() { _, err := guest.ssh(ctx, HostnameQuery); result <- err }()
 			select {
 			case <-started:
 			case <-time.After(2 * time.Second):

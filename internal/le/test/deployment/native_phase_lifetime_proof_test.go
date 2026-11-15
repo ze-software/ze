@@ -60,10 +60,17 @@ func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 			}
 			defer func() {
 				stopForeign()
-				if err := foreign.Wait(); err != nil {
-					if _, exited := errors.AsType[*exec.ExitError](err); !exited {
-						t.Error(err)
-					}
+				err := foreign.Wait()
+				if err == nil {
+					return
+				}
+				// The observer may exit cleanly when its socket closes before the
+				// cancellation signal wins; Wait then reports the requested cancel.
+				if errors.Is(err, context.Canceled) {
+					return
+				}
+				if _, exited := errors.AsType[*exec.ExitError](err); !exited {
+					t.Error(err)
 				}
 			}()
 			sentinel := acceptScaleLifetime(t, listener)
@@ -112,7 +119,10 @@ func TestNativeAppliancePhaseCancellationJoinsDescendants(t *testing.T) {
 				owned.Close() //nolint:errcheck // Releasing the descendant; only the join below is asserted.
 				cancel()
 				select {
-				case <-done:
+				case err := <-done:
+					if !errors.Is(err, context.Canceled) {
+						t.Errorf("production phase cleanup lost originating cancellation: %v", err)
+					}
 				case <-time.After(5 * time.Second):
 					t.Error("production phase did not join after fixture release")
 				}

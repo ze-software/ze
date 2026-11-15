@@ -25,7 +25,7 @@ func TestNamespacePreparationKeepsFixtureProcessControlOffDaemons(t *testing.T) 
 		if strings.Contains(first, setcapCommand+" "+fixtureGrant+" "+target+";") {
 			t.Fatalf("production daemon %s received fixture-only process control:\n%s", name, first)
 		}
-		for _, command := range strings.Split(first, ";") {
+		for command := range strings.SplitSeq(first, ";") {
 			fields := strings.Fields(command)
 			if len(fields) != 3 {
 				continue

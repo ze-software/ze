@@ -5,6 +5,7 @@ package testqemu
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"net"
@@ -18,7 +19,7 @@ import (
 )
 
 type configPushIdentityStarter interface {
-	configPushIdentity(string, ed25519.PrivateKey) (string, string, func() error, error)
+	configPushIdentity(context.Context, string, ed25519.PrivateKey) (string, string, func() error, error)
 }
 
 // TestApplianceConfigPushAgentOwnsWorkers proves the real agent protocol and
@@ -35,7 +36,7 @@ func TestApplianceConfigPushAgentOwnsWorkers(t *testing.T) {
 	}
 	beforeHome, beforeSocket := os.Getenv("HOME"), os.Getenv("SSH_AUTH_SOCK")
 	work := t.TempDir()
-	home, socket, stop, err := starter.configPushIdentity(work, private)
+	home, socket, stop, err := starter.configPushIdentity(t.Context(), work, private)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +57,7 @@ func TestApplianceConfigPushAgentOwnsWorkers(t *testing.T) {
 			t.Fatalf("identity mode %s: %v", path, info.Mode())
 		}
 	}
-	connection, err := net.Dial("unix", socket)
+	connection, err := (&net.Dialer{}).DialContext(t.Context(), "unix", socket)
 	if err != nil {
 		t.Fatal(err)
 	}

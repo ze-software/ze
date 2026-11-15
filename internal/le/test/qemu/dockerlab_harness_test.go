@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
@@ -330,9 +329,7 @@ func TestDockerLabHarnessHoldsAHostSlot(t *testing.T) {
 		t.Fatal(err)
 	}
 	commitTree(t, root)
-	t.Setenv(job.ParentVariable, "")
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
+	dockerLabWithoutParent(t)
 
 	bin := t.TempDir()
 	record := filepath.Join(bin, "argv")

@@ -53,7 +53,10 @@ func TestNativeHostBuildCancellationJoinsDescendants(t *testing.T) {
 		owned.Close() //nolint:errcheck // Releasing the descendant; only the join below is asserted.
 		cancel()
 		select {
-		case <-done:
+		case err := <-done:
+			if !errors.Is(err, context.Canceled) {
+				t.Errorf("native build cleanup lost originating cancellation: %v", err)
+			}
 		case <-time.After(5 * time.Second):
 			t.Error("native build did not join after fixture release")
 		}

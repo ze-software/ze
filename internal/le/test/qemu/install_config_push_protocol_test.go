@@ -228,7 +228,7 @@ func newConfigPushProtocolFixture(t *testing.T) *configPushProtocolFixture {
 		t.Fatal(err)
 	}
 	fixture.hostPEM = pem.EncodeToMemory(block)
-	fixture.listener, err = net.Listen("tcp", net.JoinHostPort(forwardHost, "0"))
+	fixture.listener, err = (&net.ListenConfig{}).Listen(t.Context(), "tcp", net.JoinHostPort(forwardHost, "0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func (fixture *configPushProtocolFixture) assertStopped(t *testing.T) {
 	if fixture.socket == "" {
 		t.Fatal("product command had no private agent socket")
 	}
-	connection, err := net.Dial("unix", fixture.socket)
+	connection, err := (&net.Dialer{}).DialContext(t.Context(), "unix", fixture.socket)
 	if err == nil {
 		_ = connection.Close()
 		t.Fatal("owned agent accepts connections after proof returned")
@@ -284,7 +284,7 @@ func (fixture *configPushProtocolFixture) start(command *exec.Cmd) error {
 	}
 	for _, argument := range command.Args {
 		if strings.HasPrefix(argument, "file=") && strings.Contains(argument, "target.img") {
-			disk := strings.Split(strings.TrimPrefix(argument, "file="), ",")[0]
+			disk, _, _ := strings.Cut(strings.TrimPrefix(argument, "file="), ",")
 			if fixture.disk != "" && fixture.disk != disk {
 				return errors.New("native proof changed target disk")
 			}
@@ -319,7 +319,7 @@ func (fixture *configPushProtocolFixture) start(command *exec.Cmd) error {
 func (fixture *configPushProtocolFixture) management(w http.ResponseWriter, r *http.Request) {
 	user, password, _ := r.BasicAuth()
 	if user != "gokrazy" || password != "owned-update-token" {
-		http.Error(w, "wrong updater credentials", 401)
+		http.Error(w, "wrong updater credentials", http.StatusUnauthorized)
 		return
 	}
 	switch r.Method + " " + r.URL.Path {
@@ -330,7 +330,7 @@ func (fixture *configPushProtocolFixture) management(w http.ResponseWriter, r *h
 		// next kernel without a machine reset, so QEMU's -no-reboot never
 		// exits and the proof would wait on a guest that keeps running.
 		if r.URL.Query().Get("kexec") != "off" {
-			http.Error(w, "kexec reboot does not reset the machine", 400)
+			http.Error(w, "kexec reboot does not reset the machine", http.StatusBadRequest)
 			return
 		}
 		fixture.mu.Lock()
@@ -338,12 +338,12 @@ func (fixture *configPushProtocolFixture) management(w http.ResponseWriter, r *h
 		fixture.input = nil
 		fixture.mu.Unlock()
 		if input == nil {
-			http.Error(w, "guest not running", 409)
+			http.Error(w, "guest not running", http.StatusConflict)
 			return
 		}
 		_ = input.Close()
 	default:
-		http.Error(w, "HTTP cannot mutate this native proof", 404)
+		http.Error(w, "HTTP cannot mutate this native proof", http.StatusNotFound)
 	}
 }
 
@@ -450,7 +450,7 @@ func (fixture *configPushProtocolFixture) run(ctx context.Context, spec commandS
 	}
 }
 
-func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDir, content string) (commandResult, error) {
+func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDir, content string) (result commandResult, resultErr error) {
 	data, err := os.ReadFile(filepath.Join(appDir, "appliance.json"))
 	if err != nil {
 		return commandResult{}, err
@@ -478,11 +478,11 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 		fixture.badPins++
 		return commandResult{Code: 1, Stderr: "error: host key mismatch for " + address + "\n"}, nil
 	}
-	connection, err := net.Dial("unix", fixture.socket)
+	connection, err := (&net.Dialer{}).DialContext(ctx, "unix", fixture.socket)
 	if err != nil {
 		return commandResult{}, err
 	}
-	defer connection.Close()
+	defer func() { resultErr = errors.Join(resultErr, connection.Close()) }()
 	signers, err := agent.NewClient(connection).Signers()
 	if err != nil {
 		return commandResult{}, err
@@ -493,7 +493,7 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 		// names authentication, never a device refusal.
 		return commandResult{Code: 1, Stderr: "error: authenticate device " + address + "\n"}, nil
 	}
-	defer client.Close()
+	defer func() { resultErr = errors.Join(resultErr, client.Close()) }()
 	// The host driver's failure line (internal/appliance, configPushOne and
 	// sshExecReal): the operator error's problem ends the first line, its
 	// reason and its fix follow on their own lines.
@@ -519,7 +519,7 @@ func (fixture *configPushProtocolFixture) productPush(ctx context.Context, appDi
 	return commandResult{Stdout: "config applied to " + InstallApplianceName + "\n"}, nil
 }
 
-func (fixture *configPushProtocolFixture) snapshot(command string) error {
+func (fixture *configPushProtocolFixture) snapshot(command string) (resultErr error) {
 	for _, process := range fixture.processes {
 		if process.ProcessState == nil {
 			return errors.New("disk inspected while owned VM still running")
@@ -538,7 +538,7 @@ func (fixture *configPushProtocolFixture) snapshot(command string) error {
 	if err != nil {
 		return err
 	}
-	defer store.Close()
+	defer func() { resultErr = errors.Join(resultErr, store.Close()) }()
 	return fixture.snapshotStore(store)
 }
 
@@ -607,10 +607,17 @@ func (fixture *configPushProtocolFixture) sshConnection(connection net.Conn) {
 	if err != nil {
 		return
 	}
-	defer transport.Close()
 	requestsDone := make(chan struct{})
 	go func() { defer close(requestsDone); ssh.DiscardRequests(requests) }()
-	defer func() { _ = transport.Close(); <-requestsDone }()
+	defer func() {
+		if err := transport.Close(); err != nil {
+			// A peer exit or fixture shutdown can close this owned socket first.
+			if !errors.Is(err, net.ErrClosed) {
+				fixture.t.Errorf("close fixture SSH transport: %v", err)
+			}
+		}
+		<-requestsDone
+	}()
 	for incoming := range channels {
 		channel, requests, err := incoming.Accept()
 		if err != nil {

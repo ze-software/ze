@@ -371,16 +371,17 @@ func (guest *otaGuest) await(ctx context.Context, previous string) (otaStatus, e
 	var last error
 	for deadline.Err() == nil {
 		status, err := guest.status(deadline)
-		if err == nil && status.BuildTimestamp != previous {
-			if _, err := guest.ssh(deadline, HostnameQuery, ""); err == nil {
-				return status, nil
-			} else {
-				last = err
-			}
-		} else if err != nil {
+		switch {
+		case err != nil:
 			last = err
-		} else {
+		case status.BuildTimestamp == previous:
 			last = errors.New("appliance still reports the previous runtime")
+		default:
+			_, err := guest.ssh(deadline, HostnameQuery)
+			if err == nil {
+				return status, nil
+			}
+			last = err
 		}
 		// sleep(poll-interval): return only after authenticated status names the new runtime and Ze answers SSH, bounded by deadline.
 		if err := guest.installer.ops.Sleep(deadline, time.Second); err != nil {
@@ -411,7 +412,7 @@ func (guest *otaGuest) post(ctx context.Context, path string) error {
 	return nil
 }
 
-func (guest *otaGuest) ssh(ctx context.Context, command, input string) (result string, resultErr error) {
+func (guest *otaGuest) ssh(ctx context.Context, command string) (result string, resultErr error) {
 	address := net.JoinHostPort(forwardHost, strconv.Itoa(guest.sshPort))
 	connection, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", address)
 	if err != nil {
@@ -459,7 +460,6 @@ func (guest *otaGuest) ssh(ctx context.Context, command, input string) (result s
 		return "", err
 	}
 	defer session.Close() //nolint:errcheck // Command result is authoritative.
-	session.Stdin = strings.NewReader(input)
 	// SSH stdout is the rendered answer. Every Ze exec session also writes
 	// its answer frame to stderr, which must remain outside JSON payloads.
 	var stderr textbuf.Buffer
@@ -472,7 +472,7 @@ func (guest *otaGuest) ssh(ctx context.Context, command, input string) (result s
 }
 
 func (guest *otaGuest) assertHost(ctx context.Context) error {
-	output, err := guest.ssh(ctx, HostnameQuery, "")
+	output, err := guest.ssh(ctx, HostnameQuery)
 	if err != nil {
 		return err
 	}
@@ -495,7 +495,7 @@ func (guest *otaGuest) assertHealth(ctx context.Context, seed *config.Tree) erro
 	defer cancel()
 	var last error
 	for deadline.Err() == nil {
-		output, err := guest.ssh(deadline, "show health | json", "")
+		output, err := guest.ssh(deadline, "show health | json")
 		if err != nil {
 			last = err
 			break

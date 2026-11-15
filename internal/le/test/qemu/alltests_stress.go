@@ -33,31 +33,33 @@ type selectedStress struct {
 	parallel   int
 }
 
-func selectedStressOf(args leaction.Arguments) (*selectedStress, error) {
+// selectedStressOf reports whether a stress request was selected. Ordinary
+// execution returns no request, false and no error.
+func selectedStressOf(args leaction.Arguments) (*selectedStress, bool, error) {
 	if !args.Has(stressKeyword) {
 		if args.Has(stressParallelKeyword) {
-			return nil, selectedStressError("stress-parallel requires stress <iterations>")
+			return nil, false, selectedStressError("stress-parallel requires stress <iterations>")
 		}
-		return nil, nil
+		return nil, false, nil
 	}
 	if args.One(testKeyword) == "" {
-		return nil, selectedStressError("stress requires test <path> naming one .ci")
+		return nil, false, selectedStressError("stress requires test <path> naming one .ci")
 	}
 	if _, err := vmSuiteFor(args.One(testKeyword)); err != nil {
-		return nil, selectedStressError(err.Error())
+		return nil, false, selectedStressError(err.Error())
 	}
 	iterations, err := selectedStressNumber(args, stressKeyword, 1000)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	parallel := 1
 	if args.Has(stressParallelKeyword) {
 		parallel, err = selectedStressNumber(args, stressParallelKeyword, 4)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
-	return &selectedStress{iterations: iterations, parallel: parallel}, nil
+	return &selectedStress{iterations: iterations, parallel: parallel}, true, nil
 }
 
 func selectedStressNumber(args leaction.Arguments, keyword string, limit int) (int, error) {

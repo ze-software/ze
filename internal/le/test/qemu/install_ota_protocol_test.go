@@ -248,10 +248,10 @@ func (fixture *otaProtocolFixture) serveSSH(t *testing.T) int {
 		fixture.mu.Lock()
 		fixture.sshLogins++
 		fixture.mu.Unlock()
-		return nil, nil
+		return &ssh.Permissions{}, nil
 	}}
 	config.AddHostKey(signer)
-	listener, err := net.Listen("tcp", net.JoinHostPort(forwardHost, "0"))
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", net.JoinHostPort(forwardHost, "0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,12 +283,10 @@ func (fixture *otaProtocolFixture) serveSSH(t *testing.T) int {
 			connectionsMu.Lock()
 			connections[connection] = struct{}{}
 			connectionsMu.Unlock()
-			connectionsDone.Add(1)
-			go func() {
-				defer connectionsDone.Done()
+			connectionsDone.Go(func() {
 				defer func() { connectionsMu.Lock(); delete(connections, connection); connectionsMu.Unlock() }()
 				fixture.sshConnection(connection, config)
-			}()
+			})
 		}
 	}()
 	return listener.Addr().(*net.TCPAddr).Port
@@ -342,10 +340,11 @@ func (fixture *otaProtocolFixture) sshConnection(connection net.Conn, config *ss
 			}
 			fixture.mu.Lock()
 			code := uint32(0)
-			if command.Command == HostnameQuery {
+			switch {
+			case command.Command == HostnameQuery:
 				fixture.hostnameQueries[fixture.runtime]++
 				_, _ = fmt.Fprintf(channel, `{"host":{"hostname":%q}}`, fixture.host)
-			} else if command.Command == "show health | json" {
+			case command.Command == "show health | json":
 				fixture.healthBoots = append(fixture.healthBoots, fixture.runtime)
 				output, ok := fixture.healthOutput[fixture.runtime]
 				if !ok {
@@ -356,9 +355,9 @@ func (fixture *otaProtocolFixture) sshConnection(connection net.Conn, config *ss
 					code = 1
 					_, _ = io.WriteString(channel.Stderr(), "health command refused")
 				}
-			} else if fixture.legacyConfig && strings.HasPrefix(command.Command, "config ") {
+			case fixture.legacyConfig && strings.HasPrefix(command.Command, "config "):
 				fixture.host = otaPersistentHost
-			} else {
+			default:
 				code = 1
 				_, _ = io.WriteString(channel.Stderr(), "unknown command: "+command.Command)
 			}

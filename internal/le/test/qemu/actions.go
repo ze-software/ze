@@ -623,12 +623,14 @@ func runAllTestsHere(args leaction.Arguments) (any, int) {
 
 	run.Test = args.One(testKeyword)
 	run.SaveDir = args.One(saveKeyword)
-	stress, err := selectedStressOf(args)
+	stress, selected, err := selectedStressOf(args)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	run.Stress = stress
+	if selected {
+		run.Stress = stress
+	}
 
 	report, code := run.Execute()
 	if len(report.Phases) == 0 {

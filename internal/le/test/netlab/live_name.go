@@ -11,7 +11,7 @@ import (
 // A Ze prefix plus fourteen base32 characters fits netlab's sixteen-character
 // identifier limit and retains seventy random bits to isolate concurrent runs.
 func writeLiveTopologyName(path string) error {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0) // #nosec G304 -- Only the generated topology in this run's private packaged lab is passed here.
 	if err != nil {
 		return err
 	}

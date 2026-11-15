@@ -2,6 +2,7 @@
 package testqemu
 
 import (
+	"context"
 	"crypto/ed25519"
 	"errors"
 	"io"
@@ -27,7 +28,7 @@ type configPushAgent struct {
 	stopErr     error
 }
 
-func (*Installer) configPushIdentity(work string, private ed25519.PrivateKey) (string, string, func() error, error) {
+func (*Installer) configPushIdentity(ctx context.Context, work string, private ed25519.PrivateKey) (string, string, func() error, error) {
 	if len(private) != ed25519.PrivateKeySize {
 		return "", "", nil, errors.New("native push identity is not an Ed25519 private key")
 	}
@@ -39,7 +40,7 @@ func (*Installer) configPushIdentity(work string, private ed25519.PrivateKey) (s
 	if err := keyring.Add(agent.AddedKey{PrivateKey: private}); err != nil {
 		return "", "", nil, err
 	}
-	listener, err := net.Listen("unix", socket)
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "unix", socket)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -92,10 +93,9 @@ func (owned *configPushAgent) serve(connection net.Conn) {
 	select {
 	case <-owned.closed:
 	default:
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				owned.stopErr = errors.Join(owned.stopErr, err)
-			}
+		// ServeAgent always returns a non-nil error.
+		if !errors.Is(err, io.EOF) {
+			owned.stopErr = errors.Join(owned.stopErr, err)
 		}
 	}
 	delete(owned.connections, connection)

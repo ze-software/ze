@@ -45,10 +45,17 @@ func TestScaleStopJoinsActualDescendants(t *testing.T) {
 	}
 	defer func() {
 		stopForeign()
-		if err := foreign.Wait(); err != nil {
-			if _, exited := errors.AsType[*exec.ExitError](err); !exited {
-				t.Error(err)
-			}
+		err := foreign.Wait()
+		if err == nil {
+			return
+		}
+		// The observer may exit cleanly when its socket closes before the
+		// cancellation signal wins; Wait then reports the requested cancel.
+		if errors.Is(err, context.Canceled) {
+			return
+		}
+		if _, exited := errors.AsType[*exec.ExitError](err); !exited {
+			t.Error(err)
 		}
 	}()
 	foreignConnection := acceptScaleLifetime(t, listener)
@@ -134,7 +141,14 @@ func TestScaleEntryCancellationStopsBeforeSimulation(t *testing.T) {
 	defer func() {
 		cancel()
 		select {
-		case <-done:
+		case err := <-done:
+			exited, ok := errors.AsType[*exec.ExitError](err)
+			switch {
+			case !ok:
+				t.Errorf("entry cleanup did not return an exit failure: %v\n%s", err, output.String())
+			case exited.ExitCode() != 1:
+				t.Errorf("entry cleanup did not return its cancellation failure: %v\n%s", err, output.String())
+			}
 		case <-time.After(5 * time.Second):
 			t.Error("entry fixture did not reap")
 		}

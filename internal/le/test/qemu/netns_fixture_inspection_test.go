@@ -17,7 +17,7 @@ func TestNamespacePreparationMakesInspectionIndependentOfAccounts(t *testing.T) 
 	}
 	first := strings.Join(rec.calls[0], " ")
 	seen := make(map[string]bool)
-	for _, command := range strings.Split(first, ";") {
+	for command := range strings.SplitSeq(first, ";") {
 		fields := strings.Fields(command)
 		if len(fields) != 3 {
 			continue

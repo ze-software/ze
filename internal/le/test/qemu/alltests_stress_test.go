@@ -19,9 +19,12 @@ func TestSelectedStressActionGrammar(t *testing.T) {
 	if err != nil {
 		t.Fatalf("registered selected-stress grammar refused: %v", err)
 	}
-	stress, err := selectedStressOf(args)
+	stress, selected, err := selectedStressOf(args)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !selected {
+		t.Fatal("registered stress invocation was not selected")
 	}
 	if stress == nil {
 		t.Fatal("registered stress invocation became ordinary execution")
@@ -47,8 +50,15 @@ func TestSelectedStressRefusesInvalidRequests(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		if _, err := selectedStressOf(args); err == nil {
+		stress, selected, err := selectedStressOf(args)
+		if err == nil {
 			t.Errorf("accepted invalid stress request %q", words)
+		}
+		if selected {
+			t.Errorf("selected invalid stress request %q", words)
+		}
+		if stress != nil {
+			t.Errorf("invalid stress request %q returned a request: %+v", words, stress)
 		}
 	}
 }
@@ -59,9 +69,12 @@ func TestSelectedStressDefaultAndOrdinarySelection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		stress, err := selectedStressOf(args)
+		stress, selected, err := selectedStressOf(args)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if selected {
+			t.Fatalf("ordinary selection reported a stress request: %q", words)
 		}
 		if stress != nil {
 			t.Fatalf("ordinary selection gained stress: %+v", stress)
@@ -71,9 +84,12 @@ func TestSelectedStressDefaultAndOrdinarySelection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stress, err := selectedStressOf(args)
+	stress, selected, err := selectedStressOf(args)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !selected {
+		t.Fatal("bounded stress request was not selected")
 	}
 	if stress == nil {
 		t.Fatal("missing bounded stress request")
