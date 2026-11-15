@@ -7,7 +7,7 @@
     "claim-sha": "5cb2e07825ab4f0c",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-    "producer-sha": "28eb5e0025909f0d",
+    "producer-sha": "49a3b5da879a8337",
     "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

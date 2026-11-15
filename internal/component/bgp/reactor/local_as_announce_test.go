@@ -110,6 +110,8 @@ func announceLocalASRun(t *testing.T, groups bool, dests []announceLocalASPeer) 
 // newAnnounceLocalASPeer builds one Established peer backed by a recordingConn,
 // the shape newEORGuardPeer uses (reactor_api_forward_test.go), with the
 // migration topology's AS numbers on it.
+// The builder and final writer share the negotiated IPv4/four-octet state,
+// matching the AS_PATH bytes these tests inspect.
 func newAnnounceLocalASPeer(t *testing.T, dest announceLocalASPeer) (*Peer, *recordingConn) {
 	t.Helper()
 	settings := &PeerSettings{
@@ -127,9 +129,8 @@ func newAnnounceLocalASPeer(t *testing.T, dest announceLocalASPeer) (*Peer, *rec
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
-	peer.negotiated.Store(&NegotiatedCapabilities{
-		families: map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
-	})
+	negotiated := announceFactNegotiate(announceFactPeer{peerAS: dest.peerAS}, settings.LocalAS)
+	peer.negotiated.Store(NewNegotiatedCapabilities(negotiated))
 
 	session := NewSession(settings)
 	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
@@ -142,11 +143,14 @@ func newAnnounceLocalASPeer(t *testing.T, dest announceLocalASPeer) (*Peer, *rec
 	session.mu.Lock()
 	session.conn = conn
 	session.bufWriter = bufio.NewWriterSize(conn, 4096)
+	session.negotiated = negotiated
+	session.negotiatedPeerAS.Store(negotiated.PeerASN)
 	session.mu.Unlock()
 
 	peer.mu.Lock()
 	peer.session = session
 	peer.mu.Unlock()
+	peer.setEncodingContexts(negotiated)
 
 	return peer, conn
 }
