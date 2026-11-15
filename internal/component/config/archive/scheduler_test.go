@@ -184,7 +184,7 @@ type warnCapture struct {
 
 func (c *warnCapture) Enabled(context.Context, slog.Level) bool { return true }
 
-func (c *warnCapture) Handle(_ context.Context, r slog.Record) error {
+func (c *warnCapture) Handle(_ context.Context, r slog.Record) error { //nolint:gocritic // slog.Handler interface mandates Record by value
 	if r.Level < slog.LevelWarn {
 		return nil
 	}

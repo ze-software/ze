@@ -177,7 +177,8 @@ func TestWebCommitConfirmedDeadlineNotRecordedIsApplied(t *testing.T) {
 	// between them or after.
 	require.Contains(t, answer.message,
 		"(warning: "+confirm.ErrDeadlineNotRecorded.Error()+": "+errWindowRecordSave.Error()+")")
-	warning := answer.message[strings.Index(answer.message, "(warning: "):]
+	_, warning, found := strings.Cut(answer.message, "(warning: ")
+	require.True(t, found, "the answer carries the warning")
 	assert.NotContains(t, warning, "\n", "the warning is one line")
 	requireCommitted(t, mgr, "10.0.0.2", "")
 	status, open := window.Status()

@@ -336,7 +336,8 @@ func TestSessionCommitConfirmedDeadlineNotRecordedIsApplied(t *testing.T) {
 	// no line break between them or after.
 	require.Contains(t, result.statusMessage,
 		"(warning: "+confirm.ErrDeadlineNotRecorded.Error()+": "+errRecordSave.Error()+")")
-	warning := result.statusMessage[strings.Index(result.statusMessage, "(warning: "):]
+	_, warning, found := strings.Cut(result.statusMessage, "(warning: ")
+	require.True(t, found, "the status line carries the warning")
 	assert.NotContains(t, warning, "\n", "the warning is one line")
 	assert.True(t, result.refreshConfig, "the view is rebuilt over the applied commit")
 	assert.NotNil(t, result.windowWatch, "the editor watches the window it opened")

@@ -2,7 +2,7 @@
 // gokrazy's update credential, only when the account's Ze authorization grants
 // the command that does what the page does; it never forwards the uploaded
 // program runner (divert, uploadtemp) or poweroff; it refuses unknown, unclean
-// and wrongly-methoded paths before the socket is dialled.
+// and wrongly-methoded paths before the socket is dialed.
 // PREVENTS: any authenticated web account, whatever its profile, reaching
 // gokrazy's update handlers with the device's update credential (installing
 // arbitrary software), and the browser's Ze credentials leaking to gokrazy.

@@ -141,8 +141,12 @@ func ifaceMirrorTargetDeleteRefused(ctx context.Context, args []string) (retErr 
 		hook, readErr = readMirrorHook(mirrorDeleteSource, netlink.HANDLE_MIN_INGRESS)
 		return readErr == nil && hook.mirrorsTo(target.Attrs().Index)
 	}) {
-		return fmt.Errorf("the boot config's mirror %s -> %s never reached the kernel (read error %v, ingress hook %s)",
-			mirrorDeleteSource, mirrorDeleteTarget, readErr, hook)
+		if readErr != nil {
+			return fmt.Errorf("the boot config's mirror %s -> %s never reached the kernel (read error %w, ingress hook %s)",
+				mirrorDeleteSource, mirrorDeleteTarget, readErr, hook)
+		}
+		return fmt.Errorf("the boot config's mirror %s -> %s never reached the kernel (ingress hook %s)",
+			mirrorDeleteSource, mirrorDeleteTarget, hook)
 	}
 	if err := mirrorReport("MIRROR-INSTALLED " + mirrorDeleteSource + " " + mirrorDeleteTarget); err != nil {
 		return err
@@ -271,7 +275,10 @@ func ifaceMirrorVLANTargetDriver(ctx context.Context, args []string) error {
 		hook, readErr = readMirrorHook(mirrorVLANSource, netlink.HANDLE_MIN_EGRESS)
 		return readErr == nil && hook.filters > 0
 	}) {
-		return fmt.Errorf("no mirror reached the egress hook of %s (read error %v)", mirrorVLANSource, readErr)
+		if readErr != nil {
+			return fmt.Errorf("no mirror reached the egress hook of %s (read error %w)", mirrorVLANSource, readErr)
+		}
+		return fmt.Errorf("no mirror reached the egress hook of %s", mirrorVLANSource)
 	}
 	if hook.mirrorsTo(decoy.Attrs().Index) {
 		return fmt.Errorf("the mirror on %s copies to the DECOY %s: the VLAN unit was taken by its logical name instead of through its parent's selector",
@@ -322,8 +329,7 @@ func addMirrorVethPair(name, peer string, peerMAC net.HardwareAddr) error {
 func deleteMirrorLink(name string) error {
 	link, err := netlink.LinkByName(name)
 	if err != nil {
-		var notFound netlink.LinkNotFoundError
-		if errors.As(err, &notFound) {
+		if _, notFound := errors.AsType[netlink.LinkNotFoundError](err); notFound {
 			return nil
 		}
 		return fmt.Errorf("find %s to delete it: %w", name, err)

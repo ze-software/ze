@@ -225,7 +225,7 @@ func (r apiRedirect) refusal(endpoint, path string) error {
 // end with the path names no api-base at all, so for either the answer is the
 // default api-base, the Flowtriq API itself.
 func (r apiRedirect) apiBase(path string) string {
-	if r.target.Scheme != "https" {
+	if r.target.Scheme != schemeHTTPS {
 		return defaultAPIBase
 	}
 	if !strings.HasSuffix(r.target.Path, path) {

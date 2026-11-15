@@ -145,7 +145,7 @@ func TestFetchRedirectOtherHost(t *testing.T) {
 // carried.
 // METHOD: calls SameOrigin with built requests, so no server is involved.
 func TestSameOriginRefusalNamesTheTarget(t *testing.T) {
-	first := httptest.NewRequest(http.MethodGet, "https://update.example/version.json", http.NoBody)
+	first := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://update.example/version.json", http.NoBody)
 	tests := []struct {
 		name   string
 		target string
@@ -165,7 +165,7 @@ func TestSameOriginRefusalNamesTheTarget(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			redirect := httptest.NewRequest(http.MethodGet, tt.target, http.NoBody)
+			redirect := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.target, http.NoBody)
 			err := SameOrigin(redirect, []*http.Request{first})
 			if tt.want == "" {
 				if err != nil {

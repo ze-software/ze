@@ -23,8 +23,11 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-func findRoute(t *testing.T, pattern string) WebRoute {
+// gokrazyRoute answers the registered /gokrazy/ web route, and fails the test
+// when no route carries that pattern.
+func gokrazyRoute(t *testing.T) WebRoute {
 	t.Helper()
+	const pattern = "/gokrazy/"
 	for _, r := range RegisteredWebRoutes() {
 		if r.Pattern == pattern {
 			return r
@@ -37,7 +40,7 @@ func findRoute(t *testing.T, pattern string) WebRoute {
 // TestGokrazyRouteRegistered proves the portal route is present with the
 // expected wrap kind and portal metadata.
 func TestGokrazyRouteRegistered(t *testing.T) {
-	r := findRoute(t, "/gokrazy/")
+	r := gokrazyRoute(t)
 	if r.Wrap != WrapAuth {
 		t.Errorf("Wrap = %v, want WrapAuth", r.Wrap)
 	}
@@ -52,7 +55,7 @@ func TestGokrazyRouteRegistered(t *testing.T) {
 // TestGokrazyRouteEnableGate proves the route is wired only when
 // ze.gokrazy.enabled is set.
 func TestGokrazyRouteEnableGate(t *testing.T) {
-	r := findRoute(t, "/gokrazy/")
+	r := gokrazyRoute(t)
 	t.Cleanup(func() { _ = env.Set("ze.gokrazy.enabled", "") })
 
 	if err := env.Set("ze.gokrazy.enabled", ""); err != nil {
@@ -104,7 +107,7 @@ func TestGokrazyRouteBuildProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := findRoute(t, "/gokrazy/").Build(RouteDeps{})
+	h := gokrazyRoute(t).Build(RouteDeps{})
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/gokrazy/status", http.NoBody)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -180,7 +183,7 @@ func serveAs(t *testing.T, h http.Handler, session plugin.Authorizer, method, ta
 // proxies.
 func TestGokrazyRouteReadOnlyAccountReachesNoDeviceChange(t *testing.T) {
 	received := gokrazyUpstream(t)
-	h := findRoute(t, "/gokrazy/").Build(RouteDeps{Authorizer: readOnlyWebAuthorizer()})
+	h := gokrazyRoute(t).Build(RouteDeps{Authorizer: readOnlyWebAuthorizer()})
 
 	for _, tc := range []struct{ method, target string }{
 		{http.MethodPut, "/gokrazy/update/root"},
@@ -210,7 +213,7 @@ func TestGokrazyRouteReadOnlyAccountReachesNoDeviceChange(t *testing.T) {
 // gate refuses by authorization and not for every account.
 func TestGokrazyRouteAdminReachesUpdate(t *testing.T) {
 	received := gokrazyUpstream(t)
-	h := findRoute(t, "/gokrazy/").Build(RouteDeps{Authorizer: adminWebAuthorizer()})
+	h := gokrazyRoute(t).Build(RouteDeps{Authorizer: adminWebAuthorizer()})
 
 	if code := serveAs(t, h, nil, http.MethodPut, "/gokrazy/update/root"); code != http.StatusOK {
 		t.Fatalf("PUT /gokrazy/update/root as admin: status = %d, want 200", code)
@@ -229,7 +232,7 @@ func TestGokrazyRouteAdminReachesUpdate(t *testing.T) {
 // would allow.
 func TestGokrazyRouteSessionAuthorizerWins(t *testing.T) {
 	received := gokrazyUpstream(t)
-	h := findRoute(t, "/gokrazy/").Build(RouteDeps{Authorizer: adminWebAuthorizer()})
+	h := gokrazyRoute(t).Build(RouteDeps{Authorizer: adminWebAuthorizer()})
 
 	if code := serveAs(t, h, readOnlyWebAuthorizer(), http.MethodPut, "/gokrazy/update/root"); code != http.StatusForbidden {
 		t.Fatalf("PUT /gokrazy/update/root with a read-only session: status = %d, want 403", code)

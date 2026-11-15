@@ -48,6 +48,10 @@ type Config struct {
 // not set. The YANG default of the api-base leaf states the same URL.
 const defaultAPIBase = "https://flowtriq.com/api/v1"
 
+// schemeHTTPS is the only URL scheme an api-base may use: the api-key and the
+// incident data travel in every request.
+const schemeHTTPS = "https"
+
 func DefaultConfig() *Config {
 	return &Config{
 		APIBase: defaultAPIBase,
@@ -141,7 +145,7 @@ func validateAPIBase(base string) error {
 		return opererr.New("ddos flowtriq api-base is not a valid URL", apiBaseWhy,
 			"set ddos flowtriq api-base "+defaultAPIBase)
 	}
-	if parsed.Scheme != "https" {
+	if parsed.Scheme != schemeHTTPS {
 		return opererr.New("ddos flowtriq api-base "+parsed.Redacted()+" does not use https", apiBaseWhy,
 			"set ddos flowtriq api-base "+httpsAPIBase(parsed))
 	}
@@ -160,6 +164,6 @@ func httpsAPIBase(parsed *url.URL) string {
 		return defaultAPIBase
 	}
 	secure := *parsed
-	secure.Scheme = "https"
+	secure.Scheme = schemeHTTPS
 	return secure.Redacted()
 }

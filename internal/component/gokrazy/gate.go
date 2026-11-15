@@ -84,14 +84,14 @@ type refusedPage struct {
 // in neither list is refused, so a handler a newer gokrazy adds is closed
 // until it is listed.
 var forwardedPages = []forwardedPage{
-	{pagePath: pagePath{path: "/"}, command: commandShowStatus, readOnly: true},
-	{pagePath: pagePath{path: "/status"}, command: commandShowStatus, readOnly: true},
-	{pagePath: pagePath{path: "/log"}, command: commandShowStatus, readOnly: true},
-	{pagePath: pagePath{path: "/assets/", subtree: true}, command: commandShowStatus, readOnly: true},
-	{pagePath: pagePath{path: "/update/", subtree: true}, command: commandFirmwareApply},
-	{pagePath: pagePath{path: "/reboot"}, command: commandReboot},
-	{pagePath: pagePath{path: "/stop"}, command: commandShutdown},
-	{pagePath: pagePath{path: "/restart"}, command: commandShutdown},
+	{path: "/", command: commandShowStatus, readOnly: true},
+	{path: "/status", command: commandShowStatus, readOnly: true},
+	{path: "/log", command: commandShowStatus, readOnly: true},
+	{path: "/assets/", subtree: true, command: commandShowStatus, readOnly: true},
+	{path: "/update/", subtree: true, command: commandFirmwareApply},
+	{path: "/reboot", command: commandReboot},
+	{path: "/stop", command: commandShutdown},
+	{path: "/restart", command: commandShutdown},
 }
 
 // fixPushImage is the command that changes the software on the device.
@@ -99,21 +99,22 @@ const fixPushImage = "./ze-host appliance push <name>"
 
 var refusedPages = []refusedPage{
 	{
-		pagePath: pagePath{path: "/divert"},
+		path: "/divert",
 		why: "it starts a program uploaded through the browser on the device, " +
 			"outside the image the appliance was built from; " +
 			"to change the software on the device, build an image and push it from the build host",
 		fix: fixPushImage,
 	},
 	{
-		pagePath: pagePath{path: "/uploadtemp/", subtree: true},
+		path:    "/uploadtemp/",
+		subtree: true,
 		why: "it stores a program uploaded through the browser on the device, " +
 			"for /gokrazy/divert to start outside the image the appliance was built from; " +
 			"to change the software on the device, build an image and push it from the build host",
 		fix: fixPushImage,
 	},
 	{
-		pagePath: pagePath{path: "/poweroff"},
+		path: "/poweroff",
 		why: "no Ze command powers off the device, so no authorization profile can grant it; " +
 			"restart the device instead",
 		fix: commandReboot,

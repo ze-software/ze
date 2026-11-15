@@ -7,7 +7,12 @@
 // Ze's TFTP client against dnsmasq's TFTP server, an implementation Ze does
 // not share code with. dnsmasq runs on the host network so its reply from a
 // fresh transfer port reaches the client, as it would on a LAN.
-package fetch
+//
+// The test is in package fetch_test, not fetch: labtest and interoplab reach
+// internal/component/config/system, which imports fetch, so importing them from
+// package fetch is an import cycle. export_docker_test.go hands it the
+// transfer.
+package fetch_test
 
 import (
 	"bytes"
@@ -20,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/fetch"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/tftp"
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -70,14 +76,13 @@ func TestTFTPClientDnsmasqInterop(t *testing.T) {
 			}
 			defer conn.Close() //nolint:errcheck // test cleanup
 			var out bytes.Buffer
-			transfer := newTFTPTransfer(conn, serverAddr, &out)
-			if err := transfer.run(file.name); err != nil {
+			granted, err := fetch.RunTFTPTransferForTest(conn, serverAddr, &out, file.name)
+			if err != nil {
 				t.Fatalf("fetch %s from dnsmasq: %v", file.name, err)
 			}
 			if !bytes.Equal(out.Bytes(), file.content) {
 				t.Fatalf("fetched %d octets, want %d", out.Len(), len(file.content))
 			}
-			granted := transfer.granted
 			if granted.Blksize != tftp.BlksizeEthernet {
 				t.Errorf("negotiated blksize %d, want %d", granted.Blksize, tftp.BlksizeEthernet)
 			}
@@ -92,7 +97,7 @@ func TestTFTPClientDnsmasqInterop(t *testing.T) {
 
 	sum := sha256.Sum256(files[0].content)
 	source := "tftp://" + server.String() + "/seq.txt"
-	fetcher, err := Resolve(source)
+	fetcher, err := fetch.Resolve(source)
 	if err != nil {
 		t.Fatalf("Resolve(%q): %v", source, err)
 	}

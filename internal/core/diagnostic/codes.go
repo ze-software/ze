@@ -602,7 +602,7 @@ var builtinCodes = append([]CodeMeta{
 		Code:        CodeDoctorRecentEvents,
 		Title:       "A problem happened recently and may have recovered",
 		Description: "A component raised an event on the report bus, such as a peer session reset or a failed retry, and the event is still in the recent-event ring. The row names the event's own code, its subject, how many times it happened and when it last happened. It does not make the box read not ready, because the component may have recovered. Run show errors and show warnings to see each event, and ze show diagnostic <code> for the event's own code.",
-		Examples:    []string{exampleShowDoctor, "ze show errors", "ze show warnings"},
+		Examples:    []string{exampleShowDoctor, exampleShowErrors, "ze show warnings"},
 	},
 	{
 		Code:        CodeDoctorRuntimeNotChecked,
@@ -1187,7 +1187,7 @@ var builtinCodes = append([]CodeMeta{
 			"receiver stops, even when it opened again at once; when it cannot open, the doctor also " +
 			"reports a doctor-ipsec-esp-form-tun error with the cause. The receiver's warnings name " +
 			"the error the socket answered and each attempt to open it again.",
-		Examples: []string{exampleDoctorJSON, "ze show errors", "ze show diagnostic doctor-ipsec-esp-form-reader-stopped"},
+		Examples: []string{exampleDoctorJSON, exampleShowErrors, "ze show diagnostic doctor-ipsec-esp-form-reader-stopped"},
 	},
 	{
 		Code:  CodeDoctorIPsecESPFormFirewall,
@@ -1754,7 +1754,7 @@ var builtinCodes = append([]CodeMeta{
 		Code:        CodeDoctorArchiveScheduledFailed,
 		Title:       "Scheduled archive failed",
 		Description: "A daily or hourly config archive, or the archive written at daemon boot, did not complete: the config file could not be read or parsed, the copy could not be written to the archive location, or the older copies past commit-revisions could not be removed. The log line and the `ze show errors` entry name the archive block, the error and the command to run. The next scheduled run tries again; correct the cause the error names, then run `ze config archive <name>` to write the archive at once.",
-		Examples:    []string{"ze show errors", "ze show diagnostic " + CodeDoctorArchiveScheduledFailed},
+		Examples:    []string{exampleShowErrors, "ze show diagnostic " + CodeDoctorArchiveScheduledFailed},
 	},
 	{
 		Code:        CodeDoctorRandomSeed,
