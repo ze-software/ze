@@ -1,0 +1,707 @@
+# Spec: fetched-data-survives-restart
+
+| Field | Value |
+|-------|-------|
+| Status | ready |
+| Scope | plugin |
+| Priority | P1 |
+| Release reason | Routing and filtering can change across a reboot with no operator action, because data fetched from the internet is fetched again at start: a startup and lifecycle correctness defect of shipped capabilities (BGP IRR import filter, firewall IRR and domain sets). |
+| RFC gaps | - |
+| Depends | - |
+| Phase | - |
+| Handoff | - |
+| Design tier | development tier |
+| Implementation tier | development tier |
+| Updated | 2026-11-15 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+WIP cap exception: Thomas approved this spec on 2026-11-15 and authorised starting its implementation above the in-progress cap (12 of 12 at the time), as one extra in-progress spec. The permission covers this spec only.
+
+## Task
+
+Every piece of metadata Ze downloads from the internet and uses to decide
+routing or filtering is saved in its own stored file, loaded at start instead
+of being fetched again, and refreshed only at the frequency the operator set in
+the configuration. A reboot then leaves the router enforcing exactly the data
+it enforced before. The configuration stays small: the data lives beside it,
+not inside it as the long prefix lists or route maps of a Junos or Cisco
+configuration.
+
+Thomas's words (2026-11-15): "What we've done with only having the list we
+extract from the registries in memory is not allowing the behavior to be
+deterministic. As on restart a new fetch will automatically happen you cannot
+be sure that the router configuration you had before and after a reboot is the
+same. That's why the command have rules for when we can update so the behavior
+can be predictable. We should save in their own file every of the metadata we
+downloaded from the internet and only update them at the frequency the user has
+requested via the configuration. Having the metadata outside the file, instead
+of in the case of Junos or Cisco, very long prefix list or routemap, keeps the
+configuration small but still ensures that the data used will be the same on
+reboot."
+
+Scope decisions Thomas took at the scope gate (2026-11-15):
+
+| Question | Decision |
+|----------|----------|
+| Where the work lives | A new release spec for determinism. `plan/post-release/features/spec-irr-apply-policy.md` keeps apply windows and held changes, and is amended to depend on this spec |
+| Firewall domain (DNS) sets | Same rule: the stored answers load at start, and a name is resolved again only when its stored TTL has expired |
+| First start with no stored copy | Fetch at once and store the result; afterwards only the configured interval or a manual update refreshes it |
+| BGP and firewall using the same AS-SET | One shared stored copy |
+
+Design decisions Thomas took at the design gate (2026-11-15):
+
+| Question | Decision | His words |
+|----------|----------|-----------|
+| Who fetches, schedules and stores IRR data | One owner (approach B). `bgp-filter-irr` and `firewall-irr` only read what it stores | Chose B at the design gate |
+| Where the refresh timing lives | On the plugin that fetches, so the owner is a plugin and the `refresh-interval` leaves leave both consumers | "We should move the timing to the plugin which will implement the fetching." |
+| A newly configured AS-SET with nothing stored | The firewall and domain commit keep refusing it (verify does no network I/O); the operator fetches with an update command | Kept the refusal at commit |
+| DNS stored expiry | Renewed on every re-resolution; the hourly cap is rejected. `firewall-domain` resolves DNS itself, so it stays its own fetcher and keeps its timing | Rejected the hourly cap |
+| Where the owner's config lives (Q-5) | `system irr { server; source-address; refresh-interval }`, beside `system peeringdb` | "system irr" (beside system peeringdb) |
+| Default refresh interval of the merged setting (Q-6) | `refresh-interval` default 3600 seconds; 0 means manual only (no automatic refresh; a cold start still fetches once, and `update irr` fetches on demand) | Default 3600, 0 = manual only |
+| `clear irr as-set X` on a set still referenced (Q-7) | Removes the stored copy; the reply names every consumer still referencing it | Removes the stored copy, the reply names the consumers |
+
+This reverses the owner decision of 2026-10-17 that the BGP IRR prefix-lists
+live in memory only (`docs/architecture/bgp/filter-irr.md`). Its recorded
+reason, a state write that expired the first-resolution wait, no longer holds:
+that wait was replaced by reject, hold and re-admit.
+
+RPKI is out of scope. RFC 8210 Section 6, Expire Interval, says: "The router
+MUST NOT retain the data past the time indicated by this parameter."
+(`rfc/full/rfc8210.txt`, read at Section 6.)
+
+### Which fetched data decides routing or filtering
+
+| Data | Fetched by today | Fetched by after this spec | Decides | In scope | Reason |
+|------|------------------|----------------------------|---------|----------|--------|
+| IRR AS-SET prefix lists | `bgp-filter-irr` (memory only) and `firewall-irr` (stored), each on its own | the new `irr` plugin, once per (server, AS-SET) | BGP import verdicts, firewall set contents | Yes | Fetched again at every BGP start and reload; two fetchers, two schedules, colliding keys |
+| AS-SET discovered from PeeringDB for a bare ASN | the shared `PrefixStore` (`discoverASSet`) inside each consumer | the `irr` plugin, stored as a binding | Which AS-SET is queried | Yes | Asked again at every refresh, so a restart can query a different set |
+| DNS answers for firewall domain groups | `firewall-domain` | `firewall-domain` (unchanged owner) | Which addresses a set holds | Yes | Every name is due at start (`schedule.reset`) |
+| PeeringDB max-prefix | `ze bgp peer * prefix update` | unchanged | Prefix maximum | No | Written into the config, so already deterministic |
+| RIR delegation table, Team Cymru | resolve component | unchanged | Diagnostics only | No | Drives no routing or filtering decision |
+| RPKI VRPs | `bgp-rpki` | unchanged | Origin validation | No | RFC 8210 Section 6, quoted above |
+
+### What the operator sees, before and after (departure from documented design)
+
+This spec departs from four recorded design statements, each corrected in the
+same work: `docs/architecture/bgp/filter-irr.md` "The prefix-lists live in
+memory only" (owner ruling 2026-10-17) and its "`resolve/irr` is imported
+directly" fetch-in-the-filter decision; `docs/architecture/core-design.md`
+section 22 ("The list is held in memory only, so a restart resolves it again
+from the source"); `docs/architecture/firewall/firewall-irr.md` "The PrefixStore
+code is shared with BGP, the cache is not" and "Auto-refresh is off by
+default"; `docs/architecture/firewall/firewall-domain-group.md` "What earns a
+write" ("The steady state writes nothing").
+
+| Situation | Before | After |
+|-----------|--------|-------|
+| Router reboots, IRR server reachable | `show bgp irr` shows every ASN pending; announcements are rejected and held until each ASN's whois answers; the lists can differ from the ones before the reboot | `show bgp irr` shows the same AS-SETs, counts and `refreshed-at` as before the reboot; no whois query is sent at start; announcements are judged against the stored lists at once |
+| Router reboots, IRR server unreachable | Every IRR-filtered peer's announcements stay rejected until the server answers | The stored lists are enforced; a refresh that is due runs at its time and retries while it fails |
+| Where the operator sets the IRR server, source address and refresh period | Twice: `policy irr { server; source-address; peeringdb-url; refresh-interval }` for BGP and `firewall irr { server; peeringdb-url; refresh-interval }` for the firewall, with different defaults (3600 and 0) | Once, `system irr { server; source-address; refresh-interval }` (default 3600, 0 = manual only); the PeeringDB URL once, `system peeringdb url`; a consumer names only the AS-SET or ASN it enforces |
+| Reload that changes nothing IRR | `bgp-filter-irr` resolves every ASN again; `firewall-irr` restarts its refresh timer | No query; the next refresh time is unchanged |
+| BGP commit adding a peer whose AS-SET is stored | Fetched again | The stored copy is enforced at once, no query |
+| BGP commit adding a peer whose AS-SET is not stored | Fetched by the filter at once | The commit succeeds; the `irr` plugin fetches it right after the commit; until it is stored, the peer's announcements are rejected, held and re-asked by ROUTE-REFRESH once it arrives |
+| Firewall commit naming an AS-SET not stored | Refused: "run 'update firewall irr as-set X' first" | Refused the same way, naming `update irr as-set X` |
+| First start ever | BGP fetches every ASN; the firewall fetches nothing and holds the table back with a WARN per reference | The `irr` plugin fetches every referenced dataset at once and stores it; each consumer enforces it when the notice arrives |
+| Firewall start with stored data | A false "no cached prefix data" WARN per reference, then the table programmed | No WARN; the table is programmed from the stored copy |
+| BGP and firewall name the same AS-SET | Two fetches, two schedules, one stored copy (the firewall's) | One fetch per refresh period, one stored copy, both consumers enforce it |
+| `update bgp irr asn 65001`, `update firewall irr as-set AS-X`, `clear firewall irr as-set AS-X` | Consumer commands that fetch or purge inside the consumer | `update irr asn 65001`, `update irr as-set AS-X`, `update irr all`, `clear irr as-set AS-X` on the `irr` plugin; the consumer commands are deleted |
+| A domain-group name whose stored answer has not expired | Resolved again at start | Not resolved until its stored expiry |
+| Domain-group store writes for a name answering the same addresses every 60 s | One write, ever ("The steady state writes nothing") | One write per answer, renewing the stored expiry: up to 1,440 a day per name and family at the 60 s floor (Thomas's choice) |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/bgp/filter-irr.md` - the BGP consumer and the 2026-10-17 ruling this spec reverses
+  → Decision: the memory-only ruling is reversed (2026-11-15) and the filter stops fetching: its section "The prefix-lists live in memory only", its "A restart therefore starts from no list" paragraph and its "`resolve/irr` is imported directly" decision are rewritten in the same work.
+  → Constraint: the evaluator reads one immutable `irrSnapshot` swapped under `plug.mu` (`publishLocked`); a list read from the owner's store MUST publish through the same `publishLocked`.
+  → Constraint: a changed or deleted configured AS-SET is never enforced under the old set (`carriedOverBy`); after this spec the consumer reads the new set's stored copy or holds no list, it never keeps the old set's list.
+  → Constraint: the readmitter re-asks peers after every publish (`readmitter.notify`); it stays, minus its fetch.
+- [ ] `docs/architecture/core-design.md` section 22 - sources and read views
+  → Decision: the `irr` plugin is the builder: the only component that knows the source's model, it pulls from IRR and PeeringDB and writes the read view; consumers pull it when a notice says "pull now". This is section 22 applied literally.
+  → Constraint: "A pull that fails keeps the last good read view": a failed refresh leaves the stored copy in place.
+- [ ] `docs/architecture/resolve.md` "IRR Prefix Store", "PeeringDB Prefix Data", "Clearing a resolver cache"
+  → Constraint: per-family last-known-good (`commit`, `markStale`) moves into the owner unchanged.
+  → Decision: "The settings live in `system { peeringdb { } }`, not under `bgp`. PeeringDB is an external service, not a BGP concept, and another subsystem can use it later." The owner reads `system peeringdb url`; the two consumer `peeringdb-url` leaves are deleted, so the endpoint is declared once.
+  → Constraint: `clear irr cache` and `clear peeringdb cache` reach the owners of resolver clients through `OnResolverCacheClear`; after this spec only the `irr` plugin holds IRR and PeeringDB clients, so only it declares those caches.
+- [ ] `docs/architecture/firewall/firewall-irr.md` - the firewall consumer
+  → Constraint: `failure-policy: restart` relies on the stored copy to reprogram sets after a crash; the consumer now reads the owner's copy, which survives the consumer's crash as before.
+  → Constraint: the commit refusal of an uncached reference stays (Thomas, design gate).
+- [ ] `docs/architecture/firewall/firewall-domain-group.md` - the domain consumer and fetcher
+  → Constraint: one worker, one timer, the unit is a name in a family; `firewall-domain` keeps fetching for itself.
+  → Decision: "What earns a write" gains a fourth write, the expiry renewal on every answer (Thomas, design gate); the page's "The steady state writes nothing" and "A name answering the same addresses every 60 seconds matches none of them" are rewritten.
+- [ ] `docs/architecture/api/process-protocol.md` "Persistent runtime state", startup stage 5, `emit-event`
+  → Constraint: state RPCs work only after the handshake (`OnStarted` or later); a value carries at most `rpc.StateDataMax` (1 MiB), checked by `rpc.ValidateStateInput` on the SDK side (`sdk_state.go` `stateCall`) and the daemon side (`dispatch_state.go` `stateInput`, `opStateGet`), modelled as `binary { length "0..1048576" }`; a key at most 512 bytes of `[A-Za-z0-9_.:/-]`; a list at most 4096 keys.
+  → Constraint: grants are per owner and grant read and write alike (`permissions.go`); a consumer reading the owner's key without being able to write it needs a read-only grant, which does not exist yet.
+  → Constraint: `ReadyInput.subscribe` and `subscriptions` register a plugin's event subscriptions in stage 5, "before any event flows" (`sdk.Plugin.AddStartupSubscriptionsIn`); a subscription delivers future events only, so a consumer subscribes at stage 5 and reads in `OnStarted`, which leaves no gap.
+  → Constraint: `emit-event` (`sdk.Plugin.EmitEvent`) reaches subscribers in the daemon and forked, the route `bgp-adj-rib-in` already uses for `bgp-rib/validation-change`.
+  → Constraint: a message is bounded by `rpc.MaxMessageSize` (16 MiB); a value travels base64, so the declared dataset bound is 12,000,000 bytes (16,000,000 after base64).
+- [ ] `docs/architecture/module-tiers.md` "The three tiers", "Plugin import ownership"; `ai/doors/system-plugins.md` "Where it sits"
+  → Decision: a config-driven engine nothing else imports is an edge plugin under `internal/plugins/`, a full-subsystem plugin that owns its runtime, config and state; the consumers reach the owner only through stored keys, events and commands, so the owner is `internal/plugins/irr/`. The dataset codec both sides use stays in the resolve component (`internal/component/resolve/irr/store`), which both consumers already import.
+  → Constraint: "A plugin owns its whole surface": the owner's commands, YANG, doctor checks and help live in its folder.
+- [ ] `docs/architecture/zefs-format.md` "Key Registry" and the in-place write table
+  → Constraint: an added or removed key, and a value that outgrows its slot, rewrite the whole store; a same-size value is written in place.
+- [ ] `plan/journal/startup-wait-expires-under-load.md` 2026-10-17 row
+  → Constraint: a state write took the SDK's full 5 s under disk load. With one owner, a consumer can publish only what the owner already wrote, so a new list reaches the evaluator after the write and the notice; nothing waits on that any more (reject, hold and re-admit replaced the wait), and R-1 bounds the delay.
+- [ ] `plan/post-release/features/spec-irr-apply-policy.md` owner decisions Q-1 and Q-5 (that spec's numbering, not this spec's)
+  → Decision: apply-policy Q-5 (2026-10-08) "A holding consumer accepts the other consumer's fetches: Yes, sharing kept". With one owner every consumer enforces each stored copy.
+  → Constraint: that spec's A-1 ("today `meta/irr/{name}` is already shared regardless of server") is false today and superseded; its amendment is tabled below.
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc8210.md` - RPKI to Router, cited for the exclusion only
+  → Constraint: RFC 8210 Section 6, Expire Interval: "The router MUST NOT retain the data past the time indicated by this parameter."
+- [ ] `rfc/full/rfc1035.txt` Section 3.2.1 - DNS TTL (no `rfc/short/` summary is owed: the spec implements no RFC 1035 requirement, it cites the TTL definition the domain schedule already follows)
+  → Constraint: RFC 1035 Section 3.2.1: "TTL a 32 bit signed integer that specifies the time interval that the resource record may be cached before the source of the information should again be consulted." A stored answer is used at start only while its stored expiry has not passed.
+
+**Key insights:** (minimal context to resume after compaction)
+- One writer: the `irr` plugin (`internal/plugins/irr/`) fetches, schedules and stores; `bgp-filter-irr` and `firewall-irr` read its keys through a read-only state grant and learn of a new copy from its `emit-event` notice.
+- One place says where and when: `system irr` holds `server`, `source-address`, `refresh-interval` (default 3600, 0 = manual only); the PeeringDB URL is `system peeringdb url`. A consumer names only the AS-SET or ASN it enforces. No consumer can name its own server today (one `server` leaf per consumer, none per peer or rule), so nothing is lost.
+- The owner learns what to fetch from each consumer's stored interest key (`meta/irr-interest/{consumer}`), written by the consumer and read by the owner, with a notice on change: it survives either side restarting and works forked.
+- A consumer reads the per-AS-SET pointer `meta/irr-set/{as-set}` (which dataset is current), then the dataset `meta/irr-data/{server}/{as-set}`; the owner flips the pointer only after a new dataset is stored, so a server change never leaves a consumer with nothing.
+- A monotonic generation (`StateIncrement` on `meta/irr-generation`) rides on every notice; a consumer that sees a gap re-reads every pointer, so a lost notice is recovered at once and a restart cannot change data.
+- The schedule is anchored on a stored `checked-at`, never `refreshed-at`, which dates the oldest prefixes and would make a one-family set due every tick.
+- A dataset is one key, compact binary, with a per-key value bound derived from the consumer caps, under `MaxMessageSize`.
+- Daemon stop sends no `bye`; nothing can be written at stop.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE you write this spec)
+- [ ] `internal/component/resolve/irr/store/store.go` - `PrefixStore`: `New`, `UsePersistence`, `UseClients`, `Get`, `Refresh` (= `refreshLive` then `persist`), `commit` (per-family last-known-good, same-AS-SET merge, context check under `s.mu`), `markStale`, `Purge`, `resolve` (PeeringDB discovery, `RefreshPrefixes` always hits the server), `discoverASSet`, `Open` (migrates `meta/bgp/irr-cache`, lists `meta/irr/`), `persist` (JSON `CachedEntry` per name).
+- [ ] `internal/component/resolve/irr/store/clear.go` - `ClearResolverCache` clears the store's client caches; prefix entries stay.
+- [ ] `internal/component/bgp/plugins/filter_irr/filter_irr.go` - `handleConfigure` builds `store.New(irrClient, pdb, nil)` once; `OnStarted` starts the readmitter, `initialResolve` and `refreshLoop`; every configure after `started` runs `initialResolve` again and restarts `refreshLoop` from now; `refreshASNCtx` keys the store by `AS<asn>` with the configured as-set as hint; `OnResolverCacheClear` declares the irr and peeringdb caches.
+- [ ] `internal/component/bgp/plugins/filter_irr/readmit.go` - `readmitSource.resolveHeld`; `retryResolution` fetches every `readmitRetryInterval` (1 min) for a held ASN with no list or a failed lookup.
+- [ ] `internal/component/bgp/plugins/filter_irr/command.go` - `update bgp irr all|asn|as-set` fetch through `refreshAllNow`/`refreshASN`; `show bgp irr` reports `server`, `last-refresh`, `next-refresh` and per-ASN status.
+- [ ] `internal/component/bgp/plugins/filter_irr/config.go` - `parseIRRConfig` reads `policy irr { server; peeringdb-url; source-address; refresh-interval }` and the enrolled peers; defaults `whois.radb.net`, `https://www.peeringdb.com`, 3600.
+- [ ] `internal/component/bgp/plugins/filter_irr/register.go` - `ConfigReads` `policy`, `Dependencies` `bgp` and the policy plugin; no state grant.
+- [ ] `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang` - augments the BGP session with `irr { as-set; enable }` and `/policy:policy` with `irr { server; peeringdb-url; source-address; refresh-interval 60..86400 default 3600 }`.
+- [ ] `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` - `show bgp irr [prefix|check]`, `update bgp irr all|asn|as-set`.
+- [ ] `internal/component/firewall/plugins/irr/irr.go` - handshake `OnConfigure` with no persistence warns for every reference and applies tables from an empty cache; `OnStarted` binds `StateKeys`, reconfigures, starts `refreshLoop` when `refresh-interval` > 0; `verifyRefs` refuses an uncached reference; `refreshName` fetches and applies; `configureStore`'s comment claims the BGP filter's refreshes reach the shared key space (false).
+- [ ] `internal/component/firewall/plugins/irr/command.go` - `update firewall irr all|asn|as-set` fetch; `clear firewall irr asn|as-set` purge and re-apply; `show firewall irr` and `show firewall irr prefix`.
+- [ ] `internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang` - the `show`, `update` and `clear firewall irr` trees.
+- [ ] `internal/component/firewall/plugins/irr/register.go` - grants `firewall-irr` `meta/irr/{name}` and `meta/bgp/irr-cache`; registers `firewall-irr-data-freshness`.
+- [ ] `internal/component/firewall/plugins/irr/sets.go` - `maxPrefixesPerFamily` 500,000; `oversizedEntryError` comment names "the BGP IRR filter writing the same shared entry" (false today).
+- [ ] `internal/component/firewall/plugins/irr/doctor.go` - `checkIRRDataFreshness` opens the store read-only and reports no-data, oversized, stale.
+- [ ] `internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang` - `firewall irr { server; peeringdb-url; refresh-interval 0|60..86400 default 0; interface { name; source-as-set } }` plus the term `source-asn`, `source-as-set`, `destination-asn`, `destination-as-set` leaves; line 24 claims the BGP filter shares the store (false).
+- [ ] `internal/component/config/system/yang/ze-system-conf.yang` - `system peeringdb { url; margin }`.
+- [ ] `internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang` - `ze resolve irr expand|prefix` operational commands; no stored-data command.
+- [ ] `internal/component/firewall/plugins/domain/schedule.go` - `schedule.reset` makes every unit not already scheduled due now, so every name resolves at start.
+- [ ] `internal/component/firewall/plugins/domain/cache.go` - `resolvedName` has no TTL or expiry; `open` reads by configured name.
+- [ ] `internal/component/firewall/plugins/domain/domain.go` - `configure` programs stored answers before any resolve; `resolveAndRecord` writes only on an address change, a first answer, a failing flip.
+- [ ] `internal/component/firewall/plugins/domain/doctor.go` - no-data and stale codes from the stored answers.
+- [ ] `internal/core/statestore/permissions.go` - `RegisterPluginKeys` grants read and write together, per owner.
+- [ ] `pkg/zefs/keys.go` - `KeyEntry{Pattern, Description, Private}`; `KeyIRRCache`, `KeyIRRPrefixCache`, `KeyFirewallDomainGroup`.
+- [ ] `pkg/plugin/rpc/state.go`, `pkg/plugin/sdk/sdk_state.go`, `internal/component/plugin/server/dispatch_state.go`, `internal/core/ipc/yang/ze-plugin-engine.yang` - the 1 MiB value bound on both sides and in YANG.
+- [ ] `pkg/plugin/rpc/framing.go` - `MaxMessageSize` 16 MiB.
+- [ ] `docs/guide/configuration.md` around line 1894 - claims BGP resolved prefixes are stored and survive restarts (false today).
+
+**Behavior to preserve:**
+- The evaluator never waits and reads one snapshot; an ASN with no list rejects its announcements, keeps withdrawals and holds the prefixes; the readmitter re-asks peers after a publish.
+- Per-family last-known-good, `StaleSince`, and refusal of a list over the caps (BGP 500,000 total, firewall 500,000 per family).
+- A changed or deleted configured AS-SET is never enforced under the old set.
+- Startup never depends on IRR or DNS reachability: no fetch inside the handshake.
+- The firewall and domain commit refusal of a reference with nothing stored (Thomas, design gate).
+- Domain groups: per-name, per-family TTL schedule, `ttl-floor`, one-day ceiling, stored answers programmed before any resolve, the change log.
+- `clear irr cache` and `clear peeringdb cache` leave the stored datasets.
+- `ze resolve irr ...` offline commands.
+
+**Behavior to change:**
+- A new `irr` plugin fetches, schedules and stores every IRR dataset and AS-SET binding; the consumers stop fetching and read its store.
+- `server`, `source-address` and `refresh-interval` move from `policy irr` and `firewall irr` to `system irr` (augmented into the system root by the `irr` plugin's YANG); `refresh-interval` defaults to 3600 and 0 means manual only; both `peeringdb-url` leaves go, replaced by `system peeringdb url`.
+- `clear irr as-set|asn` removes the stored copy and names the consumers still referencing it.
+- Neither start nor reload fetches a dataset that has a stored copy; a refresh runs when `checked-at` plus the interval has passed.
+- A dataset with no stored copy is fetched at once by the owner, at start and right after a BGP commit that names it.
+- `update ... irr` and `clear ... irr` move to the owner's command set.
+- The readmitter and both `refreshLoop`s stop fetching (deleted as fetch paths).
+- Domain groups: the stored answer carries `expires-at`, renewed on every answer; a name whose stored expiry has not passed is not resolved at start.
+- The firewall's handshake configure no longer warns or applies from an empty cache.
+- The pages, YANG descriptions and comments that say otherwise.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| PrefixStore resolution and last-known-good | `internal/component/resolve/irr/store/store.go` `resolve`, `commit`, `markStale`, `discoverASSet` | Each consumer resolves and merges per family | Extends: runs only inside the `irr` plugin; the logic is unchanged |
+| PrefixStore persistence | `store.go` `persist`, `Open`, `Purge`, `migrate` | JSON per name under `meta/irr/{name}`, listed at open | Replaces: pointer, dataset, binding and generation keys written by the owner alone; consumers read by name; `migrate` deleted after one conversion |
+| Sources and read views | `docs/architecture/core-design.md` section 22 | Pattern, with the IRR filter as its example | Extends: the owner is the builder, the consumers pull the read view on a notice |
+| Edge plugin placement | `docs/architecture/module-tiers.md` "The three tiers"; `ai/doors/system-plugins.md` | An engine nothing imports lives under `internal/plugins/` | Extends: the owner is `internal/plugins/irr/`, registered from its own `register.go` |
+| Plugin state RPCs | `pkg/plugin/sdk/state_keys.go` `Plugin.StateKeys`; `dispatch_state.go` | Read and write registered keys after the handshake | Extends: the owner writes; consumers read through it |
+| State key grants | `internal/core/statestore/permissions.go` `RegisterPluginKeys`, `PluginKeyAllowed`, `PluginKeyOwners` | One grant kind, read and write | Extends: a read-only grant (`RegisterPluginReadKeys`) for the consumers; `PluginKeyOwners` keeps naming writers only |
+| State value bound | `pkg/plugin/rpc/state.go` `ValidateStateInput`; `sdk_state.go` `stateCall`; `dispatch_state.go` `stateInput`, `opStateGet`; `ze-plugin-engine.yang` `state-data` | One global 1 MiB bound | Extends: the bound a key declares on its `KeyEntry`, default 1 MiB |
+| ZeFS key registry | `pkg/zefs/keys.go` `MustRegister`, `KeyEntry` | Key patterns, descriptions, privacy | Extends: new patterns with declared bounds; `KeyIRRCache` and `KeyIRRPrefixCache` removed |
+| Startup subscriptions | `process-protocol.md` stage 5; `sdk.Plugin.AddStartupSubscriptionsIn` | Subscriptions registered before any event flows | Extends: each consumer subscribes to the owner's notice at stage 5, then reads in `OnStarted` |
+| Plugin event emission | `sdk.Plugin.EmitEvent`, `emit-event` | A plugin publishes to subscribers in process and forked | Extends: the owner's dataset notice and the consumers' interest notice |
+| Atomic counter | `sdk.Plugin.StateIncrement` | Guarded read, increment, write | Extends: the owner's generation counter carried on each notice |
+| BGP refresh loop and initial resolve | `filter_irr.go` `refreshLoop`, `refreshAll`, `refreshAllNow`, `initialResolve`, `refreshASN`, `refreshASNCtx` | Fetch at start, at reload, on a ticker | Replaces: deleted; the consumer reads and publishes on a notice |
+| firewall refresh loop | `irr.go` `refreshLoop`, `refreshAll`, `refreshAllNow`, `refreshName` | Fetch on a ticker and on command | Replaces: deleted |
+| Readmitter fetch | `filter_irr/readmit.go` `retryResolution`, `readmitSource.resolveHeld` | Fetches every minute for a held ASN | Replaces: the fetch half is deleted; retrying a failed refresh is the owner's schedule |
+| Consumer IRR commands | `filter_irr/command.go`, `firewall/plugins/irr/command.go`, `ze-filter-irr-cmd.yang`, `ze-firewall-irr-cmd.yang` | `update bgp irr ...`, `update firewall irr ...`, `clear firewall irr ...` fetch or purge in the consumer | Replaces: `update irr ...` and `clear irr ...` on the owner; the consumer `update` and `clear` verbs are deleted; `show` verbs stay on the consumers |
+| Resolver cache clear owners | `store.ResolverCaches`, `OnResolverCacheClear` in both consumers | Each consumer answers for its clients | Extends: only the owner holds clients and declares the caches |
+| PeeringDB settings | `system peeringdb url` (`ze-system-conf.yang`); `resolve.md` "PeeringDB Prefix Data" | Used by `prefix update`; the IRR consumers carry their own `peeringdb-url` | Extends: the owner reads it; the two consumer leaves are deleted |
+| IRR settings containers | `ze-filter-irr.yang` `policy irr`; `ze-firewall-irr.yang` `firewall irr` | Two server, URL and interval declarations | Replaces: one owner container, `system irr`, augmented into the system root by `internal/plugins/irr/yang/`; `firewall irr interface` and the per-peer `irr { as-set; enable }` stay with their consumers |
+| Domain schedule and cache | `firewall/plugins/domain/schedule.go` `reset`, `arm`; `cache.go` `resolvedName`, `put` | Units due now at start; no stored expiry; steady answers write nothing | Extends: stored `expires-at` renewed on every answer; `reset` arms at it |
+| Doctor checks | `firewall/plugins/irr/doctor.go` `checkIRRDataFreshness`; `firewall/plugins/domain/doctor.go` | Stored-data freshness per reference | Extends: the owner gains a check over datasets and schedule; the firewall check reads pointers |
+| Fetched-vs-applied split (planned) | `plan/post-release/features/spec-irr-apply-policy.md` | Plans `meta/irr-applied/<consumer>/{name}` | Does not apply here: amended to sit on this spec's pointer and dataset keys |
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- Daemon start: stage 5 subscriptions, then each plugin's `OnStarted`.
+- Config commit: `system irr` and `system peeringdb url`; a consumer's references (BGP peers' `irr as-set`, remote ASN; firewall terms and interface bindings).
+- The owner's schedule coming due.
+- Operator commands `update irr all|asn|as-set`, `clear irr asn|as-set`, `update firewall domain-group`, `clear firewall domain-group`.
+
+### Transformation Path
+1. Each consumer, at stage 5, subscribes to the owner's dataset notice; the owner subscribes to the consumers' interest notice.
+2. Consumer `OnStarted`: writes its interest key (the AS-SETs and bare ASNs it enforces), emits an interest notice, then reads for each reference: the ASN binding (bare ASN), the AS-SET pointer, the dataset it names; publishes what it found (BGP `publishLocked`, firewall `applyTables`) and records the generation it saw.
+3. Owner `OnStarted`: reads its config, the generation, every interest key (one listing of `meta/irr-interest/`, one key per consumer), every pointer, binding and dataset named; arms each dataset at `checked-at` plus `refresh-interval`; a reference with no pointer is due now (cold start).
+4. Owner refresh: discover the AS-SET if needed (stored binding updated on a PeeringDB answer), fetch, commit per family, write the dataset, flip the pointer, increment the generation, emit the notice naming AS-SET, server, generation and digest.
+5. Consumer notice: read the pointer and dataset for a set it enforces and publish; if the notice's generation is more than one past the last it saw, re-read every pointer it uses.
+6. Failed fetch: the stored copy and pointer stay; `checked-at` is unchanged; the owner retries the dataset every minute until the server answers.
+7. BGP commit naming a set with no pointer: the consumer writes its interest and emits the notice after apply; the owner fetches at once; meanwhile announcements are rejected, held and re-asked after the publish.
+8. Firewall or domain commit naming a set with nothing stored: refused at verify, naming `update irr as-set <s>` (or `update firewall domain-group <g>`).
+9. Domain: `configure` programs stored answers; `schedule.reset` arms each unit at its stored `expires-at`, due now only without one or when it passed; every answer rewrites `expires-at`.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Owner ↔ daemon store | SDK state RPCs, write grant | No |
+| Consumer ↔ daemon store | SDK state RPCs, read-only grant on the owner's keys, write grant on its own interest key | No |
+| Owner ↔ consumer | `emit-event` notices both ways, subscribed at stage 5; no import, no direct call | No |
+| Operator ↔ owner | `update irr ...`, `clear irr ...` through the command dispatcher (every interface) | No |
+| Owner ↔ IRR server, PeeringDB | whois, HTTPS | No |
+| `firewall-domain` ↔ engine resolver | `ze-plugin-engine:resolve-dns` | No |
+
+### Stored values and notices
+
+Every key below is registered in `pkg/zefs/keys.go`. Times are UTC, encoded as Unix seconds in the binary dataset and RFC 3339 in the JSON values.
+
+| Key or event | Encoding | Field | Type | Description |
+|--------------|----------|-------|------|-------------|
+| `meta/irr-data/{server}/{as-set}` | binary, declared bound 12,000,000 bytes (base64 16,000,000, under `MaxMessageSize` 16,777,216 with room for the envelope) | version | uint8 | Format version, 1 |
+| same | same | refreshed-at, checked-at, stale-since | 3 x int64 | As `CachedEntry`; `checked-at` is the last time the server answered; 0 means unset |
+| same | same | as-set, server | length-prefixed strings | Identity, compared with the key on read |
+| same | same | ipv4 count, ipv4 prefixes | uint32, then per prefix a length byte and the significant address bytes | As NLRI encodes a prefix |
+| same | same | ipv6 count, ipv6 prefixes | uint32, then the same per prefix | |
+| same | same | digest | 32 bytes | SHA-256 over every byte before it; a mismatch reads as absent |
+| `meta/irr-set/{as-set}` | JSON, 1 MiB default bound | `server`, `generation`, `digest` | string, uint32, hex string | The dataset currently enforced for the set; written after the dataset |
+| `meta/irr-asn/{asn}` | JSON | `as-set`, `peeringdb-url`, `discovered-at` | string, string, RFC 3339 | The set PeeringDB named; a binding whose URL differs from `system peeringdb url` reads as absent |
+| `meta/irr-generation` | 4-byte counter (`StateIncrement`) | value | uint32 | Raised once per pointer write or removal |
+| `meta/irr-interest/{consumer}` | JSON | `as-sets`, `asns` | string list, uint32 list | What the consumer enforces; written after each apply and at `OnStarted`; bounded to 65,536 names |
+| event `irr/dataset-stored` | JSON payload | `as-set`, `server`, `generation`, `digest`, `removed` | string, string, uint32, hex string, bool | Sent after each pointer write; `removed` true after `clear irr` |
+| event `irr/interest-changed` | JSON payload | `consumer` | string | Sent after a consumer rewrites its interest key |
+| `meta/firewall/domain-group/{group}/{name}/{family}` | JSON | `expires-at` (new) | RFC 3339 | Answer time plus `max(ttl, ttl-floor)` capped at one day; written on every answer |
+
+### Changed-Wire Census
+
+**Search evidence:** scope: the whole tree (Go, YANG, `.ci`, `.et`, shell, Python, docs, `internal/test/fixture`). Terms: `KeyIRRPrefixCache`, `KeyIRRCache`, `meta/irr`, `meta/bgp/irr-cache`, `CachedEntry`, `refreshed-at`, `stale-since`, `KeyFirewallDomainGroup`, `resolved-at`, `failing-since`, `StateDataMax`, `ValidateStateInput`, `RegisterPluginKeys`, `refresh-interval`, `peeringdb-url`, `policy irr`, `firewall irr`, `update bgp irr`, `update firewall irr`, `clear firewall irr`. Positive control: `persist` and `Open` in `store.go` found by `KeyIRRPrefixCache`; `cache.go` `put` and `open` by `KeyFirewallDomainGroup`; `stateCall` and `stateInput` by `ValidateStateInput`; `parseIRRConfig` by `refresh-interval`. Findings: config leaves `refresh-interval` or `peeringdb-url` appear in 15 `.ci` files (`test/plugin/filter-irr*.ci`, `filter-wire-irr-*.ci`, `clear-irr-cache*.ci`, `firewall-irr-refresh.ci`, `firewall-irr-cold-cache-recovers.ci`, `test/reload/bgp-filter-irr-*.ci`) and 8 docs pages; 12 `test/plugin/firewall-irr*.ci` set `firewall irr server`. The implementation re-runs the search before its first edit and adds every site found.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| IRR dataset `meta/irr-data/{server}/{as-set}` | writer | `internal/plugins/irr` refresh, through the codec in `internal/component/resolve/irr/store` | today `store.persist` writes `meta/irr/{name}` | create; compact value, digest |
+| IRR dataset `meta/irr-data/{server}/{as-set}` | reader | `bgp-filter-irr` and `firewall-irr` notice and start handlers; `firewall-irr` verify; the owner at start; both doctor checks | today `store.Open` lists and decodes JSON | create; read by name, digest checked |
+| IRR dataset `meta/irr-data/{server}/{as-set}` | writer | `internal/component/config/storage/cli/data_rpc.go` `update data key`, `delete data key`; `ze data write` | key-agnostic; refused while a granted writer runs (`PluginKeyOwners`) | preserve; names the `irr` plugin |
+| IRR dataset `meta/irr-data/{server}/{as-set}` | reader | `data_rpc.go` `show data`; `ze data`; `ze data backup` | key-agnostic | preserve |
+| IRR dataset `meta/irr-data/{server}/{as-set}` | reader | a third-party plugin outside the repository | grants come only from compiled registration | preserve: none can read it |
+| AS-SET pointer `meta/irr-set/{as-set}` | writer | `internal/plugins/irr` after a dataset write | new | create; flipped last |
+| AS-SET pointer `meta/irr-set/{as-set}` | reader | both consumers, the owner at start, doctor checks | new | create |
+| ASN binding `meta/irr-asn/{asn}` | writer | `internal/plugins/irr` after a PeeringDB answer | new | create |
+| ASN binding `meta/irr-asn/{asn}` | reader | both consumers, the owner, doctor checks | new | create |
+| Generation `meta/irr-generation` | writer | `internal/plugins/irr` via `StateIncrement` | new | create |
+| Generation `meta/irr-generation` | reader | both consumers at start | new | create |
+| Interest `meta/irr-interest/{consumer}` | writer | `bgp-filter-irr`, `firewall-irr` at `OnStarted` and after each apply | new | create |
+| Interest `meta/irr-interest/{consumer}` | reader | `internal/plugins/irr` at start and on notice | new | create |
+| Dataset notice (event `irr/dataset-stored`) | writer | `internal/plugins/irr` `EmitEvent` | new | create; event type registered by the owner |
+| Dataset notice (event `irr/dataset-stored`) | reader | both consumers, subscribed at stage 5 | new | create |
+| Interest notice (event `irr/interest-changed`) | writer | both consumers `EmitEvent` | new | create |
+| Interest notice (event `irr/interest-changed`) | reader | `internal/plugins/irr`, subscribed at stage 5 | new | create |
+| Legacy `meta/irr/{name}` JSON | writer | `store.go` `persist` in today's `firewall-irr` | the only writer | change: deleted |
+| Legacy `meta/irr/{name}` JSON | reader | `internal/plugins/irr` one-time conversion at its first start | new reader of the old value | migrate under the configured server, write pointer and binding, remove |
+| Legacy `meta/bgp/irr-cache` blob | writer | none left (pre-2026-10 code) | `migrate` only reads it | delete the registration |
+| Legacy `meta/bgp/irr-cache` blob | reader | `store.go` `migrate` | reads and removes | delete; a box holding it cold-fetches once |
+| Domain stored answer `meta/firewall/domain-group/{group}/{name}/{family}` | writer | `firewall/plugins/domain/cache.go` `put`, from every answer | JSON `resolvedName` | change: gains `expires-at`, written on every answer |
+| Domain stored answer `meta/firewall/domain-group/{group}/{name}/{family}` | reader | `cache.go` `open` (live, verify), `domain/doctor.go` | JSON decode | change: absent `expires-at` reads as expired |
+| State value bound | writer | `pkg/plugin/sdk/sdk_state.go` `stateCall` | global `StateDataMax` | change: the key's declared bound |
+| State value bound | reader | `dispatch_state.go` `stateInput`, `opStateGet`; `sdk_state.go` result check; `ze-plugin-engine.yang` | global `StateDataMax` | change: declared bound; YANG length the largest one |
+| IRR settings leaves | writer | operator configs; the 15 `.ci` bodies and fixtures above; docs examples (`policy irr`, `firewall irr` server, URL, interval) | YANG in `ze-filter-irr.yang`, `ze-firewall-irr.yang` | change: converted in the repository to `system irr { server; source-address; refresh-interval }` and `system peeringdb url`; a firewall config that relied on the old firewall default 0 gains an explicit `system irr refresh-interval 0` where its test asserts no automatic refresh; no migration path (`ai/META-DECISIONS.md`, "Ze is pre-release") |
+| IRR settings leaves | reader | `filter_irr/config.go` `parseIRRConfig`; `firewall/plugins/irr/config.go` `parseIRRConfig` | parse today | change: deleted from the consumers; the owner's parser reads `system irr` and `system peeringdb url` (`ConfigReads` system) |
+| IRR fetch commands | writer | operators; `.ci` bodies (`filter-irr-update.ci`, `firewall-irr-update.ci` and others); docs (`update bgp irr`, `update firewall irr`, `clear firewall irr`) | `ze-filter-irr-cmd.yang`, `ze-firewall-irr-cmd.yang` | change: `update irr`, `clear irr` on the owner; the repository's callers converted |
+| IRR fetch commands | reader | `filter_irr/command.go`, `cmd_irr.go` forwarders, `firewall/plugins/irr/command.go` | dispatch today | change: deleted; the owner's handlers answer |
+
+### Integration Points
+- `irrPlugin.publishLocked` (BGP) and `applyTables` (firewall) - the only publish paths for a read copy.
+- `readmitter.notify` - after every BGP publish.
+- `firewall.RegisterTables`/`ApplyAll` - after the `OnStarted` read, never in the handshake.
+- `statestore.RegisterPluginKeys` (owner), `RegisterPluginReadKeys` (consumers) - from each `register.go`.
+- `OnResolverCacheClear` - declared by the owner only.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | Yes | Fetch only in the owner; storage only through state RPCs; publication only through each consumer's existing publish path |
+| No unintended coupling (components stay isolated) | Yes | Owner and consumers meet through keys, events and commands; none imports another |
+| No duplicated functionality (extends existing, does not recreate) | Yes | Two fetchers, two schedules and three server, URL and interval declarations become one |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | The decoded prefix slices are the published list; encoding writes into one buffer sized from the counts |
+| Registration over hardcoding, outbound | Yes | The owner registers its plugin, YANG, commands, event types, keys and grants from its own `register.go` |
+| Registration over hardcoding, inbound | Yes | Searched `dispatch_state.go`, `state.go`, `sdk_state.go`, `data_rpc.go`, `permissions.go`: the bound and read grant come from registration; the owner learns its consumers from interest keys, never from a list of consumer names |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | Peers send UPDATEs only after plugin startup completes | five-stage startup | UPDATEs in the window are rejected, held and re-asked; correct but noisy | restart `.ci` asserting the first UPDATE is accepted | unvalidated |
+| A-2 | A value up to the declared bound (12,000,000 bytes) passes dispatch, ZeFS and DirectBridge | `MaxMessageSize` 16 MiB | the bound is lowered and the largest firewall lists refused | unit test at the bound over both transports | unvalidated |
+| A-3 | A stage-5 subscription is live before the subscriber's `OnStarted` read | `process-protocol.md` stage 5, "before any event flows" | a notice between read and subscribe is lost; the generation gap check recovers it | unit test: notice emitted between subscribe and read | unvalidated |
+| A-4 | The `.ci` runner can stop and start the daemon over the same store | `ci-format.md` "a restart reuses its tree" | runner support is added here | read of the runner | unvalidated |
+| A-5 | The IRR stub can count queries | `internal/test/fixture/plugin_fixture_07_irr.go` | a counting stub is added here | read of the fixture | unvalidated |
+| A-6 | AS-SET names and `host[:port]` servers are valid key segments | `ValidateStateInput` alphabet `[A-Za-z0-9_.:/-]` | an escape is needed | unit test | unvalidated |
+| A-7 | No consumer names its own IRR server per peer or per rule | one `server` leaf per consumer, none under a peer or term (`ze-filter-irr.yang`, `ze-firewall-irr.yang`) | moving the server to the owner loses a capability | YANG read | validated |
+| A-8 | The owner autoloads whenever a consumer is configured | a consumer declaring the owner in `Dependencies` (registry) | consumers wait forever on a notice | functional test with no owner container configured | unvalidated |
+| A-9 | Reading the owner's keys needs no owner process: a consumer forked or started before the owner still reads them | reads go to the daemon store, not the owner | none | unit test with the owner stopped | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | A new list reaches the evaluator only after the owner's write and the notice, which can take the full 5 s state timeout under disk load | `checked-at` to consumer publish delay in logs | no wait depends on it any more (reject, hold, re-admit); the delay is bounded and measured in AC-18 |
+| R-2 | Schedule anchored on `refreshed-at` refetches a one-family set every tick | outcome counter climbing every minute | anchor on `checked-at`; AC-3 |
+| R-3 | A lost notice leaves a consumer on an older copy, so its restart changes its data | consumer and pointer generations differ (doctor) | the generation gap check re-reads every pointer; a doctor check compares enforced and stored generations; AC-8 |
+| R-4 | A consumer reload removes the stored dataset another consumer uses | firewall set lost after a BGP edit | consumers never write datasets; only `clear irr` removes one; AC-16 |
+| R-5 | The owner is not running (removed, crash-looped past its restart bound) | `show health` doctor-plugin-stopped | consumers keep enforcing the stored copies; no refresh happens; doctor reports it; the owner declares `failure-policy: restart` |
+| R-6 | Corrupt stored dataset | digest mismatch at read | read as absent: consumer keeps what it enforces, owner fetches at once, WARN and doctor code; AC-22 |
+| R-7 | A server change orphans every dataset of the old server | store growth | the owner flips each pointer only after the new server answers, then removes the old dataset (single writer, safe) |
+| R-8 | A failed refresh retried every minute for days | error outcome counter | the readmitter's cadence today; stops at the first answer |
+| R-9 | Domain writes up to 1,440 a day per name and family at the 60 s floor | store write rate | Thomas's choice; each write replaces one same-size value in place (`zefs-format.md`), so no full rewrite |
+| R-10 | Config conversion misses a `.ci` or doc | YANG refusal in a functional run | the census search terms re-run before the first edit; every `.ci` converted in the same commit as the YANG move |
+| R-11 | A consumer's interest diverges from what it enforces | owner fetches a set nobody uses, or misses one | interest written in the same apply that publishes; doctor compares interest with config references |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | BGP IRR import filters and firewall IRR sets enforce wrong or no prefixes after a restart or a commit; domain sets resolve at the wrong time |
+| How is it reverted? | Revert of the implementation commits; the new keys are then ignored, BGP cold-fetches, the firewall reports uncached references; the config conversion is reverted with it |
+| Who else touches this path? | `spec-irr-apply-policy.md` (post-release, depends on this); sessions editing `filter_irr`, `firewall/plugins/irr`, `firewall/plugins/domain`, `resolve/irr/store`, `pkg/plugin/rpc/state.go`, `statestore/permissions.go` |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| Daemon restart with a stored dataset, BGP consumer | → | owner start read, consumer `OnStarted` read, `publishLocked` | `test/plugin/irr-restart-keeps-bgp-list.ci` |
+| Daemon restart with a stored dataset, firewall consumer | → | consumer `OnStarted` read, `applyTables` | `test/plugin/irr-restart-keeps-firewall-sets.ci` |
+| First start, nothing stored | → | interest key, owner cold fetch, notice | `test/plugin/irr-cold-start-stores.ci` |
+| BGP and firewall naming one AS-SET | → | one owner fetch, notice to both | `test/plugin/irr-shared-dataset.ci` |
+| BGP commit adding an unstored AS-SET | → | interest notice, owner fetch, readmit | `test/reload/irr-bgp-commit-new-set.ci` |
+| `update irr as-set` then firewall commit | → | owner command, pointer, verify read | `test/plugin/irr-update-then-firewall-commit.ci` |
+| Domain restart with unexpired answers | → | `schedule.reset` with stored expiry | `test/plugin/firewall-domain-group-restart-keeps-answers.ci` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | BGP peer filtered by `bgp-filter-irr:<asn>`, dataset stored, daemon restarted with the IRR stub counting | `show bgp irr` reports the same AS-SET, counts and `refreshed-at` as before; the stub receives zero queries during start; an UPDATE announcing a listed prefix is accepted with no hold | A refresh whose due time passed while the daemon was down runs once after start: it was due by the operator's schedule |
+| AC-2 | Firewall rule naming a stored AS-SET, daemon restarted | The nft set holds the same prefixes before any query; zero queries; no uncached WARN | The same overdue refresh as AC-1 |
+| AC-3 | Dataset with `checked-at` T, interval 3600, stopped at T+10 min, started at T+40 min | The owner fetches at T+60 min, not T+100 min; a one-family AS-SET is fetched once per interval | A failed fetch at T+60 is retried every minute until it answers (AC-7) |
+| AC-4 | Commit that changes no IRR reference or setting | No query; every dataset's next refresh unchanged | None |
+| AC-5 | BGP commit adding a peer whose AS-SET is stored; one whose AS-SET is not | Stored: the consumer publishes it at once, no query. Not stored: the commit succeeds, the owner fetches it right after, stores it, the consumer publishes on the notice | Before that publish the peer's announcements are rejected, held, then re-asked by ROUTE-REFRESH (existing readmit) |
+| AC-6 | First start, nothing stored | The owner fetches each referenced dataset once, at once after `OnStarted`, stores it, and fetches it again only when due; both consumers enforce it on the notice | A failed cold fetch is retried every minute; the firewall table stays held back meanwhile |
+| AC-7 | Due refresh fails, or answers empty | The stored copy and pointer stay; `stale-since` set on an empty answer; on failure `checked-at` is unchanged and the owner retries every minute; on an empty answer `checked-at` advances and the next fetch waits a full interval | Only those retries |
+| AC-8 | BGP and firewall name the same AS-SET | One fetch per interval, one dataset key; after a refresh both consumers enforce the new copy within one second; a consumer that missed a notice re-reads on the next notice's generation gap; after restart both enforce the same generation | None |
+| AC-9 | Owner `server` changed by a commit | The owner fetches every referenced set from the new server at once; consumers keep enforcing the old server's copy until each new copy is stored and its pointer flips; the old dataset is then removed | None |
+| AC-10 | `system irr refresh-interval` absent, set to 900, set to 0 | Absent: every dataset refreshes every 3600 s from its `checked-at`. 900: every 900 s. 0: no automatic refresh, `show irr` reports the schedule as manual. Neither consumer has an interval leaf | With 0, a dataset with no stored copy is still fetched once at once (cold start), and `update irr` still fetches on demand: both are fetches the operator's config or command asked for |
+| AC-11 | Bare ASN reference, PeeringDB names AS-Y, restart | The stored binding names AS-Y; start reads AS-Y with no PeeringDB query; PeeringDB is asked again when the dataset is due | A PeeringDB failure at the due time keeps AS-Y |
+| AC-12 | AS-SET of 200,000 IPv4 and 100,000 IPv6 prefixes | Stored in one key, read after restart identical; a list over the caps is refused whole with an error naming the counts, the previous copy kept | None |
+| AC-13 | Domain name answered TTL 3600 at T, restart at T+10 min; another name past its stored expiry | The first is not resolved at start and is resolved at T+60 min; the second is resolved at start; both groups program stored addresses before any query; every answer rewrites `expires-at` | A name stored before this spec (no `expires-at`) is resolved at start once |
+| AC-14 | Readmitter tick with held prefixes | No IRR or PeeringDB query from `bgp-filter-irr`, ever; held prefixes the published list admits are re-asked | None |
+| AC-15 | `update irr asn <n>`, `update irr as-set <s>`, `update irr all` | The owner fetches now, stores, resets `checked-at`, notifies; the answer carries the counts; `update bgp irr ...` and `update firewall irr ...` no longer exist | None |
+| AC-16 | `clear irr as-set <s>` (and `clear irr asn <n>`) on a set BGP and the firewall still reference | The dataset and pointer are removed; the reply names each consumer whose interest still references it (`bgp-filter-irr`, `firewall-irr`); those consumers drop the list on the notice (BGP rejects and holds, the firewall holds the table back); the owner does not refetch it until `update irr` or a commit that newly names it | A clear of a set no consumer references removes it and names no consumer |
+| AC-17 | Box holding `meta/irr/{name}` keys | The owner's first start converts each under its configured server, writes pointer and binding, removes the old key; the firewall enforces the same prefixes with no query | `meta/bgp/irr-cache` is dropped and cold-fetched once |
+| AC-18 | Owner state write taking 5 s | The consumer publishes within one second of the write completing; no evaluator call waits | None |
+| AC-19 | Doctor with an unreadable dataset, an overdue refresh, a consumer generation behind the pointer, the owner stopped | `ze doctor` reports each with its code and fix | None |
+| AC-20 | Pages, YANG descriptions, comments in the Documentation Update Checklist | Each states the new behaviour; the repository's configs, `.ci` bodies, fixtures and examples use `system irr`, `system peeringdb url`, `update irr` and `clear irr`; `firewall-irr.md` "Auto-refresh is off by default" and `command-verbs.md` lines 536 and 574-575 are rewritten | None |
+| AC-21 | firewall-irr startup | No table registered and no uncached WARN in the handshake; tables applied once after the `OnStarted` read | None |
+| AC-22 | Dataset failing its digest or decode | Read as absent: the consumer keeps what it enforces, the owner fetches at once, one WARN naming the key, the doctor code | None |
+| AC-23 | Firewall commit naming an AS-SET with no pointer | Refused, naming `update irr as-set <s>` (or `update irr asn <n>`); after that update the same commit succeeds and the set is programmed | None |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Reboots a router with IRR-filtered peers | start → stage 5 subscribe → consumer read → publish → UPDATE judged | `test/plugin/irr-restart-keeps-bgp-list.ci` |
+| 2 | Reboots a router with firewall IRR rules | start → read → `applyTables` → nft set | `test/plugin/irr-restart-keeps-firewall-sets.ci` |
+| 3 | Adds a BGP peer on a new AS-SET | commit → interest notice → owner fetch → notice → publish → readmit | `test/reload/irr-bgp-commit-new-set.ci` |
+| 4 | Fetches an AS-SET then commits a firewall rule on it | `update irr as-set` → owner → verify reads pointer → commit | `test/plugin/irr-update-then-firewall-commit.ci` |
+| 5 | Reboots with domain groups | start → program → schedule at stored expiry | `test/plugin/firewall-domain-group-restart-keeps-answers.ci` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestDatasetRoundTrip` | `internal/component/resolve/irr/store/dataset_test.go` | Encode and decode reproduce prefixes and every timestamp | |
+| `TestDatasetLargeFitsOneKey` | same | 500,000 IPv4 and 500,000 IPv6 under the declared bound | |
+| `TestDatasetDigestRefused` | same | A flipped byte reads as absent | |
+| `TestServerIdentityNormalised` | same | `whois.radb.net`, upper case and `:43` name one dataset | |
+| `TestDueFromCheckedAt` | `internal/plugins/irr/schedule_test.go` | Due is `checked-at` + interval for a one-family set | |
+| `TestColdReferenceDueNow` | same | A reference with no pointer is due at start | |
+| `TestFailedFetchKeepsPointer` | `internal/plugins/irr/irr_test.go` | Failure leaves dataset, pointer and `checked-at`; retry in one minute | |
+| `TestPointerFlipsAfterWrite` | same | The pointer changes only after the dataset write is acknowledged | |
+| `TestServerChangeKeepsOldUntilNew` | same | Old-server dataset stays enforced until the new one is stored | |
+| `TestInterestDrivesFetch` | same | Interest keys and notices decide the fetched set | |
+| `TestLegacyEntryConverted` | same | `meta/irr/{name}` converted and removed | |
+| `TestConsumerReadsNoFetch` | `internal/component/bgp/plugins/filter_irr/filter_irr_test.go` | `OnStarted` publishes stored lists; the plugin holds no IRR client | |
+| `TestNoticeGapRereads` | same | A notice two generations ahead re-reads every pointer | |
+| `TestReadmitterNoLookup` | `internal/component/bgp/plugins/filter_irr/readmit_test.go` | The readmitter has no fetch path | |
+| `TestHandshakeConfigureAppliesNothing` | `internal/component/firewall/plugins/irr/irr_test.go` | No WARN and no `RegisterTables` before `OnStarted` | |
+| `TestVerifyRefusesNoPointer` | same | Commit refusal names `update irr as-set` | |
+| `TestReadGrantRefusesWrite` | `internal/core/statestore/permissions_test.go` | A read-only grant reads and cannot write or remove | |
+| `TestStateBoundPerKey` | `pkg/plugin/rpc/state_test.go` | A declared bound accepts up to it; others keep 1 MiB | |
+| `TestResetUsesStoredExpiry` | `internal/component/firewall/plugins/domain/schedule_test.go` | Unexpired unit armed at its expiry; expired or missing due now | |
+| `TestEveryAnswerRenewsExpiry` | `internal/component/firewall/plugins/domain/domain_test.go` | A steady answer rewrites `expires-at` | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| `system irr refresh-interval` | 0 or 60..86400, default 3600 | 0, 60, 86400 | 59 (1..59 invalid) | 86401 |
+| Dataset value size | 1..declared bound | bound | N/A | bound + 1 refused |
+| Domain `ttl-floor` | existing range | unchanged | unchanged | unchanged |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `irr-restart-keeps-bgp-list` | `test/plugin/irr-restart-keeps-bgp-list.ci` | Restart: same counts, zero queries, listed prefix accepted | |
+| `irr-restart-keeps-firewall-sets` | `test/plugin/irr-restart-keeps-firewall-sets.ci` | Restart: nft set unchanged, zero queries | |
+| `irr-cold-start-stores` | `test/plugin/irr-cold-start-stores.ci` | Empty store: one query per set, stored, restart makes none | |
+| `irr-shared-dataset` | `test/plugin/irr-shared-dataset.ci` | BGP and firewall on one set: one query per interval, both enforce | |
+| `irr-bgp-commit-new-set` | `test/reload/irr-bgp-commit-new-set.ci` | New AS-SET on a BGP peer: fetched after commit, held prefix re-asked | |
+| `irr-update-then-firewall-commit` | `test/plugin/irr-update-then-firewall-commit.ci` | Refused commit, `update irr as-set`, commit accepted | |
+| `firewall-domain-group-restart-keeps-answers` | `test/plugin/firewall-domain-group-restart-keeps-answers.ci` | Unexpired answer not resolved at start | |
+
+### Interop Tests (Scope: protocol)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| N-A | - | - | No wire-visible BGP change: verdicts are unchanged, only where the list comes from changes; goal validation is the restart `.ci` tests | |
+
+## Files to Modify
+- `internal/component/resolve/irr/store/store.go` - keeps resolution and last-known-good for the owner; persistence replaced by the new keys; `migrate` and `Open`-by-listing deleted
+- `internal/component/resolve/irr/store/clear.go` - used by the owner only
+- `internal/component/bgp/plugins/filter_irr/filter_irr.go` - no IRR client, no `PrefixStore`; reads pointers and datasets at `OnStarted` and on notice; writes interest; `initialResolve`, `refreshLoop`, `refreshAll*`, `refreshASN*` deleted
+- `internal/component/bgp/plugins/filter_irr/readmit.go` - `resolveHeld` and `retryResolution` deleted
+- `internal/component/bgp/plugins/filter_irr/command.go`, `cmd_irr.go`, `yang/ze-filter-irr-cmd.yang` - `update bgp irr ...` deleted; `show bgp irr` reports generation, `checked-at`, next refresh read from the owner's keys
+- `internal/component/bgp/plugins/filter_irr/config.go`, `yang/ze-filter-irr.yang` - `policy irr` augment removed; the per-peer `irr { as-set; enable }` stays
+- `internal/component/bgp/plugins/filter_irr/register.go` - read grant, interest write grant, `Dependencies` on the owner, stage-5 subscription
+- `internal/component/firewall/plugins/irr/irr.go`, `config.go`, `command.go`, `register.go`, `sets.go`, `doctor.go`, `yang/ze-firewall-irr.yang`, `yang/ze-firewall-irr-cmd.yang` - the same consumer change; `firewall irr { server; peeringdb-url; refresh-interval }` removed, the `interface` list and term leaves stay; `update`/`clear firewall irr` deleted; handshake fix; stale comments
+- `internal/component/firewall/plugins/domain/schedule.go`, `cache.go`, `domain.go`, `doctor.go` - stored expiry renewed on every answer
+- `internal/core/statestore/permissions.go` - read-only grant
+- `pkg/zefs/keys.go` - new keys with bounds; old IRR keys removed
+- `pkg/plugin/rpc/state.go`, `pkg/plugin/sdk/sdk_state.go`, `internal/component/plugin/server/dispatch_state.go`, `internal/core/ipc/yang/ze-plugin-engine.yang` - per-key bound; read grant checked on read verbs
+- every `.ci` and fixture in the census (15 files naming the moving leaves, 12 setting `firewall irr server`, the `update ... irr` callers) - converted
+- `docs/architecture/bgp/filter-irr.md`, `docs/architecture/core-design.md` section 22, `docs/architecture/resolve.md`, `docs/architecture/firewall/firewall-irr.md`, `docs/architecture/firewall/firewall-domain-group.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/zefs-format.md`, `docs/guide/irr-filtering.md`, `docs/guide/configuration.md`, `docs/guide/firewall.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`, `docs/features/plugins.md`
+
+## Files to Create
+- `internal/plugins/irr/register.go`, `irr.go`, `schedule.go`, `command.go`, `doctor.go`, `config.go` - the owner plugin
+- `internal/plugins/irr/yang/` - `ze-irr-conf.yang` augmenting `/system:system` with `irr { server; source-address; refresh-interval }` (`server` default `whois.radb.net`, `refresh-interval` `0 | 60..86400` default 3600), and `ze-irr-cmd.yang` with `update irr all|asn|as-set`, `clear irr asn|as-set`, `show irr`
+- `internal/component/resolve/irr/store/dataset.go` - the compact codec shared by owner and consumers
+- `docs/architecture/irr-owner.md` - the owner's design page (its `// Design:` target)
+- the seven `.ci` files of the Functional Tests table
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | `internal/plugins/irr/yang/`: owner container, `update irr`, `clear irr`, `show irr`; leaves removed from `ze-filter-irr.yang`, `ze-firewall-irr.yang` |
+| YANG validation constraints | Yes | `system irr refresh-interval` `range "0 | 60..86400"`, default 3600; `server` host or host:port, default `whois.radb.net`; `source-address` `zt:ip-address` |
+| YANG custom validators | No | Native constraints suffice |
+| CLI commands/flags | Yes | `update irr all|asn|as-set`, `clear irr asn|as-set`, `show irr` |
+| CLI grammar (keyword before value) | Yes | `update irr as-set <name>`, `update irr asn <asn>` follow `ai/rules/cli.md` |
+| Editor autocomplete | Yes | AS-SET names from the interest keys through a `CompleteFn` on the owner |
+| Functional test for new RPC/API | Yes | The seven `.ci` files |
+| Pipe completeness | Yes | `show irr` answers structured data through the shared renderer |
+| Env var registration | N-A | No env var |
+| Doctor check for runtime dependencies | Yes | `internal/plugins/irr/doctor.go`: owner stopped, overdue refresh, unreadable dataset; `firewall/plugins/irr/doctor.go`; `domain/doctor.go` |
+| Doctor code per problem class | Yes | Unreadable dataset, overdue refresh, consumer generation behind, owner not running, unreadable DNS answer; runtime phase through `OnDoctorCheck` |
+| Prometheus counters/metrics | Yes | `ze_irr_refresh_outcomes_total` and `ze_irr_data_age_seconds` move to the owner; the `ze_firewall_irr_*` refresh metrics go with the consumer fetch |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No family change |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | the IRR filter and firewall IRR feature files under `features/`, and one for the `irr` plugin (`./le feature report`) |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md` |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, `docs/features/plugins.md` |
+| 6 | Has a user guide page? | Yes | `docs/guide/irr-filtering.md`, `docs/guide/firewall.md` |
+| 7 | Wire format changed? | No | No BGP wire change |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/architecture/api/process-protocol.md` "Persistent runtime state" (read grant, per-key bound) and the two event types |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 8210 and RFC 1035 cited only |
+| 10 | Test infrastructure changed? | Yes if A-4 or A-5 add runner or stub support | `docs/functional-tests.md` |
+| 11 | Affects daemon comparison? | No | - |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` section 22, `docs/architecture/bgp/filter-irr.md`, `docs/architecture/resolve.md`, `docs/architecture/firewall/firewall-irr.md`, `docs/architecture/firewall/firewall-domain-group.md`, `docs/architecture/zefs-format.md`, `docs/architecture/irr-owner.md` (new) |
+| 13 | Route metadata keys added/changed? | No | - |
+| 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Derived | `./le spec citation anchors spec plan/release/fixes/spec-fetched-data-survives-restart.md`, re-run for the revised file set. Advisory pages judged: `docs/architecture/cli/command-verbs.md` AFFECTED (lines 536 and 574-575 cite `update bgp irr as-set` and `update bgp irr asn`, which become `update irr as-set` and `update irr asn`); `docs/architecture/diagnostics/debug-filtering.md` unaffected (anchors `KeyDebugProfile` only); `docs/architecture/storage-backends.md` unaffected (mentions no IRR key and no value bound; the new keys are ordinary runtime `meta/` keys under its existing rules); `docs/features/srv6.md` and `docs/guide/vpp.md` unaffected (anchor `StateListMax`, which this spec leaves at 4096) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | every `policy irr`, `firewall irr server|peeringdb-url|refresh-interval` and `update bgp|firewall irr` example in the pages above |
+
+## Implementation Steps
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- the `irr` plugin registered with its YANG (`system irr`, commands), keys, grants and event types; consumers declare the owner in `Dependencies` and subscribe at stage 5
+   - Tests: the seven Wiring Test `.ci` files
+   - Files: `internal/plugins/irr/register.go`, `internal/plugins/irr/yang/`, `pkg/zefs/keys.go`, both consumers' `register.go`
+   - Verify: the daemon loads `irr` with a consumer configured; the `.ci` files fail on their zero-query or stored-copy assertions
+2. **Phase: Stored dataset** -- compact codec, per-key value bound, read-only grant
+   - Tests: `TestDatasetRoundTrip`, `TestDatasetLargeFitsOneKey`, `TestDatasetDigestRefused`, `TestServerIdentityNormalised`, `TestStateBoundPerKey`, `TestReadGrantRefusesWrite`
+   - Files: `resolve/irr/store/dataset.go`, `pkg/plugin/rpc/state.go`, `pkg/plugin/sdk/sdk_state.go`, `dispatch_state.go`, `ze-plugin-engine.yang`, `statestore/permissions.go`
+3. **Phase: Owner** -- `system irr` parsing, interest, schedule from `checked-at` (0 = manual), fetch, pointer flip, generation, notice, `update irr` and `clear irr`, legacy conversion, doctor
+   - Tests: `TestDueFromCheckedAt`, `TestColdReferenceDueNow`, `TestFailedFetchKeepsPointer`, `TestPointerFlipsAfterWrite`, `TestServerChangeKeepsOldUntilNew`, `TestInterestDrivesFetch`, `TestLegacyEntryConverted`
+   - Files: `internal/plugins/irr/*.go`, `resolve/irr/store/store.go`
+4. **Phase: BGP consumer** -- fetch, schedule and `update bgp irr` deleted; read and publish at `OnStarted` and on notice; interest; generation gap
+   - Tests: `TestConsumerReadsNoFetch`, `TestNoticeGapRereads`, `TestReadmitterNoLookup`
+   - Files: `filter_irr/filter_irr.go`, `readmit.go`, `command.go`, `cmd_irr.go`, `config.go`, both YANG files
+5. **Phase: Firewall consumer** -- the same; handshake fix; verify reads the pointer and names `update irr`
+   - Tests: `TestHandshakeConfigureAppliesNothing`, `TestVerifyRefusesNoPointer`
+   - Files: `firewall/plugins/irr/*.go`, both YANG files
+6. **Phase: Config conversion** -- every repository config, `.ci`, fixture and example converted to `system irr`, `system peeringdb url`, `update irr`, `clear irr`, in the same commit as phases 4 and 5 remove the leaves
+   - Tests: `./le test functional plugin`, `./le test functional reload`
+   - Files: the census `.ci` list, fixtures, docs examples
+7. **Phase: Domain** -- `expires-at` written on every answer; `schedule.reset` arms at it
+   - Tests: `TestResetUsesStoredExpiry`, `TestEveryAnswerRenewsExpiry`, `firewall-domain-group-restart-keeps-answers.ci`
+   - Files: `firewall/plugins/domain/schedule.go`, `cache.go`, `domain.go`, `doctor.go`
+8. **Docs and comments** -- each page in the Documentation Update Checklist edited with the phase whose code makes it wrong, never batched at the end
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Correctness | Only `internal/plugins/irr` holds an IRR or PeeringDB client; no consumer path fetches |
+| Correctness | The pointer flips only after the dataset write is acknowledged |
+| Correctness | Every consumer subscribes at stage 5, before its first read |
+| Naming | kebab-case JSON keys (`checked-at`, `expires-at`); command grammar `update irr as-set <name>` |
+| Rule: no-layering | Consumer fetch paths, both `refreshLoop`s, `update bgp|firewall irr`, the moved leaves, `migrate` and the old keys deleted, not kept beside the new path |
+| Rule: stale-comments | `configureStore`, `oversizedEntryError`, the `prefixStore` field and every fetch comment rewritten |
+| Operator errors and doctor codes | Each refusal names the `update irr` command; each WARN carries a doctor code |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| One IRR fetcher | grep: no `irr.NewIRR` or `peeringdb.NewPeeringDB` outside `internal/plugins/irr` and the offline `ze resolve` CLI |
+| Lists survive restart with no query | `test/plugin/irr-restart-keeps-bgp-list.ci`, `test/plugin/irr-restart-keeps-firewall-sets.ci` |
+| One shared dataset | `test/plugin/irr-shared-dataset.ci` |
+| Domain answers honour the stored expiry | `test/plugin/firewall-domain-group-restart-keeps-answers.ci` |
+| Config converted | grep of `test/` and `docs/` for the removed leaves returns nothing |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | AS-SET and server names validated before forming a key; decoded counts bounded by the value size |
+| Authorization | Consumers hold read-only grants on the owner's keys and write only their own interest key |
+| Integrity | Digest over each dataset; a mismatch reads as absent |
+| Resource exhaustion | Interest names bounded per consumer; the owner refuses an interest key over its bound |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- `RefreshedAt` cannot anchor a schedule: it dates the oldest data an entry holds (`store.go` `CachedEntry`).
+- Daemon stop sends no `bye`; nothing can be written at stop.
+- With one writer, a pointer written last gives an atomic switch between datasets without any multi-key transaction.
+
+## Owned journal rows
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+
+## Key Design Decisions
+
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| One owner fetches, schedules and stores IRR data; `bgp-filter-irr` and `firewall-irr` only read it (Thomas, design gate: chose B) | Approach A: each consumer keeps a `PrefixStore`, fetches on its own schedule and shares the stored key through notices | A kept two fetchers and two schedules writing one key, with drift between them; Thomas chose one owner |
+| The owner is a plugin, `internal/plugins/irr/`, and owns the timing (Thomas: "We should move the timing to the plugin which will implement the fetching.") | A daemon service in the resolve component; a sub-plugin under `internal/component/resolve/plugins/` | Thomas named a plugin. Nothing imports it, so `module-tiers.md` places it under `internal/plugins/` as a full-subsystem plugin; the codec both sides use stays in `resolve/irr/store`, already imported by both consumers |
+| One place says where and when: `server`, `source-address`, `refresh-interval` on the owner; the PeeringDB URL is `system peeringdb url`; a consumer names only the AS-SET or ASN | Keep a server per consumer | No consumer has a per-peer or per-rule server (A-7), so nothing is lost; `resolve.md` already places PeeringDB settings in `system peeringdb`. Pre-release: the repository's configs, `.ci` and docs are converted, no migration path |
+| Consumers read the owner's keys through a new read-only state grant | Ask the owner by command; DirectBridge | A read reaches the daemon store, so it works forked, with the owner stopped, and from `OnStarted`; a cross-plugin command from `OnStarted` fails with "unknown command" (`ai/doors/plugin-infra.md` traps); DirectBridge does not reach a forked side |
+| Change notice: owner `emit-event` with a monotonic generation, consumers subscribed at stage 5; a generation gap triggers a full re-read | Notice only; consumers poll | Stage-5 subscriptions are live "before any event flows", so subscribe-then-read leaves no gap; the generation recovers any lost notice at the next one; polling is a consumer schedule Thomas removed |
+| The owner learns what to fetch from each consumer's interest key plus an interest notice | The owner reads the consumers' config roots; consumers call an owner command | Reading the consumers' roots would copy their reference parsing into the owner and name their config; a command needs the owner up; a stored interest survives either side restarting |
+| Pointer `meta/irr-set/{as-set}` flipped after the dataset write | Consumers form the dataset key from the owner's configured server | A server change would leave consumers reading an empty key until the new server answers; the pointer keeps the old copy enforced |
+| `update irr ...` and `clear irr ...` move to the owner; the consumer `update` and `clear` verbs are deleted; `show` verbs stay on consumers and the owner adds `show irr` | Keep consumer commands that forward to the owner | One fetcher, one command set; forwarding would be two paths for one operation (no-layering); `show bgp irr` still answers what BGP enforces |
+| Firewall and domain commits keep refusing a reference with nothing stored (Thomas, design gate); a BGP commit is accepted and the owner fetches right after it | Fetch in verify | Verify does no network I/O by design; BGP already fails closed with reject, hold and re-admit, consistent with "first start with no stored copy fetches at once" |
+| Dataset key (normalised server, AS-SET), schedule anchored on `checked-at`, compact binary value under a per-key bound below `MaxMessageSize`, stored PeeringDB binding, cold fetch at once | (kept from the first design) | A different server is different data; `refreshed-at` stays old for one-family sets; JSON of 1,000,000 prefixes is about 20 MB, over the 16 MiB message |
+| Domain stored `expires-at` renewed on every answer (Thomas, design gate: rejected the hourly cap) | Renew at most hourly; only on the existing write events | Exact expiry across a restart; each write is a same-size in-place value (`zefs-format.md`), so it costs no full rewrite |
+| `firewall-domain` stays its own DNS fetcher and keeps its timing | Move DNS into the `irr` plugin | It resolves through the engine resolver with per-answer TTLs, a different source and schedule (Thomas, design gate) |
+| Convert `meta/irr/{name}` once in the owner; delete the `meta/bgp/irr-cache` migration | Drop and cold-fetch | The old keys are the firewall's enforced data; dropping them changes the firewall at the upgrade boot |
+
+### Open questions only Thomas can answer
+
+None remain. Q-1 to Q-7 are answered: Q-1 to Q-4 by the design gate (one owner, timing on the fetching plugin, commit refusal kept, DNS expiry renewed on every answer) and Q-5 to Q-7 afterwards (`system irr`, default 3600 with 0 manual only, `clear` removes and names the consumers); each is recorded in the design-gate decision table under Task.
+
+| Departure Q-6 brings | Before | After |
+|----------------------|--------|-------|
+| `firewall-irr.md` "Auto-refresh is off by default" | A firewall IRR set never refreshes unless `firewall irr refresh-interval` is set | A firewall IRR set refreshes every 3600 s by default, the same dataset BGP refreshes; `system irr refresh-interval 0` restores manual only for every consumer; the page is rewritten to say so |
+
+### What the amendment of `plan/post-release/features/spec-irr-apply-policy.md` must say
+
+| Item | Amendment |
+|------|-----------|
+| Depends | `plan/release/fixes/spec-fetched-data-survives-restart.md` |
+| Fetched list | The owner's dataset behind `meta/irr-set/{as-set}`, not `meta/irr/{name}`; the fetch and its timing are the `irr` plugin's |
+| A-1 | Withdrawn: datasets are per server, and there is one server setting |
+| Applied snapshot | Written by the consumer as `meta/irr-applied/<consumer>/{as-set}`, naming the dataset generation it applied; read by name |
+| Apply windows | A consumer decides when it publishes a new generation; the owner's schedule decides only when it is fetched |
+
+## Known Limitations
+- RPKI data is not stored across a restart (RFC 8210 Section 6).
+- A DNS name whose stored expiry passed is resolved at start: the TTL bounds determinism for DNS data (RFC 1035 Section 3.2.1).
+- `bgp-filter-irr` has no on-demand enrolment path today; an ASN is enrolled only by configure.
+
+## RFC Documentation (Scope: protocol)
+
+Not protocol scope. The domain expiry code carries the RFC 1035 Section 3.2.1 TTL quote above the statement that arms a unit from its stored expiry.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-23 all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: `./le test unit pkg path ./internal/plugins/irr/`, `./le test unit pkg path ./internal/component/resolve/irr/store/`, `./le test unit pkg path ./internal/component/bgp/plugins/filter_irr/`, `./le test unit pkg path ./internal/component/firewall/plugins/irr/`, `./le test unit pkg path ./internal/component/firewall/plugins/domain/`, `./le test unit pkg path ./internal/core/statestore/`, `./le test unit pkg path ./pkg/plugin/rpc/`, `./le test functional plugin`, `./le test functional reload`
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (N-A with the reason above)
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove plan/release/fixes/spec-fetched-data-survives-restart.md` only, in the same `./le commit create` script
