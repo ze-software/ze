@@ -1,9 +1,8 @@
 # 26 Report the Go runtime traceback hexdump throw to golang/go
 
 One job: report a Go runtime bug upstream, correctly. An AI found the bug,
-diagnosed it and wrote the fix. The report says Thomas traced it to its root
-cause working with an AI assistant and that the problem was reproduced and
-tested, and it does not describe the method. A wrong or inflated
+diagnosed it and wrote the fix. The report says Thomas used an AI assistant to
+do all the legwork, and it does not describe the method. A wrong or inflated
 report would cost Thomas credibility with the Go team, so every sentence in
 it is something observed in a run or read in the Go source, and what is not
 established is listed as such. Nothing is posted to GitHub until Thomas has
