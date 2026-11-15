@@ -1,18 +1,18 @@
 # Contributing to Ze
 
-Ze takes code, documentation, bug reports, and real-world interop reports. The repositories are public, the issue tracker is public, and development happens in the open.
+Contributions to Ze can be code, documentation, bug reports, or results from trying it with other routers. Development happens in the public repository and issue tracker.
 
 **Code**
 
-## Fix the thing you can reproduce
+## Contribute a fix
 
-Small, well-proven changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and test coverage that catches real behavior.
+Small, tested changes are welcome: parser fixes, command output fixes, protocol edge cases, docs corrections, and tests that detect incorrect behavior.
 
 **Evidence**
 
 ## Bring a trace, lab, or transcript
 
-Interop reports, QEMU runs, failing `.ci` transcripts, and browser captures are useful because they show exactly what broke and what should be checked next.
+Reports of tests with other routers, QEMU test results, failing `.ci` test logs, and browser captures are useful because they show exactly what broke and what should be checked next.
 
 **Care**
 
@@ -24,7 +24,7 @@ If an unauthenticated peer can trigger it, or if it can escalate access, use the
 
 **Hard requirement**
 
-### No signed CLA, no merge.
+### Every contribution requires a sign-off.
 
 Contributions require signing off commits with `git commit -s`, which signifies agreement to Ze's [Contributor License Agreement](https://github.com/ze-software/ze/blob/main/CLA.md).
 
@@ -32,13 +32,13 @@ You keep your copyright. What you grant is a broad, non-exclusive license for th
 
 **Why this exists**
 
-It keeps the project legally movable. Ze itself stays AGPLv3 for everyone, and the CLA avoids tracking down every past contributor if a commercial license ever helps the project reach more people.
+The CLA lets the maintainer offer a commercial license without seeking fresh permission from every past contributor. Ze remains available to everyone under AGPLv3.
 
 ## How Ze is funded
 
 **Stewardship**
 
-### Backed work, public project
+### Supported by Exa Networks
 
 Ze is currently developed by Thomas Mangin, with his time on the project supported by [Exa Networks](https://exa.net.uk). There is no subscription tier, no paid support contract, and no separate commercial entity behind it today.
 
@@ -48,4 +48,4 @@ Ze is currently developed by Thomas Mangin, with his time on the project support
 
 - [Issues **Browse or file a bug** Use this for reproducible problems, missing docs, and clear feature gaps.](https://github.com/ze-software/ze/issues)
 - [Repository **GitHub is the source repository** Development moved off Codeberg in July 2026. Clone, issues and pull requests all live on GitHub.](https://github.com/ze-software/ze)
-- [Discussion **Ask before guessing** There is no formal good-first-issue program yet. Ask where help is most useful right now.](https://discord.gg/T8s7CjPDne)
+- [Discussion **Discuss a contribution** There is no formal good-first-issue program yet. Ask where help is most useful right now.](https://discord.gg/T8s7CjPDne)

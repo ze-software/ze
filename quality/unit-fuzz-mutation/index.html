@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Quality</span>
     <h1 id="local-go-tests-fuzzing-and-gomu">Local Go Tests, Fuzzing, and gomu</h1>
-    <p>Use this page for the local Go test layer: named <code>_test.go</code> cases, race runs, coverage, fuzz targets, and gomu mutation testing. These checks are one system. They all ask whether package-level behavior is proved well enough before the slower gates run.</p>
+    <p>This page covers package tests in Go and ways to examine their coverage and assertions. Named <code>_test.go</code> cases establish expected results, fuzz targets try more inputs, and gomu changes the code to see whether the tests detect a mistake. Race runs check for unsafe concurrent access.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
@@ -55,7 +55,7 @@
 <li><a href="#example-tests">Example tests</a></li>
 <li><a href="#fuzz-targets-are-still-tests">Fuzz targets are still tests</a></li>
 <li><a href="#gomu-checks-assertion-strength">gomu checks assertion strength</a></li>
-<li><a href="#choosing-the-proof">Choosing the proof</a></li>
+<li><a href="#choosing-the-test">Choosing the test</a></li>
 </ol></details></nav><div class="doc-body">
 <!-- source: ../main/internal/le/testunit/actions.go -- unit test actions -->
 <!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
@@ -75,7 +75,7 @@
 <tr><td>Coverage report</td><td>Which branches ran without a strong assertion attached?</td><td><code>go test -coverprofile coverage.out ./path/...</code></td></tr>
 </tbody>
 </table>
-<p>Fuzzing without a clear rule is just random input. gomu without real assertions only proves that code was executed. The normal example test gives both tools something precise to extend.</p>
+<p>Fuzzing needs an assertion that should hold across its generated inputs. Mutation testing needs assertions that distinguish correct behavior from the deliberate mistake. A named example test is a useful starting point for both.</p>
 <h2 id="example-tests">Example tests</h2>
 <p>A normal unit test is the right tool when the behavior sits inside one package or a small group of production types. Good targets are wire encoders, parsers, state machines, validation helpers, route selection, command formatting, and error paths. If the behavior only exists after a daemon starts, a browser renders, or the Linux kernel answers, use <code>.ci</code>, <code>.wb</code>, <code>.et</code>, or QEMU instead.</p>
 <table>
@@ -87,7 +87,7 @@
 <tr><td>Plugin group</td><td><code>./le test unit plugins</code></td><td>Runtime plugin logic and plugin boundaries.</td></tr>
 <tr><td>Config group</td><td><code>./le test unit config</code></td><td>YANG, config parsing, validation, and rendering.</td></tr>
 <tr><td>CLI group</td><td><code>./le test unit cli</code></td><td>Command parsing and user-visible formatting.</td></tr>
-<tr><td>All unit groups</td><td><code>./le test unit</code></td><td>Local unit gate.</td></tr>
+<tr><td>All unit groups</td><td><code>./le test unit</code></td><td>Run every unit test group.</td></tr>
 </tbody>
 </table>
 <h2 id="fuzz-targets-are-still-tests">Fuzz targets are still tests</h2>
@@ -103,25 +103,25 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false
 ./le test mutation record report mutation-report.json
 </code></pre>
-<p>This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.</p>
+<p>Fuzzing and mutation testing expose different weaknesses. Fuzzing may find an input the author overlooked, while gomu may show that an existing assertion accepts an incorrect result. Using both helps reviewers examine what the tests actually establish.</p>
 <table>
 <thead><tr><th>gomu result</th><th>Meaning</th><th>Response</th></tr></thead>
 <tbody>
 <tr><td>Killed</td><td>The test suite noticed the changed behavior.</td><td class="cell-no">✕</td></tr>
 <tr><td>Survived</td><td>The tests still passed after a code mutation.</td><td>Add a stronger assertion, add a functional test, or classify the mutation as equivalent.</td></tr>
-<tr><td>Timed out</td><td>The package or test is too slow for the current mutation settings.</td><td>Narrow the package or skip mutation where it does not add signal.</td></tr>
+<tr><td>Timed out</td><td>The package or test is too slow for the current mutation settings.</td><td>Test a smaller package or skip mutation testing where it provides no useful result.</td></tr>
 </tbody>
 </table>
-<p>gomu runs through <code>go run</code>, so no separate install is needed. <code>.gomuignore</code> excludes paths where mutation testing is noisy or not useful. Full mutation runs are slower than unit tests and advisory in release evidence, but a survived mutation in changed code deserves a real decision.</p>
-<h2 id="choosing-the-proof">Choosing the proof</h2>
+<p>gomu runs through <code>go run</code>, so no separate install is needed. <code>.gomuignore</code> excludes paths where mutation testing produces misleading results or is not useful. Full mutation runs are slower than unit tests and do not determine whether a release passes, but a change that the tests fail to detect still needs review.</p>
+<h2 id="choosing-the-test">Choosing the test</h2>
 <table>
-<thead><tr><th>Change</th><th>First proof</th><th>Strengthen it with</th></tr></thead>
+<thead><tr><th>Change</th><th>Starting test</th><th>Strengthen it with</th></tr></thead>
 <tbody>
 <tr><td>Pure parser or encoder</td><td>Normal test with exact input and output.</td><td>Fuzz target for malformed inputs and gomu for assertion strength.</td></tr>
 <tr><td>State machine or route decision</td><td>Normal test for transition or selected result.</td><td>Race run if goroutines are involved.</td></tr>
-<tr><td>Error handling</td><td>Normal test that asserts the error shape.</td><td>gomu if changing a condition could silently pass.</td></tr>
+<tr><td>Error handling</td><td>Normal test that checks the error type and message.</td><td>gomu if changing a condition could silently pass.</td></tr>
 <tr><td>Malformed external input</td><td>Fuzz target seeded with known examples.</td><td>Corpus regression when a failure is found.</td></tr>
-<tr><td>Process or UI behavior</td><td>Functional transcript.</td><td>Normal tests only for helper logic behind the surface.</td></tr>
+<tr><td>Process or UI behavior</td><td>Functional transcript.</td><td>Normal tests for the helper functions used by the process or interface.</td></tr>
 </tbody>
 </table>
 </div>
@@ -138,7 +138,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
                     </a>
                     <a class="page-sidebar-link" href="../../quality/verify-debugging/">
                         <span class="page-sidebar-link-label">Verify debugging</span>
-                        <small>How failed checks route to evidence.</small>
+                        <small>How to investigate failed checks using their logs.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -157,7 +157,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

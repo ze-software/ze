@@ -17,7 +17,7 @@ Label Distribution Protocol (RFC 5036): MPLS label distribution
 
 ## Dependencies
 
-- Required: [`fib-kernel`](../fib-kernel/index.md), [`sysctl`](../sysctl/index.md)
+- Required: [`sysctl`](../sysctl/index.md)
 - Optional: None
 
 ## Used by

@@ -10,10 +10,14 @@ Ze keeps a local structured audit log for operator actions that change state or 
 | `config-discard` | SSH/CLI config editor, web config editor (the Discard button, the web terminal and the CLI bar, `discard <path>` included), REST config sessions, gRPC config sessions. A `rollback` in the SSH editor or the web terminal also writes one |
 | `config-download` | web `GET /config/download` |
 | `config-upload` | web `POST /config/upload`, once the uploaded config is applied |
-| `daemon-reload` | SIGHUP and `daemon reload` command dispatch |
+| `daemon-reload` | SIGHUP, and `request reload` through the daemon on any surface |
+| `data-key-change` | `delete data key` and `update data key` through the daemon on any surface, which `ze data rm` and `ze data write` also send while ze runs |
+| `data-config-import` | `update data config` through the daemon on any surface, which `ze data import` also sends while ze runs. The detail holds the name and the placeholder in place of the content |
 | `auth-fail` | SSH, web, REST, gRPC, MCP |
 
 Each entry has `timestamp`, `actor`, `remote-addr`, `surface`, `action`, `detail`, and `outcome` fields. `detail` carries the config diff for commit and discard records when Ze has one.
+
+A daemon command records an entry only when it succeeds: a refused or failed command records nothing. Its `detail` is the command line as typed, with every credential value and the value after `content` replaced by `<redacted>`, so a key's bytes never reach the log.
 
 A discard record's `detail` lists only the changes that discard dropped. `discard <path>` keeps your changes outside that path, so they are not in its record, and they appear in the commit record that later applies them. One exception: the SSH editor's diff lines carry no path, so when two places hold the same pending line (two peers both changed to the same hold time, say) and `discard <path>` drops one of them, the SSH record can also name the line you kept. The web records are exact. A whole discard run with nothing pending still writes a record, with an empty `detail`, on every surface, so the trail shows every discard an operator ran. A rollback record's `detail` is the rollback itself (the command in the web terminal, `rollback <backup>` in the SSH editor), a download record's is the file name, and an upload record's is `uploaded configuration`.
 
@@ -27,6 +31,8 @@ A discard record's `detail` lists only the changes that discard dropped. `discar
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->
+<!-- source: internal/component/plugin/server/command.go -- recordCommandAudit -->
+<!-- source: internal/component/config/storage/cli/register_data_rpc.go -- data-key-delete AuditAction -->
 
 ## Storage
 
@@ -34,8 +40,16 @@ For a daemon started from a real config file, the audit log is stored next to th
 
 The in-memory query cache keeps the newest records up to the configured retention limit in code. The default is 10,000 entries, with accepted bounds from 100 to 100,000.
 
-<!-- source: cmd/ze/hub/audit.go -- defaultAuditPath and openAuditLog -->
+Each record rewrites the file. When a write fails (a full disk, a directory ze
+cannot write), the action still goes ahead and the record stays in memory;
+`show doctor` reports `doctor-audit-record-failed` with the file, the error,
+the time and how many writes failed, whichever surface wrote. The next write
+that lands rewrites the file with every record still held, and the row clears.
+
+<!-- source: cmd/ze/hub/audit.go -- defaultAuditPath and openAuditLog, which publishes the log -->
 <!-- source: internal/core/audit/audit.go -- retention bounds -->
+<!-- source: internal/core/audit/write_outcome.go -- WriteFailure, PublishedWriteFailure -->
+<!-- source: internal/component/doctor/checks_audit.go -- checkAuditRecordFailed -->
 <!-- source: internal/core/audit/store.go -- JSON-lines persistence -->
 
 ## Querying

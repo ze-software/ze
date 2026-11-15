@@ -172,6 +172,9 @@
     <loc>https://ze-software.net/guides/add-path/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/guides/ai-agent/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/guides/anomaly/</loc>
   </url>
   <url>
@@ -241,6 +244,9 @@
     <loc>https://ze-software.net/guides/debugging-tools/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/guides/docker/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/guides/environment-variables/</loc>
   </url>
   <url>
@@ -305,6 +311,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/guides/mrt-analysis/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/guides/netlab/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/guides/operations/</loc>
@@ -1558,6 +1567,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-vrrp-statistics-all/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/create-agent-skill/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/create-bgp-peer/</loc>
   </url>
   <url>
@@ -1600,7 +1612,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/debug-ospf-inject-enable/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-agent-skill/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/delete-bgp-peer/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-data-key/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/delete-debug-module/</loc>
@@ -1774,6 +1792,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-data-backup/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-data-repair/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-data-restore/</loc>
   </url>
   <url>
@@ -1841,6 +1862,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-peer-teardown/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-plugin-restart/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-quiesce/</loc>
@@ -1946,6 +1970,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-aaa-accounting/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-agent-context/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-agent-skill/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-announcements/</loc>
@@ -2165,6 +2195,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-data-cat/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-data-check/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-data-list/</loc>
@@ -2915,6 +2948,12 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-peer-prefix/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-data-config/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-data-key/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-firewall-domain-group/</loc>

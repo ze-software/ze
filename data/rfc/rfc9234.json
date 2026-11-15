@@ -8,10 +8,13 @@
   "must": {
     "total": 19,
     "kept": 19,
-    "ze-proven": 11,
+    "ze-proven": 12,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 8,
+    "proof-pending": 4,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 3,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -21,15 +24,16 @@
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "not-ever": 0,
-    "not-yet": 0,
-    "not-decided": 4,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 4,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
     "functional": 5,
     "interop": 1,
-    "unit": 5
+    "unit": 6
   },
   "unmet": [
     "RFC9234-5-7",

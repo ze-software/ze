@@ -3,17 +3,19 @@ Ze, an OpenNOS
 # A network OS.
 *A platform for immutable services.*
 
-Plugin extensible Appliance option ExaBGP compatible
+Self-contained Extend with plugins Appliance option ExaBGP compatible
 
-Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.
+Ze is built on a [configuration and plugin engine](https://ze-software.net/architecture/), with [pre-installed plugins](https://ze-software.net/reference/plugins/) for [BGP](https://ze-software.net/guides/bgp-peering/), [OSPF](https://ze-software.net/guides/ospf/), [IS-IS](https://ze-software.net/guides/isis/), [VPNs](https://ze-software.net/guides/ipsec/), [interfaces](https://ze-software.net/features/interfaces/), [DNS](https://ze-software.net/features/dns-resolver/), [DHCP](https://ze-software.net/reference/plugins/dhcpserver/) and [other network functions](https://ze-software.net/features/). Its single [YANG-defined configuration](https://ze-software.net/reference/configuration/) can be managed through Ze’s own [SSH server, CLI](https://ze-software.net/features/cli-commands/), [web interface](https://ze-software.net/features/web-interface/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/). You can [develop your own plugins in any programming language](https://ze-software.net/developers/plugins/) and run Ze as a [Linux daemon](https://ze-software.net/guides/ubuntu-build-install/) or an [appliance with a read-only operating system](https://ze-software.net/guides/appliance/).
 
- Route and connect Speak [BGP](https://ze-software.net/guides/bgp-peering/), [ISIS](https://ze-software.net/guides/isis/) and [OSPF](https://ze-software.net/guides/ospf/). Manage [interfaces](https://ze-software.net/features/interfaces/) and tunnels with [IPsec VPN](https://ze-software.net/guides/ipsec/) and [WireGuard](https://ze-software.net/features/interfaces/#wireguard-configuration). Program the [FIB](https://ze-software.net/reference/plugins/fib-kernel/). Manage one configuration Ze exposes one [YANG](https://ze-software.net/features/bgp-configuration/)-modeled configuration through its own built-in SSH server, [web interface](https://ze-software.net/features/web-interface/), [CLI](https://ze-software.net/features/cli-commands/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/): [REST](https://ze-software.net/guides/api/#rest-endpoints), [gRPC](https://ze-software.net/guides/api/#grpc-services) and [gNMI](https://ze-software.net/guides/gnmi/).
+[Why Ze exists →](https://ze-software.net/project/why-ze/) · Ask questions and follow development on [Discord](https://discord.gg/T8s7CjPDne).
 
-Built on a configuration and protocol engine. Run it as a [daemon](https://ze-software.net/architecture/) or an [immutable appliance](https://ze-software.net/guides/appliance/).
+ [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) [Watch the demos](https://ze-software.net/demos/terminal/)
 
- [Try the BGP quickstart](https://ze-software.net/guides/quickstart/) [Watch the demos](https://ze-software.net/demos/terminal/) **Ze / showcase.terminal**[Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **One running router, eight live configuration topics**
+Linux service or immutable appliance. No stable release yet.
 
-Watch Ze at work: follow a real terminal lab, with its transcript alongside it.
+**Ze / showcase.terminal**[Read transcript](https://ze-software.net/demos/terminal/#continuous-live-configuration-showcase) **One running router, eight live configuration topics**
+
+Watch ExaBGP migration, inspect BGP peers, then configure, diagnose and repair services without restarting Ze. The transcript includes the commands and their output.
 
  [Watch the other demos →](https://ze-software.net/demos/terminal/)
 
@@ -29,7 +31,7 @@ Captured for the June 2026 LINX talk.
 
 **Ze / Web configuration**[Open full size ↗](https://ze-software.net/assets/demos/web-config.webp?v=dd251ea02c) [![Ze web configuration showing the system identity form with the committed hostname edge-demo](https://ze-software.net/assets/demos/web-config.webp?v=dd251ea02c)](https://ze-software.net/assets/demos/web-config.webp?v=dd251ea02c) **Configure Ze in your browser.**
 
-Edit a setting, review its diff, commit the draft and verify the active value.
+Edit a setting, review the changes, apply them and check the active value.
 
  [Explore the web interface →](https://ze-software.net/features/web-interface/#browser-configuration-workflow)
 
@@ -51,73 +53,18 @@ Inspect BGP sessions from Ze’s own CLI.
 
 A frame from the published terminal recording. Explore the recordings in the demo gallery.
 
- [**Why Ze exists** Learn how Ze came to be.](https://ze-software.net/project/why-ze/) [**Watch a demo** Discover the web interface.](https://ze-software.net/features/web-interface/#browser-configuration-workflow) [**Search the site**Docs and commands.](https://ze-software.net/search/) [**Join Discord**Ask questions, get help.](https://discord.gg/T8s7CjPDne) [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
+Ze is built on a configuration and protocol engine. It keeps a single configuration, defined in [YANG](https://ze-software.net/features/bgp-configuration/), which you manage through its own built-in SSH server, [web interface](https://ze-software.net/features/web-interface/), [CLI](https://ze-software.net/features/cli-commands/), [MCP](https://ze-software.net/features/mcp-integration/) and [APIs](https://ze-software.net/features/api-commands/): [REST](https://ze-software.net/guides/api/#rest-endpoints), [gRPC](https://ze-software.net/guides/api/#grpc-services) and [gNMI](https://ze-software.net/guides/gnmi/). You can extend Ze with plugins for automation and services of your own, and run it as a [background service (daemon)](https://ze-software.net/architecture/) or as an [appliance with a read-only operating system](https://ze-software.net/guides/appliance/).
 
-Expected initial release: Q4 2026.
- No stable release yet.
+ [![Zeledon, the Ze bird mascot](https://ze-software.net/assets/zeledon.svg)](https://ze-software.net/zeledon/)
 
- [Protocol-agnostic core](https://ze-software.net/architecture/) [YANG per subsystem](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+**Planned release** Initial version
+Q4 2026
 
-## Latest news
-
- [All updates](https://ze-software.net/project/changes/) Engineering note
-
-### [Keeping documentation in step with the code](https://ze-software.net/blog/reference-from-the-system/)
-
-Ze generates command, configuration and support reference data from the code and its records, so the…
-
- Recently shipped
-
-### [2026-10-25 – 2026-11-09 (16 days)](https://ze-software.net/project/changes/2026-10-25/)
-
-This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…
-
- RFC compliance progress
-
-### [Every MUST-level requirement, and what proves it](https://ze-software.net/quality/rfc-compliance/)
-
-One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
-
-## Regression prevention
-
-Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work. Ze is written with AI agents working under a quality process based on ISO management systems; [how Ze is developed with AI](https://ze-software.net/project/ai-development/) explains it.
-
- [See completion by use case](https://ze-software.net/quality/rfc-compliance/profiles/) [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**45.3% RFC MUSTs tested**
-
-- 2,153 of 4,752 MUSTs Ze and the OS owe, in walked RFCs Ze implements
-- Across 196 RFCs, 0 not walked yet
-- Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included
-- Tests tied to requirements
-
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**42,800+ Go tests**
-
-- Check encoded bytes and parsed values.
-- Verify config, state transitions and plugins.
-- gomu checks whether tests catch code changes.
-
- Go tests and mutation checks.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,800+ end-to-end tests**
-
-- Start sessions and exchange route updates.
-- Run editor commands, commits and reloads.
-- Check output, errors and saved state.
-
- Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**97 fuzz targets**
-
-- Generate inputs for parsers and decoders.
-- Probe packets and config text for crashes.
-- Replay saved failures as regression cases.
-
- Fuzz inputs and regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**13 interop test images**
-
-- Peer CLIs check sessions and route exchange.
-- BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP.
-- Separate labs: IPsec, L2TP, PPPoE, RADIUS.
-
- Docker scenarios and peer checks.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
+ [**1.66 million** lines of Go source code](https://ze-software.net/project/activity/) [**1.98 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.00 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Why Ze?
 
-Ze brings BGP, Linux interfaces and FIB programming together with network services and plugins in one open-source platform. Use the same configuration model and tools in a lab, as a daemon or as an appliance, with policy data, generated references and test evidence available alongside them.
+Ze brings BGP, Linux interfaces and forwarding-table management together with network services and plugins in one open-source platform. Use the same configuration model and tools in a lab, as a daemon or as an appliance, with routing policy data, reference pages generated from the code and test results available alongside them.
 
 ### Manage Ze directly.
 
@@ -142,13 +89,13 @@ Playback starts at the SSH introduction (0:36) in the full recorded session. Use
 
 ### [Reasons to consider Ze](https://ze-software.net/project/why-ze/)
 
-Start here for the selling points: powerful CLI, operator protocols, in-engine IRR filtering, PeeringDB data, looking glass APIs, one YANG model, and when to choose another NOS instead.
+The overview explains the CLI and operator protocols, in-engine IRR filtering, PeeringDB data, looking glass APIs and shared YANG model. It also describes when another NOS may be a better choice.
 
 **Runtime**
 
-### [Small core, registered subsystems](https://ze-software.net/architecture/)
+### [A small core shared by each subsystem](https://ze-software.net/architecture/)
 
-The core holds the supervisor, message bus, config provider, and plugin manager. BGP and interface management register into it.
+The core manages background tasks, messages between components, configuration and plugins. BGP and interface management connect to these shared services.
 
 **Routing**
 
@@ -158,45 +105,157 @@ The shipped daemon speaks BGP, manages Linux interfaces, programs the FIB, and s
 
 **Modular**
 
-### [Plugins keep their own contract](https://ze-software.net/reference/plugins/)
+### [Extend Ze with plugins](https://ze-software.net/reference/plugins/)
 
 Plugins can be compiled Go modules or external processes. Compiled modules load their YANG into the daemon validator; external plugins can expose their model through `ze schema`.
 
-## Documentation that matches the code.
+## Latest news
 
-Read the generated references before you run Ze.
+ [All updates](https://ze-software.net/project/changes/) Engineering note
 
-The same YANG schema and command definitions drive Ze and its references. Each website build brings changes into the documentation, including configuration supplied by plugins.
+### [Keeping documentation in step with the code](https://ze-software.net/blog/reference-from-the-system/)
+
+Ze generates public reference from its code and records, with links to the decisions behind them. Operators…
+
+ Recently shipped
+
+### [2026-10-25 – 2026-11-09 (16 days)](https://ze-software.net/project/changes/2026-10-25/)
+
+This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…
+
+ RFC compliance progress
+
+### [Mandatory RFC requirements and their test evidence](https://ze-software.net/quality/rfc-compliance/)
+
+One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
+
+ Evidence for your decision
+
+## Tests that catch bugs
+
+Go tests, complete operator scenarios, generated inputs and exchanges with other implementations cover different kinds of failure. These figures show the inventory and the evidence behind it.
+
+ By use case
+
+### Start with the role you have in mind.
+
+Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.
+
+ [See completion by use case →](https://ze-software.net/quality/rfc-compliance/profiles/) [How Ze is tested](https://ze-software.net/quality/)Watch the configuration demo Standards requirements
+
+### Mandatory RFC requirements proven
+
+45.2%
+
+2,149 of 4,752 requirements for Ze or the OS.
+
+**196**RFCs implemented **0**unreviewed requirement lists excluded
+
+Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.
+
+**Counting history**
+
+Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.
+
+ [Standards requirements and test results →](https://ze-software.net/quality/rfc-compliance/) Tests with other implementations
+
+### Interoperability scenarios
+
+399
+
+BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.
+
+**8**lab suites **13**test images listed BIRDFRRGoBGPOpenBGPD freeRouterRustyBGPrustbgpdStayRTR keepaliveddnsmasqKeaKnot DNSUnbound
+
+These test images are reused across many scenarios. Other labs and tools use additional images, including pmacct.
+
+A scenario can contain many checks, and many scenarios reuse the same peer implementation. These counts describe the inventory, not current passing runs or individual assertions.
+
+ [Docker scenarios and peer checks →](https://ze-software.net/quality/qemu-interop-release/#docker-interop) The scenarios behind the figure
+
+### Where the 399 scenarios are defined.
+
+ [Explore the BGP lab →](https://ze-software.net/labs/bgp-interop/)
+
+| Protocol or test area | Scenarios | What the cases cover |
+| --- | --- | --- |
+| BGP | 142 | Route exchange, path attributes, graceful restart, route reflection, route-server and session cases. |
+| OSPFv2 | 36 | Adjacencies, authentication, areas, LSAs, route policy and recovery. |
+| OSPFv3 | 20 | IPv6 adjacencies, address families, IPv4 over OSPFv3, IPsec protection and recovery. |
+| IS-IS | 16 | Adjacencies, authentication, levels, metrics, route policy and convergence. |
+| BFD | 5 | Sessions, link-local peers and simple-password authentication. |
+| BMP | 4 | Route monitoring, local-RIB export, receivers and statistics. |
+| RPKI / RTR | 3 | Route-origin validation and validator-cache sessions and preference. |
+| VRRP | 2 | Mastership and VRRPv2 address-owner cases. |
+| DNS | 2 | Resolver forwarding and DNS service for DHCP clients. |
+| DHCPv4 | 3 | Renewal, rebinding, NAK handling and shared-segment server cases. |
+| DHCPv6 | 2 | Client confirmation and renewal against Kea. |
+| LDP | 3 | Session backoff, unknown TLVs and keepalive expiry. |
+| AS112 | 6 | Anycast route announcements, communities, origin attributes and redistribution. |
+| GTSM | 1 | TTL protection for ICMP errors related to a protected BGP session. |
+| IPsec | 85 | Tunnel negotiation, authentication and recovery scenarios. |
+| L2TP | 13 | Access tunnels, sessions and PPP cases. |
+| PPPoE | 16 | Client and access-session scenarios. |
+| RADIUS | 12 | Operator login, authorization, subscriber accounting, CoA and disconnect cases. |
+| RSVP-TE | 10 | Transit, label and signaling scenarios. |
+| Multi-node topologies | 18 | Links, routes and service interactions between nodes. |
+| All scenarios | 399 | Each scenario is counted once by its primary protocol or test area, including cases that exercise several protocols. |
+
+ Package behavior
+
+### Go tests
+
+45,600+
+
+Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
+
+[Go tests and mutation checks →](https://ze-software.net/quality/unit-fuzz-mutation/) Visible behavior
+
+### End-to-end tests
+
+2,900+
+
+Start sessions and exchange route updates. Run editor commands, commits and reloads. Check output, errors and saved state.
+
+[Scenarios and expected results →](https://ze-software.net/quality/functional-ci/) Generated inputs
+
+### Fuzz targets
+
+100+
+
+Generate inputs for parsers and decoders. Probe packets and configuration text for crashes. Replay saved failures as regression cases.
+
+[Fuzz inputs and regression cases →](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests)
+
+Ze is written with AI agents working under a quality process based on ISO management systems. [How Ze is developed with AI](https://ze-software.net/project/ai-development/) explains the process.
+
+ Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
+
+## Capabilities and current limitations.
+
+Feature pages explain behavior and limits. The [maturity record](https://ze-software.net/reference/feature-status/) separates available code from the evidence still needed before a feature can be recommended for production.
 
 **Configuration**
 
-### The full YANG tree
+**The YANG tree** Settings for the documented build, including plugins →
 
-Browse every configuration setting in the documented build, including the settings supplied by plugins.
-
- [Configuration reference](https://ze-software.net/reference/configuration/)
-
+[Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-### Command syntax and help
+**509 CLI commands** Syntax, arguments and pipe operators →
 
-Find commands, arguments and pipe operators from the same definitions that supply Ze's built-in help.
-
- [CLI reference](https://ze-software.net/reference/cli/)
-
+[Open page](https://ze-software.net/reference/cli/)
 **Plugins**
 
-### Plugins and dependencies
+**96 registered plugins** Purpose, dependencies, configuration roots and source →
 
-Explore registered plugins, their dependencies, configuration roots and the source that implements them.
+[Open page](https://ze-software.net/reference/plugins/)
 
- [Plugin catalogue](https://ze-software.net/reference/plugins/)
+The configuration and command references come from the definitions used by Ze itself. When those definitions change, the next website build updates the reference, including settings supplied by plugins.
 
 ### Explore features by category
 
  [Operate (6)](https://ze-software.net/features/#operate) [Routing (9)](https://ze-software.net/features/#routing) [Services (9)](https://ze-software.net/features/#services) [Automate (7)](https://ze-software.net/features/#automate) [Observe (9)](https://ze-software.net/features/#observe) [Secure (6)](https://ze-software.net/features/#secure) [Setup (6)](https://ze-software.net/features/#platform)
-
-Open a feature for its behavior and limitations, and [check its maturity](https://ze-software.net/reference/feature-status/) before choosing a deployment.
 
 ### Operate
 
@@ -224,40 +283,59 @@ Open a feature for its behavior and limitations, and [check its maturity](https:
 
 ### Setup
 
- [ISO and PXE Install](https://ze-software.net/guides/ze-install/) [Kernel Tunables](https://ze-software.net/features/) [Minimal Appliance Mode](https://ze-software.net/guides/appliance/) [Runs Itself](https://ze-software.net/features/introspection/) [Docker Support](https://ze-software.net/features/) [Feature Gates](https://ze-software.net/guides/quickstart/) [View setup features →](https://ze-software.net/features/#platform)
+ [ISO and PXE Install](https://ze-software.net/guides/ze-install/) [Kernel Tunables](https://ze-software.net/features/) [Minimal Appliance Mode](https://ze-software.net/guides/appliance/) [Runs Itself](https://ze-software.net/features/introspection/) [Docker Support](https://ze-software.net/features/) [Choose Features at Build Time](https://ze-software.net/guides/quickstart/) [View setup features →](https://ze-software.net/features/#platform)
 
-## Run it as a lab,
-daemon, or appliance.
+**Find the right page**
 
-The same binary and configuration support each path, from a [netlab topology](https://ze-software.net/labs/netlab/) or BGP interop lab to spare hardware.
+### Keep the reference close.
 
-**Lab**
+The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.
 
-### [Run reproducible labs](https://ze-software.net/labs/bgp-interop/)
+ [Open documentation →](https://ze-software.net/docs/) [Browse the feature catalogue →](https://ze-software.net/features/)
 
-The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.
+## Choose how to try Ze.
 
-`netlab` `containerlab` `Docker` `FRR` `BIRD` `GoBGP` Run BGP lab BGP interop
+A local BGP lab is the simplest starting point. If you already run ExaBGP or want a different deployment, follow the path that matches your setup.
 
-**Daemon**
+ Local labStart here
 
-### [Run as a daemon](https://ze-software.net/guides/quickstart/)
+### Exchange your first routes.
 
-Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.
+Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.
 
-`Existing Linux` `systemd-ready` Quickstart two BGP peers
+**Success check**Both sessions establish and each peer receives the other peer’s advertised prefix.
 
-**Appliance**
+ [Open the two-peer quickstart](https://ze-software.net/guides/quickstart/) ExaBGP migration
 
-### [Run as an appliance](https://ze-software.net/guides/ze-install/)
+### Try an existing configuration.
 
-A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.
+Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.
 
-`gokrazy image` `Read-only root filesystem` Install guide PXE, ISO, or Ventoy
+**Success check**Validate the converted configuration and verify your sessions and script behavior in a lab.
+
+ [Explore migration](https://ze-software.net/use-cases/exabgp-migration/) Linux or Docker
+
+### Keep your existing host.
+
+Install the Linux service or build the Docker deployment image with persistent storage. The guides cover authenticated management, updates and removal; the Linux host keeps its existing interface configuration.
+
+**Success check**Connect to authenticated management and check that your configuration survives the documented restart or container recreation.
+
+ [Linux service →](https://ze-software.net/guides/ubuntu-build-install/)[Docker →](https://ze-software.net/guides/docker/) VM or appliance
+
+### Give Ze its own system.
+
+Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-only root and persistent configuration. The guide covers ISO installation, authenticated SSH, updates and previous-slot recovery.
+
+**Availability**Source builds produce disk images and installer ISOs. No public image release is available yet.
+
+ [Explore the appliance](https://ze-software.net/guides/appliance/) **Other ways to evaluate** [netlab and containerlab](https://ze-software.net/guides/netlab/) [Explore a supplied topology](https://ze-software.net/labs/netlab/) [BGP interoperability labs](https://ze-software.net/labs/bgp-interop/) [Test with an AI agent](https://ze-software.net/guides/ai-agent/) [Explore the CLI](https://ze-software.net/reference/cli/) [Publish a looking glass](https://ze-software.net/guides/public-looking-glass/) [Compare all deployment paths →](https://ze-software.net/guides/ze-install/#choose-a-deployment-path)
+
+The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.
 
 ## Safe ways to try Ze before the first release.
 
-Ze is early enough that routing feedback can still change the system. These cards give each reader a low-risk starting point.
+Feedback from trying Ze can still influence its design. A lab, a migrated ExaBGP script or spare hardware gives you a way to try it before relying on it in production.
 
 **Lab**
 
@@ -266,6 +344,14 @@ Ze is early enough that routing feedback can still change the system. These card
 Network builders can bring up two BGP peers, inspect routes, and check whether Ze's operator tools fit their workflow.
 
 `Quickstart` `BGP peers` Quickstart two peer lab
+
+**AI agent**
+
+### [Test with an AI agent](https://ze-software.net/guides/ai-agent/)
+
+Use Claude Code or Codex to check a lab configuration and explore Ze's commands. ze create agent skill installs instructions that match your installed version.
+
+`Claude Code` `Codex` Use Ze with an AI agent ze create agent skill
 
 **Migration**
 
@@ -307,30 +393,31 @@ MCP exposes Ze commands and structured output to AI tools without a separate com
 
 `MCP` `CLI catalogue` AI via MCP same command catalogue
 
-## First paths for routing feedback.
+## Getting started with Ze.
 
-The BGP lab, ExaBGP migration, and appliance install are good starting points.
+You can start with the BGP lab, try your ExaBGP configuration, or install the appliance on spare hardware.
 
 ```
 # build from source
 $ git clone https://github.com/ze-software/ze.git
-$ cd ze && make build
+$ cd ze && ./ze version
 
-# set up credentials and configure
-$ bin/ze init
-$ bin/ze config import router.conf
+# copy the supplied local lab configuration
+$ mkdir -p lab/r1 lab/r2
+$ cp examples/quickstart/r1.conf lab/r1/ze.conf
+$ cp examples/quickstart/r2.conf lab/r2/ze.conf
 
-# start
-$ bin/ze start
+# one peer in each terminal
+$ ./ze start lab/r1/ze.conf
+$ ./ze start lab/r2/ze.conf
 
-# from another terminal
-$ bin/ze cli -c "show bgp peer list"
-$ bin/ze cli -c "monitor event"
+# inspect received routes from a third terminal
+$ ZE_SSH_PASSWORD=lab ./ze cli --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"
 ```
 
 `Good starting points`
 
-A lab peer, a migrated ExaBGP config, or a looking-glass instance can produce useful reports from people who know routing operations.
+The [complete two-peer tutorial](https://ze-software.net/guides/quickstart/) explains the local lab credentials, success checks and cleanup. If you already run BGP, trying a lab peer, an ExaBGP configuration or a looking glass can help you judge how Ze fits your network. Reports of what went wrong help us improve it.
 
 - [BGP interop lab FRR, BIRD, and GoBGP in Docker](https://ze-software.net/labs/bgp-interop/)
 - [ExaBGP migration try an existing config and process script](https://ze-software.net/use-cases/exabgp-migration/)
@@ -340,7 +427,7 @@ A lab peer, a migrated ExaBGP config, or a looking-glass instance can produce us
 
 ## Recent engineering notes.
 
-Update reports come from git history and Discord's `ze-news`. They stay specific and technical.
+The update reports describe changes recorded in git and shared in Discord's `ze-news` channel.
 
 **Update**
 
@@ -381,4 +468,4 @@ Start where a mistake cannot affect a live network.
 - **BGP lab:** Exercise Ze against FRR, BIRD, and GoBGP without touching a production router.
 - **Migration:** Try the ExaBGP migration path against an existing config before changing automation.
 - **Appliance:** Boot Ze on spare hardware with the same binary and configuration model as daemon mode.
-- **Source:** Read the code, generated docs, RFC gate, and test evidence before deciding where Ze belongs.
+- **Source:** Read the code, generated docs, standards checks, and test results before deciding where Ze belongs.

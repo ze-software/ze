@@ -1040,6 +1040,11 @@ CAP_NET_ADMIN. When the config asks for no IPv6 check, the netlink backend
 therefore accepts that refusal with a warning, so an unprivileged ze still
 applies its interfaces. A config that asks for an IPv6 check still fails
 without the capability.</p>
+<p>The table name is reserved for the reverse-path check: a firewall table named
+<code>iface_rpf</code> (kernel name <code>ze_iface_rpf</code>) is refused at verify, naming the
+owner <code>iface-rpf</code>, because the firewall backend and the reverse-path check
+would each delete and recreate the shared table.</p>
+<!-- source: internal/plugins/iface/netlink/register_tables.go -- rpfTableName, rpfTableOwner -->
 <table>
 <thead>
 <tr>
@@ -1337,12 +1342,17 @@ cases, <code>hoplimit</code>/<code>tclass</code>/<code>encaplimit</code> only in
 remote endpoints use the same <code>local { ip ... } remote { ip ... }</code> shape as the
 BGP peer connection block, with <code>local { interface ... }</code> as an alternative when
 the source should be taken from another interface. The remote is mandatory and
-must be a specific address: the netlink backend refuses <code>0.0.0.0</code> and <code>::</code>,
-because the kernel decapsulator matches the outer source address against the
-remote, and an unspecified remote accepts packets from any source (RFC 4213
-Section 3.6 requires the decapsulator to verify the tunnel source).</li>
+must be a specific address, on every tunnel kind: config verify refuses
+<code>0.0.0.0</code> and <code>::</code> (and a remote that is not an address), so <code>ze config validate</code> and a commit refuse it on either backend, naming the <code>set interface tunnel &lt;name&gt; encapsulation &lt;kind&gt; remote ip &lt;address&gt;</code> command that fixes it.
+The decapsulator matches the outer source address against the remote, and an
+unspecified remote accepts packets from any source (RFC 4213 Section 3.6
+requires the decapsulator to verify the tunnel source). The netlink and VPP
+backends run the same check again before they program a tunnel.</li>
 </ul>
+<!-- source: internal/component/iface/tunnel.go -- TunnelSpec.CheckRemote -->
+<!-- source: internal/component/iface/config.go -- parseTunnelEntry -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- parseTunnelRemote -->
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- tunnelEndpoints -->
 <ul>
 <li><strong>Idempotent cleanup.</strong> Delete and mirror removal succeed even if already gone.</li>
 <li><strong>The mirror shares its qdisc, so it owns only its filters.</strong> Mirroring attaches a
@@ -2189,13 +2199,18 @@ fail-closed (exact-or-reject).</p>
 </tr>
 <tr>
 <td><code>interface/addr-added</code></td>
-<td>RTM_NEWADDR (DAD complete), and once for every address the kernel holds when the monitor starts</td>
+<td>Usable address added, initial netlink dump, or retained address replay</td>
 <td>name, unit, index, address, prefix-length, family, origin</td>
 </tr>
 <tr>
 <td><code>interface/addr-removed</code></td>
-<td>RTM_DELADDR</td>
+<td>Address removed, or its interface deleted</td>
 <td>name, unit, index, address, prefix-length, family, origin</td>
+</tr>
+<tr>
+<td><code>interface/address-replay-request</code></td>
+<td>Consumer requests the active monitor's current usable addresses</td>
+<td>none</td>
 </tr>
 <tr>
 <td><code>interface/dhcp-acquired</code></td>
@@ -2229,7 +2244,37 @@ an IPv6 address again when its lifetimes change), so a consumer that counts
 addresses keys them by identity: <code>connected</code> keeps the set of addresses that
 cover each prefix, not a count of events.</p>
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+<p>Links and addresses reach the monitor on two netlink subscriptions, and nothing
+orders one against the other: an interface created and addressed straight away
+(<code>ip link add</code>, then <code>ip addr add</code>) can deliver its address before the monitor
+has read the link. The monitor then asks the kernel for that link by index and
+announces the address under its name, so the address is not lost; the link's
+own update still announces <code>interface/created</code> and its state afterwards. An
+address whose link the kernel no longer holds is not announced, since its link
+deletion follows. Any other failure of that lookup leaves the address
+unannounced until it changes, so the monitor logs it at WARN and raises a
+<code>doctor-iface-address-unattributed</code> error naming the address, the index and
+the kernel's error, with the commands that add the address again.</p>
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- resolveAddrLink, handleAddrUpdate -->
+<!-- source: internal/plugins/iface/netlink/monitor_report_linux.go -- reportAddressUnattributed -->
 <!-- source: internal/plugins/connected/connected.go -- routeObserver.prefixes, handleAddrAdded, handleAddrRemoved -->
+<p>A late subscriber emits <code>interface/address-replay-request</code> after subscribing
+to the address events. The active monitor publishes its retained addresses as
+ordinary <code>addr-added</code> events. Replay and live changes share one publication
+order, so a removed address cannot return from an older snapshot. Requests
+coalesce while a replay is pending. A request starts no backend and has no
+answer when the interface provider is inactive.</p>
+<!-- source: internal/core/iface/events/register.go -- AddressReplayRequest -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- run, requestReplay, handleAddrUpdate, handleLinkUpdate -->
+<!-- source: internal/plugins/iface/vpp/monitor.go -- seedAddresses, replayAddresses, emitAddress, handleEvent -->
+<p>The VPP monitor seeds its retained addresses from the interface and address
+API dumps. Monitor startup and complete address changes share a lock, so an
+address changed during startup cannot overwrite the newer state with an older
+dump. Stopping either monitor removes its replay subscription and joins its
+worker before returning.</p>
+<!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor, seedAddresses, stop -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- AddAddress, RemoveAddress -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- run, stop -->
 <p>Neighbor table changes are not a bus topic. These topics come from the
 interface monitor, which starts only when an <code>interface</code> block configures a
 backend, and BGP needs neighbor changes in every config. The interface
@@ -2832,7 +2877,7 @@ under exact-or-reject.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
                 </div>
             </div>
         </footer>

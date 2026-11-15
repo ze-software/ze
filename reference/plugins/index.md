@@ -35,7 +35,7 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 | [`bgp-bmp`](bgp-bmp/index.md) | BMP receiver and sender (RFC 7854, 8671) | `bgp`, `environment/bmp` | None | `internal/component/bgp/plugins/bmp` |
 | [`bgp-capa`](bgp-capa/index.md) | Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) | None | None | `internal/component/bgp/plugins/capa` |
 | [`bgp-epe`](bgp-epe/index.md) | Native BGP Egress Peer Engineering segments | `bgp-epe` | None | `internal/component/bgp/plugins/epe` |
-| [`bgp-gr`](bgp-gr/index.md) | Graceful Restart capability and mechanism plugin | `bgp` | `bgp`, `bgp-rib` | `internal/component/bgp/plugins/gr` |
+| [`bgp-gr`](bgp-gr/index.md) | Graceful Restart capability and mechanism plugin | `bgp` | `bgp`, `bgp-rib`, `policy` | `internal/component/bgp/plugins/gr` |
 | [`bgp-healthcheck`](bgp-healthcheck/index.md) | Service healthcheck plugin with watchdog route control | `bgp` | `bgp`, `bgp-watchdog` | `internal/component/bgp/plugins/healthcheck` |
 | [`bgp-hostname`](bgp-hostname/index.md) | FQDN capability decoding | `bgp` | `bgp` | `internal/component/bgp/plugins/hostname` |
 | [`bgp-llnh`](bgp-llnh/index.md) | Link-Local Next-Hop capability plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/llnh` |
@@ -190,7 +190,7 @@ Generated group for registry entries mapped to the IS-IS area. Config roots: `is
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`isis`](isis/index.md) | Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP | `isis` | `fib-kernel`, `sysctl`, `policy` | `internal/plugins/isis` |
+| [`isis`](isis/index.md) | Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP | `isis` | `sysctl`, `policy` | `internal/plugins/isis` |
 
 ## Interface
 
@@ -230,7 +230,7 @@ Generated group for registry entries mapped to the LDP area. Config roots: `ldp`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ldp`](ldp/index.md) | Label Distribution Protocol (RFC 5036): MPLS label distribution | `ldp` | `fib-kernel`, `sysctl` | `internal/plugins/ldp` |
+| [`ldp`](ldp/index.md) | Label Distribution Protocol (RFC 5036): MPLS label distribution | `ldp` | `sysctl` | `internal/plugins/ldp` |
 
 ## MRT
 
@@ -254,7 +254,7 @@ Generated group for registry entries mapped to the OSPF area. Config roots: `osp
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ospf`](ospf/index.md) | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | `ospf` | `interface`, `fib-kernel`, `sysctl`, `policy` | `internal/plugins/ospf` |
+| [`ospf`](ospf/index.md) | Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP | `ospf` | `interface`, `sysctl`, `policy` | `internal/plugins/ospf` |
 
 ## Policy
 
@@ -271,7 +271,7 @@ Generated group for registry entries mapped to the RIB area. Config roots: `rib`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`rib`](rib/index.md) | System RIB: selects best route across protocols by admin distance | `rib` | `policy` | `internal/component/sysrib` |
+| [`rib`](rib/index.md) | System RIB: resolves authoritative routes and publishes forwarding changes | `rib` | `policy` | `internal/component/sysrib` |
 
 - [`rib`](rib/index.md): Start after `bgp-rib` (order only).
 ## RSVP TE
@@ -280,7 +280,7 @@ Generated group for registry entries mapped to the RSVP TE area. Config roots: `
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`rsvp-te`](rsvp-te/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `interface`, `fib-kernel`, `sysctl` | `internal/plugins/rsvpte` |
+| [`rsvp-te`](rsvp-te/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `interface`, `sysctl` | `internal/plugins/rsvpte` |
 
 ## Redistribute
 
@@ -348,7 +348,7 @@ Generated group for registry entries mapped to the VPN area. Config roots: `vpn`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ike`](ike/index.md) | IKEv2 engine for native IPsec VPN | `vpn` | None | `internal/component/ike/engine` |
+| [`ike`](ike/index.md) | IKEv2 engine for native IPsec VPN | `vpn` | `firewall` | `internal/component/ike/engine` |
 
 ## VPP
 

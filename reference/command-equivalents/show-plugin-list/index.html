@@ -64,9 +64,9 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
-<div><dt>Column order</dt><dd>name, description, outcome, families, rfcs, capabilities, reason</dd></div>
+<div><dt>Column order</dt><dd>name, description, outcome, families, rfcs, capabilities, config-roots, dependencies, optional-dependencies, start-after, features, yang, nlri-decoder, nlri-encoder, reason</dd></div>
 </dl>
-<h3>Description</h3><p>Each row carries the plugin name, what it does, the address<br>families it handles, the RFCs it implements, the BGP capability codes it owns,<br>the setup outcome its own init() recorded (succeeded, soft-failure,<br>hard-failure or unknown) and the reason the plugin gave. A plugin that<br>recorded nothing is listed as unknown, never omitted, and a plugin that<br>recorded and then did not register keeps its row.<br>The outcome replays a past event: it was recorded once, before main(),<br>and this command reads it back. &#39;show health&#39; answers the other question,<br>by running a probe now and reporting what the daemon is doing at this<br>moment.</p>
+<h3>Description</h3><p>Each row carries the plugin name, what it does, the address<br>families it handles, the RFCs it implements, the BGP capability codes it owns,<br>the config roots that load it, the plugins it depends on, uses when present or<br>starts after, its features, whether it carries a YANG schema, an NLRI decoder<br>or an NLRI encoder, the setup outcome its own init() recorded (succeeded, soft-failure,<br>hard-failure or unknown) and the reason the plugin gave. A plugin that<br>recorded nothing is listed as unknown, never omitted, and a plugin that<br>recorded and then did not register keeps its row.<br>The outcome replays a past event: it was recorded once, before main(),<br>and this command reads it back. &#39;show health&#39; answers the other question,<br>by running a probe now and reporting what the daemon is doing at this<br>moment.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -133,7 +133,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

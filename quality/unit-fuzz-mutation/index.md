@@ -1,6 +1,6 @@
 # Local Go Tests, Fuzzing, and gomu
 
-Use this page for the local Go test layer: named `_test.go` cases, race runs, coverage, fuzz targets, and gomu mutation testing. These checks are one system. They all ask whether package-level behavior is proved well enough before the slower gates run.
+This page covers package tests in Go and ways to examine their coverage and assertions. Named `_test.go` cases establish expected results, fuzz targets try more inputs, and gomu changes the code to see whether the tests detect a mistake. Race runs check for unsafe concurrent access.
 
 ## The local test loop
 
@@ -14,7 +14,7 @@ Start with a normal Go test. It names the behavior and fixes the expected result
 | Race run | Does the behavior still hold when goroutines are scheduled differently? | `./le test unit` |
 | Coverage report | Which branches ran without a strong assertion attached? | `go test -coverprofile coverage.out ./path/...` |
 
-Fuzzing without a clear rule is just random input. gomu without real assertions only proves that code was executed. The normal example test gives both tools something precise to extend.
+Fuzzing needs an assertion that should hold across its generated inputs. Mutation testing needs assertions that distinguish correct behavior from the deliberate mistake. A named example test is a useful starting point for both.
 
 ## Example tests
 
@@ -28,7 +28,7 @@ A normal unit test is the right tool when the behavior sits inside one package o
 | Plugin group | `./le test unit plugins` | Runtime plugin logic and plugin boundaries. |
 | Config group | `./le test unit config` | YANG, config parsing, validation, and rendering. |
 | CLI group | `./le test unit cli` | Command parsing and user-visible formatting. |
-| All unit groups | `./le test unit` | Local unit gate. |
+| All unit groups | `./le test unit` | Run every unit test group. |
 
 ## Fuzz targets are still tests
 
@@ -52,22 +52,22 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
 ./le test mutation record report mutation-report.json
 ```
 
-This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.
+Fuzzing and mutation testing expose different weaknesses. Fuzzing may find an input the author overlooked, while gomu may show that an existing assertion accepts an incorrect result. Using both helps reviewers examine what the tests actually establish.
 
 | gomu result | Meaning | Response |
 | --- | --- | --- |
 | Killed | The test suite noticed the changed behavior. | No action needed. |
 | Survived | The tests still passed after a code mutation. | Add a stronger assertion, add a functional test, or classify the mutation as equivalent. |
-| Timed out | The package or test is too slow for the current mutation settings. | Narrow the package or skip mutation where it does not add signal. |
+| Timed out | The package or test is too slow for the current mutation settings. | Test a smaller package or skip mutation testing where it provides no useful result. |
 
-gomu runs through `go run`, so no separate install is needed. `.gomuignore` excludes paths where mutation testing is noisy or not useful. Full mutation runs are slower than unit tests and advisory in release evidence, but a survived mutation in changed code deserves a real decision.
+gomu runs through `go run`, so no separate install is needed. `.gomuignore` excludes paths where mutation testing produces misleading results or is not useful. Full mutation runs are slower than unit tests and do not determine whether a release passes, but a change that the tests fail to detect still needs review.
 
-## Choosing the proof
+## Choosing the test
 
-| Change | First proof | Strengthen it with |
+| Change | Starting test | Strengthen it with |
 | --- | --- | --- |
 | Pure parser or encoder | Normal test with exact input and output. | Fuzz target for malformed inputs and gomu for assertion strength. |
 | State machine or route decision | Normal test for transition or selected result. | Race run if goroutines are involved. |
-| Error handling | Normal test that asserts the error shape. | gomu if changing a condition could silently pass. |
+| Error handling | Normal test that checks the error type and message. | gomu if changing a condition could silently pass. |
 | Malformed external input | Fuzz target seeded with known examples. | Corpus regression when a failure is found. |
-| Process or UI behavior | Functional transcript. | Normal tests only for helper logic behind the surface. |
+| Process or UI behavior | Functional transcript. | Normal tests for the helper functions used by the process or interface. |

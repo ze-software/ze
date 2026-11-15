@@ -8,10 +8,13 @@
   "must": {
     "total": 102,
     "kept": 102,
-    "ze-proven": 26,
+    "ze-proven": 32,
     "os-verified": 0,
     "os-gap": 50,
-    "ze-gap": 26,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 20,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -21,13 +24,14 @@
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "not-ever": 0,
-    "not-yet": 0,
-    "not-decided": 108,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 108,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 26
+    "unit": 32
   },
   "unmet": [
     "RFC5280-4.1.2.4-1",
@@ -38,8 +42,6 @@
     "RFC5280-4.2.1.10-1",
     "RFC5280-4.2.1.10-3",
     "RFC5280-4.2.1.10-5",
-    "RFC5280-4.2.1.12-1",
-    "RFC5280-4.2.1.12-2",
     "RFC5280-4.2.1.4-1",
     "RFC5280-4.2.1.4-2",
     "RFC5280-4.2.1.4-3",
@@ -48,11 +50,7 @@
     "RFC5280-4.2.1.6-8",
     "RFC5280-4.2.1.6-9",
     "RFC5280-5-1",
-    "RFC5280-5.2-1",
-    "RFC5280-5.2.5-1",
-    "RFC5280-5.3-1",
     "RFC5280-6.1-1",
-    "RFC5280-6.1.3-1",
     "RFC5280-6.3-1",
     "RFC5280-7.1-2",
     "RFC5280-7.2-1"

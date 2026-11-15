@@ -57,6 +57,7 @@
 <li><a href="#supported-rpcs">Supported RPCs</a>
 <ol>
 <li><a href="#sensitive-values">Sensitive values</a></li>
+<li><a href="#when-set-is-refused">When Set is refused</a></li>
 <li><a href="#when-a-call-meets-an-internal-defect">When a call meets an internal defect</a></li>
 </ol></li>
 <li><a href="#cli-status">CLI Status</a></li>
@@ -108,6 +109,23 @@ ze.gnmi.tls.key=/path/to/key.pem
 }
 </code></pre>
 <p>TLS certificates are loaded once at startup. Certificate rotation requires restarting the gNMI server.</p>
+<p>Naming either file asks for TLS, and gNMI then serves TLS or nothing. It never
+falls back to clear text. When only one of the two files is set, when a file
+cannot be read, or when the certificate and key are not a valid pair, gNMI
+does not start: nothing listens on its port, and Ze logs an error naming the
+file, why, and the fix. The rest of the daemon keeps running. Restore the file
+or correct <code>environment gnmi tls cert</code> / <code>key</code> (or <code>ze.gnmi.tls.cert</code> /
+<code>ze.gnmi.tls.key</code>), then run <code>ze signal restart</code>: a reload does not restart
+gNMI.</p>
+<p>The error carries the code <code>doctor-gnmi-tls-material</code>, and <code>ze doctor</code> reports
+the same cause before the daemon starts: its <code>gnmi-tls-material</code> check loads
+the pair gNMI would serve, environment overrides included, and names the file,
+why, and the fix. It also reports a certificate that is expired or not yet
+valid as an error, and one within 30 days of expiry as a warning. It reports nothing when gNMI does not
+start or names no TLS file. <code>ze show diagnostic doctor-gnmi-tls-material</code>
+explains the code.</p>
+<!-- source: internal/component/gnmi/doctor.go -- checkGNMITLSMaterial, gnmiTLSDoctorCheck -->
+<!-- source: internal/component/config/loader_extract.go -- GNMIStarts, GNMITLSPaths -->
 <h2 id="supported-rpcs">Supported RPCs</h2>
 <table>
 <thead>
@@ -156,6 +174,21 @@ back with Set leaves the config file unchanged.</p>
 <!-- source: internal/component/gnmi/set.go -- publishedUpdate -->
 <!-- source: internal/component/cli/editor_commands.go -- decodeSecretValue, keepStoredSecret -->
 <!-- source: internal/component/config/secret_text.go -- EncodeSecrets, SecretValueAtPath, DecodeSecretText -->
+<h3 id="when-set-is-refused">When Set is refused</h3>
+<p>An update the session refuses (a path the schema does not hold, a list key
+outside its type) ends the Set with status <code>InvalidArgument</code>, and nothing it
+carried is applied. A refused key's message is the refusal Ze prints on every
+surface, unchanged, so its last line is the fix. A session refusal that carries
+no fix of its own is answered with the path, the cause, and a fix that says to
+send the Set again with a path and a value the schema accepts.</p>
+<p>A value the schema refuses (outside an enumeration, a range, a length or a
+format) is refused when the Set commits: the status is <code>Aborted</code>, the message
+starts <code>commit: config validation failed:</code>, and each refusal follows as its own
+block, ending with the <code>set</code> command from the root that fixes it. The shape of
+each block is
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">Value refusals</a>.</p>
+<!-- source: internal/component/gnmi/set.go -- Set, applyUpdate, updateRefusal -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ValidateContent -->
 <h3 id="when-a-call-meets-an-internal-defect">When a call meets an internal defect</h3>
 <p>Every call and every Subscribe stream runs behind a panic boundary, outside the
 token check. If a Ze defect is reached while one is served, only that call or
@@ -238,6 +271,10 @@ and <code>ze_gnmi_errors_total{code="Internal"}</code>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -267,7 +304,7 @@ and <code>ze_gnmi_errors_total{code="Internal"}</code>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 09:31 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

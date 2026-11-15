@@ -52,7 +52,7 @@ Areas: BGP, OSPF, Flowspec, Redistribution, ExaBGP Migration, Security, IPsec, R
 
 ## [2026-08-24 – 2026-08-30 (1 week)](2026-08-24/index.md)
 
-Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.
+Fixing the remaining standards compliance gaps was the plan for the week. Instead, most of the time went on build and test tooling: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Output formatting also moved from flags to pipe operators, and a TACACS+ authentication bypass was fixed.
 
 Areas: CLI, BGP, Flowspec, RSVP-TE, VRRP, PPPoE, IPsec, TACACS+, AAA, Config, Firewall, Fleet, RFC Compliance, Quality Improvement
 
@@ -100,7 +100,7 @@ Areas: IPsec, DNS, L2TP, PPPoE, DDoS, VPP, Web UI, RADIUS, RBAC, Looking Glass, 
 
 ## [2026-07-01 – 2026-07-06 (6 days)](2026-07-01/index.md)
 
-Work landed across DNS, traffic security, routing, and the CLI this week.
+This week's changes cover DNS, traffic security, routing, and the CLI.
 
 Areas: DNS, Anomaly Detection, BGP, OSPF, Redistribution, MPLS, CLI, Security, VPP, Under the Hood
 
@@ -118,7 +118,7 @@ Areas: Web UI, BGP, IS-IS, OSPF, Telemetry, Feature Gates, Installer, Kernel
 
 ## [2026-06-15 – 2026-06-21 (1 week)](2026-06-15/index.md)
 
-Native IS-IS landed, MPLS gained fast reroute, and firewall rules can now pull straight from the IRR.
+Ze gained native IS-IS, MPLS gained fast reroute, and firewall rules can now use prefixes from the IRR.
 
 Areas: CLI, BGP, Flowspec, IS-IS, MPLS, RSVP-TE, Firewall, Appliance, Installer, Interfaces
 
@@ -136,7 +136,7 @@ Areas: CLI, Config, BGP, RPKI, L2TP, MRT, Appliance, Installer, Quality Improvem
 
 ## [2026-05-25 – 2026-05-31 (1 week)](2026-05-25/index.md)
 
-MPLS grew a full label-switching stack, flow export and gNMI landed, and config commits became transactional.
+MPLS gained a full label-switching stack, flow export and gNMI were added, and configuration commits became transactional.
 
 Areas: CLI, Config, BGP, LDP, MPLS, RSVP-TE, gNMI, Flow Export, Appliance, Installer
 
@@ -154,7 +154,7 @@ Areas: Web UI, BGP, MPLS, RPKI, CPE, DHCP, PPPoE, Telemetry, Interfaces, Under t
 
 ## [2026-05-04 – 2026-05-10 (1 week)](2026-05-04/index.md)
 
-Two major subsystems landed this week: a fleet management tool for appliances, and a PPPoE access concentrator alongside VPP-backed NAT and ACLs.
+Ze gained a fleet management tool for appliances and a PPPoE access concentrator this week, alongside VPP-backed NAT and ACLs.
 
 Areas: BNG, PPP, PPPoE, RADIUS, Diagnostics, Firewall, Appliance, Fleet, Kernel, VPP
 
@@ -190,13 +190,13 @@ Areas: CLI, Config, BGP, Graceful Restart, DHCP, DNS, Plugins, Looking Glass, In
 
 ## [2026-03-23 – 2026-03-29 (1 week)](2026-03-23/index.md)
 
-A full web interface, fleet management, redistribution filtering, and a stack of routing-protocol correctness work all landed together.
+A web interface, fleet management and redistribution filtering were added, alongside fixes to routing protocol behavior.
 
 Areas: Web UI, BGP, Redistribution, DNS, MCP, Plugins, Telemetry, Security, Fleet, Performance
 
 ## [2026-03-16 – 2026-03-22 (1 week)](2026-03-16/index.md)
 
-RPKI route origin validation landed in full, alongside a wave of BGP RFC compliance work, CLI polish, and daemon security hardening.
+RPKI route origin validation was added, alongside improvements to BGP standards compliance, the CLI, and daemon security.
 
 Areas: CLI, YANG, BGP, Graceful Restart, RPKI, Plugins, Security, Interop
 
@@ -208,7 +208,7 @@ Areas: CLI, Config, Config Editor, Graceful Restart, Telemetry, RBAC, Security, 
 
 ## [2026-03-02 – 2026-03-08 (1 week)](2026-03-02/index.md)
 
-Best-path selection landed, along with outbound route tracking and a round of CLI/editor polish.
+Ze gained best-path selection and outbound route tracking, alongside improvements to the CLI and editor.
 
 Areas: CLI, Config Editor, BGP, Graceful Restart, Quality Improvement, Under the Hood
 
@@ -268,7 +268,7 @@ Areas: CLI, Config, Config Editor, BGP, Flowspec, MPLS, Route Server, Security, 
 
 ## [2025-12-22 – 2025-12-28 (1 week)](2025-12-22/index.md)
 
-Work on the BGP engine itself: route encoding correctness, session robustness, and a first real API surface for driving peers programmatically.
+This week's BGP engine changes improve route encoding and session reliability, and introduce an API for controlling peers from other programs.
 
 Areas: BGP, Flowspec, API, Plugins, Quality Improvement
 

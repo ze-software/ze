@@ -2,7 +2,7 @@ Protocol lab
 
 # BGP Protocol Interop
 
-Ze's BGP engine against real FRR, BIRD, and GoBGP, scenario by scenario.
+These scenarios test Ze's BGP engine by exchanging routes with FRR, BIRD, and GoBGP.
 
 ## Two ways to test Ze.
 
@@ -12,9 +12,9 @@ Use the Ze interop harness for protocol assertions, or netlab for reusable multi
 
 ### [Protocol interop scenarios](https://ze-software.net/architecture/testing/interop/)
 
-Run 151 curated scenarios. 142 of them drive a real FRR, BIRD, or GoBGP daemon. The harness starts only the required daemons and checks behavior through each peer's own CLI.
+The shared routing and network-service suite has 245 scenarios, including 142 primary BGP cases. BGP external-peer scenarios start only the required FRR, BIRD, or GoBGP daemons and check behavior through each peer's own CLI.
 
-`151 scenarios` `FRR` `BIRD` `GoBGP` Use the Ze harness scenario assertions
+`245 shared-suite scenarios` `FRR` `BIRD` `GoBGP` Use the Ze harness scenario assertions
 
 **netlab**
 
@@ -26,23 +26,23 @@ Describe a three-node topology in YAML. netlab renders Ze configuration and star
 
 A Docker orchestrator launches Ze and one or more peer daemons on an isolated network, establishes real BGP sessions, and asserts correct behavior through each daemon's own CLI (`vtysh`, `birdc`, `gobgp`). Daemons start conditionally per scenario, so each run only spins up what it needs.
 
-151 scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path, Route Refresh, Graceful Restart, Route Server, standard and extended communities, MD5 auth, BGP Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD strict mode, update delay, ECMP, SRv6, RPKI, BMP, max-prefix, GTSM, AS112, VRRP against keepalived, and OSPF/IS-IS interop with FRR.
+The shared suite’s 245 routing and network-service scenarios include eBGP/iBGP, 4-byte ASN, IPv6, Add-Path, Route Refresh, Graceful Restart, Route Server, standard and extended communities, MD5 auth, BGP Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD strict mode, update delay, ECMP, SRv6, RPKI, BMP, max-prefix, GTSM, AS112, VRRP against keepalived, and OSPF/IS-IS interop with FRR.
 
-- **Proves:** Real BGP sessions against production daemon implementations, not mocks
+- **Proves:** BGP session and route behavior observed through the peer daemons' own commands
 - **Peers:** Real FRR, BIRD, and GoBGP, in Docker containers
-- **Requires:** Docker and ~1.5 GB disk for daemon images
+- **Requires:** Docker on a kernel with Ze's required features; see the kernel setup in the interop guide
 - **Source:** [docs/architecture/testing/interop.md](https://ze-software.net/architecture/testing/interop/)
 
 ```
-# all 151 scenarios
-$ ./le integration interop
+# all BGP interop scenarios
+$ ./le test integration interop
 
 # single scenario, verbose
-$ INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le integration interop
+$ INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le test integration interop
 ```
 
 `Prerequisites`
 
-Docker only, no QEMU path. Set `FRR_IMAGE` to pin a different FRR version, or `NO_BUILD=1` to skip rebuilding images on repeat runs.
+Docker runs the peer containers. On Linux, the harness checks the daemon kernel before starting Ze. On macOS, it uses Ze's Colima profile. The [interop guide](https://ze-software.net/architecture/testing/interop/) explains these prerequisites and the QEMU Docker guest. Set `FRR_IMAGE` to pin a different FRR version, or `NO_BUILD=1` to skip rebuilding images on repeat runs.
 
 - [test/interop/ lab source](https://github.com/ze-software/ze/tree/main/test/interop)

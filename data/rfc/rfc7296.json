@@ -8,10 +8,13 @@
   "must": {
     "total": 234,
     "kept": 234,
-    "ze-proven": 87,
+    "ze-proven": 89,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 147,
+    "proof-pending": 145,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -21,14 +24,16 @@
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "not-ever": 0,
-    "not-yet": 0,
-    "not-decided": 5,
+    "proof-pending": 2,
+    "exclusion-unchecked": 0,
+    "not-assessed": 3,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
     "functional": 1,
-    "unit": 86
+    "interop": 1,
+    "unit": 87
   },
   "unmet": []
 }

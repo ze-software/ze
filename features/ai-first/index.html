@@ -63,7 +63,11 @@ read structured output while helping an operator use or debug the system.</p>
 <li><a href="#cli-commands-as-the-api-surface">CLI commands as the API surface</a></li>
 <li><a href="#self-describing-command-reference">Self-Describing Command Reference</a></li>
 <li><a href="#structured-diagnostics">Structured Diagnostics</a></li>
-<li><a href="#bundled-skills">Bundled Skills</a></li>
+<li><a href="#bundled-skills">Bundled Skills</a>
+<ol>
+<li><a href="#setting-an-agent-up">Setting an agent up</a></li>
+<li><a href="#session-context">Session context</a></li>
+</ol></li>
 <li><a href="#development-time-discovery">Development-Time Discovery</a></li>
 <li><a href="#mcp-transport">MCP Transport</a></li>
 <li><a href="#what-makes-this-different">What Makes This Different</a></li>
@@ -136,6 +140,21 @@ Where a repair is available, its diagnostic can carry a stable repair ID and a
 safety label such as <code>format-only</code>, <code>section-local</code>, <code>behavior-preserving</code> or
 <code>requires-human-review</code>. A diagnostic does not always have an automatic repair.</p>
 <!-- source: internal/component/config/cli/cmd_fix.go -- resolveFixPlan -->
+<p>A doctor diagnostic can also carry <code>fix</code>: the command or config statement the
+operator runs to clear the problem, held alone with no label of its own. It is
+not a repair ID and carries no safety label. The <code>ze doctor</code> text report draws
+it on a line of its own under the finding, opened by <code>fix:</code>, and JSON carries
+it under <code>fix</code> when the check names one. An entry of <code>show errors</code> and
+<code>show warnings</code> carries the same <code>fix</code> key when its producer named the
+command, and <code>show doctor</code>'s row for that event shows it as the fix line.</p>
+<!-- source: internal/core/diagnostic/types.go -- Diagnostic -->
+<!-- source: internal/component/doctor/doctor.go -- outputText, outputJSON -->
+<!-- source: internal/core/report/report.go -- Issue -->
+<p>A transient code a component raises on the report bus (a plugin process that
+ended unasked, a refused plugin request) is registered by its owner as an
+event code, so <code>ze show diagnostic &lt;code&gt;</code> describes it and <code>show doctor</code>
+reports the event under it.</p>
+<!-- source: internal/core/diagnostic/event_codes.go -- RegisterEventCode, EventCodes -->
 <h2 id="bundled-skills">Bundled Skills</h2>
 <pre><code>ze show skills
 ze show skill ze-diagnostics
@@ -151,6 +170,99 @@ example describes the implemented behavior.</p>
 flag leaf <code>full</code>, as in <code>show skill ze full</code>; the local <code>--full</code> means the same.</p>
 <!-- source: internal/plugins/skills/yang/ze-skills-cmd.yang -- leaf full -->
 <!-- source: internal/plugins/skills/main.go -- showSkill -->
+<h3 id="setting-an-agent-up">Setting an agent up</h3>
+<p>These commands set an AI coding agent up to use Ze. For the step-by-step
+how-to, with the command's output and the Codex trust step, see
+<a href="../../guides/ai-agent/">Use Ze with an AI agent</a>; this section is the reference.</p>
+<pre><code>ze create agent skill
+ze show agent skill
+ze delete agent skill
+</code></pre>
+<p>At a shell, <code>ze create agent skill</code> writes a stub skill named <code>ze</code> for each
+agent harness it finds under the home directory: Claude Code's own
+<code>~/.claude/skills/ze/SKILL.md</code> (under <code>CLAUDE_CONFIG_DIR</code> when that is set),
+and the shared <code>~/.agents/skills/ze/SKILL.md</code> that Codex, OpenCode and Pi
+read. A harness is found when its configuration directory exists
+(<code>~/.claude</code>, <code>~/.codex</code> or <code>CODEX_HOME</code>, <code>~/.config/opencode</code>, <code>~/.pi</code>).
+<code>agent &lt;name&gt;</code> sets up that harness even where its directory does not exist
+yet; with no harness found and none named, the shared stub is written. The
+stub's frontmatter is the <code>ze</code> guide's name and description, its first line
+after that is Ze's marker, and its body tells the agent to run
+<code>ze show skill ze</code>, so the guide always matches the installed binary.</p>
+<p>Ze owns a stub only by that marker line. A second run leaves a current stub
+untouched (<code>unchanged</code>) and rewrites one an older ze wrote (<code>updated</code>); a
+<code>SKILL.md</code> without the marker is left as it is (<code>foreign</code>), with the command
+that replaces it. A link at the <code>ze</code> directory or at its <code>SKILL.md</code> is
+replaced by Ze's own file and its target is left. Anything else Ze did not
+write at that place, such as a file where the <code>ze</code> directory belongs, is left
+as it is (<code>foreign</code>) by every command; a linked skills directory
+(a dotfiles setup) is followed, and the stub is written in the directory it
+points at.</p>
+<p><code>ze show agent skill</code> reports, for every harness the plugin knows, whether it
+was found and the stub's state (<code>current</code>, <code>outdated</code>, <code>missing</code>, <code>foreign</code>),
+and changes nothing. <code>ze delete agent skill</code> removes a stub Ze wrote and its
+emptied directory. Without <code>agent</code> it acts on every harness found, as
+<code>agent all</code> does, and <code>agent &lt;name&gt;</code> limits it to one harness. With
+one harness named, the shared stub stays while another harness found on the
+machine still reads it, and the answer names that harness. Each command
+answers one row per harness and item; the hook rows of OpenCode and Pi answer
+<code>unsupported</code>, because Ze knows no session-start hook format for them.</p>
+<p>For Claude Code and Codex, <code>ze create agent skill</code> also installs a
+session-start hook: in Claude Code's <code>settings.json</code> (under
+<code>CLAUDE_CONFIG_DIR</code> when that is set) and in Codex's <code>hooks.json</code> (under
+<code>CODEX_HOME</code>). Ze appends one group, with no matcher, at the end of
+<code>hooks.SessionStart</code>. The group holds one entry: type <code>command</code>, command
+<code>/bin/sh -c 'ze show agent context 2&gt;/dev/null || true'</code> and a timeout of 5
+seconds. Both harnesses add the hook's output to the agent's context when a
+session starts, and the shell makes the hook print nothing and succeed when
+<code>ze</code> is not on the harness's path. Ze inserts a missing <code>hooks</code> or
+<code>SessionStart</code> key with the group, and creates a missing file, owner-only,
+holding the hook list alone. A group is Ze's when it holds one entry whose
+command runs <code>ze show agent context</code>. A second create leaves Ze's current group
+as it is (<code>unchanged</code>) and rewrites one an older ze wrote, in place
+(<code>updated</code>). Every other group, Rex's included, is never touched.</p>
+<p>Ze splices its group into the file's own text, in the file's own indentation,
+so every byte outside that group stays as it was. It refuses a file it does
+not fully understand and leaves it as it is (<code>refused</code>). That covers text that
+is not valid JSON, a byte-order mark, a second <code>hooks</code> or <code>SessionStart</code> key,
+a <code>hooks</code> value that is not an object, a <code>SessionStart</code> value that is not a
+list, and a group that is not an object. The row then names what was found,
+at which line and column, and says to correct the file or add the hook by
+hand. A linked settings file (a dotfiles setup) is written through to the file
+it finally points at, and the link stays. A dangling link, a link to something
+other than a regular file, and a file or directory Ze cannot write are
+refused. The file keeps its permission bits. Ze writes the new content beside
+the file and replaces the file only if it has not changed since Ze read it.
+Claude Code rewrites its own settings file, and when that happens in between,
+the row is refused and says to run the command again.</p>
+<p>Codex skips a new or changed hook until its user trusts it, and keeps that
+trust in its own <code>config.toml</code>, keyed by the hook's position in the file. Ze
+never writes that store. The Codex row of <code>create</code> says to open Codex, run
+<code>/hooks</code>, and trust the hook. <code>show agent skill</code> reports the hook as
+installed (<code>current</code>, <code>outdated</code>, <code>missing</code> or <code>refused</code>), never whether it
+ran. For Codex it says that Ze cannot see the trust, and how to check it.
+<code>delete agent skill</code> removes Ze's group and its separating comma, and leaves
+an emptied <code>SessionStart</code> list or file as it stands. In Codex's file, a group
+of Ze's that is not the last is emptied in place (<code>{"hooks": []}</code>) instead,
+because removing it would move every group after it and Codex would no longer
+trust them.</p>
+<p>Through the daemon (<code>ze cli</code>, SSH, REST, gRPC, MCP, web) the three commands
+read and write nothing on the daemon's host. They answer the files an agent
+on another machine places or removes in its own home: per harness, the
+default path relative to the home directory, the state <code>not-inspected</code> and,
+for create and show, the stub to write. That stub tells the agent to ask the
+Ze system it is connected to for <code>show skill ze</code> over the connection it
+already uses, and names no local <code>ze</code> command.</p>
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, agentPlan, stubText, localRun, remoteAnswer -->
+<!-- source: internal/plugins/skills/agent_stub.go -- findStub, createStub, inspectStub, removeStub -->
+<!-- source: internal/plugins/skills/agent_hook.go -- hookCommand, createHook, inspectHook, deleteHook, hookEditor, readSettings, readLayout, withGroup, withoutGroup, replace, stillAsRead -->
+<h3 id="session-context">Session context</h3>
+<p><code>ze show agent context</code> prints the Ze version, whether the daemon answered a
+dial bounded to one second, the config directory, and a pointer to
+<code>ze show skill ze</code>, and it always exits 0. It is the command the session-start
+hook <code>ze create agent skill</code> installs runs. Through the daemon it answers the version and
+that the caller reached the daemon, with no directory.</p>
+<!-- source: internal/plugins/skills/agent_context.go -- showAgentContextLocal, handleShowAgentContext -->
 <h2 id="development-time-discovery">Development-Time Discovery</h2>
 <p>Feature, tooling, self-check, verification and test-infrastructure changes
 must update their discovery path in the same work. The standard path is
@@ -198,7 +310,7 @@ the shared dispatcher:</p>
 </tbody>
 </table>
 <!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
-<p>The server builds generated tools from the live command list at <code>tools/list</code>
+<p>The server builds generated tools from the live command list at <code>tools/list</code> <!-- doc-links: ignore (MCP method name, not a path) -->
 time. YANG RPC input metadata supplies typed parameters when it is available;
 groups without typed parameters expose a generic <code>arguments</code> string. Tool
 names and grouping depend on the registered command population, so clients
@@ -268,7 +380,7 @@ references, automation, authorization, audit, and diagnostics.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
                 </div>
             </div>
         </footer>

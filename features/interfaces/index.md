@@ -246,6 +246,12 @@ therefore accepts that refusal with a warning, so an unprivileged ze still
 applies its interfaces. A config that asks for an IPv6 check still fails
 without the capability.
 
+The table name is reserved for the reverse-path check: a firewall table named
+`iface_rpf` (kernel name `ze_iface_rpf`) is refused at verify, naming the
+owner `iface-rpf`, because the firewall backend and the reverse-path check
+would each delete and recreate the shared table.
+<!-- source: internal/plugins/iface/netlink/register_tables.go -- rpfTableName, rpfTableOwner -->
+
 | Family | netlink backend | vpp backend |
 |--------|-----------------|-------------|
 | IPv4 | `net.ipv4.conf.<dev>.rp_filter`, written by the sysctl phase; `ReplaceIPv4RPF` installs nothing more | `urpf_update` on the receive path of the VPP interface (strict or loose), read back with `urpf_interface_dump` so a check no longer configured is turned off. The sysctl still reaches the Linux Control Plane tap, which judges only what VPP punts to the host |
@@ -543,11 +549,18 @@ one `dhcp-expired` for each, and solicits again.
   remote endpoints use the same `local { ip ... } remote { ip ... }` shape as the
   BGP peer connection block, with `local { interface ... }` as an alternative when
   the source should be taken from another interface. The remote is mandatory and
-  must be a specific address: the netlink backend refuses `0.0.0.0` and `::`,
-  because the kernel decapsulator matches the outer source address against the
-  remote, and an unspecified remote accepts packets from any source (RFC 4213
-  Section 3.6 requires the decapsulator to verify the tunnel source).
+  must be a specific address, on every tunnel kind: config verify refuses
+  `0.0.0.0` and `::` (and a remote that is not an address), so `ze config
+  validate` and a commit refuse it on either backend, naming the `set interface
+  tunnel <name> encapsulation <kind> remote ip <address>` command that fixes it.
+  The decapsulator matches the outer source address against the remote, and an
+  unspecified remote accepts packets from any source (RFC 4213 Section 3.6
+  requires the decapsulator to verify the tunnel source). The netlink and VPP
+  backends run the same check again before they program a tunnel.
+<!-- source: internal/component/iface/tunnel.go -- TunnelSpec.CheckRemote -->
+<!-- source: internal/component/iface/config.go -- parseTunnelEntry -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- parseTunnelRemote -->
+<!-- source: internal/plugins/iface/vpp/tunnel.go -- tunnelEndpoints -->
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 - **The mirror shares its qdisc, so it owns only its filters.** Mirroring attaches a
   tc mirred filter at priority 1 to the qdisc at handle `ffff:` on the source
@@ -1194,8 +1207,9 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 | `interface/created` | First RTM_NEWLINK for an index | name, unit, type, index, mtu |
 | `interface/up` | OperUp or OperUnknown+IFF_UP | name, unit, index |
 | `interface/down` | Other oper states or RTM_DELLINK | name, unit, index; deletion also carries type and mtu |
-| `interface/addr-added` | RTM_NEWADDR (DAD complete), and once for every address the kernel holds when the monitor starts | name, unit, index, address, prefix-length, family, origin |
-| `interface/addr-removed` | RTM_DELADDR | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-added` | Usable address added, initial netlink dump, or retained address replay | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-removed` | Address removed, or its interface deleted | name, unit, index, address, prefix-length, family, origin |
+| `interface/address-replay-request` | Consumer requests the active monitor's current usable addresses | none |
 | `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
 | `interface/dhcp-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
@@ -1216,7 +1230,40 @@ an IPv6 address again when its lifetimes change), so a consumer that counts
 addresses keys them by identity: `connected` keeps the set of addresses that
 cover each prefix, not a count of events.
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+
+Links and addresses reach the monitor on two netlink subscriptions, and nothing
+orders one against the other: an interface created and addressed straight away
+(`ip link add`, then `ip addr add`) can deliver its address before the monitor
+has read the link. The monitor then asks the kernel for that link by index and
+announces the address under its name, so the address is not lost; the link's
+own update still announces `interface/created` and its state afterwards. An
+address whose link the kernel no longer holds is not announced, since its link
+deletion follows. Any other failure of that lookup leaves the address
+unannounced until it changes, so the monitor logs it at WARN and raises a
+`doctor-iface-address-unattributed` error naming the address, the index and
+the kernel's error, with the commands that add the address again.
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- resolveAddrLink, handleAddrUpdate -->
+<!-- source: internal/plugins/iface/netlink/monitor_report_linux.go -- reportAddressUnattributed -->
 <!-- source: internal/plugins/connected/connected.go -- routeObserver.prefixes, handleAddrAdded, handleAddrRemoved -->
+
+A late subscriber emits `interface/address-replay-request` after subscribing
+to the address events. The active monitor publishes its retained addresses as
+ordinary `addr-added` events. Replay and live changes share one publication
+order, so a removed address cannot return from an older snapshot. Requests
+coalesce while a replay is pending. A request starts no backend and has no
+answer when the interface provider is inactive.
+<!-- source: internal/core/iface/events/register.go -- AddressReplayRequest -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- run, requestReplay, handleAddrUpdate, handleLinkUpdate -->
+<!-- source: internal/plugins/iface/vpp/monitor.go -- seedAddresses, replayAddresses, emitAddress, handleEvent -->
+
+The VPP monitor seeds its retained addresses from the interface and address
+API dumps. Monitor startup and complete address changes share a lock, so an
+address changed during startup cannot overwrite the newer state with an older
+dump. Stopping either monitor removes its replay subscription and joins its
+worker before returning.
+<!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor, seedAddresses, stop -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- AddAddress, RemoveAddress -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- run, stop -->
 
 Neighbor table changes are not a bus topic. These topics come from the
 interface monitor, which starts only when an `interface` block configures a

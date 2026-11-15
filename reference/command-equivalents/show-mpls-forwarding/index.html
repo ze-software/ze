@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show mpls forwarding - Command Equivalents - Ze</title>
-        <meta name="description" content="Show MPLS forwarding entries installed in the kernel." />
+        <meta name="description" content="Show MPLS forwarding entries installed in the data plane." />
         <meta property="og:title" content="show mpls forwarding - Command Equivalents - Ze" />
-        <meta property="og:description" content="Show MPLS forwarding entries installed in the kernel." />
+        <meta property="og:description" content="Show MPLS forwarding entries installed in the data plane." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show mpls forwarding - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Show MPLS forwarding entries installed in the kernel." />
+        <meta name="twitter:description" content="Show MPLS forwarding entries installed in the data plane." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">show mpls forwarding</h1>
-    <p>Show MPLS forwarding entries installed in the kernel.</p>
+    <p>Show MPLS forwarding entries installed in the data plane.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
@@ -65,11 +65,11 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Each entry shows the incoming label, swap/push/pop operation, and outgoing<br>next-hop. Pass &#39;limit N&#39; to cap large tables. Linux only.</p>
+<h3>Description</h3><p>Each entry shows the incoming label, swap/push/pop operation, and outgoing<br>next-hop. Ze reads the data plane that &#39;interface backend&#39; selects: the kernel MPLS<br>table, or VPP MPLS table 0. Pass &#39;limit N&#39; to cap large tables.</p>
 <h3>Arguments</h3>
 <table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>limit</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of entries.</td><td>The value is a positive integer. Ze returns at most that many
-entries and sets truncated to true when the kernel holds more. Absent, the value
+entries and sets truncated to true when the data plane holds more. Absent, the value
 is 100000.</td></tr>
 </tbody></table>
 </article>
@@ -140,7 +140,7 @@ is 100000.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

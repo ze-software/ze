@@ -58,6 +58,25 @@ Or in YANG config:
 
 TLS certificates are loaded once at startup. Certificate rotation requires restarting the gNMI server.
 
+Naming either file asks for TLS, and gNMI then serves TLS or nothing. It never
+falls back to clear text. When only one of the two files is set, when a file
+cannot be read, or when the certificate and key are not a valid pair, gNMI
+does not start: nothing listens on its port, and Ze logs an error naming the
+file, why, and the fix. The rest of the daemon keeps running. Restore the file
+or correct `environment gnmi tls cert` / `key` (or `ze.gnmi.tls.cert` /
+`ze.gnmi.tls.key`), then run `ze signal restart`: a reload does not restart
+gNMI.
+
+The error carries the code `doctor-gnmi-tls-material`, and `ze doctor` reports
+the same cause before the daemon starts: its `gnmi-tls-material` check loads
+the pair gNMI would serve, environment overrides included, and names the file,
+why, and the fix. It also reports a certificate that is expired or not yet
+valid as an error, and one within 30 days of expiry as a warning. It reports nothing when gNMI does not
+start or names no TLS file. `ze show diagnostic doctor-gnmi-tls-material`
+explains the code.
+<!-- source: internal/component/gnmi/doctor.go -- checkGNMITLSMaterial, gnmiTLSDoctorCheck -->
+<!-- source: internal/component/config/loader_extract.go -- GNMIStarts, GNMITLSPaths -->
+
 ## Supported RPCs
 
 | RPC | Description |
@@ -87,6 +106,24 @@ back with Set leaves the config file unchanged.
 <!-- source: internal/component/gnmi/set.go -- publishedUpdate -->
 <!-- source: internal/component/cli/editor_commands.go -- decodeSecretValue, keepStoredSecret -->
 <!-- source: internal/component/config/secret_text.go -- EncodeSecrets, SecretValueAtPath, DecodeSecretText -->
+
+### When Set is refused
+
+An update the session refuses (a path the schema does not hold, a list key
+outside its type) ends the Set with status `InvalidArgument`, and nothing it
+carried is applied. A refused key's message is the refusal Ze prints on every
+surface, unchanged, so its last line is the fix. A session refusal that carries
+no fix of its own is answered with the path, the cause, and a fix that says to
+send the Set again with a path and a value the schema accepts.
+
+A value the schema refuses (outside an enumeration, a range, a length or a
+format) is refused when the Set commits: the status is `Aborted`, the message
+starts `commit: config validation failed:`, and each refusal follows as its own
+block, ending with the `set` command from the root that fixes it. The shape of
+each block is
+[Value refusals](https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals).
+<!-- source: internal/component/gnmi/set.go -- Set, applyUpdate, updateRefusal -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ValidateContent -->
 
 ### When a call meets an internal defect
 

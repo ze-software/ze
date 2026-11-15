@@ -375,6 +375,18 @@ two sessions edited the same value.</p>
 <p>No-auth REST/gRPC callers cannot create config sessions. Configure a token or
 per-user authentication for API-driven config changes.</p>
 <!-- source: internal/component/api/config_session.go -- ConfigSessionManager -->
+<p>A session refuses a new list key that its YANG type does not accept before
+changing the candidate. The answer lists the accepted keys with their help
+and ends with the complete corrected <code>set</code> command, including the setting
+and value after the key. For example, setting
+<code>ospf.redistribute.bogus.nssa-propagate</code> to <code>true</code> proposes
+<code>fix: set ospf redistribute &lt;connected|static|kernel|bgp|isis&gt; nssa-propagate true</code>.
+REST answers HTTP 400, and gRPC answers <code>InvalidArgument</code>. gNMI <code>Set</code> uses the
+same editor and answers <code>InvalidArgument</code> with the same refusal. A commit
+that refuses a value leaves the running configuration unchanged; the refusal
+follows <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">Value refusals</a>.</p>
+<!-- source: internal/component/cli/editor_commands.go -- SetValue -->
+<!-- source: internal/component/api/config_session.go -- Set, SetSegments -->
 <h3 id="documentation">Documentation</h3>
 <table>
 <thead>
@@ -647,6 +659,10 @@ dispatcher command strings.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -676,7 +692,7 @@ dispatcher command strings.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -107,10 +107,34 @@ it requires one, no selector arrived out of band, and exactly one token is spare
 which is what makes <code>delete bgp peer 127.0.0.1</code> work, and
 <code>create bgp peer 127.0.0.1 asn 65001</code> with it: the keyword-value pairs are
 consumed first, so the address is the one token left over.</p>
-<p>A SECOND fault in the tail leaves more than one spare token, so the selector is
-never bound and the answer says the command "requires a selector" over a line
-that gave one. The row is in
-<code>plan/journal/earlier-guard-hides-the-better-error.md</code>.</p>
+<p>A SECOND fault in the tail (a keyword with no value, a value its leaf refuses,
+a word no leaf takes) leaves the selector unbound, and the answer names that
+fault: <code>create bgp peer 192.0.2.7 asn 65002 router-id</code> says <code>router-id requires a value</code>. The selector guard speaks only when the selector is the one thing
+missing. A line with several faults is refused once, with each fault on a line
+of its own and the fix last, so fixing the first fault does not lead to a
+second refusal for the next one. Each mandatory argument the line leaves out
+is one of those faults, named with the words that supply it, so <code>create bgp peer</code> alone is told both that the selector and that asn are missing, and,
+because nothing else is wrong, is given the whole command to type:</p>
+<pre><code>this command has 2 faults, so Ze did not run it
+Ze runs a command only when every word of it is valid, and each line below is one fault:
+- create bgp peer requires a selector: create bgp peer &lt;selector&gt; (Address of the peer to create)
+- required argument missing: asn, as in 'asn &lt;asn&gt;'
+fix: create bgp peer &lt;selector&gt; asn &lt;asn&gt;
+</code></pre>
+<p>Every route gives the same fix: a plugin's command, a subsystem's, and a
+command answered in the <code>ze</code> process itself (<code>ze &lt;verb&gt;</code> writes the command
+with its <code>ze</code> prefix). A line with a fault in a word it typed keeps the
+general fix:</p>
+<pre><code>this command has 2 faults, so Ze did not run it
+Ze runs a command only when every word of it is valid, and each line below is one fault:
+- invalid value "x", expected unsigned integer
+- router-id requires a value: it is the last word, so nothing follows it to read as its value; write the value right after the keyword, as in 'router-id &lt;router-id&gt;'
+fix: correct each fault listed above, then type the command again
+</code></pre>
+<!-- source: internal/component/plugin/server/command.go -- Dispatch, argFaultOutsideSelector -->
+<!-- source: internal/component/command/argfaults.go -- ArgumentFaults, newArgumentFaults -->
+<!-- source: internal/component/plugin/server/arg_faults.go -- restateArgumentFaults -->
+<!-- source: internal/component/command/argfaults.go -- RestatedForLine -->
 <p>A value that sits BETWEEN two keywords reaches the leaf the model anchored to
 the first of them. A leaf declared on a grouping container carries that
 container's name. That name is the word the operator types the value after, so
@@ -135,8 +159,16 @@ command declares a field that holds an address.</p>
 twenty paths. A plugin process declares the other eleven in its startup
 message: six under <code>show bgp rpki</code>, two under <code>show bgp rs</code>, two under
 <code>show bgp adj-rib-in</code>, and <code>show bgp healthcheck</code>. An undeclared command still
-refuses what it cannot support, from the answer it has in hand, after it runs.</p>
+refuses what it cannot support, from the answer it has in hand, after it runs.
+No operator selects one list out of an answer that holds several, so that
+refusal names the route the CLI does offer: a row operator placed after
+<code>| text</code> acts on the rendered lines.</p>
+<pre><code>match needs rows, and this answer has none: it holds several lists (edges, nodes)
+no pipe operator selects one of these lists, but after '| text' match acts on the rendered lines instead
+fix: | text | match peer/upstream
+</code></pre>
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
+<!-- source: internal/component/command/pipe.go -- rowOperatorRefusal -->
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields, RegisterPluginShapes -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
 <!-- source: internal/component/plugin/server/startup.go -- registerPluginShapes -->
@@ -488,7 +520,7 @@ The daemon retains hook-built SSH through the plugin server's <code>OnStop</code
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

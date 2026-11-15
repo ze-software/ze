@@ -12,36 +12,69 @@
     "github_stars": "https://api.github.com/repos/ze-software/ze",
     "health": "internal/le/test/health.Render, every figure /quality/health/ prints",
     "health_trends": "internal/le/test/health.Render, every trend figure /quality/health/ prints",
-    "interop.scenario_dirs_raw": "website/data/repo-facts.json: git ls-files test/interop/scenarios/, counting the directories git holds a file under",
-    "interop.scenarios": "website/data/repo-facts.json: git ls-files test/interop/scenarios/, counting the directories git holds a file under",
-    "interop.targets": "website/data/repo-facts.json: git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus the FRR image a run names by variable",
+    "interop.protocols.as112": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.bfd": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.bgp": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.bmp": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.dhcpv4": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.dhcpv6": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.dns": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.gtsm": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.ipsec": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.isis": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.l2tp": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.ldp": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.ospfv2": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.ospfv3": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.other": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.pppoe": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.radius": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.rpki": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.rsvpte": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.topology": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.protocols.vrrp": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+    "interop.scenario_dirs_raw": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.scenarios": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suite_count": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-ipsec": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-l2tp": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-pppoe": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-radius": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-radius-subscriber": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-rsvpte": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.suites.interop-topology": "website/data/repo-facts.json: git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions",
+    "interop.targets": "website/data/repo-facts.json: legacy image counter: git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus FRR; excludes pulled pmacct and other suites' images",
     "plugin_registrations": "data/plugin-registry.json, published by this build from the runtime registry",
     "release": "none yet: website/data/github-releases.json states no release (read from https://api.github.com/repos/ze-software/ze/releases)",
     "repo.design_comments": "website/data/repo-facts.json: git ls-files '*.go', counting the file-header annotations",
     "repo.detail_comments": "website/data/repo-facts.json: git ls-files '*.go', counting the file-header annotations",
     "repo.go_packages": "website/data/repo-facts.json: go list ./..., keeping the packages git holds a file for",
+    "repo.go_source_lines": "website/data/repo-facts.json: activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies",
+    "repo.go_test_lines": "website/data/repo-facts.json: activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies",
+    "repo.go_vendor_lines": "website/data/repo-facts.json: activity Go inventory: tracked vendor Go files, including comments and blank lines",
     "rfc": "internal/le/rfc.Collect, over rfc/short/*.md",
-    "rfc.proven": "internal/le/rfc.ImplementedSectionsOf, the one producer of Ze proven over the MUST rows Ze and the OS owe in walked RFCs Ze implements",
+    "rfc.proven": "internal/le/rfc.ImplementedSectionsOf, the one producer of mandatory requirements proven, by Ze's tests or as OS verified (a layer under Ze performs the requirement and a recorded break proves the state Ze installs for it), divided by mandatory requirements Ze or the OS must meet, for implemented RFCs whose requirement lists have been reviewed",
     "tests": "internal/le/test/health.Render, over the tree this build read"
   },
   "blog_articles": 6,
   "changes": 46,
-  "cli_commands": 499,
+  "cli_commands": 509,
   "cli_group_commands": {
     "clear-bgp": 4,
     "clear-dns": 4,
     "clear-l2tp": 4,
     "clear-other": 20,
-    "create": 10,
+    "create": 11,
     "debug": 4,
-    "delete": 6,
+    "delete": 8,
     "doctor": 1,
     "help": 3,
     "monitor": 8,
     "plugin": 10,
     "request-bgp": 23,
     "request-interface": 5,
-    "request-other": 21,
+    "request-other": 23,
     "request-peer": 12,
     "resolve": 11,
     "send": 9,
@@ -51,6 +84,7 @@
     "show-bmp": 4,
     "show-command": 5,
     "show-config": 9,
+    "show-data": 4,
     "show-ddos": 4,
     "show-dns": 5,
     "show-event": 4,
@@ -61,7 +95,7 @@
     "show-l2tp": 18,
     "show-metrics": 4,
     "show-ospf": 49,
-    "show-other": 71,
+    "show-other": 70,
     "show-pki": 6,
     "show-policy": 4,
     "show-pppoe": 5,
@@ -74,11 +108,15 @@
     "show-vpp": 4,
     "show-vrrp": 4,
     "system": 8,
-    "update": 19
+    "update-bgp": 5,
+    "update-firewall": 4,
+    "update-other": 3,
+    "update-serve": 4,
+    "update-system": 5
   },
-  "cli_groups": 47,
-  "config_sections": 38,
-  "dependencies": 55,
+  "cli_groups": 52,
+  "config_sections": 39,
+  "dependencies": 57,
   "equivalents": {
     "groups": {
       "clear": {
@@ -89,7 +127,7 @@
       "create": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 10
+        "total": 11
       },
       "debug": {
         "equivalent": 0,
@@ -99,7 +137,7 @@
       "delete": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 6
+        "total": 8
       },
       "doctor": {
         "equivalent": 0,
@@ -124,7 +162,7 @@
       "request": {
         "equivalent": 7,
         "reviewed": 9,
-        "total": 61
+        "total": 63
       },
       "resolve": {
         "equivalent": 5,
@@ -144,7 +182,7 @@
       "show": {
         "equivalent": 32,
         "reviewed": 76,
-        "total": 311
+        "total": 314
       },
       "system": {
         "equivalent": 0,
@@ -154,7 +192,7 @@
       "update": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 19
+        "total": 21
       }
     },
     "mapping_entries": 48,
@@ -193,8 +231,8 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-11-09",
-  "github_stars": 59,
+  "generated_at": "2026-11-15",
+  "github_stars": 60,
   "health": {
     "adoption": {
       "buckets": {
@@ -205,10 +243,10 @@
           "with_rfc_tag": "0"
         },
         "2026": {
-          "packages": "720",
+          "packages": "749",
           "with_ci": "37",
-          "with_fuzz": "39",
-          "with_rfc_tag": "140"
+          "with_fuzz": "45",
+          "with_rfc_tag": "143"
         }
       },
       "value": {
@@ -217,14 +255,14 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "42810",
-        "numerator": "118",
-        "percent": "0.3"
+        "denominator": "45647",
+        "numerator": "109",
+        "percent": "0.2"
       },
       "value": {
-        "1": "118",
-        "2": "42810",
-        "3": "111"
+        "1": "109",
+        "2": "45647",
+        "3": "109"
       }
     },
     "ci-sleeps": {
@@ -238,33 +276,33 @@
         "1": "6"
       },
       "detail": {
-        "1": "8174",
-        "2": "97",
-        "3": "155",
-        "4": "2820",
-        "5": "201"
+        "1": "8951",
+        "2": "106",
+        "3": "159",
+        "4": "2959",
+        "5": "207"
       },
       "value": {
-        "1": "42852"
+        "1": "45690"
       }
     },
     "known-failures": {
       "detail": {
-        "1": "42"
+        "1": "44"
       },
       "value": {
-        "1": "3"
+        "1": "1"
       }
     },
     "negative-tests": {
       "overall": {
-        "denominator": "8174",
-        "numerator": "3069",
-        "percent": "37.5"
+        "denominator": "8951",
+        "numerator": "3487",
+        "percent": "39.0"
       },
       "value": {
-        "1": "3069",
-        "2": "8174"
+        "1": "3487",
+        "2": "8951"
       },
       "worst": {
         "1": {
@@ -273,9 +311,9 @@
           "percent": "0.0"
         },
         "10": {
-          "files": "21",
+          "files": "27",
           "negative": "2",
-          "percent": "9.5"
+          "percent": "7.4"
         },
         "2": {
           "files": "5",
@@ -283,75 +321,83 @@
           "percent": "0.0"
         },
         "3": {
-          "files": "9",
+          "files": "5",
           "negative": "0",
           "percent": "0.0"
         },
         "4": {
-          "files": "27",
-          "negative": "1",
-          "percent": "3.7"
+          "files": "6",
+          "negative": "0",
+          "percent": "0.0"
         },
         "5": {
-          "files": "17",
-          "negative": "1",
-          "percent": "5.9"
+          "files": "10",
+          "negative": "0",
+          "percent": "0.0"
         },
         "6": {
-          "files": "14",
+          "files": "24",
           "negative": "1",
-          "percent": "7.1"
+          "percent": "4.2"
         },
         "7": {
+          "files": "16",
+          "negative": "1",
+          "percent": "6.2"
+        },
+        "8": {
           "files": "14",
           "negative": "1",
           "percent": "7.1"
         },
-        "8": {
-          "files": "27",
-          "negative": "2",
-          "percent": "7.4"
-        },
         "9": {
-          "files": "11",
-          "negative": "1",
-          "percent": "9.1"
+          "files": "41",
+          "negative": "3",
+          "percent": "7.3"
         }
       }
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "45.3",
-        "10": "0",
-        "11": "196",
-        "12": "4802",
-        "13": "204",
-        "14": "2321",
-        "15": "46",
-        "16": "1511",
-        "17": "21",
-        "18": "503",
-        "19": "239",
+        "1": "45.2",
+        "10": "1522",
+        "11": "18",
+        "12": "2026",
+        "13": "10",
+        "14": "31",
+        "15": "2026",
+        "16": "11",
+        "17": "13",
+        "18": "0",
+        "19": "196",
         "2": "4752",
-        "20": "0",
-        "21": "0",
-        "22": "0",
-        "23": "14",
-        "3": "0",
-        "4": "239",
-        "5": "2360",
-        "6": "18",
-        "7": "2026",
-        "8": "10",
-        "9": "31"
+        "20": "4802",
+        "21": "204",
+        "22": "2306",
+        "23": "46",
+        "24": "1495",
+        "25": "27",
+        "26": "502",
+        "27": "235",
+        "28": "0",
+        "29": "0",
+        "3": "2149",
+        "30": "0",
+        "31": "14",
+        "4": "0",
+        "5": "235",
+        "6": "2368",
+        "7": "825",
+        "8": "21",
+        "9": "0"
       },
       "proof_density": {
         "denominator": "4752",
-        "numerator": "2153",
-        "percent": "45.3"
+        "numerator": "2149",
+        "percent": "45.2"
       },
       "value": {
-        "1": "2153",
+        "1": "2149",
         "2": "4752"
       },
       "worst": {
@@ -417,22 +463,62 @@
     }
   },
   "interop": {
-    "scenario_dirs_raw": 225,
-    "scenarios": 225,
-    "scenarios_display": "220+",
+    "protocols": {
+      "as112": 6,
+      "bfd": 5,
+      "bgp": 142,
+      "bmp": 4,
+      "dhcpv4": 3,
+      "dhcpv6": 2,
+      "dns": 2,
+      "gtsm": 1,
+      "ipsec": 85,
+      "isis": 16,
+      "l2tp": 13,
+      "ldp": 3,
+      "ospfv2": 36,
+      "ospfv3": 20,
+      "other": 0,
+      "pppoe": 16,
+      "radius": 12,
+      "rpki": 3,
+      "rsvpte": 10,
+      "topology": 18,
+      "vrrp": 2
+    },
+    "scenario_dirs_raw": 399,
+    "scenarios": 399,
+    "scenarios_display": "390+",
+    "suite_count": 8,
+    "suites": {
+      "interop": 245,
+      "interop-ipsec": 85,
+      "interop-l2tp": 13,
+      "interop-pppoe": 16,
+      "interop-radius": 7,
+      "interop-radius-subscriber": 5,
+      "interop-rsvpte": 10,
+      "interop-topology": 18
+    },
     "target_display": "13",
     "targets": 13
   },
   "plugin_registrations": 96,
-  "published_at": "2026-11-09T21:58:41Z",
+  "published_at": "2026-11-15T00:10:12Z",
   "release": null,
   "repo": {
-    "design_comments": 7751,
-    "design_comments_display": "7,700+",
-    "detail_comments": 7990,
-    "detail_comments_display": "7,900+",
-    "go_packages": 951,
-    "go_packages_display": "950+"
+    "design_comments": 10030,
+    "design_comments_display": "10,000+",
+    "detail_comments": 10516,
+    "detail_comments_display": "10,500+",
+    "go_packages": 1009,
+    "go_packages_display": "1,000+",
+    "go_source_lines": 1660165,
+    "go_source_lines_display": "1.66 million",
+    "go_test_lines": 1976301,
+    "go_test_lines_display": "1.98 million",
+    "go_vendor_lines": 2000562,
+    "go_vendor_lines_display": "2.00 million"
   },
   "rfc": {
     "enrolled": 204,
@@ -449,22 +535,22 @@
     "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2153,
-    "proven_display": "2,153",
-    "proven_percent": "45.3",
+    "proven": 2149,
+    "proven_display": "2,149",
+    "proven_percent": "45.2",
     "requirements": 7834,
     "requirements_display": "7,834",
     "summaries": 231,
     "summaries_display": "231"
   },
   "tests": {
-    "e2e": 2820,
-    "e2e_display": "2,800+",
-    "editor": 201,
+    "e2e": 2959,
+    "e2e_display": "2,900+",
+    "editor": 207,
     "editor_display": "200+",
-    "fuzz": 97,
-    "fuzz_display": "97",
-    "unit": 42852,
-    "unit_display": "42,800+"
+    "fuzz": 106,
+    "fuzz_display": "100+",
+    "unit": 45690,
+    "unit_display": "45,600+"
   }
 }

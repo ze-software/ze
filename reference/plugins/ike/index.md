@@ -17,7 +17,7 @@ IKEv2 engine for native IPsec VPN
 
 ## Dependencies
 
-- Required: None
+- Required: [`firewall`](../firewall/index.md)
 - Optional: None
 
 ## Used by

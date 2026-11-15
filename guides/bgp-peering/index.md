@@ -177,30 +177,28 @@ bgp {
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
 
-The `role { import rs }` leaf also requires both chains to name a filter that
-can refuse a path through a transit provider. This is separate from RFC 8212's
-explicit-policy requirement. To disable that filter check, name the filter with
-the `inactive:` member prefix. The member remains in the chain but never executes:
+The `role { import rs }` leaf needs no filter of yours beyond RFC 8212's explicit
+policy: the role inserts the RFC 7454 upstream check, `bgp-role:upstream-asn`, on
+the session's import chain for you. It rejects a route whose AS path carries one of
+your transit providers' ASNs. The check is not required: to run a session without
+it, name the member with the `inactive:` prefix. The member remains in the chain
+but never executes:
 
 ```
 filter {
     import {
-        filters [ inactive:reject-asn-NO-TRANSIT ];
-        final accept;
-    }
-    export {
-        filters [ inactive:reject-asn-NO-TRANSIT ];
+        filters [ inactive:bgp-role:upstream-asn ];
         final accept;
     }
 }
 ```
 
-The prefix goes on the member, inside the brackets. Inside each direction block,
-`inactive: filters reject-asn-NO-TRANSIT;` deactivates an existing member. Keep the
-`final accept;` decision when the member is inactive. That explicit final,
-not the inactive reference, supplies operator policy. See
-[config-deactivate.md](https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md) for both forms, and
-[bgp-role.md](../bgp-role/index.md) for the roles that bind.
+The prefix goes on the member, inside the brackets. Keep the `final accept;`
+decision: that explicit final, not the inactive reference, supplies operator
+policy. See [config-deactivate.md](https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md) for both forms, and
+[bgp-role.md](../bgp-role/index.md) for which directions each role checks and how the
+provider set is derived.
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 
 `ip dynamic` is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one `range`, and an explicit `connect false`. Ze only accepts on a dynamic group and never dials one, so an absent `connect` leaf, which YANG defaults to true, is refused rather than corrected.
@@ -291,6 +289,10 @@ session {
 | `reconnect` | enum | see below | `never`, `backoff`, or `timer`. |
 
 `reconnect` with no value means `timer` when `idle-timeout` is above zero, and `never` when it is zero. A family that configured nothing therefore stays down after a teardown, and the peer state reads `idle-hold` until an operator restarts it. `ze show warnings` carries the prefix-hold warning for the whole hold.
+
+Both reconnect waits forget their history after a stable session. Ze waits 5 seconds before it redials a peer whose session failed, and doubles the wait after each new failure, up to 60 seconds. A `timer` wait doubles the same way, up to one hour. When a session stayed established for at least 60 seconds before it ended, the next wait starts again from 5 seconds, and the `timer` wait from `idle-timeout`. A session that ends sooner keeps the longer wait, so a peer that flaps is still slowed down. A teardown you request and an inbound connection from the peer still redial at once.
+
+<!-- source: internal/component/bgp/reactor/peer_run.go -- run, cycleStayedEstablished -->
 
 The teardown NOTIFICATION and the log line name the family that exceeded its maximum.
 

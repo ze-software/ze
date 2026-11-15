@@ -263,6 +263,13 @@ ze cli -c "monitor event | match rx"  # Regex filter on output
 <p>Without BGP, Ze installs the metrics registry before plugins start. Their
 startup counters then use the same registry that the exporter serves.</p>
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig; cmd/ze/hub/main_system.go -- startStandaloneTelemetry -->
+<p>For the system RIB, <code>show doctor</code> includes <code>rib-routing-view</code> in both plugin
+placements. It reports an initializing or unavailable routing view and names
+the configured plugin's restart command. <code>ze_rib_view_ready</code> becomes one after
+the authoritative view and its output synchronize. <code>ze_rib_view_resync_total</code>
+counts reconstruction attempts, and <code>ze_rib_view_pending_prefixes</code> shows
+prefixes held for snapshot or forwarding reconciliation.</p>
+<!-- source: internal/component/sysrib/doctor_route_view.go -- findings, newRouteViewHealth -->
 <p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
 <pre><code>telemetry {
     prometheus {
@@ -616,7 +623,8 @@ diff nd.txt ze.txt
 </tr>
 </tbody>
 </table>
-<p>Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.</p>
+<p>Ze collects host metrics once when the exporter starts and again every 30 seconds. The detector caches an inventory for 60 seconds, so a value can be up to a minute old. Neither interval is configurable. Linux only; on other platforms no host metrics are registered.</p>
+<!-- source: internal/component/bgp/config/loader_create.go -- NewCachedDetector 60s, StartRefresh 30s -->
 <h3 id="contained-panics">Contained Panics</h3>
 <!-- source: internal/core/taskguard/guard.go -- MetricName, Guard.SetMetricsRegistry, Guard.Task -->
 <table>
@@ -1346,6 +1354,10 @@ ze cli -c "show bgp rpki status"
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -1375,7 +1387,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

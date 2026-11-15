@@ -225,8 +225,14 @@ daemon by signalling its exact command inside the container, not the host
 `docker exec` client. Each replacement must reach its own startup marker before
 the harness inspects retained VPP state. A policer or ACL left by the previous
 daemon therefore cannot make a failed replacement look like a successful restart.
-<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
-<!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
+A stop returns only once the daemon has exited, because a stopping ze still owns
+its config store while it finishes recording its boot configuration, which on a
+slow disk takes seconds. It waits up to two minutes after SIGTERM, then sends
+SIGKILL. A daemon that needed SIGKILL, or that is still running after it, fails
+the run with its command named, and no further daemon starts, since it may still
+own the store the next one would open.
+<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon, stopVPPProcess, vppDaemonStopWait -->
+<!-- source: internal/le/test/deployment/deployment.go -- running.stopAwaitingExit -->
 
 `vpp` and `vpp-iface` start their container through the lab Docker
 wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the
@@ -436,11 +442,20 @@ still available through the CLI socket ze writes to `/run/vpp/cli.sock`.
 
 ## Implementation status
 
+Configured interface names can differ from VPP's names: a VLAN named
+`qos0.100` may appear as `loop1.100` in VPP. Link and address reads resolve
+the configured name through the same registered interface index used by
+writes, so a reload updates the existing VLAN. If that registered index
+cannot be read, the reload refuses instead of treating the VLAN as absent
+and creating it again. An unregistered name is looked up as an exact VPP
+interface name.
+<!-- source: internal/plugins/iface/vpp/query.go -- detailsByName -->
+
 The implementation status differs by subsystem:
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| vpp-3 | MPLS label stacks on IP routes | `processMPLSChange` dispatches labeled route installs and replacements to `addMPLSRoute`, and removals to `delMPLSRoute`. The GoVPP backend sends `IPRouteAddDel` with a label stack for installs. This path does not dispatch transit label swap/pop operations. <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processMPLSChange --> <!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute --> |
+| vpp-3 | MPLS label stacks on IP routes | `processMPLSChange` dispatches labeled route installs and replacements to `addMPLSRoute`, and removals to `delMPLSRoute`. The GoVPP backend sends `IPRouteAddDel` with a label stack for installs, every label in uniform mode, so the label TTL is copied from the IP TTL. Transit swap and pop entries from LDP and RSVP-TE arrive as `(mpls-fib, entry)` events: fib-vpp creates MPLS table 0 and installs each entry as two `MplsRouteAddDel` routes, one per value of the S bit, never in `fib.vpp.table-id`. A pop imposes the Implicit NULL label; an egress pop with no next hop looks the packet up in IP table `fib.vpp.table-id` of its FEC's family. VPP has no per-route MTU, so an entry's path MTU is not installed and fib-vpp warns once. A push into a private table (an RSVP-TE facility-backup context) is refused, because VPP has no packet-mark context. `mpls { enable true; }` on a unit enables MPLS input on the VPP interface. <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processMPLSChange --> <!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute, addLabelRoutes, labelPath --> <!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry --> <!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput --> |
 | vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `internal/le/test/deployment.Answer`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). An interface apply that runs before the vpp handshake completes is deferred whole and performed when `EventConnected` fires (`docs/features/interfaces.md`, VPP backend). <!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig --> <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del --> |
 | vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with `spec-followup-vpp-iface`.) |
 | (netns) | Netns-aware BGP listening: BGP binds inside a named network namespace | **Not in tree.** `RealListenerFactory.Listen` binds via `net.ListenConfig` in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default `vpp.lcp.netns` of `dataplane`, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; `ze doctor` reports `doctor-vpp-lcp-netns` meanwhile. <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness --> |

@@ -104,6 +104,12 @@ static {
 </code></pre>
 <p>The same prefix can appear in different tables independently.
 Routes in non-default tables are not redistributed into BGP.</p>
+<p><code>static filter import</code> and <code>rib filter import</code> apply only to main-table
+routes. Named-table routes bypass the Loc-RIB and go directly to their
+configured backend, so neither import attachment filters them. Use a
+main-table route when it must participate in Loc-RIB policy or compete with
+another protocol.</p>
+<!-- source: internal/plugins/static/locrib.go -- inMainTable, applyProgrammed -->
 <p>Reserved table IDs (0, 253-255) are rejected. A 32-bit build additionally
 rejects a table ID or route metric above 2147483647, because the netlink
 bindings carry both in a machine int and would otherwise install the route in
@@ -125,7 +131,7 @@ the interface itself:</p>
 <p>When the interface is a <code>pppoe-client</code> the configuration declares, the route
 waits for the session rather than failing. It is committed while the session is
 down (at boot, before the access concentrator answers, or in the same commit
-that adds the client), and <code>static show</code> lists it with the next-hop inactive and
+that adds the client), and <code>show static</code> lists it with the next-hop inactive and
 not skipped. Once the session's device is up, the route is installed through it;
 when the session drops it is removed, and when the session comes back it is
 installed again, with no reload. This holds in the main table and in a named
@@ -327,9 +333,11 @@ and Ze loads the plugin for the data plane your config already selects at
 plugin's own leaves, or to pick a plugin other than the one Ze would load. Your
 block always wins. A configuration whose static routes are all in named tables
 needs no FIB plugin at all, because static programs those routes itself.</p>
-<p><code>ze doctor</code> reports <code>doctor-static-no-fib-writer</code> at error severity when your
-config selects a data plane no plugin programs. The routes then reach the system
-RIB and stop there.</p>
+<p>When your config selects a data plane no plugin programs, or one this build
+was compiled without, ze refuses to start or reload it, and <code>ze doctor</code> reports
+<code>doctor-plugin-no-dataplane-writer</code> at error severity beforehand, in the same
+words, with the fix the refusal names. An explicit <code>fib { ... }</code> block is never
+reported: its plugin is the writer.</p>
 <h2 id="administrative-distance">Administrative distance</h2>
 <p><code>rib { distance { static N } }</code> decides which route the kernel forwards on when a
 static route and a dynamic protocol both offer one prefix. Lower wins. The default
@@ -347,7 +355,7 @@ re-ranks the routes already installed, and the kernel moves to the new winner.
 The number applies to main-table routes: a named-table route has nothing to be
 ranked against.</p>
 <!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance, Reselect -->
-<!-- source: internal/component/sysrib/register.go -- reselectLocRIB -->
+<!-- source: internal/component/sysrib/route_view_distances.go -- applyDistances -->
 <p>One route can carry its own distance, which wins over <code>static N</code> for that route
 alone:</p>
 <pre><code>static {
@@ -393,6 +401,10 @@ import it into BGP or OSPF, and the more specific routes keep forwarding.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -422,7 +434,7 @@ import it into BGP or OSPF, and the more specific routes keep forwarding.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -87,7 +87,7 @@
                     </div>
                     <ul>
                     <li><strong>L3/L4 match</strong> criteria</li>
-                    <li>Table steering, <strong>next-hop</strong> actions</li>
+                    <li>Select routing tables and <strong>next hops</strong></li>
                     <li>TCP-MSS clamping, <strong>interface</strong> wildcards</li>
                     </ul>
                     </article>
@@ -97,10 +97,10 @@
             <section id="experimental" aria-labelledby="experimental-title" data-cards>
                 <div class="section-head reveal">
                     <h2 id="experimental-title">Experimental and growing.</h2>
-                    <p>Implemented, still waiting for production evidence or for a named part to be finished.</p>
+                    <p>These features have code, but still need production testing or have unfinished parts.</p>
                 </div>
                 <div class="section-note reveal">
-                    <p>These still need deployment evidence, hardening, or a named part implemented or proven before production claims. The feature status page lists the status of each. Configuration may change.</p>
+                    <p>Before these features can be recommended for production, they need deployment testing, reliability or security improvements, or unfinished behavior completed and tested. The feature status page explains what remains for each one. Configuration may change.</p>
                 </div>
                 <div class="cards feature-grid reveal">
                     <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
@@ -127,8 +127,8 @@
                     <span class="chip">SSE</span>
                     </div>
                     <ul>
-                    <li>YANG-driven <strong>config tree</strong></li>
-                    <li>Same <strong>CLI grammar</strong> in browser</li>
+                    <li><strong>Configuration tree</strong> defined by YANG schemas</li>
+                    <li>Same <strong>command syntax</strong> in browser and CLI</li>
                     <li><strong>Live updates</strong> via SSE</li>
                     </ul>
                     </article>
@@ -170,7 +170,7 @@
                     <span class="chip">JSON</span>
                     </div>
                     <ul>
-                    <li><strong>20 modules</strong>, pure Go, no shell-outs</li>
+                    <li><strong>20 modules</strong> written in Go, without external commands</li>
                     <li>Structured <strong>JSON</strong> per module</li>
                     <li>Privacy-by-default, <strong>gokrazy</strong>-safe</li>
                     </ul>
@@ -244,7 +244,7 @@
                     <span class="chip">PPP</span>
                     </div>
                     <ul>
-                    <li><strong>Access concentrator</strong> with discovery FSM</li>
+                    <li><strong>Access concentrator</strong> with PPPoE discovery</li>
                     <li>Shared <strong>PPP driver</strong> with L2TP</li>
                     <li><strong>PAP</strong>, <strong>CHAP-MD5</strong>, and <strong>MS-CHAPv2</strong> authentication</li>
                     </ul>
@@ -261,7 +261,7 @@
                     <li>Ethernet, VLAN, bridge, <strong>WireGuard</strong></li>
                     <li>8 tunnel kinds, <strong>DHCP</strong> client</li>
                     <li>NTP sync, <strong>offload</strong> tuning, mirroring</li>
-                    <li><strong>IPv6 Router Advertisements</strong>, the radvd role</li>
+                    <li>Built-in <strong>IPv6 Router Advertisements</strong>, an alternative to radvd</li>
                     </ul>
                     </article>
                     <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
@@ -349,7 +349,7 @@
                     <ul>
                     <li>First-hop <strong>gateway redundancy</strong>, IPv4 and IPv6</li>
                     <li>Per-group <strong>virtual-MAC</strong> macvlan for L2 failover</li>
-                    <li><strong>keepalived</strong> interop, compile-out</li>
+                    <li>Tested with <strong>keepalived</strong>; can be excluded at build time</li>
                     <li><strong>Interface tracking</strong>, accept-mode</li>
                     </ul>
                     </article>
@@ -421,8 +421,8 @@
                     </div>
                     <ul>
                     <li>Authoritative <strong>sink zones</strong> on four fixed anycast addresses (RFC 7534/7535)</li>
-                    <li>Conditional <strong>BGP origination</strong> via healthcheck-gated watchdog</li>
-                    <li>Anycast IPs bound on <strong>lo</strong> automatically, never operator-typed</li>
+                    <li><strong>BGP announcements</strong> controlled by DNS health checks</li>
+                    <li>Anycast addresses added to <strong>lo</strong> automatically</li>
                     </ul>
                     </article>
                     <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
@@ -608,8 +608,8 @@
                     </div>
                     <ul>
                     <li>Plugins add <strong>commands</strong>, RPCs, events</li>
-                    <li>YANG roots join <strong>CLI</strong> and web</li>
-                    <li>Independent, <strong>composable</strong></li>
+                    <li>Plugin configuration appears in the <strong>CLI</strong> and web editor</li>
+                    <li>Independent plugins can be <strong>combined</strong></li>
                     <li>Each plugin declares what its <strong>failure</strong> means</li>
                     </ul>
                     </article>
@@ -638,8 +638,9 @@
                     </div>
                     <ul>
                     <li><strong>Self-describing</strong> command catalogue from the live binary</li>
-                    <li>Every command is an <strong>automation</strong> surface</li>
+                    <li>Every command is available to <strong>automation</strong></li>
                     <li>Structured <strong>diagnostics</strong> and repair plans</li>
+                    <li><code>ze create agent skill</code> sets up <strong>Claude Code</strong> and <strong>Codex</strong></li>
                     </ul>
                     </article>
                     <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
@@ -652,7 +653,7 @@
                     </div>
                     <ul>
                     <li><strong>Streamable HTTP</strong> transport, OAuth 2.1 resource server</li>
-                    <li>Server-initiated <strong>elicitation</strong>, task-augmented tool calls</li>
+                    <li>Server requests for <strong>user input</strong>, tool calls tracked as tasks</li>
                     <li><strong>MCP Apps UI</strong> with embedded panels</li>
                     </ul>
                     </article>
@@ -738,7 +739,7 @@
                     </div>
                     <ul>
                     <li>Automatic <strong>panic</strong> stack traces</li>
-                    <li>Ring buffer <strong>context</strong> (last 64 entries)</li>
+                    <li>Last 64 <strong>diagnostic entries</strong> saved with each crash</li>
                     <li><strong>show crashes</strong> CLI command</li>
                     </ul>
                     </article>
@@ -833,15 +834,15 @@
                     <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Setup</span>
                     <span class="status">Experimental</span>
-                    <h3><a href="../guides/quickstart/">Feature Gates</a></h3>
+                    <h3><a href="../guides/quickstart/">Choose Features at Build Time</a></h3>
                     <div class="chips">
                     <span class="chip mode">36 subsystems</span>
                     <span class="chip">Default on</span>
                     </div>
                     <ul>
-                    <li>Compile out <strong>whole subsystems</strong>, BGP included</li>
-                    <li>Smaller binary, smaller <strong>attack surface</strong></li>
-                    <li>Config <strong>fails closed</strong> on blocks the build lacks</li>
+                    <li>Exclude <strong>whole subsystems</strong> from the binary, including BGP</li>
+                    <li>Smaller binary with <strong>less exposed code</strong></li>
+                    <li>Reject configuration for <strong>features absent</strong> from the build</li>
                     </ul>
                     </article>
                 </div>
@@ -850,7 +851,7 @@
 <div id="feature-empty" class="catalog-empty" hidden><h2>No matching features</h2><p>Try another term, category or maturity.</p><button type="button" data-reset-features>Reset filters</button></div>
             <section id="roadmap" aria-labelledby="roadmap-title">
                 <h2 id="roadmap-title">Release roadmap</h2>
-                <p>The <a href="../project/roadmap/">release inventory</a> lists remaining release work, post-release work, and proposals from committed specs. Classification is not release-readiness proof.</p>
+                <p>The <a href="../project/roadmap/">release roadmap</a> lists remaining work for the first release, later improvements, and proposals from the project's recorded plans. A plan does not mean a feature is ready to use.</p>
             </section>
 </div></div>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -887,7 +888,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../license/">Ze is AGPLv3 open source.</a>
                     <a href="../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 21:59 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:28 UTC</span>
                 </div>
             </div>
         </footer>

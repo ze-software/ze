@@ -85,6 +85,14 @@ the name to its kernel device through the shared iface resolver. See
 <!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
 <h2 id="routing-capabilities">Routing capabilities</h2>
+<p>The instance <code>level</code> limits every interface, including passive interfaces. With
+<code>level l2</code>, an interface whose <code>level</code> is omitted or set to <code>l1-l2</code> uses only L2.
+On an <code>l1-l2</code> instance, an interface can select <code>l1</code> or <code>l2</code>. An enabled interface
+with no level in common with the instance is refused at startup or commit. Set
+its <code>level</code> to <code>l1-l2</code> to use the instance's levels. <code>show isis interface</code> reports
+the effective level of each interface.</p>
+<!-- source: internal/plugins/isis/config.go -- EnabledCircuits, interfaceLevel, validateInterfaceLevels -->
+<!-- source: internal/plugins/isis/show.go -- interfaceSnapshot -->
 <p>IPv4 Protocols Supported (<code>0xCC</code>) is advertised on every circuit. Enabling
 IPv6 on any enabled interface, including a passive one, adds <code>0x8E</code> to every
 Hello and LSP fragment zero. A commit updates both advertisements even when no
@@ -290,6 +298,17 @@ link cannot transmit the old identity.</p>
 <code>passive true</code> on it, closes its circuit. Adding one opens a circuit.</p>
 <!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild -->
 <!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams -->
+<p>If another participant rejects a transaction after IS-IS applied its candidate,
+rollback restores the previous IS-IS config, circuits and export chain. This
+also restores circuits closed by removing the last NET. A raw-circuit failure
+refuses the change and attempts to restore the running config before answering.
+An added interface whose raw open failed stays disabled for later link events.
+If that repair fails too, the error reports lost running state and the engine
+attempts rollback, restarting the plugin when rollback fails. Run <code>ze doctor</code>
+to diagnose the raw-socket or interface problem named in the error.</p>
+<!-- source: internal/plugins/isis/register.go -- runISISPlugin -->
+<!-- source: internal/plugins/isis/server.go -- reconcile, openCircuit -->
+<!-- source: pkg/plugin/sdk/config_tx.go -- ConfigTx.Apply, ConfigTx.Rollback -->
 <h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
 <p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
 of adjacencies. Instead one router per level is elected the <strong>Designated IS</strong>
@@ -683,8 +702,15 @@ warns and names the OS); IS-IS forms no adjacencies without it.</li>
 IS-IS cannot derive a System ID or originate LSPs.</li>
 <li><code>doctor-isis-system-id-mismatch</code>: an explicit <code>system-id</code> disagrees with the
 System ID embedded in the first NET.</li>
+<li><code>doctor-isis-interface-level-mismatch</code>: an enabled interface has no level in
+common with the instance. The diagnostic names the interface and the command
+that sets its <code>level</code> to <code>l1-l2</code> to use the instance's levels.
+The check reports this mismatch even when a partial configuration has no NET.</li>
 </ul>
+<!-- source: internal/plugins/isis/doctor.go -- checkISISConfigSanity -->
+<!-- source: internal/plugins/isis/transport/doctor.go -- raw-socket readiness check -->
 <p>Each code is explainable with <code>ze show diagnostic &lt;code&gt;</code>.</p>
+<!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->
 </div>
 </div>
             </section>
@@ -700,6 +726,10 @@ System ID embedded in the first NET.</li>
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -730,7 +760,7 @@ System ID embedded in the first NET.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

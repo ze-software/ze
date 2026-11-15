@@ -53,7 +53,12 @@
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#1-install-build-tools">1. Install build tools</a></li>
 <li><a href="#2-build-ze">2. Build Ze</a></li>
-<li><a href="#3-install-the-binary">3. Install the binary</a></li>
+<li><a href="#3-install-and-start-ze">3. Install and start Ze</a>
+<ol>
+<li><a href="#update-ze">Update Ze</a></li>
+<li><a href="#remove-ze">Remove Ze</a></li>
+</ol></li>
+<li><a href="#manual-setup-install-only-the-binary">Manual setup: install only the binary</a></li>
 <li><a href="#4-create-the-live-store">4. Create the live store</a></li>
 <li><a href="#5-create-the-first-stored-config">5. Create the first stored config</a></li>
 <li><a href="#6-install-and-start-systemd">6. Install and start systemd</a></li>
@@ -63,11 +68,12 @@
 </ol></details></nav><div class="doc-body">
 <p>The commands assume Ubuntu 24.04 or newer, <code>sudo</code>, and an <code>amd64</code> or <code>arm64</code> host. Replace <code>edge-01</code> and every password before running them on a real box.</p>
 <!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: internal/plugins/init/main.go -- Run, runInit, runInitPublished -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
+<p>For a container, a VM image or a lab instead, see
+<a href="../ze-install/#choose-a-deployment-path">Choose a deployment path</a>.</p>
 <h2 id="1-install-build-tools">1. Install build tools</h2>
 <p>Ubuntu's packaged Go may lag the version Ze needs, so install Go from <code>go.dev</code> and let <code>apt</code> provide the rest.</p>
 <pre><code class="language-bash">sudo apt-get update
@@ -79,8 +85,10 @@ sudo apt-get install -y \
   jq \
   protobuf-compiler
 </code></pre>
-<p>Install Go 1.27, the version <code>go.mod</code> requires. Pick the current 1.27 patch release from <a href="https://go.dev/dl/" target="_blank" rel="noopener">https://go.dev/dl/</a> if a newer patch exists.</p>
-<pre><code class="language-bash">GO_VERSION=1.27.2
+<p>Install the exact Go version pinned in this checkout's <code>go.mod</code>. The commands
+below use <code>go1.27.3</code>; update that value when building a checkout with another pin.</p>
+<!-- source: go.mod -- Go version -->
+<pre><code class="language-bash">GO_VERSION=1.27.3
 GO_ARCH="$(dpkg --print-architecture)"
 case "$GO_ARCH" in
   amd64|arm64) ;;
@@ -101,9 +109,9 @@ go version
 <p>Optional tools for appliance and ISO work:</p>
 <pre><code class="language-bash">sudo apt-get install -y qemu-system-x86 e2fsprogs xorriso grub-efi-amd64-bin
 </code></pre>
-<p>On an arm64 host, ask for <code>grub-efi-arm64-bin</code> instead: Debian packages one GRUB
-module set per architecture, and the amd64 one has no installation candidate
-there.</p>
+<p>On an arm64 host, use <code>qemu-system-arm</code> and <code>grub-efi-arm64-bin</code> in place of
+the two amd64 packages. Debian packages one GRUB module set per architecture;
+the amd64 one has no installation candidate on arm64.</p>
 <p>Ze also ships a setup checker. It uses the same tool list as the developer and appliance checks.</p>
 <pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
@@ -111,19 +119,72 @@ cd ze
 </code></pre>
 <p>The <code>check</code> action lists anything missing as <code>[missing] &lt;tool&gt;</code> and exits non-zero. It changes nothing. <code>./le setup install</code> installs missing packages and prints each command first. Commands that need root use <code>sudo -n</code>, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once through <code>sudo -v</code>, and only when a terminal is attached; without a terminal it prints the command and exits non-zero.</p>
 <h2 id="2-build-ze">2. Build Ze</h2>
-<p>Build the daemon directly with Go:</p>
-<pre><code class="language-bash">cd ~/ze
-CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
+<p>From the cloned repository, run the daemon launcher. Its first run builds
+<code>bin/ze</code> with the feature gates and patched standard library this checkout
+requires. Run from the directory where you cloned Ze, rather than assuming it
+is under your home directory.</p>
+<!-- source: ze -- toolchain pin, feature gates and bootstrap build -->
+<pre><code class="language-bash">./ze version
 </code></pre>
 <p>The default feature-tag list is derived from <code>feature-gates.txt</code>.
 <code>./le repo feature-tags check</code> verifies every checked-in consumer of that list, and
 <code>./le repo compiles matrix</code> shows the shipped build flavors.</p>
 <p>For a deliberately smaller custom binary, name its feature tags explicitly:</p>
-<pre><code class="language-bash">go build -tags 'ze_core ze_ssh ze_lg ze_web' -o bin/ze ./cmd/ze
+<pre><code class="language-bash">GOROOT="$(./le go stdpatch goroot)"
+export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_ssh ze_lg ze_web' -o ze-custom ./cmd/ze
 </code></pre>
-<h2 id="3-install-the-binary">3. Install the binary</h2>
+<!-- source: internal/le/go/stdpatch/gen/stdpatch.go -- patched standard library -->
+<p>Install that custom build with <code>sudo ./ze-custom install</code>. The <code>ze_distro</code> base
+keeps native installation and service management available in the smaller build.</p>
+<!-- source: cmd/ze/setup_features_distro.go -- native local and systemd imports -->
+<h2 id="3-install-and-start-ze">3. Install and start Ze</h2>
+<p>The default install command copies the binary to <code>/usr/local/bin/ze</code>, initializes
+absent state, and installs and starts its systemd service. Choose your operator
+username and password when prompted. Keep the default loopback address and port
+<code>2222</code> for initial access. This installs a daemon on the host; it does not take
+over the host's network interfaces.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: internal/plugins/init/main.go -- runInstallInit and runInitPublishedProfile -->
+<pre><code class="language-bash">sudo ./ze install
+systemctl status ze.service --no-pager
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze status
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze cli -c "help"
+ssh -p 2222 YOUR_USERNAME@127.0.0.1
+</code></pre>
+<p>Use the SSH editor to add peers and review and commit configuration. For a
+complete routing example before changing this service, follow the
+<a href="../quickstart/">local two-peer quickstart</a>. For additional operator accounts,
+use <a href="../operator-access-rbac/">SSH and RBAC</a>.</p>
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer configuration -->
+<!-- source: internal/component/authz/yang/ze-authz-conf.yang -- operator profiles -->
+<h3 id="update-ze">Update Ze</h3>
+<p>To update a standalone installation, retain the previous binary and a compatible
+configuration backup, build the selected revision, then repeat the install
+command during a maintenance window. Existing state and credentials remain.
+Verify login and routing after the restart. Package-managed binaries must be
+updated through their package manager. <a href="../ze-install/#upgrading">Upgrading</a>
+gives the command, what the installer refuses, and the checks to run after it.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<h3 id="remove-ze">Remove Ze</h3>
+<pre><code class="language-bash"># Remove the service and executable, retaining configuration and credentials.
+sudo /usr/local/bin/ze uninstall
+</code></pre>
+<p>Removal stops the service before deleting the executable. State is retained by
+default; add <code>--purge</code> only when you intend to discard the selected installation's
+state. <a href="../ze-install/#uninstalling">Uninstalling</a> lists the flags, the prefix
+choice and the package-ownership refusals. For reloads, backups and recovery, see
+<a href="../lifecycle/">Lifecycle</a>.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<h2 id="manual-setup-install-only-the-binary">Manual setup: install only the binary</h2>
+<p>The remaining sections explain the separate steps for operators who need to
+control bootstrap and RBAC before first service start. Use this workflow instead
+of the default installation above. Do not run fresh <code>ze init</code> against an already
+initialized service store.</p>
+<!-- source: internal/plugins/local/cmd_install.go -- local-only installation -->
+<!-- source: internal/plugins/init/main.go -- refusal to replace an existing store -->
 <p>Install the built binary into <code>/usr/local/bin/ze</code> and create the default config directory.</p>
-<pre><code class="language-bash">sudo ./bin/ze install local --prefix /usr/local
+<pre><code class="language-bash">sudo ./ze install local --prefix /usr/local
 /usr/local/bin/ze version
 </code></pre>
 <p><code>/usr/local/bin/ze</code> uses <code>/etc/ze</code> as its config directory.</p>
@@ -300,6 +361,9 @@ sudo /usr/local/bin/ze uninstall systemd
 sudo /usr/local/bin/ze uninstall local
 </code></pre>
 <p>Use <code>--purge</code> only when you want to remove <code>/etc/ze</code> and its <code>database/</code> tree.</p>
+<p>To return to an earlier build, install it as <a href="../ze-install/#upgrading">Upgrading</a>
+describes. To roll back configuration, see
+<a href="../lifecycle/#archive-and-rollback">Lifecycle</a>.</p>
 </div>
 </div>
             </section>
@@ -315,6 +379,10 @@ sudo /usr/local/bin/ze uninstall local
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -341,7 +409,7 @@ sudo /usr/local/bin/ze uninstall local
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

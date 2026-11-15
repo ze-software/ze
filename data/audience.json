@@ -1,28 +1,53 @@
 {
     "run": [
         {
-            "title": "Run reproducible labs",
-            "label": "Lab",
-            "category": "routing",
-            "chips": ["netlab", "containerlab", "Docker", "FRR", "BIRD", "GoBGP"],
-            "body": "The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer's own CLI.",
-            "link": {"href": "labs/bgp-interop/", "label": "Run BGP lab", "sublabel": "BGP interop"}
+            "title": "Exchange your first routes.",
+            "label": "Local lab",
+            "body": "Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.",
+            "success_label": "Success check",
+            "success": "Both sessions establish and each peer receives the other peer’s advertised prefix.",
+            "recommendation": "Start here",
+            "link": {
+                "href": "guides/quickstart/",
+                "label": "Open the two-peer quickstart"
+            }
         },
         {
-            "title": "Run as a daemon",
-            "label": "Daemon",
-            "category": "operate",
-            "chips": ["Existing Linux", "systemd-ready"],
-            "body": "Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.",
-            "link": {"href": "guides/quickstart/", "label": "Quickstart", "sublabel": "two BGP peers"}
+            "title": "Try an existing configuration.",
+            "label": "ExaBGP migration",
+            "body": "Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.",
+            "success_label": "Success check",
+            "success": "Validate the converted configuration and verify your sessions and script behavior in a lab.",
+            "link": {
+                "href": "use-cases/exabgp-migration/",
+                "label": "Explore migration"
+            }
         },
         {
-            "title": "Run as an appliance",
-            "label": "Appliance",
-            "category": "platform",
-            "chips": ["gokrazy image", "Read-only root filesystem"],
-            "body": "A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.",
-            "link": {"href": "guides/ze-install/", "label": "Install guide", "sublabel": "PXE, ISO, or Ventoy"}
+            "title": "Keep your existing host.",
+            "label": "Linux or Docker",
+            "body": "Install the Linux service or build the Docker deployment image with persistent storage. The guides cover authenticated management, updates and removal; the Linux host keeps its existing interface configuration.",
+            "success_label": "Success check",
+            "success": "Connect to authenticated management and check that your configuration survives the documented restart or container recreation.",
+            "link": {
+                "href": "guides/ubuntu-build-install/",
+                "label": "Linux service"
+            },
+            "secondary_link": {
+                "href": "guides/docker/",
+                "label": "Docker"
+            }
+        },
+        {
+            "title": "Give Ze its own system.",
+            "label": "VM or appliance",
+            "body": "Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-only root and persistent configuration. The guide covers ISO installation, authenticated SSH, updates and previous-slot recovery.",
+            "success_label": "Availability",
+            "success": "Source builds produce disk images and installer ISOs. No public image release is available yet.",
+            "link": {
+                "href": "guides/appliance/",
+                "label": "Explore the appliance"
+            }
         }
     ],
     "who": [
@@ -30,49 +55,107 @@
             "title": "Lab router",
             "label": "Lab",
             "category": "operate",
-            "chips": ["Quickstart", "BGP peers"],
+            "chips": [
+                "Quickstart",
+                "BGP peers"
+            ],
             "body": "Network builders can bring up two BGP peers, inspect routes, and check whether Ze's operator tools fit their workflow.",
-            "link": {"href": "guides/quickstart/", "label": "Quickstart", "sublabel": "two peer lab"}
+            "link": {
+                "href": "guides/quickstart/",
+                "label": "Quickstart",
+                "sublabel": "two peer lab"
+            }
+        },
+        {
+            "title": "Test with an AI agent",
+            "label": "AI agent",
+            "category": "automate",
+            "chips": [
+                "Claude Code",
+                "Codex"
+            ],
+            "body": "Use Claude Code or Codex to check a lab configuration and explore Ze's commands. ze create agent skill installs instructions that match your installed version.",
+            "link": {
+                "href": "guides/ai-agent/",
+                "label": "Use Ze with an AI agent",
+                "sublabel": "ze create agent skill"
+            }
         },
         {
             "title": "ExaBGP replacement",
             "label": "Migration",
             "category": "automate",
-            "chips": ["Migration", "Plugins"],
+            "chips": [
+                "Migration",
+                "Plugins"
+            ],
             "body": "ExaBGP users can try the migrator against an existing config and see which process scripts still translate cleanly.",
-            "link": {"href": "use-cases/exabgp-migration/", "label": "Migration path", "sublabel": "config and process scripts"}
+            "link": {
+                "href": "use-cases/exabgp-migration/",
+                "label": "Migration path",
+                "sublabel": "config and process scripts"
+            }
         },
         {
             "title": "White-box appliance",
             "label": "Appliance",
             "category": "platform",
-            "chips": ["ISO", "PXE", "gokrazy"],
+            "chips": [
+                "ISO",
+                "PXE",
+                "gokrazy"
+            ],
             "body": "People with spare x86 hardware can boot the appliance image and test the same configuration model without a general-purpose shell.",
-            "link": {"href": "guides/appliance/", "label": "Appliance guide", "sublabel": "spare hardware"}
+            "link": {
+                "href": "guides/appliance/",
+                "label": "Appliance guide",
+                "sublabel": "spare hardware"
+            }
         },
         {
             "title": "Looking glass",
             "label": "Operate",
             "category": "operate",
-            "chips": ["Read-only", "BGP visibility"],
+            "chips": [
+                "Read-only",
+                "BGP visibility"
+            ],
             "body": "Operators who need read-only BGP visibility can publish a looking glass and inspect routes without giving shell access.",
-            "link": {"href": "guides/public-looking-glass/", "label": "Looking glass", "sublabel": "read-only BGP"}
+            "link": {
+                "href": "guides/public-looking-glass/",
+                "label": "Looking glass",
+                "sublabel": "read-only BGP"
+            }
         },
         {
             "title": "Protocol testbed",
             "label": "Interop",
             "category": "routing",
-            "chips": ["Interop", "Docker"],
+            "chips": [
+                "Interop",
+                "Docker"
+            ],
             "body": "Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then turn a failure into a test case.",
-            "link": {"href": "labs/bgp-interop/", "label": "Interop lab", "sublabel": "real peer daemons"}
+            "link": {
+                "href": "labs/bgp-interop/",
+                "label": "Interop lab",
+                "sublabel": "real peer daemons"
+            }
         },
         {
             "title": "AI-assisted operations",
             "label": "MCP",
             "category": "automate",
-            "chips": ["MCP", "CLI catalogue"],
+            "chips": [
+                "MCP",
+                "CLI catalogue"
+            ],
             "body": "MCP exposes Ze commands and structured output to AI tools without a separate command set.",
-            "link": {"href": "features/ai-first/", "label": "AI via MCP", "sublabel": "same command catalogue"}
+            "link": {
+                "href": "features/ai-first/",
+                "label": "AI via MCP",
+                "sublabel": "same command catalogue"
+            }
         }
     ]
 }

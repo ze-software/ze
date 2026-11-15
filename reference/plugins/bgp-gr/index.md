@@ -17,7 +17,7 @@ Graceful Restart capability and mechanism plugin
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md), [`bgp-rib`](../bgp-rib/index.md)
+- Required: [`bgp`](../bgp/index.md), [`bgp-rib`](../bgp-rib/index.md), [`policy`](../policy/index.md)
 - Optional: [`bgp-rs`](../bgp-rs/index.md)
 
 ## Used by

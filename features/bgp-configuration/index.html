@@ -297,7 +297,7 @@ framing. See <a href="../../guides/configuration-model/#what-the-count-holds-off
 </tr>
 <tr>
 <td>Write deadline</td>
-<td>Forward pool batch writes use a 30s TCP write deadline (configurable via <code>ze.fwd.write.deadline</code>) to prevent stuck peers from blocking workers.</td>
+<td>Every route write to a session carries a 30s write budget (configurable via <code>ze.fwd.write.deadline</code>); control messages carry a third of the hold time, between 10s and 30s. A peer that accepts no data for the budget has its session closed, logged and raised as <code>doctor-bgp-peer-not-reading</code>, and ze reconnects.</td>
 </tr>
 <tr>
 <td>Bounded overflow pool</td>
@@ -539,7 +539,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 13:41 UTC</span>
                 </div>
             </div>
         </footer>

@@ -28,6 +28,12 @@ l2tp {
     allow-no-auth false;         // explicit opt-in required for no-auth
     proxy-lcp accept;            // LNS: accept the LAC's proxy LCP, or renegotiate
     mru 1500;                   // Information-field octets; 68..1500, IPv6 needs 1280
+    lcp {
+        restart-timer 3000;      // milliseconds, 100..60000
+        max-terminate 2;         // transmissions, including the first
+        max-configure 10;        // transmissions without a valid reply
+        max-failure 5;           // Naks before rejecting unacceptable options
+    }
     authentication {
         allow [ chap-md5 ];     // ordered permitted methods; optional
     }
@@ -52,6 +58,18 @@ Presence of `l2tp {}` with any content implies the subsystem is
 enabled. Set `enabled false` to disable explicitly. Listener endpoints
 use the standard `zt:listener` grouping (`ip`, `port`) with port
 conflict detection via `ze:listener`.
+
+The `lcp` settings control RFC 1661 retransmission on locally terminated PPP
+sessions. Each limit accepts 1 through 255. The Restart timer is restarted by
+each Configure-Request or Terminate-Request transmission, and by the
+Zero-Restart-Count action after the peer terminates LCP. A silent peer receives
+exactly `max-configure` requests before negotiation ends; the defaults give a
+30-second budget. `max-failure` counts Configure-Naks sent without sending a
+Configure-Ack: after that many Naks, unacceptable options are rejected.
+An accepted proxy LCP starts already Opened and sends no initial requests.
+
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
+<!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
 
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 
@@ -1006,45 +1024,75 @@ a NAK carrying an Error-Cause.
 | Event-Timestamp is within 5 minutes | Discarded when stale, NAK 404 when absent |
 | CoA-Request carries no Service-Type | NAK 405 |
 | Every attribute is one Ze supports | NAK 401 |
-| Every fixed-length attribute (NAS-Port, NAS-IP-Address, Acct-Terminate-Cause and others) has its length | NAK 407 |
+| Every supported fixed-length attribute (NAS-Port, Acct-Terminate-Cause and Event-Timestamp) has its length | NAK 407 |
 | CoA-Request: every Filter-Id and Vendor-Specific is a rate or a CoS profile Ze applies, with at most one of each | NAK 407 |
 | The identification attributes Ze evaluates match exactly one session (see below) | NAK 503 for none, NAK 508 for several |
 | Every part of the requested change can be carried out (a CoS profile needs an access interface) | NAK 506 |
-| The requested change reached the shaper | NAK 506 |
+| Each authorization owner confirmed successful backend application | NAK 506 |
 | Disconnect-Request: the matched session was torn down (NAK 504 when its teardown fails, or when the L2TP service stopped after the match) | NAK 504 |
 
-Ze accepts fourteen identification attributes in a CoA-Request and evaluates
-three of them: Acct-Session-Id, User-Name and NAS-Port. Each one the request
-carries narrows the match. User-Name must equal the session's user name, NAS-Port
-must equal the local session ID, and Acct-Session-Id matches by prefix. Ze writes
-an Acct-Session-Id as `tunnelID-sessionID-boottag-sequence` and compares only the
-`tunnelID-sessionID-` part, so an id issued to a session that has ended also
-matches a later session that reuses the same tunnel and session IDs. A request
-that carries none of the three matches no session and gets NAK 503.
+Ze evaluates Acct-Session-Id, User-Name and NAS-Port as identification attributes
+in both CoA and Disconnect requests. Every occurrence narrows the match.
+User-Name must equal the session's user name and NAS-Port must equal its local
+session ID. A request carrying none of the three matches no session and gets
+NAK 503.
 
-The other eleven are accepted and not compared with anything: NAS-IP-Address,
-NAS-IPv6-Address, NAS-Identifier, Framed-IP-Address, Framed-Interface-Id,
-Framed-IPv6-Prefix, Called-Station-Id, Calling-Station-Id, Acct-Multi-Session-Id,
-NAS-Port-Id and Chargeable-User-Identity. A request whose attributes together
-name no session can therefore still act on the session its Acct-Session-Id,
-User-Name or NAS-Port names. This does not meet RFC 5176 Section 3, which
-requires the whole combination of identification attributes to match. A
-Disconnect-Request accepts the same set less Framed-IP-Address,
-Framed-Interface-Id and Framed-IPv6-Prefix, which get NAK 401, and evaluates the
-same three.
+Other identification attributes, including NAS-Identifier and Framed-IP-Address,
+are unsupported on this listener and get NAK 401. Implementing an attribute for
+authentication or accounting does not imply support for its dynamic
+authorization semantics. No accepted identification attribute is ignored.
 
 Before that match, Ze looks the Acct-Session-Id up in the subscriber registry,
-which compares the whole id. When it finds a session, a CoA-Request applies to
-that session with no other attribute checked, and a Disconnect-Request for a
-PPPoE session gets NAK 504, because PPPoE teardown from a Disconnect-Request is
-not connected yet.
+which compares the whole id. A hit must also match every User-Name and NAS-Port
+the request carries; NAS-Port is the local L2TP session ID or PPPoE session ID
+for that access type. A conflicting selector therefore cannot bypass the
+combination match through the registry. A matching Disconnect-Request for a
+PPPoE session still gets NAK 504, because PPPoE teardown from a
+Disconnect-Request is not connected yet.
+
+For the L2TP fallback, Ze compares the complete Acct-Session-Id with the current
+accountant's issued ID, `tunnelID-sessionID-boottag-sequence`. The registry can
+hold a different internal session identifier, so an exact accountant ID still
+selects its live session after a registry miss. The boot tag and sequence are
+never discarded: an old ID cannot select a later incarnation merely because it
+reuses the tunnel and session numbers. When no authoritative full ID is known,
+an accounting-ID request gets NAK 503.
 
 <!-- source: internal/component/l2tp/plugins/authradius/coa.go -- findSessions, oneSession, findSubscriberSession, coaSupportedAttrs, disconnectSupportedAttrs -->
 <!-- source: internal/component/l2tp/subscriber/registry.go -- LookupByAcctSessionID -->
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- currentSessionIDs, genSessionID -->
 
-A CoA-Request is atomic, as RFC 5176 Section 2.3 requires. Ze makes every check
-before the first change leaves, so a NAK never follows a partial change. A
-Disconnect-Request carries identification attributes, plus the Reply-Message,
+A CoA-Request prepares every requested control before changing either one.
+The listener then asks the shaper and class-of-service owners to apply through
+the command dispatcher and waits for their backend results before sending an
+ACK. A failed operation rolls the prepared owners back in reverse order. The
+shaper restores the complete state it last successfully programmed, including
+both rates and the queueing discipline; it does not claim to read arbitrary
+changes made outside that owner. A session with no confirmed shaping state is
+refused. The class-of-service owner captures the VLAN maps it reads from the
+interface backend. A pending rate transaction has a one-minute lease. Before
+the next admitted owner operation, the shaper rolls back an expired transaction;
+this also releases a prepare whose reply was lost. A failed restoration retains
+the original token and snapshot for retry. If restoration itself fails, the
+listener sends NAK 506 and records that failure; it cannot claim that the backend
+restored the old state.
+Notifications follow successful application and carry no acknowledgement
+authority. The command transport also reaches a forked owner, which refuses a
+change when it has no configured backend or confirmed session state; this does
+not establish support for shaping from a separate process.
+
+`show doctor` on the running daemon retains a `doctor-radius-coa-apply` finding
+after an owner fails to apply or restore a change. It includes the backend cause
+and `show l2tp shaper` as the next inspection step. Repair the backend and retry
+the authenticated request. A successful retry for the same session clears the
+finding; session teardown and provider shutdown also clear it. Attribute refusals
+handled before application do not raise that runtime finding.
+
+<!-- source: internal/component/l2tp/plugins/authradius/coa_transaction.go -- confirmCoA -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa_health.go -- checkCoAHealth, recordCoAHealth, subscribeCoAHealth -->
+<!-- source: internal/component/l2tp/plugins/shaper/rate_transaction.go -- prepareRate, applyRate, restoreRate -->
+
+A Disconnect-Request carries identification attributes, plus the Reply-Message,
 Class and Acct-Terminate-Cause the RFC 5176 Section 3.6 table admits. Ze reads
 no Vendor-Specific attribute in one, so it answers a Disconnect-Request that
 carries one with NAK 401.
@@ -1508,6 +1556,7 @@ each knob according to this policy:
 | `mru` | Hot-apply to new PPP sessions; established sessions retain their requested MRU. |
 | `authentication/allow` | Hot-apply to new PPP sessions; existing sessions retain their policy. |
 | `authentication/timeout` | Hot-apply to new PPP sessions. |
+| `lcp/restart-timer`, `lcp/max-terminate`, `lcp/max-configure`, `lcp/max-failure` | Hot-apply to new PPP sessions. A running session retains all four admitted values, including across LCP renegotiation. |
 | `authentication/reauth-interval` | Hot-apply to new PPP sessions. |
 | `auth/local/user` | Apply replaces the local credential table, including removing users. Subsequent local authentication requests use it. |
 | `auth/radius` | Apply replaces the RADIUS client and claims the shared authentication slot; removing the block restores local authentication. |

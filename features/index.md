@@ -11,16 +11,16 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 *services / Shipped in current code* -- `nftables` `PBR`
 
 - **L3/L4 match** criteria
-- Table steering, **next-hop** actions
+- Select routing tables and **next hops**
 - TCP-MSS clamping, **interface** wildcards
 
 [Learn more](https://ze-software.net/guides/policy-routing/)
 
 ## Experimental and growing.
 
-Implemented, still waiting for production evidence or for a named part to be finished.
+These features have code, but still need production testing or have unfinished parts.
 
-> These still need deployment evidence, hardening, or a named part implemented or proven before production claims. The feature status page lists the status of each. Configuration may change.
+> Before these features can be recommended for production, they need deployment testing, reliability or security improvements, or unfinished behavior completed and tested. The feature status page explains what remains for each one. Configuration may change.
 
 ### Output Formatting
 
@@ -37,8 +37,8 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 *operate / Experimental* -- `HTMX` `SSE`
 
-- YANG-driven **config tree**
-- Same **CLI grammar** in browser
+- **Configuration tree** defined by YANG schemas
+- Same **command syntax** in browser and CLI
 - **Live updates** via SSE
 
 [Learn more](https://ze-software.net/features/web-interface/)
@@ -67,7 +67,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 *observe / Experimental* -- `Offline` `JSON`
 
-- **20 modules**, pure Go, no shell-outs
+- **20 modules** written in Go, without external commands
 - Structured **JSON** per module
 - Privacy-by-default, **gokrazy**-safe
 
@@ -119,7 +119,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 *services / Experimental* -- `RFC 2516` `PPP`
 
-- **Access concentrator** with discovery FSM
+- **Access concentrator** with PPPoE discovery
 - Shared **PPP driver** with L2TP
 - **PAP**, **CHAP-MD5**, and **MS-CHAPv2** authentication
 
@@ -132,7 +132,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 - Ethernet, VLAN, bridge, **WireGuard**
 - 8 tunnel kinds, **DHCP** client
 - NTP sync, **offload** tuning, mirroring
-- **IPv6 Router Advertisements**, the radvd role
+- Built-in **IPv6 Router Advertisements**, an alternative to radvd
 
 [Learn more](https://ze-software.net/features/interfaces/)
 
@@ -194,7 +194,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 - First-hop **gateway redundancy**, IPv4 and IPv6
 - Per-group **virtual-MAC** macvlan for L2 failover
-- **keepalived** interop, compile-out
+- Tested with **keepalived**; can be excluded at build time
 - **Interface tracking**, accept-mode
 
 [Learn more](https://ze-software.net/guides/vrrp/)
@@ -244,8 +244,8 @@ Implemented, still waiting for production evidence or for a named part to be fin
 *services / Experimental* -- `AS112` `Anycast`
 
 - Authoritative **sink zones** on four fixed anycast addresses (RFC 7534/7535)
-- Conditional **BGP origination** via healthcheck-gated watchdog
-- Anycast IPs bound on **lo** automatically, never operator-typed
+- **BGP announcements** controlled by DNS health checks
+- Anycast addresses added to **lo** automatically
 
 [Learn more](https://ze-software.net/guides/as112/)
 
@@ -375,8 +375,8 @@ Implemented, still waiting for production evidence or for a named part to be fin
 *automate / Experimental* -- `ExaBGP` `RPKI` `Policy`
 
 - Plugins add **commands**, RPCs, events
-- YANG roots join **CLI** and web
-- Independent, **composable**
+- Plugin configuration appears in the **CLI** and web editor
+- Independent plugins can be **combined**
 - Each plugin declares what its **failure** means
 
 [Learn more](https://ze-software.net/reference/plugins/)
@@ -396,8 +396,9 @@ Implemented, still waiting for production evidence or for a named part to be fin
 *automate / Experimental* -- `Self-describing` `Skills`
 
 - **Self-describing** command catalogue from the live binary
-- Every command is an **automation** surface
+- Every command is available to **automation**
 - Structured **diagnostics** and repair plans
+- `ze create agent skill` sets up **Claude Code** and **Codex**
 
 [Learn more](https://ze-software.net/features/ai-first/)
 
@@ -406,7 +407,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 *automate / Experimental* -- `MCP` `OAuth 2.1`
 
 - **Streamable HTTP** transport, OAuth 2.1 resource server
-- Server-initiated **elicitation**, task-augmented tool calls
+- Server requests for **user input**, tool calls tracked as tasks
 - **MCP Apps UI** with embedded panels
 
 [Learn more](https://ze-software.net/features/mcp-integration/)
@@ -466,7 +467,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 *observe / Experimental* -- `Panic` `Syslog`
 
 - Automatic **panic** stack traces
-- Ring buffer **context** (last 64 entries)
+- Last 64 **diagnostic entries** saved with each crash
 - **show crashes** CLI command
 
 [Learn more](https://ze-software.net/features/)
@@ -532,16 +533,16 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 [Learn more](https://ze-software.net/features/)
 
-### Feature Gates
+### Choose Features at Build Time
 
 *setup / Experimental* -- `36 subsystems` `Default on`
 
-- Compile out **whole subsystems**, BGP included
-- Smaller binary, smaller **attack surface**
-- Config **fails closed** on blocks the build lacks
+- Exclude **whole subsystems** from the binary, including BGP
+- Smaller binary with **less exposed code**
+- Reject configuration for **features absent** from the build
 
 [Learn more](https://ze-software.net/guides/quickstart/)
 
 ## Release roadmap
 
-The [release inventory](https://ze-software.net/project/roadmap/) lists remaining release work, post-release work, and proposals from committed specs. Classification is not release-readiness proof.
+The [release roadmap](https://ze-software.net/project/roadmap/) lists remaining work for the first release, later improvements, and proposals from the project's recorded plans. A plan does not mean a feature is ready to use.

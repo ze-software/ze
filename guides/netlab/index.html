@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>containerlab with netlab - Ze</title>
+        <meta name="description" content="Ze documentation: guide/netlab.md" />
+        <meta property="og:title" content="containerlab with netlab - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/netlab.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="containerlab with netlab - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/netlab.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/guides/netlab/" />
+        <meta property="og:url" content="https://ze-software.net/guides/netlab/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="containerlab-with-netlab">containerlab with netlab</h1>
+    <p><a href="https://netlab.tools" target="_blank" rel="noopener">netlab</a> builds a lab from a YAML topology and starts each node
+under containerlab. Ze runs as one of those nodes. netlab calls this the daemon tier:
+one YAML file and one directory of Jinja2 templates, with no Ansible task lists and no
+Vagrant box.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#what-you-need">What you need</a></li>
+<li><a href="#step-1-build-the-image">Step 1: build the image</a></li>
+<li><a href="#step-2-give-netlab-the-daemon-definition">Step 2: give netlab the daemon definition</a></li>
+<li><a href="#step-3-run-the-reference-topology">Step 3: run the reference topology</a></li>
+<li><a href="#check-the-lab-you-started">Check the lab you started</a></li>
+<li><a href="#update-the-lab-after-a-rebuild">Update the lab after a rebuild</a></li>
+<li><a href="#stop-and-remove-the-lab">Stop and remove the lab</a></li>
+<li><a href="#how-netlab-configures-a-node">How netlab configures a node</a></li>
+<li><a href="#the-lab-login">The lab login</a></li>
+</ol></details></nav><div class="doc-body">
+<p>The ze side of that integration lives in <code>contrib/netlab/</code>. <strong><code>contrib/netlab/README.md</code>
+is the source of truth for the artifacts.</strong> This page explains how to run them.
+What the lab proves, and the automated live check that proves it, are on the
+<a href="../../labs/netlab/">netlab lab page</a>.
+To run Ze outside a lab, see
+<a href="../ze-install/#choose-a-deployment-path">Choose a deployment path</a>.</p>
+<h2 id="what-you-need">What you need</h2>
+<p>The steps below run by hand on a Linux Docker host. Install netlab,
+containerlab and Ansible on that host, and start each step from a Ze source
+checkout. The automated check on the lab page runs the same tools in a tool
+container instead.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>netlab 26.10</td>
+<td>Renders the topology and calls containerlab</td>
+</tr>
+<tr>
+<td>containerlab 0.83.0 and Docker on a Linux host</td>
+<td>Start the nodes</td>
+</tr>
+<tr>
+<td>Ansible Core 2.22.0 with Python 3.13 or later</td>
+<td>Configures the nodes</td>
+</tr>
+<tr>
+<td><code>netlab/ze:latest</code></td>
+<td>The lab image that Step 1 builds. <span class="ev-src"><span class="ev-ref"><code>docker/Dockerfile.lab</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<!-- source: contrib/netlab/Dockerfile.tools -- pinned packages, Python/tool version receipts and dependency check -->
+<!-- source: contrib/netlab/README.md -- Running the reference topology -->
+<p>The lab image is not the deployment image. See <a href="../docker/">Docker</a> for the two images
+and what separates them.</p>
+<h2 id="step-1-build-the-image">Step 1: build the image</h2>
+<pre><code class="language-bash">docker build -t netlab/ze:latest -f docker/Dockerfile.lab .
+</code></pre>
+<p><code>contrib/netlab/ze.yml</code> sets <code>clab.build: False</code> and names
+<code>netlab/ze:latest</code>, so netlab starts this image and builds nothing. Change its
+<code>image:</code> value when you choose a different Docker tag.</p>
+<!-- source: docker/Dockerfile.lab -- lab image -->
+<!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
+<h2 id="step-2-give-netlab-the-daemon-definition">Step 2: give netlab the daemon definition</h2>
+<p>There are two routes, and <code>contrib/netlab/README.md</code> gives both. The main route
+exports a complete working directory, including <code>topology.yml</code>,
+<code>topology-defaults.yml</code> and <code>templates/ze/</code>, without changing the netlab
+installation:</p>
+<pre><code class="language-bash">./le test netlab package directory /tmp/ze-lab
+</code></pre>
+<p>The destination must be new. Once the lab image is available in the target
+Docker daemon, this directory can be copied to another host and used without
+the Ze source checkout.</p>
+<!-- source: internal/le/test/netlab/package.go -- Package -->
+<!-- source: internal/le/test/netlab/netlab.go -- buildLab -->
+<!-- source: internal/le/test/netlab/actions.go -- Answer -->
+<p>The other route copies the daemon definition and the templates into the netlab
+package. It creates no lab directory, so make one and copy the reference
+topology into it:</p>
+<pre><code class="language-bash">cp contrib/netlab/ze.yml  &lt;netlab&gt;/netsim/daemons/ze.yml
+cp -R contrib/netlab/ze   &lt;netlab&gt;/netsim/daemons/ze
+mkdir /tmp/ze-lab
+cp contrib/netlab/topology.yml /tmp/ze-lab/topology.yml
+</code></pre>
+<p>Either route leaves <code>topology.yml</code> in <code>/tmp/ze-lab</code>, which Step 3 starts.</p>
+<!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
+<h2 id="step-3-run-the-reference-topology">Step 3: run the reference topology</h2>
+<pre><code class="language-bash">cd /tmp/ze-lab
+netlab up topology.yml
+</code></pre>
+<p><code>contrib/netlab/topology.yml</code> has three nodes:</p>
+<pre><code>r1 ---- internal ---- r2      AS 65001, iBGP + OSPF + IS-IS + BFD
+ \
+  ---- external ---- r3       AS 65002, eBGP only
+</code></pre>
+<p>netlab runs an IGP on internal links only, so the eBGP peer sits on its own link. r1
+also carries two static routes. The topology declares every module <code>ze.yml</code> declares:
+bgp, ospf, isis, bfd, and routing.</p>
+<!-- source: contrib/netlab/topology.yml -- nodes, links, module -->
+<p>Stop the lab from that directory with <code>netlab down --cleanup</code>.
+<a href="#stop-and-remove-the-lab">Stop and remove the lab</a> says what stays behind.</p>
+<p>To run the automated live check from the source checkout instead, with
+<code>./le test netlab run</code>, see
+<a href="../../labs/netlab/#netlab-run-title">Run the automated live check</a>
+on the lab page.</p>
+<h2 id="check-the-lab-you-started">Check the lab you started</h2>
+<p><code>./le test netlab run</code> is the full success check
+(<a href="../../labs/netlab/#netlab-run-title">what it checks</a>).
+To look at a lab you started
+by hand, open a shell on a node and ask Ze for its BGP peers:</p>
+<pre><code class="language-bash">netlab connect r1
+ze cli -c "show bgp peer list"
+</code></pre>
+<p>The CLI inside the node uses the lab login that <code>ze.yml</code> puts in the container
+environment (<a href="#the-lab-login">The lab login</a>). On r1, expect the iBGP session to
+r2 and the eBGP session to r3.</p>
+<!-- source: contrib/netlab/ze.yml -- clab.node.env -->
+<!-- source: contrib/netlab/golden/r1.conf -- peer r2, peer r3 -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer list -->
+<h2 id="update-the-lab-after-a-rebuild">Update the lab after a rebuild</h2>
+<p>A running node keeps the image it started from. To run a new build, stop the
+lab, rebuild the image, and start the lab again from the same directory:</p>
+<pre><code class="language-bash">cd /tmp/ze-lab
+netlab down --cleanup
+cd &lt;ze-checkout&gt;
+docker build -t netlab/ze:latest -f docker/Dockerfile.lab .
+cd /tmp/ze-lab
+netlab up topology.yml
+</code></pre>
+<p>Run <code>docker build</code> from the Ze checkout and the two <code>netlab</code> commands from the
+lab directory. When the checkout changes <code>contrib/netlab/</code>, give netlab the new
+daemon definition again: copy it over the netlab package, or export a new
+directory, because <code>package directory</code> needs a destination that does not exist.
+<code>./le test netlab run</code> builds its node image from the checkout on each run, so it
+needs no manual rebuild. To change a running node's configuration without a
+rebuild, see the SIGHUP reload in <a href="#how-netlab-configures-a-node">How netlab configures a node</a>.
+Review, rollback and recovery outside a lab are in <a href="../lifecycle/">Lifecycle</a>.</p>
+<!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
+<!-- source: internal/le/test/netlab/actions.go -- Answer -->
+<!-- source: internal/le/test/netlab/images.go -- buildLabNode -->
+<h2 id="stop-and-remove-the-lab">Stop and remove the lab</h2>
+<p>From the lab directory, <code>netlab down --cleanup</code> stops the lab and removes its
+containers and the files netlab generated. The automated run uses the same
+command, then fails if a node's container is still listed by
+<code>docker ps --all</code>. Run the same check by hand: no r1, r2 or r3 container of the
+lab may remain.</p>
+<pre><code class="language-bash">netlab down --cleanup
+docker ps --all
+</code></pre>
+<p>The lab directory, the lab image and any daemon definition you copied into the
+netlab package stay. Remove them when you no longer need the lab:</p>
+<pre><code class="language-bash">docker image rm netlab/ze:latest
+rm &lt;netlab&gt;/netsim/daemons/ze.yml
+rm -r &lt;netlab&gt;/netsim/daemons/ze
+</code></pre>
+<p>Then delete the lab directory you exported.</p>
+<!-- source: internal/le/test/netlab/live.go -- RunLive -->
+<h2 id="how-netlab-configures-a-node">How netlab configures a node</h2>
+<p>netlab renders <code>contrib/netlab/ze/ze.j2</code> into one file, <code>/etc/ze/ze.conf</code>, and
+containerlab bind-mounts it into the node. Ze has no <code>include</code> directive, so one file
+holds the whole running configuration. Each other module key points at an ignore file
+that nothing reads.</p>
+<!-- source: contrib/netlab/ze.yml -- daemon_config -->
+<p>The node starts netlab's <code>/etc/dataplane-wait.sh</code> under <code>tini</code>. That wrapper waits
+for initial interface configuration, then replaces itself with
+<code>ze start /etc/ze/ze.conf</code>. Ze therefore starts after its configured local
+addresses exist.</p>
+<!-- source: contrib/netlab/ze.yml -- clab.node.cmd, clab.node.config_templates, clab.group_vars.netlab_dp_module -->
+<p>The rendered empty <code>interface {}</code> block starts interface monitoring so
+<code>connected</code> can discover the addresses netlab installed. It declares no managed
+addresses; netlab keeps ownership of them. Applying the empty block still clears
+Ze's IPv6 reverse-path checks and interface IPv6 forwarding default. Each BGP peer's
+redistribution attachment receives <code>state</code> and can send <code>update</code>, allowing a
+peer that establishes later to request the current connected prefixes.</p>
+<!-- source: contrib/netlab/ze/ze.j2 -- interface, redistribute-orchestrator -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass -->
+<!-- source: internal/component/iface/config_sysctl.go -- applyIPv6ForwardingSwitch -->
+<!-- source: internal/plugins/redistribute/register.go -- runPlugin -->
+<p>Each BGP peer attaches four processes. <code>bgp-rib</code> stores the peer's routes and
+elects the best one, and re-advertises nothing. <code>bgp-rs</code> sends what one peer
+announced to the node's other peers: without it a node passes on only its own
+connected, OSPF and IS-IS prefixes, and a lab with a node between two BGP
+sessions cannot reach across it. <code>bgp-adj-rib-in</code> is what <code>bgp-rs</code> reads to
+replay those routes to a peer whose session comes up later, which in a lab is
+always one of them. <code>redistribute-orchestrator</code> carries the local prefixes
+into BGP.</p>
+<p>Toward an external peer the render sets <code>next-hop self</code>. That is the default
+RFC 4271 Section 5.1.3 describes, written out because Ze's own default leaves
+a forwarded route's next hop as it arrived, and an external peer refuses a
+next hop that is another node's loopback.</p>
+<!-- source: contrib/netlab/ze/ze.j2 -- attach process bgp-rib, bgp-rs, bgp-adj-rib-in, redistribute-orchestrator; next-hop self -->
+<p>The explicit <code>clab.node_config.initial</code> shell method runs Linux interface setup
+through <code>docker exec</code>. The Ze initial template marks successful completion for
+the startup wrapper. The explicit method overrides the Linux parent's
+host-namespace method. Setting the default configuration mode alone does not
+replace an inherited method.</p>
+<!-- source: contrib/netlab/ze.yml -- clab.node_config.initial -->
+<!-- source: contrib/netlab/ze/initial.j2 -- Linux interface setup and completion marker -->
+<p>After changing that bind-mounted file, send SIGHUP to reload it.
+<code>handleSIGHUPReload</code> runs <code>signalReload</code>,
+which stages the file as a candidate, reloads it, and never writes the file back. netlab sends no SIGHUP, and <code>ze.yml</code> says so with
+<code>features.initial.reload: false</code>. A configuration change in a running lab therefore
+needs <code>kill -HUP</code> on the ze process inside the node, or a node restart.</p>
+<!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_start_daemon -->
+<!-- source: contrib/netlab/ze.yml -- features.initial.reload -->
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, signalReload, stageSIGHUPCandidate -->
+<!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate -->
+<p><code>netlab validate</code> reads the daemon through the CLI. <code>ze.yml</code> declares the show command
+as <code>ze cli -c "show $@ | json compact"</code>, and netlab runs it with <code>docker exec</code>. An
+explicit format pipe beats the <code>--format</code> flag, so that command emits JSON.</p>
+<!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_show_command -->
+<!-- source: internal/component/cli/client/main.go -- commandWithFormat -->
+<h2 id="the-lab-login">The lab login</h2>
+<p>The rendered configuration declares one user, <code>netlab</code>, with the password <code>netlab</code>.
+<code>ze.yml</code> puts the same pair in the container environment, so the CLI inside the node has
+a credential. This is a well-known password in a throwaway container. Nothing in ze
+defaults to it and no image carries it.</p>
+<!-- source: contrib/netlab/ze/ze.j2 -- netlab_lab_user, netlab_lab_password -->
+<!-- source: contrib/netlab/ze.yml -- clab.node.env -->
+<p>The template writes the password as <code>plaintext-password</code>. Ze hashes that leaf when it
+loads the file, and it warns that the file still holds the secret. See
+<a href="../authentication/#passwords-in-a-config-file">Authentication</a>.</p>
+<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create the store, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

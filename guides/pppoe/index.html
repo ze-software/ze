@@ -105,6 +105,12 @@ Auth/Pool/Shaper plugins (shared with L2TP)
     max-sessions 65535
     max-sessions-per-mac 8
     padi-rate-limit 100
+    lcp {
+        restart-timer 3000      // milliseconds, 100..60000
+        max-terminate 2         // transmissions, including the first
+        max-configure 10        // transmissions without a valid reply
+        max-failure 5           // Naks before rejecting unacceptable options
+    }
     interface eth0 {
     }
     interface eth0.100 {
@@ -115,6 +121,13 @@ Auth/Pool/Shaper plugins (shared with L2TP)
 }
 </code></pre>
 <p>See <a href="../configuration-model/#pppoe-access">configuration guide</a> for all settings.</p>
+<p>The access concentrator shares its LCP settings and defaults with the L2TP
+server. Each counter accepts 1 through 255. A silent subscriber receives
+exactly <code>max-configure</code> Configure-Requests before the session ends; the defaults
+give ten requests over 30 seconds. <code>max-terminate</code> bounds unanswered
+Terminate-Requests, and <code>max-failure</code> bounds Naks sent without a Configure-Ack
+before unacceptable options are rejected. The Restart timer controls each wait.</p>
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
 <p>Discovery runs only when <code>enabled</code> is true and the block lists at least one
 <code>interface</code>. A <code>pppoe</code> block with no <code>interface</code> entry answers no PADI.</p>
 <h3 id="changing-the-configuration">Changing the configuration</h3>
@@ -131,6 +144,10 @@ concentrator at once, with no restart:</p>
 <tr>
 <td><code>ac-name</code>, <code>service-name</code>, <code>cookie-timeout</code>, <code>padi-rate-limit</code>, <code>max-sessions</code>, <code>max-sessions-per-mac</code>, <code>auth-method</code>, <code>authentication-allow</code>, <code>allow-no-auth</code></td>
 <td>Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered <code>max-sessions</code> refuses new sessions and ends none. AC-Cookies already handed out stay valid</td>
+</tr>
+<tr>
+<td><code>lcp/restart-timer</code>, <code>lcp/max-terminate</code>, <code>lcp/max-configure</code>, <code>lcp/max-failure</code></td>
+<td>Apply to newly admitted PPP sessions. A running session retains its timing and limits, including during LCP renegotiation</td>
 </tr>
 <tr>
 <td>An added <code>interface</code></td>
@@ -268,6 +285,17 @@ owner: <code>l2tp-auth-radius</code> claims it when a RADIUS server is configure
 therefore authenticates against those users, on PPPoE and on L2TP.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 <h3 id="pppoe-client-keepalive-and-redial">PPPoE client keepalive and redial</h3>
+<p>The client's <code>lcp restart-timer</code> sets the Configure-Request retransmission
+interval in milliseconds (100 to 60000, default 3000). <code>lcp max-configure</code>
+sets the unanswered request budget (1 to 255, default 10). The first request
+counts. A valid negotiation reply renews the budget where the LCP state
+machine requires it. A timing-only reload keeps the current session and its
+LCP settings, including during renegotiation. The next session uses the new
+settings. A separate convergence deadline, twice the configured timer times
+the request budget, bounds a peer that repeatedly Naks each request.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+<!-- source: internal/component/iface/pppoe_client.go -- setTiming, pppoeClientConfigChanged -->
 <p>A <code>pppoe-client</code> entry detects a dead access concentrator with LCP
 Echo-Requests. <code>keepalive interval</code> sets the seconds between two requests
 (default 10), and <code>keepalive failures</code> sets how many unanswered requests in a
@@ -355,6 +383,13 @@ other states carry a <code>reason</code>: <code>waiting</code> (the source holds
 <code>pppoe-ipv6cp-rejected-ze-client</code> prove this against accel-ppp: the first the
 negotiated link-local address, the RA default route and SLAAC, the second an
 access concentrator that rejects IPv6CP (<code>docs/labs/pppoe-interop.md</code>).</p>
+<p><code>interface pppoe-client &lt;name&gt; ipv6cp restart-timer</code> sets the IPv6CP retry wait
+in milliseconds, from 100 to 60000, default 3000. It starts after each
+Configure-Request and is independent of IPCP's timer. Ten unanswered requests
+stop IPv6CP while IPv4 can continue. A timing-only reload keeps the established
+session and changes the next session's timing.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client ipv6cp -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- newClientIPv6CP, sendRequest, tick -->
 <!-- source: internal/component/iface/pppoe_client_ipv6.go -- parsePPPoEClientIPv6, applyPPPoEClientSysctls -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
 <!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->
@@ -538,6 +573,10 @@ ID for L2TP) and SessionID.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -567,7 +606,7 @@ ID for L2TP) and SessionID.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

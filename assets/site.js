@@ -922,7 +922,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             containers.forEach(function (container) {
                 var visible = container.querySelector(config.visibleSelector);
-                container.style.display = visible ? "" : "none";
+                container.style.display = !category || visible ? "" : "none";
             });
             if (empty) empty.classList.toggle("filtered-out", shown !== 0);
             updateStatus(category, shown);
@@ -1035,7 +1035,7 @@ document.addEventListener("DOMContentLoaded", function () {
         initCategoryFilter({
             buttonSelector: ".legend button[data-cat]",
             itemSelector: ".tl-item[data-cat]",
-            containerSelector: ".tl-quarter[data-quarter]",
+            containerSelector: ".tl-month[data-month]",
             visibleSelector: ".tl-item[data-cat]:not(.filtered-out)",
             statusName: "milestones",
         });

@@ -54,44 +54,18 @@
                                 <p class="eyebrow">Ze, an OpenNOS</p>
                                 <h1 id="hero-title" class="hero-start-title">A network OS.<br /><em>A platform for immutable services.</em></h1>
                                 <p class="hero-start-points" aria-label="Key capabilities">
-                                    <span>Plugin extensible</span>
+                                    <span>Self-contained</span>
+                                    <span>Extend with plugins</span>
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Route traffic and manage your network with one configuration. Extend Ze with plugins for automation and services of your own.</p>
-                                <div class="hero-capabilities" aria-label="Networking and management capabilities">
-                                    <dl>
-                                        <div>
-                                            <dt>Route and connect</dt>
-                                            <dd>
-                                                Speak <a href="guides/bgp-peering/">BGP</a>,
-                                                <a href="guides/isis/">ISIS</a> and <a href="guides/ospf/">OSPF</a>.
-                                                Manage <a href="features/interfaces/">interfaces</a> and tunnels with
-                                                <a href="guides/ipsec/">IPsec VPN</a> and
-                                                <a href="features/interfaces/#wireguard-configuration">WireGuard</a>.
-                                                Program the <a href="reference/plugins/fib-kernel/">FIB</a>.
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt>Manage one configuration</dt>
-                                            <dd>
-                                                Ze exposes one <a href="features/bgp-configuration/">YANG</a>-modeled configuration
-                                                through its own built-in SSH server, <a href="features/web-interface/">web interface</a>,
-                                                <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
-                                                and <a href="features/api-commands/">APIs</a>:
-                                                <a href="guides/api/#rest-endpoints">REST</a>,
-                                                <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                    <p>Built on a configuration and protocol engine. Run it as a
-                                        <a href="architecture/">daemon</a> or an
-                                        <a href="guides/appliance/">immutable appliance</a>.</p>
-                                </div>
+                                <p class="hero-intro">Ze is built on a <a href="architecture/">configuration and plugin engine</a>, with <a href="reference/plugins/">pre-installed plugins</a> for <a href="guides/bgp-peering/">BGP</a>, <a href="guides/ospf/">OSPF</a>, <a href="guides/isis/">IS-IS</a>, <a href="guides/ipsec/">VPNs</a>, <a href="features/interfaces/">interfaces</a>, <a href="features/dns-resolver/">DNS</a>, <a href="reference/plugins/dhcpserver/">DHCP</a> and <a href="features/">other network functions</a>. Its single <a href="reference/configuration/">YANG-defined configuration</a> can be managed through Ze’s own <a href="features/cli-commands/">SSH server, CLI</a>, <a href="features/web-interface/">web interface</a>, <a href="features/mcp-integration/">MCP</a> and <a href="features/api-commands/">APIs</a>. You can <a href="developers/plugins/">develop your own plugins in any programming language</a> and run Ze as a <a href="guides/ubuntu-build-install/">Linux daemon</a> or an <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
+                                <p class="hero-project-intro"><a href="project/why-ze/">Why Ze exists →</a> · Ask questions and follow development on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>.</p>
                                 <div class="hero-actions">
                                     <a class="button primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">↗</span></a>
                                     <a class="button ghost" href="demos/terminal/">Watch the demos <span aria-hidden="true">↗</span></a>
                                 </div>
+                                <p class="hero-status">Linux service or immutable appliance. <span>No stable release yet.</span></p>
                             </div>
                             <div class="showcase" data-product-showcase>
                                 <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
@@ -120,7 +94,7 @@
     </noscript></div>
                                     <figcaption class="screen-description">
                                         <strong id="hero-demo-title">One running router, eight live configuration topics</strong>
-                                        <p>Watch Ze at work: follow a real terminal lab, with its transcript alongside it.</p>
+                                        <p>Watch ExaBGP migration, inspect BGP peers, then configure, diagnose and repair services without restarting Ze. The transcript includes the commands and their output.</p>
                                         <a href="demos/terminal/">Watch the other demos →</a>
                                         <p class="capture-caption">Enlarged preview from the recording. Play shows the full terminal. Use full screen for a closer look.</p>
                                     </figcaption>
@@ -140,7 +114,7 @@
                                     <a href="assets/demos/web-config.webp?v=dd251ea02c" target="_blank" rel="noopener"><img src="assets/demos/web-config.webp?v=dd251ea02c" alt="Ze web configuration showing the system identity form with the committed hostname edge-demo" width="1680" height="1008" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Configure Ze in your browser.</strong>
-                                        <p>Edit a setting, review its diff, commit the draft and verify the active value.</p>
+                                        <p>Edit a setting, review the changes, apply them and check the active value.</p>
                                         <a href="features/web-interface/#browser-configuration-workflow">Explore the web interface →</a>
                                         <p class="capture-caption">Captured after the hostname commit in an isolated local Ze lab. <a href="assets/demos/web-config.txt?v=a614767cf2">Read the transcript.</a></p>
                                     </figcaption>
@@ -167,58 +141,62 @@
                                 </figure>
                                 </div>
                             </div>
+                            <div class="hero-capabilities" aria-label="Networking and management capabilities">
+                                <p>Ze is built on a configuration and protocol engine.
+                                    It keeps a single configuration, defined in <a href="features/bgp-configuration/">YANG</a>,
+                                    which you manage through its own built-in SSH server,
+                                    <a href="features/web-interface/">web interface</a>,
+                                    <a href="features/cli-commands/">CLI</a>, <a href="features/mcp-integration/">MCP</a>
+                                    and <a href="features/api-commands/">APIs</a>:
+                                    <a href="guides/api/#rest-endpoints">REST</a>,
+                                    <a href="guides/api/#grpc-services">gRPC</a> and <a href="guides/gnmi/">gNMI</a>.
+                                    You can extend Ze with plugins for automation and services of your own,
+                                    and run it as a <a href="architecture/">background service (daemon)</a> or as an
+                                    <a href="guides/appliance/">appliance with a read-only operating system</a>.</p>
+                            </div>
                         </div>
                         <div class="hero-action-row">
-                            <nav class="hero-primary-actions" aria-label="Start with Ze">
-                                <a class="hero-start-action" href="project/why-ze/">
-                                    <strong>Why Ze exists</strong>
-                                    <small>Learn how Ze came to be.</small>
-                                </a>
-                                <a class="hero-start-action" href="features/web-interface/#browser-configuration-workflow">
-                                    <strong>Watch a demo</strong>
-                                    <small>Discover the web interface.</small>
-                                </a>
-                                <a
-                                    class="hero-start-action search-trigger"
-                                    href="search/"
-                                    aria-expanded="false"
-                                    ><strong>Search the site</strong
-                                    ><small>Docs and commands. <span class="search-shortcut-hint" aria-hidden="true"><kbd>⌘K</kbd><span>or</span><kbd>⌘/</kbd></span></small
-                                    ></a
-                                >
-                                <a
-                                    class="hero-start-action"
-                                    href="https://discord.gg/T8s7CjPDne"
-                                    target="_blank"
-                                    rel="noopener"
-                                    ><strong>Join Discord</strong
-                                    ><small>Ask questions, get help.</small
-                                    ></a
-                                >
-                            </nav>
                             <div class="hero-release-callout">
-                                <a
-                                    class="hero-release-speaker"
-                                    href="zeledon/"
-                                    aria-label="Meet Zeledon, the Ze mascot"
-                                >
-                                    <img
-                                        class="hero-mascot"
-                                        src="assets/zeledon.svg"
-                                        alt="Zeledon, the Ze bird mascot"
-                                        width="134"
-                                        height="134"
-                                    />
-                                </a>
-                                <p>
-                                    Expected initial release: Q4 2026.<br />
-                                    No stable release yet.
-                                </p>
+                                <div class="hero-release-details">
+                                    <a
+                                        class="hero-release-speaker"
+                                        href="zeledon/"
+                                        aria-label="Meet Zeledon, the Ze mascot"
+                                    >
+                                        <img
+                                            class="hero-mascot"
+                                            src="assets/zeledon.svg"
+                                            alt="Zeledon, the Ze bird mascot"
+                                            width="134"
+                                            height="134"
+                                        />
+                                    </a>
+                                    <p>
+                                        <strong class="hero-release-title">Planned release</strong>
+                                        <span>Initial version</span><br /><span>Q4 2026</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="hero-project-metrics" aria-label="Project size and scope">
+                                <div class="hero-metrics-grid">
+                                    <a class="hero-project-metric" href="project/activity/">
+                                        <strong><span data-ze-stat="repo.go_source_lines_display">1.66 million</span></strong>
+                                        <span>lines of Go source code</span>
+                                    </a>
+                                    <a class="hero-project-metric" href="project/activity/">
+                                        <strong><span data-ze-stat="repo.go_test_lines_display">1.98 million</span></strong>
+                                        <span>lines of Go test code</span>
+                                    </a>
+                                    <a class="hero-project-metric" href="project/activity/">
+                                        <strong><span data-ze-stat="repo.go_vendor_lines_display">2.00 million</span></strong>
+                                        <span>lines of third-party Go code</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                         <div class="hero-outcome-links" aria-label="Ze product map">
-                            <a href="architecture/">Protocol-agnostic core</a>
-                            <a href="reference/configuration/">YANG per subsystem</a>
+                            <a href="architecture/">Core shared by all protocols</a>
+                            <a href="reference/configuration/">Configuration models in YANG</a>
                             <a href="features/#routing">BGP, interfaces, FIB</a>
                             <a href="features/ai-first/">CLI, SSH, web, API, MCP</a>
                             <a href="reference/plugins/">Compiled or external plugins</a>
@@ -228,133 +206,17 @@
                 </div>
             </section>
 
-            <section class="whats-new reveal" aria-labelledby="whats-new-title">
-                <div class="whats-new-head">
-                    <h2 id="whats-new-title">Latest news</h2>
-                    <a href="project/changes/">All updates</a>
-                </div>
-                <article class="whats-new-item cat-meta">
-                    <span class="whats-new-label">Engineering note</span>
-                    <h3><a href="blog/reference-from-the-system/">Keeping documentation in step with the code</a></h3>
-                    <p>Ze generates command, configuration and support reference data from the code and its records, so the…</p>
-                </article>
-                <article class="whats-new-item cat-meta">
-                    <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-10-25/">2026-10-25 – 2026-11-09 (16 days)</a></h3>
-                    <p>This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…</p>
-                </article>
-                <article class="whats-new-item cat-meta">
-                    <span class="whats-new-label">RFC compliance progress</span>
-                    <h3><a href="quality/rfc-compliance/">Every MUST-level requirement, and what proves it</a></h3>
-                    <p>One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.</p>
-                </article>
-            </section>
-
-
-            <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
-                <div class="home-proof-head">
-                    <div>
-                        <h2 id="proof-title">Regression prevention</h2>
-                        <p>
-                            Tests help catch changes that break existing behavior.
-                            Go tests, end-to-end scenarios, protocol checks,
-                            fuzzing and interoperability tests cover different
-                            failure modes. The figures describe the test suite
-                            and its coverage. Each card explains what is checked
-                            and links to how those checks work. Ze is written
-                            with AI agents working under a quality process
-                            based on ISO management systems;
-                            <a href="project/ai-development/">how Ze is developed with AI</a>
-                            explains it.
-                        </p>
-                    </div>
-                    <div class="home-proof-actions">
-                        <a class="button" href="quality/rfc-compliance/profiles/">See completion by use case</a>
-                        <a class="button" href="quality/">Read the evidence map</a>
-                        <a class="button" href="demos/terminal/">Watch product demos</a>
-                    </div>
-                </div>
-                <div class="proof-strip" aria-label="Project evidence">
-                    <a class="proof" href="quality/rfc-compliance/">
-                        <strong
-                            ><span data-ze-stat="rfc.proven_percent">45.3</span>%
-                            <span class="label">RFC MUSTs tested</span></strong
-                        >
-                        <ul>
-                            <li><span data-ze-stat="rfc.proven_display">2,153</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> MUSTs Ze and the OS owe, in walked RFCs Ze implements</li>
-                            <li>Across <span data-ze-stat="rfc.implemented_display">196</span> RFCs, <span data-ze-stat="rfc.not_walked_display">0</span> not walked yet</li>
-                            <li>Until 2026-10-31 the figure counted every MUST row but rollups, annotated rows included</li>
-                            <li>Tests tied to requirements</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
-                    </a>
-                    <a class="proof" href="quality/unit-fuzz-mutation/">
-                        <strong
-                            ><span data-ze-stat="tests.unit_display">42,800+</span> <span class="label">Go tests</span></strong
-                        >
-                        <ul>
-                            <li>Check encoded bytes and parsed values.</li>
-                            <li>Verify config, state transitions and plugins.</li>
-                            <li>gomu checks whether tests catch code changes.</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Go tests and mutation checks.</span>
-                    </a>
-                    <a class="proof" href="quality/functional-ci/">
-                        <strong
-                            ><span data-ze-stat="tests.e2e_display">2,800+</span>
-                            <span class="label">end-to-end tests</span></strong
-                        >
-                        <ul>
-                            <li>Start sessions and exchange route updates.</li>
-                            <li>Run editor commands, commits and reloads.</li>
-                            <li>Check output, errors and saved state.</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Scenarios and expected results.</span>
-                    </a>
-                    <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong><span data-ze-stat="tests.fuzz_display">97</span> <span class="label">fuzz targets</span></strong>
-                        <ul>
-                            <li>Generate inputs for parsers and decoders.</li>
-                            <li>Probe packets and config text for crashes.</li>
-                            <li>Replay saved failures as regression cases.</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Fuzz inputs and regression cases.</span>
-                    </a>
-                    <a class="proof" href="quality/qemu-interop-release/#docker-interop">
-                        <strong
-                            ><span data-ze-stat="interop.target_display">13</span> <span class="label">interop test images</span></strong
-                        >
-                        <ul>
-                            <li>Peer CLIs check sessions and route exchange.</li>
-                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP.</li>
-                            <li>Separate labs: IPsec, L2TP, PPPoE, RADIUS.</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Docker scenarios and peer checks.</span>
-                    </a>
-                </div>
-                <div class="interop-strip" aria-label="Implementations Ze is tested against">
-                    <span class="interop-strip-label concept-evidence">Tested against</span>
-                    <div class="interop-groups">
-                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FRR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">BIRD</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
-                        <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
-                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
-                        <span class="interop-group"><b>Access</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
-                        <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
-                    </div>
-                </div>
-            </section>
-
             <section id="why-ze" class="home-section-panel home-section-panel-management" aria-labelledby="why-title">
                 <article class="why-lead">
                     <div class="why-lead-copy">
                         <h2 id="why-title">Why Ze?</h2>
                         <p>
-                            Ze brings BGP, Linux interfaces and FIB programming
+                            Ze brings BGP, Linux interfaces and forwarding-table management
                             together with network services and plugins in one
                             open-source platform. Use the same configuration model
                             and tools in a lab, as a daemon or as an appliance,
-                            with policy data, generated references and test
-                            evidence available alongside them.
+                            with routing policy data, reference pages generated from the code and test
+                            results available alongside them.
                         </p>
                         <h3>Manage Ze directly.</h3>
                         <p>
@@ -412,19 +274,19 @@
                         <span class="cat">Decision</span>
                         <h3><a href="project/why-ze/">Reasons to consider Ze</a></h3>
                         <p>
-                            Start here for the selling points: powerful CLI,
-                            operator protocols, in-engine IRR filtering,
-                            PeeringDB data, looking glass APIs, one YANG model,
-                            and when to choose another NOS instead.
+                            The overview explains the CLI and operator protocols,
+                            in-engine IRR filtering, PeeringDB data, looking glass
+                            APIs and shared YANG model. It also describes when
+                            another NOS may be a better choice.
                         </p>
                     </article>
                     <article class="card usp-card cat-platform">
                         <span class="cat">Runtime</span>
-                        <h3><a href="architecture/">Small core, registered subsystems</a></h3>
+                            <h3><a href="architecture/">A small core shared by each subsystem</a></h3>
                         <p>
-                            The core holds the supervisor, message bus, config
-                            provider, and plugin manager. BGP and interface
-                            management register into it.
+                            The core manages background tasks, messages between components,
+                            configuration and plugins. BGP and interface management
+                            connect to these shared services.
                         </p>
                     </article>
                     <article class="card usp-card cat-routing">
@@ -438,7 +300,7 @@
                     </article>
                     <article class="card usp-card cat-automate">
                         <span class="cat">Modular</span>
-                        <h3><a href="reference/plugins/">Plugins keep their own contract</a></h3>
+                        <h3><a href="reference/plugins/">Extend Ze with plugins</a></h3>
                         <p>
                             Plugins can be compiled Go modules or external
                             processes. Compiled modules load their YANG into the
@@ -448,34 +310,156 @@
                     </article>
                 </div>
             </section>
+
+
+            <section class="whats-new reveal" aria-labelledby="whats-new-title">
+                <div class="whats-new-head">
+                    <h2 id="whats-new-title">Latest news</h2>
+                    <a href="project/changes/">All updates</a>
+                </div>
+                <article class="whats-new-item cat-meta">
+                    <span class="whats-new-label">Engineering note</span>
+                    <h3><a href="blog/reference-from-the-system/">Keeping documentation in step with the code</a></h3>
+                    <p>Ze generates public reference from its code and records, with links to the decisions behind them. Operators…</p>
+                </article>
+                <article class="whats-new-item cat-meta">
+                    <span class="whats-new-label">Recently shipped</span>
+                    <h3><a href="project/changes/2026-10-25/">2026-10-25 – 2026-11-09 (16 days)</a></h3>
+                    <p>This update covers two weeks, and a number of the changes can break a working configuration. Following RFC…</p>
+                </article>
+                <article class="whats-new-item cat-meta">
+                    <span class="whats-new-label">RFC compliance progress</span>
+                    <h3><a href="quality/rfc-compliance/">Mandatory RFC requirements and their test evidence</a></h3>
+                    <p>One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.</p>
+                </article>
+            </section>
+
+
+            <section id="proof" class="home-proof-block index4-evidence reveal" aria-labelledby="proof-title">
+                <div class="index4-evidence-heading">
+                    <div><span class="index4-kicker">Evidence for your decision</span><h2 id="proof-title">Tests that catch bugs</h2></div>
+                    <p>Go tests, complete operator scenarios, generated inputs and exchanges with other implementations
+                        cover different kinds of failure. These figures show the inventory and the evidence behind it.</p>
+                </div>
+                <div class="index4-role-path">
+                    <div><span class="index4-badge">By use case</span><h3>Start with the role you have in mind.</h3>
+                        <p>Inspect the requirements and remaining gaps for your network role, alongside the feature maturity information.</p></div>
+                    <div class="index4-role-actions"><a class="button" href="quality/rfc-compliance/profiles/">See completion by use case →</a>
+                        <a href="quality/">How Ze is tested</a><a href="#why-ze">Watch the configuration demo</a></div>
+                </div>
+                <div class="index4-evidence-top">
+                    <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
+                        <span class="index4-badge concept-evidence">Standards requirements</span>
+                        <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">45.2</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,149</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
+                        <div class="index4-small-figures"><div><b><span data-ze-stat="rfc.implemented_display">196</span></b><span>RFCs implemented</span></div>
+                            <div><b><span data-ze-stat="rfc.not_walked_display">0</span></b><span>unreviewed requirement lists excluded</span></div></div>
+                        <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
+                        <details class="index4-method"><summary>Counting history</summary><p>Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.</p></details>
+                        <a class="index4-evidence-link" href="quality/rfc-compliance/">Standards requirements and test results →</a>
+                    </article>
+                    <article class="index4-metric-panel" aria-labelledby="index4-interop-title">
+                        <span class="index4-badge concept-evidence">Tests with other implementations</span>
+                        <h3 id="index4-interop-title">Interoperability scenarios</h3>
+                        <p class="index4-big-figure"><span data-ze-stat="interop.scenarios">399</span></p>
+                        <p>BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.</p>
+                        <div class="index4-small-figures"><div><b><span data-ze-stat="interop.suite_count">8</span></b><span>lab suites</span></div>
+                            <div><b><span data-ze-stat="interop.target_display">13</span></b><span>test images listed</span></div></div>
+                        <div class="index4-image-list" aria-label="Listed test images">
+                            <span>BIRD</span><span>FRR</span><span>GoBGP</span><span>OpenBGPD</span>
+                            <span>freeRouter</span><span>RustyBGP</span><span>rustbgpd</span><span>StayRTR</span>
+                            <span>keepalived</span><span>dnsmasq</span><span>Kea</span><span>Knot DNS</span><span>Unbound</span>
+                        </div>
+                        <p class="index4-image-scope">These test images are reused across many scenarios.
+                            Other labs and tools use additional images, including pmacct.</p>
+                        <p class="index4-panel-note">A scenario can contain many checks, and many scenarios reuse the same peer implementation.
+                            These counts describe the inventory, not current passing runs or individual assertions.</p>
+                        <a class="index4-evidence-link" href="quality/qemu-interop-release/#docker-interop">Docker scenarios and peer checks →</a>
+                    </article>
+                </div>
+                <section class="index4-scenario-panel" aria-labelledby="index4-scenario-title">
+                    <div class="index4-scenario-heading"><div><span class="index4-kicker">The scenarios behind the figure</span><h3 id="index4-scenario-title">Where the <span data-ze-stat="interop.scenarios">399</span> scenarios are defined.</h3></div>
+                        <a href="labs/bgp-interop/">Explore the BGP lab →</a></div>
+                    <table class="index4-scenario-table" role="table">
+                        <caption>Scenario inventory across <span data-ze-stat="interop.suite_count">8</span> lab suites. The shared suite is split by primary protocol; the two RADIUS suites are combined.</caption>
+                        <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Protocol or test area</th><th scope="col" role="columnheader">Scenarios</th><th scope="col" role="columnheader">What the cases cover</th></tr></thead>
+                        <tbody role="rowgroup">
+                            <tr role="row"><th scope="row" role="rowheader">BGP</th><td role="cell"><span data-ze-stat="interop.protocols.bgp">142</span></td><td role="cell">Route exchange, path attributes, graceful restart, route reflection, route-server and session cases.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">OSPFv2</th><td role="cell"><span data-ze-stat="interop.protocols.ospfv2">36</span></td><td role="cell">Adjacencies, authentication, areas, LSAs, route policy and recovery.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">OSPFv3</th><td role="cell"><span data-ze-stat="interop.protocols.ospfv3">20</span></td><td role="cell">IPv6 adjacencies, address families, IPv4 over OSPFv3, IPsec protection and recovery.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">IS-IS</th><td role="cell"><span data-ze-stat="interop.protocols.isis">16</span></td><td role="cell">Adjacencies, authentication, levels, metrics, route policy and convergence.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">BFD</th><td role="cell"><span data-ze-stat="interop.protocols.bfd">5</span></td><td role="cell">Sessions, link-local peers and simple-password authentication.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">BMP</th><td role="cell"><span data-ze-stat="interop.protocols.bmp">4</span></td><td role="cell">Route monitoring, local-RIB export, receivers and statistics.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">RPKI / RTR</th><td role="cell"><span data-ze-stat="interop.protocols.rpki">3</span></td><td role="cell">Route-origin validation and validator-cache sessions and preference.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">VRRP</th><td role="cell"><span data-ze-stat="interop.protocols.vrrp">2</span></td><td role="cell">Mastership and VRRPv2 address-owner cases.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">DNS</th><td role="cell"><span data-ze-stat="interop.protocols.dns">2</span></td><td role="cell">Resolver forwarding and DNS service for DHCP clients.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">DHCPv4</th><td role="cell"><span data-ze-stat="interop.protocols.dhcpv4">3</span></td><td role="cell">Renewal, rebinding, NAK handling and shared-segment server cases.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">DHCPv6</th><td role="cell"><span data-ze-stat="interop.protocols.dhcpv6">2</span></td><td role="cell">Client confirmation and renewal against Kea.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">LDP</th><td role="cell"><span data-ze-stat="interop.protocols.ldp">3</span></td><td role="cell">Session backoff, unknown TLVs and keepalive expiry.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">AS112</th><td role="cell"><span data-ze-stat="interop.protocols.as112">6</span></td><td role="cell">Anycast route announcements, communities, origin attributes and redistribution.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">GTSM</th><td role="cell"><span data-ze-stat="interop.protocols.gtsm">1</span></td><td role="cell">TTL protection for ICMP errors related to a protected BGP session.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">IPsec</th><td role="cell"><span data-ze-stat="interop.protocols.ipsec">85</span></td><td role="cell">Tunnel negotiation, authentication and recovery scenarios.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">L2TP</th><td role="cell"><span data-ze-stat="interop.protocols.l2tp">13</span></td><td role="cell">Access tunnels, sessions and PPP cases.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">PPPoE</th><td role="cell"><span data-ze-stat="interop.protocols.pppoe">16</span></td><td role="cell">Client and access-session scenarios.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">RADIUS</th><td role="cell"><span data-ze-stat="interop.protocols.radius">12</span></td><td role="cell">Operator login, authorization, subscriber accounting, CoA and disconnect cases.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">RSVP-TE</th><td role="cell"><span data-ze-stat="interop.protocols.rsvpte">10</span></td><td role="cell">Transit, label and signaling scenarios.</td></tr>
+                            <tr role="row"><th scope="row" role="rowheader">Multi-node topologies</th><td role="cell"><span data-ze-stat="interop.protocols.topology">18</span></td><td role="cell">Links, routes and service interactions between nodes.</td></tr>
+
+                        </tbody>
+                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell"><span data-ze-stat="interop.scenarios">399</span></td><td role="cell">Each scenario is counted once by its primary protocol or test area, including cases that exercise several protocols.</td></tr></tfoot>
+                    </table>
+                </section>
+                <div class="index4-test-grid" aria-label="Other test layers">
+                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">45,600+</span></p>
+                        <p>Check encoded bytes and parsed values. Verify configuration, state transitions and plugins.
+                            Mutation checks with gomu examine whether tests catch code changes.</p><a href="quality/unit-fuzz-mutation/">Go tests and mutation checks →</a></article>
+                    <article><span class="index4-badge concept-evidence">Visible behavior</span><h3>End-to-end tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.e2e_display">2,900+</span></p>
+                        <p>Start sessions and exchange route updates. Run editor commands, commits and reloads.
+                            Check output, errors and saved state.</p><a href="quality/functional-ci/">Scenarios and expected results →</a></article>
+                    <article><span class="index4-badge concept-evidence">Generated inputs</span><h3>Fuzz targets</h3><p class="index4-test-figure"><span data-ze-stat="tests.fuzz_display">100+</span></p>
+                        <p>Generate inputs for parsers and decoders. Probe packets and configuration text for crashes.
+                            Replay saved failures as regression cases.</p><a href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">Fuzz inputs and regression cases →</a></article>
+                </div>
+                <p class="index4-development-note">Ze is written with AI agents working under a quality process based on ISO management systems.
+                    <a href="project/ai-development/">How Ze is developed with AI</a> explains the process.</p>
+                <div class="interop-strip" aria-label="Implementations Ze is tested against">
+                    <span class="interop-strip-label concept-evidence">Tested against</span>
+                    <div class="interop-groups">
+                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FRR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">BIRD</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
+                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
+                        <span class="interop-group"><b>Access</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
+                    </div>
+                </div>
+            </section>
+
             <section id="features-summary" class="home-section-panel home-section-panel-map" aria-labelledby="core-title">
                 <div class="section-head reveal">
-                    <h2 id="core-title">Documentation that matches the code.</h2>
+                    <h2 id="core-title">Capabilities and current limitations.</h2>
                     <div class="reference-intro">
-                        <p>Read the generated references before you run Ze.</p>
-                        <p>The same YANG schema and command definitions drive Ze and its references. Each website build brings changes into the documentation, including configuration supplied by plugins.</p>
+                        <p>Feature pages explain behavior and limits. The <a href="reference/feature-status/">maturity record</a> separates available code from the evidence still needed before a feature can be recommended for production.</p>
                     </div>
                 </div>
                 <div class="reference-grid reveal">
-                    <article class="card reference-card cat-platform">
+                    <a class="card reference-card cat-platform" href="reference/configuration/">
                         <span class="cat">Configuration</span>
-                        <h3>The full YANG tree</h3>
-                        <p>Browse every configuration setting in the documented build, including the settings supplied by plugins.</p>
-                        <a class="audience-card-cta" href="reference/configuration/">Configuration reference</a>
-                    </article>
-                    <article class="card reference-card cat-operate">
+                        <strong class="reference-card-title">The YANG tree</strong>
+                        <span class="reference-card-description">Settings for the documented build, including plugins →</span>
+                    </a>
+                    <a class="card reference-card cat-operate" href="reference/cli/">
                         <span class="cat">Commands</span>
-                        <h3>Command syntax and help</h3>
-                        <p>Find commands, arguments and pipe operators from the same definitions that supply Ze's built-in help.</p>
-                        <a class="audience-card-cta" href="reference/cli/">CLI reference</a>
-                    </article>
-                    <article class="card reference-card cat-automate">
+                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">509</span> CLI commands</strong>
+                        <span class="reference-card-description">Syntax, arguments and pipe operators →</span>
+                    </a>
+                    <a class="card reference-card cat-automate" href="reference/plugins/">
                         <span class="cat">Plugins</span>
-                        <h3>Plugins and dependencies</h3>
-                        <p>Explore registered plugins, their dependencies, configuration roots and the source that implements them.</p>
-                        <a class="audience-card-cta" href="reference/plugins/">Plugin catalogue</a>
-                    </article>
+                        <strong class="reference-card-title"><span data-ze-stat="plugin_registrations">96</span> registered plugins</strong>
+                        <span class="reference-card-description">Purpose, dependencies, configuration roots and source →</span>
+                    </a>
                 </div>
+                <p class="reference-generation-note">The configuration and command references come from the definitions used by Ze itself. When those definitions change, the next website build updates the reference, including settings supplied by plugins.</p>
                 <h3 class="feature-directory-title">Explore features by category</h3>
                 <div class="legend reveal" role="group" aria-label="Browse features by category">
                     <a class="cat-operate" href="features/#operate">Operate (<span data-ze-stat="features.categories.operate">6</span>)</a>
@@ -486,7 +470,6 @@
                     <a class="cat-secure" href="features/#secure">Secure (<span data-ze-stat="features.categories.secure">6</span>)</a>
                     <a class="cat-platform" href="features/#platform">Setup (<span data-ze-stat="features.categories.platform">6</span>)</a>
                 </div>
-                <p class="capability-note">Open a feature for its behavior and limitations, and <a href="reference/feature-status/">check its maturity</a> before choosing a deployment.</p>
                 <div class="capability-grid">
 <article class="capability cat-operate"><div class="capability-title"><h3>Operate</h3></div>
 <div class="capability-links">
@@ -559,74 +542,79 @@
 <a href="guides/appliance/">Minimal Appliance Mode</a>
 <a href="features/introspection/">Runs Itself</a>
 <a href="features/">Docker Support</a>
-<a href="guides/quickstart/">Feature Gates</a>
+<a href="guides/quickstart/">Choose Features at Build Time</a>
 </div><a class="capability-footer" href="features/#platform">View setup features →</a></article>
 
+                    <aside class="capability capability-guide">
+                        <span class="cat">Find the right page</span>
+                        <h3>Keep the reference close.</h3>
+                        <p>The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.</p>
+                        <a href="docs/">Open documentation →</a>
+                        <a href="features/">Browse the feature catalogue →</a>
+                    </aside>
                 </div>
             </section>
 
-            <section class="home-section-panel home-section-panel-run" aria-labelledby="run-title">
+            <section class="home-section-panel home-section-panel-run index4-try" aria-labelledby="run-title">
                 <div class="section-head reveal cat-platform">
-                    <h2 id="run-title">
-                        Run it as a lab,<br />daemon, or appliance.
-                    </h2>
+                    <h2 id="run-title">Choose how to try Ze.</h2>
                     <p>
-                        The same binary and configuration support each path,
-                        from a <a href="labs/netlab/">netlab topology</a>
-                        or BGP interop lab to spare hardware.
+                        A local BGP lab is the simplest starting point. If you
+                        already run ExaBGP or want a different deployment,
+                        follow the path that matches your setup.
                     </p>
                 </div>
-                <div class="audience run-path-grid reveal">
-                    <article class="card audience-card cat-routing">
-                        <span class="cat">Lab</span>
-                        <h3><a href="labs/bgp-interop/">Run reproducible labs</a></h3>
-                        <p>
-                            The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer&#39;s own CLI.
-                        </p>
-                        <div class="chips">
-                            <span class="chip concept-software">netlab</span>
-                            <span class="chip concept-software">containerlab</span>
-                            <span class="chip concept-software">Docker</span>
-                            <span class="chip concept-software">FRR</span>
-                            <span class="chip concept-software">BIRD</span>
-                            <span class="chip concept-software">GoBGP</span>
-                        </div>
-                        <span class="audience-card-cta">Run BGP lab <small>BGP interop</small></span>
+                <div class="index4-choice-grid reveal">
+                    <article class="index4-choice index4-choice-featured">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">Local lab</span><span class="index4-recommendation">Start here</span></div>
+                        <h3>Exchange your first routes.</h3>
+                        <p>Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.</p>
+                        <p class="index4-success"><strong>Success check</strong>Both sessions establish and each peer receives the other peer’s advertised prefix.</p>
+                        <a class="index4-choice-link" href="guides/quickstart/">Open the two-peer quickstart <span aria-hidden="true">→</span></a>
                     </article>
-                    <article class="card audience-card cat-operate">
-                        <span class="cat">Daemon</span>
-                        <h3><a href="guides/quickstart/">Run as a daemon</a></h3>
-                        <p>
-                            Ze runs on any existing Linux distro, managed by systemd or your chosen process manager. This is the easiest route when Ze has to fit into infrastructure you already run.
-                        </p>
-                        <div class="chips">
-                            <span class="chip">Existing Linux</span>
-                            <span class="chip">systemd-ready</span>
-                        </div>
-                        <span class="audience-card-cta">Quickstart <small>two BGP peers</small></span>
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">ExaBGP migration</span></div>
+                        <h3>Try an existing configuration.</h3>
+                        <p>Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.</p>
+                        <p class="index4-success"><strong>Success check</strong>Validate the converted configuration and verify your sessions and script behavior in a lab.</p>
+                        <a class="index4-choice-link" href="use-cases/exabgp-migration/">Explore migration <span aria-hidden="true">→</span></a>
                     </article>
-                    <article class="card audience-card cat-platform">
-                        <span class="cat">Appliance</span>
-                        <h3><a href="guides/ze-install/">Run as an appliance</a></h3>
-                        <p>
-                            A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.
-                        </p>
-                        <div class="chips">
-                            <span class="chip concept-software">gokrazy image</span>
-                            <span class="chip">Read-only root filesystem</span>
-                        </div>
-                        <span class="audience-card-cta">Install guide <small>PXE, ISO, or Ventoy</small></span>
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">Linux or Docker</span></div>
+                        <h3>Keep your existing host.</h3>
+                        <p>Install the Linux service or build the Docker deployment image with persistent storage. The guides cover authenticated management, updates and removal; the Linux host keeps its existing interface configuration.</p>
+                        <p class="index4-success"><strong>Success check</strong>Connect to authenticated management and check that your configuration survives the documented restart or container recreation.</p>
+                        <div class="index4-choice-links"><a href="guides/ubuntu-build-install/">Linux service →</a><a href="guides/docker/">Docker →</a></div>
                     </article>
+                    <article class="index4-choice">
+                        <div class="index4-choice-top"><span class="index4-choice-badge">VM or appliance</span></div>
+                        <h3>Give Ze its own system.</h3>
+                        <p>Build an immutable gokrazy system for QEMU, Proxmox or hardware, with a read-only root and persistent configuration. The guide covers ISO installation, authenticated SSH, updates and previous-slot recovery.</p>
+                        <p class="index4-success"><strong>Availability</strong>Source builds produce disk images and installer ISOs. No public image release is available yet.</p>
+                        <a class="index4-choice-link" href="guides/appliance/">Explore the appliance <span aria-hidden="true">→</span></a>
+                    </article>
+
                 </div>
+                <div class="index4-other-paths">
+                    <strong>Other ways to evaluate</strong>
+                    <a href="guides/netlab/">netlab and containerlab</a>
+                    <a href="labs/netlab/">Explore a supplied topology</a>
+                    <a href="labs/bgp-interop/">BGP interoperability labs</a>
+                    <a href="guides/ai-agent/">Test with an AI agent</a>
+                    <a href="reference/cli/">Explore the CLI</a>
+                    <a href="guides/public-looking-glass/">Publish a looking glass</a>
+                    <a href="guides/ze-install/#choose-a-deployment-path">Compare all deployment paths →</a>
+                </div>
+                <p class="index4-try-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; receiving routes does not establish forwarding connectivity. For a live topology that also checks kernel routes and traffic, use the netlab guide.</p>
             </section>
 
             <section class="home-section-panel home-section-panel-usecases" aria-labelledby="audience-title">
                 <div class="section-head reveal">
                     <h2 id="audience-title">Safe ways to try Ze before the first release.</h2>
                     <p>
-                        Ze is early enough that routing feedback can still
-                        change the system. These cards give each reader a
-                        low-risk starting point.
+                        Feedback from trying Ze can still influence its design.
+                        A lab, a migrated ExaBGP script or spare hardware gives
+                        you a way to try it before relying on it in production.
                     </p>
                 </div>
                 <div class="audience home-usecase-grid reveal">
@@ -641,6 +629,18 @@
                             <span class="chip">BGP peers</span>
                         </div>
                         <span class="audience-card-cta">Quickstart <small>two peer lab</small></span>
+                    </article>
+                    <article class="card audience-card cat-automate">
+                        <span class="cat">AI agent</span>
+                        <h3><a href="guides/ai-agent/">Test with an AI agent</a></h3>
+                        <p>
+                            Use Claude Code or Codex to check a lab configuration and explore Ze&#39;s commands. ze create agent skill installs instructions that match your installed version.
+                        </p>
+                        <div class="chips">
+                            <span class="chip">Claude Code</span>
+                            <span class="chip">Codex</span>
+                        </div>
+                        <span class="audience-card-cta">Use Ze with an AI agent <small>ze create agent skill</small></span>
                     </article>
                     <article class="card audience-card cat-automate">
                         <span class="cat">Migration</span>
@@ -708,8 +708,8 @@
 
             <section id="try" class="home-section-panel home-section-panel-try" aria-labelledby="try-title">
                 <div class="section-head reveal cat-meta">
-                    <h2 id="try-title">First paths for routing feedback.</h2>
-                    <p>The BGP lab, ExaBGP migration, and appliance install are good starting points.</p>
+                    <h2 id="try-title">Getting started with Ze.</h2>
+                    <p>You can start with the BGP lab, try your ExaBGP configuration, or install the appliance on spare hardware.</p>
                 </div>
                 <div class="terminal-panel reveal">
                     <div class="terminal" aria-label="Quick start commands">
@@ -720,26 +720,30 @@
                         <div class="terminal-body">
                             <pre><span class="term-comment"># build from source</span>
 <span class="term-prompt">$</span> <span class="term-cmd">git clone</span> https://github.com/ze-software/ze.git
-<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && <span class="term-cmd">make</span> build
+<span class="term-prompt">$</span> <span class="term-cmd">cd</span> ze && ./ze version
 
-<span class="term-comment"># set up credentials and configure</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">init</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">config import</span> router.conf
+<span class="term-comment"># copy the supplied local lab configuration</span>
+<span class="term-prompt">$</span> mkdir -p lab/r1 lab/r2
+<span class="term-prompt">$</span> cp examples/quickstart/r1.conf lab/r1/ze.conf
+<span class="term-prompt">$</span> cp examples/quickstart/r2.conf lab/r2/ze.conf
 
-<span class="term-comment"># start</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">start</span>
+<span class="term-comment"># one peer in each terminal</span>
+<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r1/ze.conf
+<span class="term-prompt">$</span> ./ze <span class="term-cmd">start</span> lab/r2/ze.conf
 
-<span class="term-comment"># from another terminal</span>
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "show bgp peer list"
-<span class="term-prompt">$</span> bin/ze <span class="term-cmd">cli</span> -c "monitor event"</pre>
+<span class="term-comment"># inspect received routes from a third terminal</span>
+<span class="term-prompt">$</span> ZE_SSH_PASSWORD=lab ./ze <span class="term-cmd">cli</span> --remote 127.0.0.1:2221 --user lab -c "show bgp rib | received"</pre>
                         </div>
                     </div>
                     <div class="terminal-note">
                         <span class="tag">Good starting points</span>
                         <p>
-                            A lab peer, a migrated ExaBGP config, or a
-                            looking-glass instance can produce useful reports
-                            from people who know routing operations.
+                            The <a href="guides/quickstart/">complete two-peer tutorial</a>
+                            explains the local lab credentials, success checks and cleanup.
+                            If you already run BGP, trying a lab peer, an ExaBGP
+                            configuration or a looking glass can help you judge
+                            how Ze fits your network. Reports of what went wrong
+                            help us improve it.
                         </p>
                         <div class="link-list">
                             <a href="labs/bgp-interop/"
@@ -771,8 +775,8 @@
                 <div class="section-head reveal">
                     <h2 id="blog-teaser-title">Recent engineering notes.</h2>
                     <p>
-                        Update reports come from git history and Discord's
-                        <code>ze-news</code>. They stay specific and technical.
+                        The update reports describe changes recorded in git
+                        and shared in Discord's <code>ze-news</code> channel.
                     </p>
                 </div>
                 <div class="cards reveal">
@@ -869,8 +873,8 @@
                         <div class="status-row">
                             <strong>Source</strong>
                             <span
-                                >Read the code, generated docs, RFC gate, and
-                                test evidence before deciding where Ze belongs.</span
+                                >Read the code, generated docs, standards checks, and
+                                test results before deciding where Ze belongs.</span
                             >
                         </div>
                     </div>
@@ -887,7 +891,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

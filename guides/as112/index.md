@@ -302,5 +302,6 @@ Items #5 and #14 are deployment/process recommendations about how the operator r
 - Only one address per service per family (4 total); BLACKHOLE-1/2 secondary IANA addresses are out of scope.
 - Requires in-process deployment because it depends on the iface address-ownership registry's Go-level API, not available to out-of-process/forked plugins.
 - `allow-from` drops out-of-range queries silently (no REFUSED response). On-box/loopback is always permitted, so `allow-from` cannot be used to firewall the node from its own healthcheck.
-- This plugin ships no executable BGP integration code. Operators hand-author the `healthcheck`/`update` composition from the worked example above; there is no single turnkey `as112 { bgp { ... } }` config block.
+- There is no turnkey `as112 { bgp { ... } }` config block. The plugin originates its covering prefixes only through the redistribute path (`redistribute { destination bgp { import as112 } }`), with one origin AS and community set for every peer; per-peer settings need the hand-authored `healthcheck`/`update` composition from the worked example above.
+<!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources -->
 - Two RFC 7534 SHOULDs cannot be enforced in software (RFC Compliance Mapping #5 and #14 above): dedicating the host to AS112 purpose, and community notification before installing a globally-reachable node. These are deployment/process responsibilities, documented here rather than coded.

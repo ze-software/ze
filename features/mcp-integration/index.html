@@ -62,6 +62,7 @@ an interactive CLI view is not automatically a one-shot MCP operation.</p>
 <li><a href="#example-ai-driven-route-announcement">Example: AI-Driven Route Announcement</a></li>
 <li><a href="#protocol-2026-07-28">Protocol (2026-07-28)</a>
 <ol>
+<li><a href="#client-compatibility">Client compatibility</a></li>
 <li><a href="#cacheable-results">Cacheable results</a></li>
 <li><a href="#mcp-apps">MCP Apps</a></li>
 <li><a href="#resources">Resources</a></li>
@@ -91,12 +92,12 @@ Groups without typed inputs expose an <code>arguments</code> string.</p>
 </tr>
 <tr>
 <td>Generated groups</td>
-<td>Discover current names and action/input schemas through <code>tools/list</code>; do not assume a route-specific tool name.</td>
+<td>Discover current names and action/input schemas through <code>tools/list</code>; do not assume a route-specific tool name. <!-- doc-links: ignore (MCP method name, not a path) --></td>
 </tr>
 </tbody>
 </table>
 <p><code>ze_execute</code> and <code>ze_reference</code> are the fixed tools. Generated tool groups read
-the live command list at <code>tools/list</code> time. Groups with named actions expose an
+the live command list at <code>tools/list</code> time. Groups with named actions expose an <!-- doc-links: ignore (MCP method name, not a path) -->
 <code>action</code> enum; selector parameters appear only where the command supports them.</p>
 <!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 <p>A plugin command registered with <code>Hidden</code> true reaches no tool list. The flag
@@ -145,7 +146,7 @@ explanations are maintained text, not a guarantee that every example is current.
 <h2 id="example-ai-driven-route-announcement">Example: AI-Driven Route Announcement</h2>
 <p>An AI assistant connected via MCP can:</p>
 <ol>
-<li>Read <code>tools/list</code> and call <code>ze_reference</code> to discover this daemon's commands.</li>
+<li>Read <code>tools/list</code> and call <code>ze_reference</code> to discover this daemon's commands. <!-- doc-links: ignore (MCP method name, not a path) --></li>
 <li>Call <code>ze_execute</code> with <code>show bgp peer list</code> to inspect configured peers.</li>
 <li>Announce through <code>ze_execute</code> with <code>send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24</code>.</li>
 <li>Call <code>ze_execute</code> with <code>show bgp rib sent peer peer1 family ipv4/unicast</code> to inspect that peer's sent routes.</li>
@@ -194,6 +195,15 @@ empty settings object: <code>io.modelcontextprotocol/ui</code>, the MCP Apps ext
 what makes the <code>task</code> result type interpretable, because a client can reject a
 <code>resultType</code> that no advertised extension defines.</p>
 <!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
+<h3 id="client-compatibility">Client compatibility</h3>
+<p>A client connects only if it speaks revision <code>2026-07-28</code>. One that opens with
+the <code>initialize</code> handshake of an earlier revision gets error <code>-32020</code>, which
+names the revision Ze speaks, and cannot connect. The owner-run
+<a href="https://github.com/ze-software/ze/blob/main/docs/contributing/mcp-client-verification.md" target="_blank" rel="noopener">real-client lane</a> records each
+client tried. In its first round, on 2026-11-11, Claude Code 2.1.322 connected
+and called <code>ze_reference</code>. Codex 0.167.1 opened with the <code>2025-06-18</code>
+<code>initialize</code> handshake and could not connect.</p>
+<!-- source: internal/component/mcp/headers.go -- initializeEraError -->
 <h3 id="cacheable-results">Cacheable results</h3>
 <p><code>server/discover</code>, <code>tools/list</code>, <code>resources/list</code> and <code>resources/read</code> return <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>ttlMs</code> and <code>cacheScope</code>, so a client can hold a result and does not re-fetch it
@@ -243,6 +253,15 @@ synchronous answer and no taskId), then <code>task-get</code>, <code>task-result
 flag is itself a test, because the server must still serve an undeclaring client
 synchronously.</p>
 <!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
+<p>The <code>tools-size</code> directive measures the <code>tools/list</code> answer a running daemon <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+serves: tool count, total bytes, the largest tool, and each tool's input schema
+size and depth. It prints one violation line for each tool that breaks a limit
+strict clients enforce: an input schema above 13,312 bytes, nesting deeper
+than 10 levels, an <code>enum</code> with no sibling <code>type</code>, or a <code>oneOf</code>, <code>allOf</code> or
+<code>anyOf</code>. <code>test/plugin/mcp-tools-list-structural-limits.ci</code> refuses a catalog
+that prints a violation.</p>
+<!-- source: internal/test/cli/cmd_mcp.go -- sizeDirective -->
+<!-- source: internal/test/cli/cmd_mcp_calls.go -- measureToolsSize, toolSchemaBytesMax, toolSchemaDepthMax -->
 <p>See <a href="../../guides/mcp/overview/">MCP Guide</a> for details and
 <a href="../../guides/mcp/remote-access/">MCP Remote Access</a> for tunneling.</p>
 </div>
@@ -282,7 +301,7 @@ synchronously.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

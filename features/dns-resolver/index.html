@@ -558,8 +558,12 @@ that names <code>received</code> selected no server (<code>doctor-dns-source-emp
 (<code>doctor-dns-source-interface-silent</code>), and when a <code>self</code> server is an
 address no <code>service dns-resolver</code> listener answers on
 (<code>doctor-dns-source-self-unserved</code>). Each message names the list's path and
-instance. The local <code>ze doctor</code> does not run these checks: the registry they
-read is filled only in the daemon.</p>
+instance, and the fix line names the command to run: <code>show system dns</code> for an
+empty or silent list, <code>set service dns-resolver listener &lt;name&gt; ip &lt;address&gt;</code>
+for an unserved <code>self</code> address. The local <code>ze doctor</code> process does not run
+these checks, because the registry they read is filled only in the daemon: it
+asks the running daemon's <code>show doctor</code> for them, and says so with a
+<code>doctor-runtime-not-checked</code> warning when no daemon answers.</p>
 <!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
 <table>
 <thead>
@@ -699,7 +703,7 @@ them needs a process restart.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

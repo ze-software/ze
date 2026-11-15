@@ -8,10 +8,13 @@
   "must": {
     "total": 16,
     "kept": 16,
-    "ze-proven": 9,
+    "ze-proven": 8,
     "os-verified": 0,
     "os-gap": 0,
-    "ze-gap": 7,
+    "proof-pending": 6,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 2,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -21,13 +24,14 @@
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "not-ever": 0,
-    "not-yet": 0,
-    "not-decided": 9,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 9,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 9
+    "unit": 8
   },
   "unmet": [
     "RFC1994-2.3-1",

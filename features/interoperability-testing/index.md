@@ -10,15 +10,21 @@ daemon instances in containers and exchange real BGP messages.
 | Feature | Description |
 |---------|-------------|
 | Target daemons | FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready); dnsmasq as a DHCPv4 server for Ze's DHCP client (`dhcpv4-renew-nak-dnsmasq`, `dhcpv4-rebind-two-servers-dnsmasq`); Kea (`kea-dhcp6`) as a DHCPv6 server for Ze's DHCPv6 client (`dhcpv6-client-renew-kea`) |
-| Scenario count | 100+ scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
+| Scenario count | 245 shared-suite scenarios covering BGP, other routing protocols and network services; 142 have BGP as their primary area |
 | Runner | `./le test integration interop` (all) or `INTEROP_SCENARIO=<name> ./le test integration interop` (single) |
 | Container images | Customizable via env vars (e.g., `FRR_IMAGE=quay.io/frrouting/frr:10.3`) |
+<!-- source: internal/le/site/facts/sitefacts.go -- countInterop, interopProtocol -->
+<!-- source: internal/le/interoplab/bgp/run.go -- native interop runner -->
 
 ## Scenarios
 
 The table below is a representative subset covering the core BGP protocol and
-extensions. The full suite has over 100 scenarios; the remainder exercise RPKI, BMP,
-IS-IS, and OSPF/OSPFv3 interoperability against FRR.
+extensions. The shared suite has 245 scenarios, including
+RPKI, BMP, IS-IS, OSPF/OSPFv3 and network-service cases. Across all
+8 lab suites, the inventory has 390+
+scenarios covering routing, VPNs, access and multi-node topologies. Each scenario
+is counted once by its primary protocol or test area.
+<!-- source: internal/le/site/facts/sitefacts.go -- countInterop, interopProtocol -->
 
 | # | Scenario | Target |
 |---|----------|--------|

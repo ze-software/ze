@@ -2,7 +2,7 @@
 
 `.ci` is Ze's process and protocol test format. Use it when correctness is visible through a real command, daemon, socket, HTTP request, syslog line, file artifact, process exit, or BGP wire message.
 
-A `.ci` file is an executable transcript. The runner reads key-value directives, creates a temporary workspace, writes embedded files, allocates ports, starts foreground and background commands, waits for readiness, and checks the observable result. That makes the test close to the debugging session a developer would run by hand, but repeatable enough for the verify gate.
+A `.ci` file is an executable transcript. The runner reads key-value directives, creates a temporary workspace, writes embedded files, allocates ports, starts foreground and background commands, waits for readiness, and checks the observable result. That makes the test close to the debugging session a developer would run by hand, and repeatable enough to run automatically during verification.
 
 ## Where it belongs
 
@@ -16,15 +16,15 @@ A `.ci` file is an executable transcript. The runner reads key-value directives,
 | CLI output | `test/ui/*.ci` | `./le test ui NAME -v` | `./le test functional ui` |
 | L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows | `test/<suite>/*.ci` | `./le test <suite> NAME -v` | `./le test functional <suite>-test` |
 
-Run `./le test bgp plugin --list` or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.
+Run `./le test bgp plugin --list` or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and command for running it again.
 
 ## Execution model
 
-The runner has five stages. It parses the file into records, materializes embedded files in a temporary directory, starts background processes, waits for readiness, and then executes foreground commands and expectations in order. Each test owns its temporary directory and ports, so parallel runs do not share mutable state.
+The runner has five stages. It parses the file into records, writes embedded files in a temporary directory, starts background processes, waits for readiness, and then executes foreground commands and expectations in order. Each test has its own temporary directory and ports, so parallel runs cannot change each other's files or connections.
 
 Background commands are for daemons and peers. Foreground commands are for assertions that should complete, such as `ze cli`, `ze config`, `curl`, helper scripts, or packet checks. A foreground process can assert stdout, stderr, exit code, files, JSON, HTTP, and BGP messages without adding a second test harness.
 
-## Minimal shape
+## A small example
 
 ```
 file=config.conf<<EOF

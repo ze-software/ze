@@ -13,7 +13,7 @@ List the plugins compiled into this binary\.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
-- Column order: name, description, outcome, families, rfcs, capabilities, reason
+- Column order: name, description, outcome, families, rfcs, capabilities, config-roots, dependencies, optional-dependencies, start-after, features, yang, nlri-decoder, nlri-encoder, reason
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
@@ -21,7 +21,7 @@ List the plugins compiled into this binary\.
 - Command pipes: none
 - Pipe aliases: none
 
-Each row carries the plugin name\, what it does\, the address families it handles\, the RFCs it implements\, the BGP capability codes it owns\, the setup outcome its own init\(\) recorded \(succeeded\, soft\-failure\, hard\-failure or unknown\) and the reason the plugin gave\. A plugin that recorded nothing is listed as unknown\, never omitted\, and a plugin that recorded and then did not register keeps its row\. The outcome replays a past event\: it was recorded once\, before main\(\)\, and this command reads it back\. \'show health\' answers the other question\, by running a probe now and reporting what the daemon is doing at this moment\.
+Each row carries the plugin name\, what it does\, the address families it handles\, the RFCs it implements\, the BGP capability codes it owns\, the config roots that load it\, the plugins it depends on\, uses when present or starts after\, its features\, whether it carries a YANG schema\, an NLRI decoder or an NLRI encoder\, the setup outcome its own init\(\) recorded \(succeeded\, soft\-failure\, hard\-failure or unknown\) and the reason the plugin gave\. A plugin that recorded nothing is listed as unknown\, never omitted\, and a plugin that recorded and then did not register keeps its row\. The outcome replays a past event\: it was recorded once\, before main\(\)\, and this command reads it back\. \'show health\' answers the other question\, by running a probe now and reporting what the daemon is doing at this moment\.
 
 ## Arguments
 

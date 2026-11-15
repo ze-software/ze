@@ -1,17 +1,17 @@
 # Code Quality
 
-Ze's quality work has one rule: when something fails, the output should show what broke and what to run next. This page follows that path from a small Go test to the full release evidence.
+Ze uses different tests for package logic, running daemons, and behavior that depends on Linux or another router. This page explains which test fits a change and how a failure points to the next check.
 
 **Quality model**
 
-Ze uses several test layers because bugs show up in different places. Local Go tests check package behavior. Fuzz tests are Go tests that try many generated inputs. gomu changes the code and runs the same tests, which shows whether the assertions are strong. Functional transcripts check what an operator, peer, browser, or editor can see. QEMU and interop check the cases that need Linux or real peer daemons.
+A package test can check a parser without starting Ze, but it cannot show that the daemon applies a new configuration or sends a route to another router. Functional transcripts exercise those operations through the running program. QEMU provides the Linux environment for kernel-dependent tests, while interoperability tests exchange messages with other implementations.
 
-The layers can overlap, but each one has a job. A parser bug should leave behind a Go test or fuzz corpus entry. A survived gomu mutation means either the changed code was equivalent or the test did not check the behavior tightly enough. A CLI or daemon bug should become a functional transcript. A kernel bug should run in QEMU.
+Fuzzing extends the inputs a Go test tries, and mutation testing with gomu checks whether its assertions detect a deliberate code change. A parser failure can then become a saved regression case. If a mutation survives, the reviewer must establish whether the changed code behaves equivalently or whether the test missed a defect.
 
-- **Local:** Go tests, race runs, coverage, fuzz targets, and gomu run before the expensive gates.
+- **Local:** Go tests, race checks, coverage, generated-input tests, and gomu run before checks that need more time or resources.
 - **Process:** `.ci`, `.wb`, and `.et` files run Ze the way an operator, peer, browser, or editor would use it.
 - **Linux:** QEMU runs the same tests where netlink, nftables, eBPF, PPP, and namespaces exist.
-- **Release:** Interop, deployment, performance, chaos, and release evidence compose the slow proof.
+- **Release:** Interop, deployment, performance, and chaos runs check behavior that package tests cannot establish.
 
 ## The flow
 
@@ -31,23 +31,23 @@ When the behavior crosses a process boundary, use a functional transcript. `.ci`
 
 ### Prove Linux behavior
 
-Linux behavior is tested on Linux, not guessed from macOS. A functional file can mark itself `option=needs-linux` and then run inside the QEMU Alpine image.
+Tests that depend on the Linux kernel run on Linux. From macOS, a functional file marked `option=needs-linux` can run in QEMU using Ze's kernel and system image.
 
 **Step 4**
 
 ### Prove release behavior
 
-Before broad evidence is claimed, Ze runs real peer daemons, deployment checks, performance gates, chaos scenarios, and release reports instead of trusting local fixtures.
+Release checks include peer daemons, deployment tests, performance measurements, and chaos scenarios. Together these exercise interactions and failure conditions beyond the fixtures used in package tests.
 
 ## Local tests are one layer
 
 ### Example tests
 
-A normal Go test gives the case a name and states the exact result. It is the first proof for a parser rule, encoder rule, state transition, validation path, or error shape.
+A normal Go test gives the case a name and states the exact result. It checks a parser rule, encoder rule, state transition, validation, or error message.
 
 ### Fuzz targets
 
-A fuzz target is a Go test with generated inputs. It starts from useful seed cases, tries more shapes, and keeps any crash or semantic failure as a corpus entry.
+A fuzz target is a Go test with generated inputs. It starts from known examples, tries variations, and saves any input that causes a crash or an incorrect result so it can be tested again.
 
 ### gomu mutation checks
 
@@ -60,10 +60,10 @@ gomu changes production code in small ways and runs the same tests. If the tests
 | Package behavior, parser rules, encoders, races, fuzzable inputs, or weak assertions | `go test`, race, fuzz, coverage, gomu mutation checks | [Local Go tests, fuzzing, and gomu](https://ze-software.net/quality/unit-fuzz-mutation/) |
 | Daemon startup, CLI output, BGP wire output, HTTP, syslog, files, or process exits | `.ci` under `test/<suite>/` | [Functional `.ci` tests](https://ze-software.net/quality/functional-ci/) |
 | Rendered web UI behavior or interactive editor behavior | `.wb` under `test/web/`, `.et` under `test/editor/` | [Browser and editor tests](https://ze-software.net/quality/browser-editor/) |
-| Linux kernel behavior, real peer compatibility, deployment, or release evidence | QEMU, Docker interop, deployment scripts, perf gates | [QEMU, interop, and release evidence](https://ze-software.net/quality/qemu-interop-release/) |
+| Linux kernel behavior, compatibility with other routers, deployment, or release evidence | QEMU, Docker interoperability tests, deployment scripts, performance checks | [QEMU, interop, and release evidence](https://ze-software.net/quality/qemu-interop-release/) |
 | A failing verify run that needs a clear rerun command | Verify stages, failure groups, trace output, debug logs | [Verify and debugging workflow](https://ze-software.net/quality/verify-debugging/) |
-| Whether the suite would actually catch a regression, not how large it is | Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history | [Testing health](https://ze-software.net/quality/health/) |
-| RFC requirement coverage, public gap disclosure, or AI agent test-change guards | `./le rfc check`, RFC test tags, status-ledger agreement, audit freshness | [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/) |
+| Whether the suite would catch a regression | What assertions check, tests that cannot fail, tests nothing runs, checks against declining coverage, and results over time | [Testing health](https://ze-software.net/quality/health/) |
+| RFC requirement coverage, known omissions, or checks on AI changes to tests | `./le rfc check`, links from requirements to tests, agreement with published status, and current reviews | [RFC compliance](https://ze-software.net/quality/rfc-compliance/) |
 
 ## Commands that matter
 
@@ -78,9 +78,9 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
 ./le test bgp plugin 42 -v
 ```
 
-### Handoff gate
+### Release verification
 
-Use the shared gate before handing over normal work.
+GitHub CI runs full verification on pushed commits. The maintainer can also schedule a release check; day-to-day changes use the tests they reach.
 
 ```
 ./le verify current
@@ -90,7 +90,7 @@ Use the shared gate before handing over normal work.
 
 ### Linux and release
 
-Use the wider gates only when the behavior needs Linux, real peers, or release evidence.
+Use these checks when the behavior depends on Linux, another router, or the release environment.
 
 ```
 ./le test qemu netns
@@ -101,11 +101,11 @@ Use the wider gates only when the behavior needs Linux, real peers, or release e
 
 ## How a failure becomes useful
 
-`./le verify current` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
+`./le verify current` writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. Its lock prevents overlapping verification runs. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol fields that can be compared.
 
 ### The rule
 
-Do not hide a failure with a skip or a loose assertion. Move the proof to the layer that can see the real behavior, rerun the narrow command, then rerun the gate that should have caught the regression.
+A failure needs a test that can observe the required behavior. After correcting the cause, rerun that test while preserving its assertions. Wider verification belongs in CI and the release check.
 
 ## File formats
 

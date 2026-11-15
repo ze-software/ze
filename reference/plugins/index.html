@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 96 registry entries: 96 runtime plugins. Among runtime plugins, 75 declare configuration roots, 55 declare dependencies, and 79 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 96 registry entries: 96 runtime plugins. Among runtime plugins, 75 declare configuration roots, 56 declare dependencies, and 79 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -265,7 +265,7 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-epe</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-gr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-gr Graceful Restart capability and mechanism plugin Graceful Restart capability and mechanism plugin internal/component/bgp/plugins/gr BGP   bgp bgp bgp-rib bgp-rs bgp-rr internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-gr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-gr Graceful Restart capability and mechanism plugin Graceful Restart capability and mechanism plugin internal/component/bgp/plugins/gr BGP   bgp bgp bgp-rib policy bgp-rs bgp-rr internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-gr/"><code>bgp-gr</code></a></h3>
                         <p class="plugin-desc">Graceful Restart capability and mechanism plugin</p>
@@ -273,11 +273,12 @@
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:bgp</span>
                             <span class="chip">needs:bgp-rib</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">optional:bgp-rs</span>
                             <span class="chip">Start after:bgp-rr</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rib</code></dd></div><div><dt>Optional</dt><dd><code>bgp-rs</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rr</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rib</code>, <code>policy</code></dd></div><div><dt>Optional</dt><dd><code>bgp-rs</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rr</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-healthcheck" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-healthcheck Service healthcheck plugin with watchdog route control Service healthcheck plugin with watchdog route control internal/component/bgp/plugins/healthcheck BGP   bgp bgp bgp-watchdog   internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang">
@@ -1034,18 +1035,17 @@
                     <p>Generated group for registry entries mapped to the IS-IS area. Config roots: <code>isis</code>. Source area: <code>internal/plugins/isis</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-isis" data-plugin-card data-family="isis" data-category="routing" data-search="isis Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP internal/plugins/isis IS-IS   isis fib-kernel sysctl policy   internal/plugins/isis/yang/ze-isis-cmd.yang internal/plugins/isis/yang/ze-isis-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-isis" data-plugin-card data-family="isis" data-category="routing" data-search="isis Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP internal/plugins/isis IS-IS   isis sysctl policy   internal/plugins/isis/yang/ze-isis-cmd.yang internal/plugins/isis/yang/ze-isis-conf.yang">
                         <span class="cat">IS-IS</span>
                         <h3><a href="isis/"><code>isis</code></a></h3>
                         <p class="plugin-desc">Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP</p>
                         <div class="chips">
                             <span class="chip mode">config:isis</span>
-                            <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
                             <span class="chip">needs:policy</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>isis</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>isis</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1186,17 +1186,16 @@
                     <p>Generated group for registry entries mapped to the LDP area. Config roots: <code>ldp</code>. Source area: <code>internal/plugins/ldp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-ldp" data-plugin-card data-family="ldp" data-category="tunneling" data-search="ldp Label Distribution Protocol (RFC 5036): MPLS label distribution Label Distribution Protocol (RFC 5036): MPLS label distribution internal/plugins/ldp LDP   ldp fib-kernel sysctl   internal/plugins/ldp/yang/ze-ldp-cmd.yang internal/plugins/ldp/yang/ze-ldp-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-ldp" data-plugin-card data-family="ldp" data-category="tunneling" data-search="ldp Label Distribution Protocol (RFC 5036): MPLS label distribution Label Distribution Protocol (RFC 5036): MPLS label distribution internal/plugins/ldp LDP   ldp sysctl   internal/plugins/ldp/yang/ze-ldp-cmd.yang internal/plugins/ldp/yang/ze-ldp-conf.yang">
                         <span class="cat">LDP</span>
                         <h3><a href="ldp/"><code>ldp</code></a></h3>
                         <p class="plugin-desc">Label Distribution Protocol (RFC 5036): MPLS label distribution</p>
                         <div class="chips">
                             <span class="chip mode">config:ldp</span>
-                            <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ldp</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ldp</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1247,19 +1246,18 @@
                     <p>Generated group for registry entries mapped to the OSPF area. Config roots: <code>ospf</code>. Source area: <code>internal/plugins/ospf</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-ospf" data-plugin-card data-family="ospf" data-category="routing" data-search="ospf Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP internal/plugins/ospf OSPF   ospf interface fib-kernel sysctl policy   internal/plugins/ospf/yang/ze-ospf-cmd.yang internal/plugins/ospf/yang/ze-ospf-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-ospf" data-plugin-card data-family="ospf" data-category="routing" data-search="ospf Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP internal/plugins/ospf OSPF   ospf interface sysctl policy   internal/plugins/ospf/yang/ze-ospf-cmd.yang internal/plugins/ospf/yang/ze-ospf-conf.yang">
                         <span class="cat">OSPF</span>
                         <h3><a href="ospf/"><code>ospf</code></a></h3>
                         <p class="plugin-desc">Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP</p>
                         <div class="chips">
                             <span class="chip mode">config:ospf</span>
                             <span class="chip">needs:interface</span>
-                            <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
-                            <span class="chip">+1 deps</span>
+                            <span class="chip">needs:policy</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ospf</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>fib-kernel</code>, <code>sysctl</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ospf</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>sysctl</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1303,17 +1301,17 @@
                     <p>Generated group for registry entries mapped to the RIB area. Config roots: <code>rib</code>. Source area: <code>internal/component/sysrib</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-rib" data-plugin-card data-family="rib" data-category="routing" data-search="rib System RIB: selects best route across protocols by admin distance System RIB: selects best route across protocols by admin distance internal/component/sysrib RIB   rib policy  bgp-rib internal/component/sysrib/yang/ze-rib-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-rib" data-plugin-card data-family="rib" data-category="routing" data-search="rib System RIB: resolves authoritative routes and publishes forwarding changes System RIB: resolves authoritative routes and publishes forwarding changes internal/component/sysrib RIB   rib policy  bgp-rib internal/component/sysrib/yang/ze-rib-conf.yang internal/component/sysrib/yang/ze-sysrib-api.yang">
                         <span class="cat">RIB</span>
                         <h3><a href="rib/"><code>rib</code></a></h3>
-                        <p class="plugin-desc">System RIB: selects best route across protocols by admin distance</p>
+                        <p class="plugin-desc">System RIB: resolves authoritative routes and publishes forwarding changes</p>
                         <div class="chips">
                             <span class="chip mode">config:rib</span>
                             <span class="chip">needs:policy</span>
                             <span class="chip">Start after:bgp-rib</span>
-                            <span class="chip">YANG:1</span>
+                            <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rib</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rib</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rib</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rib</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1325,18 +1323,17 @@
                     <p>Generated group for registry entries mapped to the RSVP TE area. Config roots: <code>rsvp-te</code>. Source area: <code>internal/plugins/rsvpte</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-rsvp-te" data-plugin-card data-family="rsvp-te" data-category="tunneling" data-search="rsvp-te RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) internal/plugins/rsvpte RSVP TE   rsvp-te interface fib-kernel sysctl   internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-rsvp-te" data-plugin-card data-family="rsvp-te" data-category="tunneling" data-search="rsvp-te RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) internal/plugins/rsvpte RSVP TE   rsvp-te interface sysctl   internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang">
                         <span class="cat">RSVP TE</span>
                         <h3><a href="rsvp-te/"><code>rsvp-te</code></a></h3>
                         <p class="plugin-desc">RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)</p>
                         <div class="chips">
                             <span class="chip mode">config:rsvp-te</span>
                             <span class="chip">needs:interface</span>
-                            <span class="chip">needs:fib-kernel</span>
                             <span class="chip">needs:sysctl</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>interface</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1546,14 +1543,15 @@
                     <p>Generated group for registry entries mapped to the VPN area. Config roots: <code>vpn</code>. Source area: <code>internal/component/ike</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-ike" data-plugin-card data-family="vpn" data-category="tunneling" data-search="ike IKEv2 engine for native IPsec VPN IKEv2 engine for native IPsec VPN internal/component/ike/engine VPN   vpn    ">
+                    <article class="card plugin-card cat-services" id="plugin-ike" data-plugin-card data-family="vpn" data-category="tunneling" data-search="ike IKEv2 engine for native IPsec VPN IKEv2 engine for native IPsec VPN internal/component/ike/engine VPN   vpn firewall   ">
                         <span class="cat">VPN</span>
                         <h3><a href="ike/"><code>ike</code></a></h3>
                         <p class="plugin-desc">IKEv2 engine for native IPsec VPN</p>
                         <div class="chips">
                             <span class="chip mode">config:vpn</span>
+                            <span class="chip">needs:firewall</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpn</code></dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpn</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1721,7 +1719,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
                 </div>
             </div>
         </footer>

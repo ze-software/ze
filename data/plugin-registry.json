@@ -339,7 +339,8 @@
     ],
     "dependencies": [
       "bgp",
-      "bgp-rib"
+      "bgp-rib",
+      "policy"
     ],
     "optional_dependencies": [
       "bgp-rs"
@@ -1036,7 +1037,9 @@
     "config_roots": [
       "vpn"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "firewall"
+    ],
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/ike/engine",
@@ -1088,7 +1091,6 @@
       "isis"
     ],
     "dependencies": [
-      "fib-kernel",
       "sysctl",
       "policy"
     ],
@@ -1179,7 +1181,6 @@
       "ldp"
     ],
     "dependencies": [
-      "fib-kernel",
       "sysctl"
     ],
     "optional_dependencies": [],
@@ -1251,7 +1252,6 @@
     ],
     "dependencies": [
       "interface",
-      "fib-kernel",
       "sysctl",
       "policy"
     ],
@@ -1312,7 +1312,7 @@
   },
   {
     "name": "rib",
-    "description": "System RIB: selects best route across protocols by admin distance",
+    "description": "System RIB: resolves authoritative routes and publishes forwarding changes",
     "config_roots": [
       "rib"
     ],
@@ -1325,7 +1325,8 @@
     ],
     "source_dir": "internal/component/sysrib",
     "yang_files": [
-      "internal/component/sysrib/yang/ze-rib-conf.yang"
+      "internal/component/sysrib/yang/ze-rib-conf.yang",
+      "internal/component/sysrib/yang/ze-sysrib-api.yang"
     ]
   },
   {
@@ -1350,7 +1351,6 @@
     ],
     "dependencies": [
       "interface",
-      "fib-kernel",
       "sysctl"
     ],
     "optional_dependencies": [],

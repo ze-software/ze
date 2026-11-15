@@ -324,8 +324,12 @@ that names `received` selected no server (`doctor-dns-source-empty`), when a
 (`doctor-dns-source-interface-silent`), and when a `self` server is an
 address no `service dns-resolver` listener answers on
 (`doctor-dns-source-self-unserved`). Each message names the list's path and
-instance. The local `ze doctor` does not run these checks: the registry they
-read is filled only in the daemon.
+instance, and the fix line names the command to run: `show system dns` for an
+empty or silent list, `set service dns-resolver listener <name> ip <address>`
+for an unserved `self` address. The local `ze doctor` process does not run
+these checks, because the registry they read is filled only in the daemon: it
+asks the running daemon's `show doctor` for them, and says so with a
+`doctor-runtime-not-checked` warning when no daemon answers.
 <!-- source: internal/component/config/system/doctor_dns_source.go -- dnsSourceFindings -->
 
 | Origin | Rank | Learned from |

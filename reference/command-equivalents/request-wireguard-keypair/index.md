@@ -1,6 +1,6 @@
 # `request wireguard keypair`
 
-Generate a WireGuard keypair with the system wg binary\.
+Generate a WireGuard keypair\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Generate a WireGuard keypair with the system wg binary\.
 - Command pipes: none
 - Pipe aliases: none
 
-The private key is written on the first line and the public key on the second\. The wg binary must be installed on this host\.
+The private key is written on the first line and the public key on the second\. Ze makes the keys itself\, so no other program is needed\.
 
 ## Arguments
 

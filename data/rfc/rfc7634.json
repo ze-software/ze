@@ -11,7 +11,10 @@
     "ze-proven": 1,
     "os-verified": 0,
     "os-gap": 1,
-    "ze-gap": 0,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 0,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -21,9 +24,10 @@
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "not-ever": 0,
-    "not-yet": 0,
-    "not-decided": 3,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 3,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {

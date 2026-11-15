@@ -59,6 +59,7 @@
 <li><a href="#hub-configuration">Hub Configuration</a></li>
 <li><a href="#client-configuration">Client Configuration</a></li>
 <li><a href="#config-management">Config Management</a></li>
+<li><a href="#when-a-client-cannot-connect">When a Client Cannot Connect</a></li>
 <li><a href="#resilience">Resilience</a></li>
 <li><a href="#cli-overrides">CLI Overrides</a></li>
 </ol></details></nav><div class="doc-body">
@@ -155,6 +156,20 @@ request data restore path /var/backups/fleet.zefs config name edge-01.conf clien
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
+<h2 id="when-a-client-cannot-connect">When a Client Cannot Connect</h2>
+<p>The hub admits only the names it has a <code>client</code> entry for, each with its own
+secret. A client that connects under any other name is refused whatever token
+it sends, and so is a configured name with the wrong secret. <code>show doctor</code> on
+the hub lists each refusal under <code>doctor-managed-client-rejected</code> with the
+name the client claimed and the fix; it never shows the token. The same check
+reports a second ze connecting under a name already connected, and a client
+that refused to apply the config the hub serves it.</p>
+<p><code>show doctor</code> also reports a managed listen address the hub could not bind
+(<code>doctor-managed-listener-unbound</code>), and a <code>config-changed</code> the hub could not
+deliver (<code>doctor-managed-client-notify-dropped</code>): that client runs its
+previous config until it fetches again, which it does each time it connects.</p>
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, managedRejectedRow, checkManagedListenerUnbound -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
 <h2 id="resilience">Resilience</h2>
 <ul>
 <li><strong>Partition tolerance:</strong> Clients cache their last known config locally</li>
@@ -201,6 +216,10 @@ request data restore path /var/backups/fleet.zefs config name edge-01.conf clien
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -230,7 +249,7 @@ request data restore path /var/backups/fleet.zefs config name edge-01.conf clien
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 27 October 2026 15:52 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

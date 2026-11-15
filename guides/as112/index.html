@@ -551,7 +551,10 @@ bgp {
 <li>Only one address per service per family (4 total); BLACKHOLE-1/2 secondary IANA addresses are out of scope.</li>
 <li>Requires in-process deployment because it depends on the iface address-ownership registry's Go-level API, not available to out-of-process/forked plugins.</li>
 <li><code>allow-from</code> drops out-of-range queries silently (no REFUSED response). On-box/loopback is always permitted, so <code>allow-from</code> cannot be used to firewall the node from its own healthcheck.</li>
-<li>This plugin ships no executable BGP integration code. Operators hand-author the <code>healthcheck</code>/<code>update</code> composition from the worked example above; there is no single turnkey <code>as112 { bgp { ... } }</code> config block.</li>
+<li>There is no turnkey <code>as112 { bgp { ... } }</code> config block. The plugin originates its covering prefixes only through the redistribute path (<code>redistribute { destination bgp { import as112 } }</code>), with one origin AS and community set for every peer; per-peer settings need the hand-authored <code>healthcheck</code>/<code>update</code> composition from the worked example above.</li>
+</ul>
+<!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources -->
+<ul>
 <li>Two RFC 7534 SHOULDs cannot be enforced in software (RFC Compliance Mapping #5 and #14 above): dedicating the host to AS112 purpose, and community notification before installing a globally-reachable node. These are deployment/process responsibilities, documented here rather than coded.</li>
 </ul>
 </div>
@@ -569,6 +572,10 @@ bgp {
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -599,7 +606,7 @@ bgp {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

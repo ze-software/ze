@@ -1,6 +1,6 @@
 # `rib` plugin
 
-System RIB: selects best route across protocols by admin distance
+System RIB: resolves authoritative routes and publishes forwarding changes
 
 ## At a glance
 
@@ -9,7 +9,7 @@ System RIB: selects best route across protocols by admin distance
 | Registry area | RIB |
 | Kind | Runtime plugin |
 | Source path | `internal/component/sysrib` |
-| YANG modules | 1 |
+| YANG modules | 2 |
 
 ## Configuration
 
@@ -36,5 +36,5 @@ Order only when both plugins are selected; never auto-loads a plugin.
 
 Package: `internal/component/sysrib`
 
-YANG files: `internal/component/sysrib/yang/ze-rib-conf.yang`
+YANG files: `internal/component/sysrib/yang/ze-rib-conf.yang`, `internal/component/sysrib/yang/ze-sysrib-api.yang`
 Metadata source: `Registration`

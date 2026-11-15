@@ -1,34 +1,199 @@
 {
   "facts": {
+    "interop.protocols.as112": {
+      "category": "committed-data",
+      "value": 6,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.bfd": {
+      "category": "committed-data",
+      "value": 5,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.bgp": {
+      "category": "committed-data",
+      "value": 142,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.bmp": {
+      "category": "committed-data",
+      "value": 4,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.dhcpv4": {
+      "category": "committed-data",
+      "value": 3,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.dhcpv6": {
+      "category": "committed-data",
+      "value": 2,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.dns": {
+      "category": "committed-data",
+      "value": 2,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.gtsm": {
+      "category": "committed-data",
+      "value": 1,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.ipsec": {
+      "category": "committed-data",
+      "value": 85,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.isis": {
+      "category": "committed-data",
+      "value": 16,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.l2tp": {
+      "category": "committed-data",
+      "value": 13,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.ldp": {
+      "category": "committed-data",
+      "value": 3,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.ospfv2": {
+      "category": "committed-data",
+      "value": 36,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.ospfv3": {
+      "category": "committed-data",
+      "value": 20,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.other": {
+      "category": "committed-data",
+      "value": 0,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.pppoe": {
+      "category": "committed-data",
+      "value": 16,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.radius": {
+      "category": "committed-data",
+      "value": 12,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.rpki": {
+      "category": "committed-data",
+      "value": 3,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.rsvpte": {
+      "category": "committed-data",
+      "value": 10,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.topology": {
+      "category": "committed-data",
+      "value": 18,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
+    "interop.protocols.vrrp": {
+      "category": "committed-data",
+      "value": 2,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
+    },
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 225,
-      "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
+      "value": 399,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 225,
-      "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
+      "value": 399,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suite_count": {
+      "category": "committed-data",
+      "value": 8,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop": {
+      "category": "committed-data",
+      "value": 245,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-ipsec": {
+      "category": "committed-data",
+      "value": 85,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-l2tp": {
+      "category": "committed-data",
+      "value": 13,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-pppoe": {
+      "category": "committed-data",
+      "value": 16,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-radius": {
+      "category": "committed-data",
+      "value": 7,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-radius-subscriber": {
+      "category": "committed-data",
+      "value": 5,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-rsvpte": {
+      "category": "committed-data",
+      "value": 10,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
+    },
+    "interop.suites.interop-topology": {
+      "category": "committed-data",
+      "value": 18,
+      "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.targets": {
       "category": "committed-data",
       "value": 13,
-      "source": "git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus the FRR image a run names by variable"
+      "source": "legacy image counter: git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus FRR; excludes pulled pmacct and other suites' images"
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 7751,
+      "value": 10030,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 7990,
+      "value": 10516,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 951,
+      "value": 1009,
       "source": "go list ./..., keeping the packages git holds a file for"
+    },
+    "repo.go_source_lines": {
+      "category": "committed-data",
+      "value": 1660165,
+      "source": "activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies"
+    },
+    "repo.go_test_lines": {
+      "category": "committed-data",
+      "value": 1976301,
+      "source": "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies"
+    },
+    "repo.go_vendor_lines": {
+      "category": "committed-data",
+      "value": 2000562,
+      "source": "activity Go inventory: tracked vendor Go files, including comments and blank lines"
     }
   },
   "live": {

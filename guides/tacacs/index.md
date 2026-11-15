@@ -132,8 +132,26 @@ A shared secret that differs from the server's is not a denial. The reply's
 lengths do not add up once de-obfuscated, which RFC 8907 Section 4.5 makes an
 ERROR, so Ze treats that server as unreachable (step 6): the next server is
 tried, then the local accounts. The log line `TACACS+ server unreachable` names
-the cause as `bad secret: body length mismatch after decryption`; correct
-`tacacs.server <ip>.key` to the secret the server holds for this device.
+the cause as `bad secret: body length mismatch after decryption`.
+
+When every server fails, the error names each server in the order tried, with
+its cause, and the fix for the first server's cause:
+
+| Cause | The error says | Fix line |
+|-------|----------------|----------|
+| Nothing listens on the port | `<address> refused the connection` | `set system authentication tacacs server <ip> port <the port the server listens on>` |
+| No answer within `timeout` | `<address> did not answer in time` | `show ping <ip>` |
+| Wrong shared secret | `<address> sent a reply that does not decode with the configured key` | `set system authentication tacacs server <ip> key <the server's shared secret>` |
+| Any other error | `<address> failed (<the error>)` | `ze doctor` |
+
+The error never shows either secret. For example, with one server whose key
+differs from the server's:
+
+```
+no TACACS+ server answered the authentication request
+Ze tried each configured server in order, and each one failed: 192.0.2.1:49 sent a reply that does not decode with the configured key
+fix: set system authentication tacacs server 192.0.2.1 key <the server's shared secret>
+```
 
 `TestTacPlusNGInterop` (`internal/component/tacacs`, build tag `docker`, run by
 `./le test integration docker-peers`) checks these outcomes against
@@ -142,7 +160,7 @@ shared secret, command authorization in both directions, and an accounting
 START.
 <!-- source: internal/component/tacacs/tacplusng_docker_test.go -- TestTacPlusNGInterop -->
 <!-- source: internal/component/tacacs/reply.go -- validateReplyBody, ErrBadSecret -->
-<!-- source: internal/component/tacacs/client.go -- sendToServers -->
+<!-- source: internal/component/tacacs/client.go -- sendToServers, allServersFailed, serverFailure -->
 
 The web login fallback follows the same terminal-rejection rule for ordinary
 local accounts. The separate ZeFS super-admin remains a recovery path through

@@ -1,143 +1,89 @@
-# netlab
+Topology lab
 
-[netlab](https://netlab.tools) builds a lab from a YAML topology and starts each node
-under containerlab. Ze runs as one of those nodes. netlab calls this the daemon tier:
-one YAML file and one directory of Jinja2 templates, with no Ansible task lists and no
-Vagrant box.
+# netlab Topology Lab
 
-The ze side of that integration lives in `contrib/netlab/`. **`contrib/netlab/README.md`
-is the source of truth for the artifacts.** This page explains how to run them.
+netlab starts three Ze nodes under containerlab from the supplied topology. A live check proves the routing protocols, the kernel routes and the traffic between them, then tears the lab down.
 
-## What you need
+`Daemon`
 
-| Component | Why |
-|-----------|-----|
-| netlab 26.08 | Renders the topology and calls containerlab |
-| containerlab and docker | Start the nodes |
-| `netlab/ze:latest` | The lab image, built from `docker/Dockerfile.lab` |
+The reference topology in `contrib/netlab/topology.yml` has three nodes. r1 and r2 share an internal link in AS 65001 and run iBGP, OSPF, IS-IS and BFD. r3, in AS 65002, is an eBGP peer of r1 on its own link, because netlab runs an IGP on internal links only. r1 also carries two static routes.
 
-The lab image is not the deployment image. See [Docker](https://github.com/ze-software/ze/blob/main/docs/guide/docker.md) for the two images
-and what separates them.
+To start the same topology by hand with netlab, check it, rebuild it and remove it, follow the [netlab guide](https://ze-software.net/guides/netlab/).
 
-## Step 1: build the image
-
-```bash
-docker build -t netlab/ze:latest -f docker/Dockerfile.lab .
-```
-
-`contrib/netlab/ze.yml` sets `clab.build: False` and names
-`netlab/ze:latest`, so netlab starts this image and builds nothing. Change its
-`image:` value when you choose a different Docker tag.
-<!-- source: docker/Dockerfile.lab -- lab image -->
-<!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
-
-## Step 2: give netlab the daemon definition
-
-There are two routes, and `contrib/netlab/README.md` gives both. Copy the daemon
-definition and the templates into the netlab package:
-
-```bash
-cp contrib/netlab/ze.yml  <netlab>/netsim/daemons/ze.yml
-cp -R contrib/netlab/ze   <netlab>/netsim/daemons/ze
-```
-
-Or leave the netlab install alone and let a topology carry them, which is what
-`./le test netlab check` does. netlab reads a `topology-defaults.yml` beside the
-topology and a `templates/ze/` directory beside it.
-<!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
-<!-- source: internal/le/test/netlab/actions.go -- Answer -->
-
-## Step 3: run the reference topology
-
-```bash
-netlab up -t contrib/netlab/topology.yml
-```
-
-`contrib/netlab/topology.yml` has three nodes:
+- **Proves:** Every declared BGP, OSPF, IS-IS and BFD adjacency, both static routes in the kernel FIB, and sourced loopback pings between every pair of nodes, when `./le test netlab run` exits 0 after teardown
+- **Environment:** Three Ze nodes under containerlab on a Docker host; netlab and containerlab run in a tool container
+- **Requires:** Docker access to a Ze Docker host, or QEMU for the disposable Ze Docker host
+- **Source:** [contrib/netlab/](https://github.com/ze-software/ze/tree/main/contrib/netlab)
 
 ```
-r1 ---- internal ---- r2      AS 65001, iBGP + OSPF + IS-IS + BFD
- \
-  ---- external ---- r3       AS 65002, eBGP only
+# live check against a Ze Docker host
+$ ./le test netlab run
+
+# the same check in the disposable QEMU Docker host
+$ ./le test qemu docker-lab lab "test netlab run"
+
+# render the templates and compare with the golden files;
+# this one needs netlab installed on the machine that runs it
+$ ./le test netlab check
 ```
 
-netlab runs an IGP on internal links only, so the eBGP peer sits on its own link. r1
-also carries two static routes. The topology declares every module `ze.yml` declares:
-bgp, ospf, isis, bfd, and routing.
-<!-- source: contrib/netlab/topology.yml -- nodes, links, module -->
+`Prerequisites`
 
-## How netlab configures a node
+Docker access from a Ze source checkout. For the two live runs, Python, netlab and containerlab run in the tool container. The template check is different: it runs the netlab installed on the machine that invokes it, or the one named by `NETLAB=/path/to/netlab`, and a missing netlab is an error.
 
-netlab renders `contrib/netlab/ze/ze.j2` into one file, `/etc/ze/ze.conf`, and
-containerlab bind-mounts it into the node. Ze has no `include` directive, so one file
-holds the whole running configuration. Each other module key points at an ignore file
-that nothing reads.
-<!-- source: contrib/netlab/ze.yml -- daemon_config -->
+- [internal/le/test/netlab/live.go live check](https://github.com/ze-software/ze/blob/main/internal/le/test/netlab/live.go)
+- [contrib/netlab/ daemon definition and templates](https://github.com/ze-software/ze/tree/main/contrib/netlab)
 
-The node starts with `ze start /etc/ze/ze.conf`. netlab assigns the interface addresses
-with `ip` inside the container, so the rendered configuration carries no interface
-block.
+## What is proven, and what is not.
 
-Ze re-reads its configuration on SIGHUP only. `handleSIGHUPReload` runs `signalReload`,
-which stages the file as a candidate, reloads it, and never writes the file back. netlab sends no SIGHUP, and `ze.yml` says so with
-`features.initial.reload: false`. A configuration change in a running lab therefore
-needs `kill -HUP` on the ze process inside the node, or a node restart.
-<!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_start_daemon -->
-<!-- source: contrib/netlab/ze.yml -- features.initial.reload -->
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, signalReload, stageSIGHUPCandidate -->
-<!-- source: cmd/ze/hub/config_source.go -- promoteSignalCandidate -->
-
-`netlab validate` reads the daemon through the CLI. `ze.yml` declares the show command
-as `ze cli -c "show $@ | json compact"`, and netlab runs it with `docker exec`. An
-explicit format pipe beats the `--format` flag, so that command emits JSON.
-<!-- source: contrib/netlab/ze.yml -- clab.group_vars.netlab_show_command -->
-<!-- source: internal/component/cli/client/main.go -- commandWithFormat -->
-
-## The lab login
-
-The rendered configuration declares one user, `netlab`, with the password `netlab`.
-`ze.yml` puts the same pair in the container environment, so the CLI inside the node has
-a credential. This is a well-known password in a throwaway container. Nothing in ze
-defaults to it and no image carries it.
-<!-- source: contrib/netlab/ze/ze.j2 -- netlab_lab_user, netlab_lab_password -->
-<!-- source: contrib/netlab/ze.yml -- clab.node.env -->
-
-The template writes the password as `plaintext-password`. Ze hashes that leaf when it
-loads the file, and it warns that the file still holds the secret. See
-[Authentication](../../guides/authentication/index.md#passwords-in-a-config-file).
-<!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
-
-## What is proven, and what is not
-
-**The lab has never been started on the machine that wrote this integration.** That
-machine has no containerlab, so `netlab up` and `netlab validate` were not run. The
-declared bgp, ospf, isis, bfd, and routing features are rendered and parsed. They are
-not validated against netlab's own integration tests.
+The render check covers template rendering and parsing. The functional profile check covers one daemon's SSH login. The live command checks adjacencies, kernel routes and traffic across the topology; it must finish successfully before those properties can be claimed for a run.
 
 | Statement | Evidence |
-|-----------|----------|
+| --- | --- |
 | netlab accepts the daemon definition and finds a template for each module | `netlab create` exits 0 on the reference topology, in `./le test netlab check` |
 | The render is valid ze configuration | `ze config validate` exits 0 on each file under `contrib/netlab/golden/` |
 | A daemon runs one of those renders and answers the show command with JSON | `test/plugin/netlab-lab-profile.ci` |
-| Routes reach the FIB of a running lab, and a `ping` validation passes | Not run |
-| Each declared feature passes netlab's integration test for it | Not run |
-<!-- source: internal/le/test/netlab/actions.go -- Answer -->
-<!-- source: test/plugin/netlab-lab-profile.ci -- daemon start, SSH login, json compact -->
+| Every declared protocol reaches its healthy state, static routes reach the kernel FIB, and sourced loopback pings pass | `./le test netlab run` exits 0 after teardown |
+| Each declared feature passes netlab's own upstream integration suite | Not verified: no run here executes netlab's upstream integration suite. This is separate from the native reference-lab proof |
 
-Ze also sends and receives no LLDP frame, so a netlab validation that reads LLDP data
-cannot pass. containerlab does not need LLDP, because the topology names the veth
-links.
+The live command passed on 2026-11-14 on arm64, in Ze's QEMU Docker host under HVF, with netlab 26.10 and the committed templates. It reached every BGP, OSPF, IS-IS and BFD adjacency, found both static routes in the kernel FIB, passed all six sourced loopback pings, and tore the lab down with no container left. No amd64 run from the committed templates is recorded.
 
-## Keeping the templates from drifting
+Ze also sends and receives no LLDP frame, so a netlab validation that reads LLDP data cannot pass. containerlab does not need LLDP, because the topology names the veth links.
 
-```bash
+## Run the automated live check.
+
+To run the automated live checks from the source checkout against an existing Ze Docker host, run:
+
+```
+./le test netlab run
+```
+
+The automated run stages the node binary once for the Docker daemon's architecture, then packages it with the `lab` target in `docker/Dockerfile.runtime`. Its node build context contains only that binary and the runtime recipe; it does not compile Go inside Docker or send the source checkout. The manual source-building command in the [netlab guide](https://ze-software.net/guides/netlab/#step-1-build-the-image) remains available.
+
+If Docker currently uses the distribution's kernel, use the disposable QEMU Docker host instead. This boots Ze's own system, forwards its Docker endpoint, and runs the same lab against it:
+
+```
+./le test qemu docker-lab lab "test netlab run"
+```
+
+The QEMU route needs QEMU and the native-architecture Ze Docker-host image; its first run builds missing image and kernel inputs. Building the Docker-host image from scratch also needs the Docker CLI and a reachable build daemon for its static administration tools. A native kernel build needs Docker or QEMU and network access to its pinned sources. See the [QEMU integration guide](https://github.com/ze-software/ze/blob/main/docs/architecture/testing/qemu-integration.md).
+
+The command builds the local lab image and a tool image with the versions the [netlab guide](https://ze-software.net/guides/netlab/#what-you-need) lists. The tool build prints its Python and tool versions and checks Python dependency compatibility.
+
+The host needs Docker access; Python, netlab and containerlab run in the tool container, and Ansible configures the nodes from it. That container shares the Docker host's network and PID namespaces, which also supports Ze's QEMU Docker host transport. Running host containerlab against a remote Docker socket alone cannot provide those namespaces.
+
+The runner waits for every declared BGP, OSPF, IS-IS and BFD adjacency, verifies both static routes in the kernel FIB, and sends sourced loopback pings between every pair of nodes. It tears the topology down on success and failure, and a cleanup failure fails the command. Artifacts stay in session scratch for diagnosis. Each run binds its nodes to the image tag retained for that build and verifies that tag still resolves to the built image ID before startup. A host-runtime run holds an exclusive directory lease and refuses an existing deployment, so a second invocation cannot tear down another run's topology.
+
+## When a run fails.
+
+**What a failed proof saves**
+
+Before cleanup, a failed proof saves a private `diagnostics-*` directory inside the retained lab directory. It contains startup output, the topology snapshot, generated node files, Docker inspection, and each node's last 200 log lines. It also saves addresses, kernel routes, BGP and BFD state, OSPF and IS-IS interfaces, neighbors, databases and routes, the system RIB, and plugin state. Address, kernel route and adjacency queries run across every node before the more detailed routing queries. Capture has a two-minute total deadline and a five-second deadline for each command. A failed query leaves an `.error.txt` artifact with its command, failure and process output, so unavailable state cannot appear as an empty successful result. Cleanup still runs after capture. JSON artifacts keep stdout and use private `.stderr.txt` sidecars for stderr. The runner explicitly adds `netlab.snapshot.yml` to netlab's normal outputs before startup. netlab 26.10 writes a pickle snapshot by default; the added YAML inventory supplies node names for live checks, failure capture, and cleanup.
+
+## Keeping the templates from drifting.
+
+```
 ./le test netlab check
 ```
 
-It renders the templates with a real netlab, compares the result with
-`contrib/netlab/golden/`, and runs `ze config validate` on each golden file. A
-missing netlab is an error exit, never a skip. Use
-`./le test netlab update` to rewrite the golden files.
-`test/plugin/netlab-lab-profile.ci` is the other half and needs no netlab: it
-starts a daemon from a golden file and parses the show command output.
-<!-- source: internal/le/test/netlab/actions.go -- Actions -->
+It renders the templates with a real netlab, compares the result with `contrib/netlab/golden/`, and runs `ze config validate` on each golden file. A missing netlab is an error exit, never a skip. Use `./le test netlab update` to rewrite the golden files. `test/plugin/netlab-lab-profile.ci` is the other half and needs no netlab: it starts a daemon from a golden file and parses the show command output.

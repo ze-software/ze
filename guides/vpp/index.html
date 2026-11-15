@@ -312,9 +312,15 @@ stub instead of a real VPP. See <code>docs/functional-tests.md</code> for the ha
 daemon by signalling its exact command inside the container, not the host
 <code>docker exec</code> client. Each replacement must reach its own startup marker before
 the harness inspects retained VPP state. A policer or ACL left by the previous
-daemon therefore cannot make a failed replacement look like a successful restart.</p>
-<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon -->
-<!-- source: internal/le/test/deployment/deployment.go -- running.stop -->
+daemon therefore cannot make a failed replacement look like a successful restart.
+A stop returns only once the daemon has exited, because a stopping ze still owns
+its config store while it finishes recording its boot configuration, which on a
+slow disk takes seconds. It waits up to two minutes after SIGTERM, then sends
+SIGKILL. A daemon that needed SIGKILL, or that is still running after it, fails
+the run with its command named, and no further daemon starts, since it may still
+own the store the next one would open.</p>
+<!-- source: internal/le/test/deployment/vppevidence.go -- startEvidenceDaemon, stopVPPProcess, vppDaemonStopWait -->
+<!-- source: internal/le/test/deployment/deployment.go -- running.stopAwaitingExit -->
 <p><code>vpp</code> and <code>vpp-iface</code> start their container through the lab Docker
 wrapper, which labels it with the run that owns it. Ctrl-C or SIGTERM ends the
 run and still removes the container. A scenario the interruption caught ends at
@@ -662,6 +668,14 @@ answers an error saying why instead.</li>
 still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</code>.</p>
 <!-- source: internal/component/vpp/startupconf.go -- unix cli-listen -->
 <h2 id="implementation-status">Implementation status</h2>
+<p>Configured interface names can differ from VPP's names: a VLAN named
+<code>qos0.100</code> may appear as <code>loop1.100</code> in VPP. Link and address reads resolve
+the configured name through the same registered interface index used by
+writes, so a reload updates the existing VLAN. If that registered index
+cannot be read, the reload refuses instead of treating the VLAN as absent
+and creating it again. An unregistered name is looked up as an exact VPP
+interface name.</p>
+<!-- source: internal/plugins/iface/vpp/query.go -- detailsByName -->
 <p>The implementation status differs by subsystem:</p>
 <table>
 <thead>
@@ -675,7 +689,7 @@ still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</cod
 <tr>
 <td>vpp-3</td>
 <td>MPLS label stacks on IP routes</td>
-<td><code>processMPLSChange</code> dispatches labeled route installs and replacements to <code>addMPLSRoute</code>, and removals to <code>delMPLSRoute</code>. The GoVPP backend sends <code>IPRouteAddDel</code> with a label stack for installs. This path does not dispatch transit label swap/pop operations. <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processMPLSChange --> <!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute --></td>
+<td><code>processMPLSChange</code> dispatches labeled route installs and replacements to <code>addMPLSRoute</code>, and removals to <code>delMPLSRoute</code>. The GoVPP backend sends <code>IPRouteAddDel</code> with a label stack for installs, every label in uniform mode, so the label TTL is copied from the IP TTL. Transit swap and pop entries from LDP and RSVP-TE arrive as <code>(mpls-fib, entry)</code> events: fib-vpp creates MPLS table 0 and installs each entry as two <code>MplsRouteAddDel</code> routes, one per value of the S bit, never in <code>fib.vpp.table-id</code>. A pop imposes the Implicit NULL label; an egress pop with no next hop looks the packet up in IP table <code>fib.vpp.table-id</code> of its FEC's family. VPP has no per-route MTU, so an entry's path MTU is not installed and fib-vpp warns once. A push into a private table (an RSVP-TE facility-backup context) is refused, because VPP has no packet-mark context. <code>mpls { enable true; }</code> on a unit enables MPLS input on the VPP interface. <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processMPLSChange --> <!-- source: internal/plugins/fib/vpp/mpls.go -- addMPLSRoute, delMPLSRoute, addLabelRoutes, labelPath --> <!-- source: internal/plugins/fib/vpp/mplsentry.go -- handleMPLSEntry --> <!-- source: internal/plugins/iface/vpp/mplsinput.go -- ReplaceMPLSInput --></td>
 </tr>
 <tr>
 <td>vpp-4</td>
@@ -767,6 +781,10 @@ and converging sub-second on a full table.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -796,7 +814,7 @@ and converging sub-second on a full table.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

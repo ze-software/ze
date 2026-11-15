@@ -69,6 +69,24 @@ both families (the IPv6 `address-family ipv6` interface omits `loopback`):
   all-routers group (the broadcast variant) or, when an `nbma-neighbor` list is
   configured, unicast to that list (the non-broadcast variant).
 
+OSPFv2 stub advertisements include secondary IPv4 prefixes.
+The interface's first IPv4 address still binds the adjacency and DR identity.
+Each topology pass takes the primary address, its mask and secondary prefixes
+from one inventory read. A passive broadcast
+interface advertises subnets at the interface cost. With `network-type loopback`,
+each usable address is advertised as a /32 host route at metric zero, regardless
+of its kernel prefix length. Host127 addresses, such as Linux's default
+127.0.0.1, are excluded from stub advertisements.
+<!-- source: internal/plugins/ospf/interface_addr.go -- readInterfaceIPv4Inventory -->
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks, appendIPv4Stub -->
+
+If a running interface's address inventory cannot be read, OSPF keeps that
+area's last complete Router and Network LSAs and retries. Other areas can
+still publish. The runtime doctor check and active warning identify the
+interface and provide its existing detail command for diagnosis.
+<!-- source: internal/plugins/ospf/interface_addr_error.go -- interfaceAddressInventoryError, interfaceAddressDoctorFindings -->
+<!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateFromTopology -->
+
 Configured NBMA neighbor and poll state appears in `show ospf interface`. The
 `ze_ospf_nbma_neighbors{interface,af,state}`, `ze_ospf_nbma_polls_total{interface,af}`,
 and `ze_ospf_ptmp_host_routes{interface,af}` metrics track NBMA/PtMP operation.
@@ -256,9 +274,10 @@ ospf {
 
 The `ospf redistribute <source>` list holds only `nssa-propagate`. The metric, metric type and tag of a redistributed route are set by a `modify` instance matching `protocol [ <source> ]` on the export chain. A tag meant only for a route that carries none goes in a second instance that also matches `tag [ 0 ]`.
 
-A reload that changes the export chain judges the routes OSPF already holds again: a route the new chain rejects has its AS-external LSA flushed, a route it now accepts is originated, and a changed metric, metric type or tag re-originates the LSA with them. A reload that fails, in OSPF or in another plugin, puts the chain of the running config back and judges the routes against it again, so the failed commit's chain never stays installed.
+A reload that changes the export chain judges the routes OSPF already holds again: a route the new chain rejects has its AS-external LSA flushed, a route it now accepts is originated, and a changed metric, metric type or tag re-originates the LSA with them. A reload that fails, in OSPF or in another plugin, restores the previous OSPF interfaces, costs, instances, address families and export chain. OSPF judges its retained routes against that restored chain again. A failure to restore the engines is reported to the daemon for recovery.
 <!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute, WithdrawRoute, Rejudge -->
-<!-- source: internal/plugins/ospf/register.go -- OnConfigApply, OnConfigRollback -->
+<!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
+<!-- source: internal/plugins/ospf/config_transaction.go -- ospfTransactionConfig -->
 <!-- source: internal/plugins/ospf/redistribute/export.go -- exportVerdict, applyExportSets -->
 <!-- source: internal/plugins/ospf/export_chain.go -- parseExportChain -->
 <!-- source: internal/plugins/ospf/redistribute/source.go -- Source OnSPFChange exports OSPF routes -->
@@ -555,7 +574,7 @@ ospf {
 
 When enabled, the RI LSA advertises SR-Algorithm 0 (SPF) plus the SRGB, SRLB, and optional SR Mapping-Server preference TLVs (area-scoped); the Extended Prefix LSA carries a Prefix-SID sub-TLV for each configured node prefix; and the Extended Link LSA carries an Adjacency-SID (and a LAN-Adjacency-SID on broadcast/NBMA) allocated from the SRLB for each Full adjacency. The same registered RI capability builders emit into both the OSPFv2 and the OSPFv3 RI LSA, so the SR-Algorithm/SRGB/SRLB advertisement is shared across the two families (RFC 8666 §4). On reception Ze records each remote router's SR-Algorithm and ordered SRGB, computes the outgoing MPLS label for a reachable Prefix-SID, and applies the next-hop router's NP/E/M flags: NP=0 means penultimate-hop popping (forward as plain IP), NP=1/E=0 keeps the label, NP=1/E=1 uses the Explicit NULL label (0 for IPv4, 2 for IPv6), and the M-Flag makes NP and E ignored. These flags are the ones the next-hop router itself advertised for the prefix, and they apply whenever it advertised the SID, even when the best path ends at another router advertising the same anycast SID (RFC 8665 §5, RFC 8666 §6); a next hop that advertised no SID for the prefix is a transit hop and keeps the label. A Prefix-SID with the M-Flag set came from a Mapping Server, which is not the prefix originator, so the route decides instead (RFC 8665 §5): the label is popped toward the originator of an intra-area prefix, and toward an ABR (inter-area prefix) or ASBR (external prefix) that advertises the prefix in an Extended Prefix TLV with the A-Flag set; everywhere else it is kept. OSPFv3 applies only the intra-area case, because Ze does not read the LA-bit RFC 8666 §6 uses for the other two, so a mapped inter-area or external IPv6 SID keeps its label. A Prefix-SID for an algorithm the originator did not advertise, or a duplicate Prefix-SID for the same prefix/topology/algorithm, is recorded but not installed. When an adjacency leaves Full, its Adjacency-SID advertisement and forwarding entry are withdrawn before the SRLB label is freed for reuse. Only V=0/L=0 (4-octet index) and V=1/L=1 (3-octet local label) are valid SID encodings; any other combination causes the SID advertisement to be ignored. An SR TLV or sub-TLV whose length is invalid makes the whole LSA that carries it malformed (RFC 8665 §9, RFC 8666 §10), and the LSA is counted and ignored. In OSPFv3 this covers the Prefix-SID, Adj-SID, LAN Adj-SID and Extended Prefix Range, and also the SID/Label sub-TLV (type 7, length 3 or 4, RFC 8666 §3.1) wherever it appears, although Ze reads no SID from it: a Router Information LSA applies none of its SR capabilities, an Extended Prefix LSA (or OSPFv3 Extended-LSA) installs none of its Prefix-SIDs and contributes none of its prefixes to the Extended Prefix attributes Ze resolves (a previous instance's prefixes are withdrawn), an Extended Link LSA lends none of its Adjacency-SIDs to a TI-LFA repair stack, and BGP-LS exports none of it. An SR-Algorithm TLV with no algorithm octet has an invalid length, since it cannot carry the mandatory Algorithm 0 (RFC 8665 §3.1); it condemns its Router Information LSA even when it is a second SR-Algorithm TLV that the first-occurrence rule would otherwise ignore. A Prefix-SID or Adjacency-SID length is exact and follows the V-Flag: 7 octets when it is set, 8 when it is clear (11 and 12 for a LAN Adjacency-SID). The length is judged before the V/L-Flags, so a sub-TLV whose length and flags are both invalid condemns the LSA, while one whose flags alone are invalid is ignored by itself. Prefix-SIDs are judged per prefix, topology (MT-ID) and algorithm. Within that scope, a router that advertises more than one Prefix-SID in an area has all of them ignored, even when they bind the same SID (RFC 8665 §5, RFC 8666 §6); a router advertising one Prefix-SID for Algorithm 0 and another for a Flexible Algorithm or another topology keeps its Algorithm 0 SID. Across routers the RFCs say nothing, and Ze applies its own policy: different routers binding the same SID to a prefix (an anycast prefix, or ABRs propagating one Prefix-SID) are one binding and it is used, while different routers binding different SIDs leave no binding to prefer, so all of them are ignored. A range TLV of valid length whose content is rejected, such as a range starting at a reserved label, is ignored alone and counted, and the rest of the LSA still applies.
 
-MPLS forwarding is programmed through the shared `mpls-fib` bus with two SR source tags (OSPF-SR for IPv4, OSPFv3-SR for IPv6), the third producer alongside RSVP-TE and LDP; `fib-kernel` remains the single owner of kernel forwarding state. Prefix-SIDs install a push (ingress) or swap (transit) entry toward the SPF next-hop; Adjacency-SIDs install a pop/forward entry keyed by the local SRLB label. SR reads the shared SPF route table (read-only) through a post-run hook that fires after the IP-route Installer has applied, so an SR label push always rides an already-installed IP route. SR LSAs are never SPF vertices and never change the route table directly.
+MPLS forwarding is programmed through the shared `mpls-fib` bus with two SR source tags (OSPF-SR for IPv4, OSPFv3-SR for IPv6), the third producer alongside RSVP-TE and LDP; the writer of the selected data plane programs the entries, `fib-kernel` on the kernel and `fib-vpp` on VPP, and it remains the single owner of that data plane's forwarding state. As LDP and RSVP-TE do, OSPF-SR waits for the writer's acknowledgement and logs a refused entry with its cause as a warning, keeps every entry it wants installed, and answers a writer's replay request with them, so on VPP an SR label emitted before fib-vpp opened its writer, or lost when VPP restarted, is installed when the writer asks. Each entry no writer carried out (refused on apply, not installed by a replay, or unprogrammable because OSPF runs as an external plugin and so has no event bus) is reported by the runtime `ze show doctor` check `ospf-sr-label-entries` as a `doctor-fib-mpls-no-writer` error naming the entry and the cause, until a later apply of the same label succeeds. Segment Routing labels are programmed only when OSPF runs inside the daemon. Prefix-SIDs install a push (ingress) or swap (transit) entry toward the SPF next-hop; Adjacency-SIDs install a pop/forward entry keyed by the local SRLB label. SR reads the shared SPF route table (read-only) through a post-run hook that fires after the IP-route Installer has applied, so an SR label push always rides an already-installed IP route. SR LSAs are never SPF vertices and never change the route table directly.
 
 `show ospf segment-routing` and `show ospf ipv6 segment-routing` render the configured SRGB/SRLB, the advertised algorithm, this node's Prefix-SIDs, and the allocated Adjacency-SIDs. The `ze doctor` check `doctor-ospf-segment-routing-overlap` reports an SRGB/SRLB overlap or other unsound range before runtime install. SR activity is exposed by the `ze_ospf_sr_*` metric series, all carrying an `af` label: `ze_ospf_sr_enabled`, `ze_ospf_sr_prefix_sids{direction}`, `ze_ospf_sr_adj_sids`, `ze_ospf_sr_labels_installed{op}`, `ze_ospf_sr_label_compute_errors_total{reason}`, `ze_ospf_sr_srlb_labels_in_use`, and `ze_ospf_sr_malformed_tlvs_total{tlv}`.
 <!-- source: internal/plugins/ospf/sr/srgb.go -- SRGB multi-range index-to-label arithmetic -->
@@ -567,6 +586,7 @@ MPLS forwarding is programmed through the shared `mpls-fib` bus with two SR sour
 <!-- source: internal/plugins/ospf/sr/install.go -- NP/E/M forwarding truth table -->
 <!-- source: internal/plugins/ospf/sr.go -- RI + Extended Prefix/Link SR TLV builders + reception -->
 <!-- source: internal/plugins/ospf/sr_fib.go -- mpls-fib push/swap/pop install -->
+<!-- source: internal/plugins/ospf/sr_doctor_label.go -- the ospf-sr-label-entries check, errSRNoEventBus -->
 
 ## Fast reroute: LFA and TI-LFA (RFC 5286)
 
@@ -584,7 +604,11 @@ ospf {
 }
 ```
 
-`show ospf route fast-reroute` lists each prefix's primary next-hops with their backup next-hop, protection class (node/link/downstream), and TI-LFA repair label stack; unprotected primaries are shown as unprotected. Fast-reroute activity is exposed by the `ze_ospf_fast_reroute_*` metric series: `ze_ospf_fast_reroute_protected_prefixes{area,class}`, `ze_ospf_fast_reroute_unprotected_prefixes{area,reason}`, `ze_ospf_fast_reroute_backups_installed{kind}`, `ze_ospf_fast_reroute_compute_seconds{area}`, and `ze_ospf_fast_reroute_ti_lfa_repair_labels{area}`. On Linux the backup is programmed as a link-down/backup multipath next-hop carrying the repair MPLS encap, so the kernel forwards to it only when the primary link is down.
+`show ospf route fast-reroute` lists each prefix's primary next-hops with their backup next-hop, protection class (node/link/downstream), and TI-LFA repair label stack; unprotected primaries are shown as unprotected. Fast-reroute activity is exposed by the `ze_ospf_fast_reroute_*` metric series: `ze_ospf_fast_reroute_protected_prefixes{area,class}`, `ze_ospf_fast_reroute_unprotected_prefixes{area,reason}`, `ze_ospf_fast_reroute_backups_installed{kind}`, `ze_ospf_fast_reroute_compute_seconds{area}`, and `ze_ospf_fast_reroute_ti_lfa_repair_labels{area}`.
+
+**Gap: the backup is computed and shown, but not used for forwarding.** The Linux kernel route holds the primary path only. The kernel has no standby next-hop in a multipath route, and it refuses the link-down flag from userspace, so Ze does not program the backup. When the primary link fails, traffic is not moved to the backup: it recovers only when OSPF converges again. While any installed route holds a backup that is not programmed, `show warnings` carries one `doctor-fib-backup-not-programmed` warning with the number of such routes.
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute -->
+<!-- source: internal/plugins/fib/kernel/backup_report.go -- reportBackupsLocked -->
 <!-- source: internal/plugins/ospf/spf/lfa.go -- RFC 5286 base LFA selection -->
 <!-- source: internal/plugins/ospf/spf/tilfa.go -- TI-LFA post-convergence repair-list builder -->
 <!-- source: internal/plugins/ospf/spf/lfa_multiarea.go -- RFC 5286 §6.3 multi-area suppression -->
@@ -607,10 +631,14 @@ As a helper (RFC 3623 §3), on receiving a Grace-LSA that passes every §3.1 che
 second store or require a separate `ze.config.dir` setting. Runtime initialization
 durably increments the boot count and reads restart state before packet processing.
 A failed state request stops initialization; there is no clock-derived fallback.
+A reload whose new engines cannot read that state, and whose engines of the
+running config cannot read it again either, says so: the error tells you to run
+`ze doctor` and fix the store problem it reports, or `ze init` when ze has no
+persistent store, and it names the daemon restart as the last repair.
 Restart writes wait for the daemon's durable acknowledgement. Reads distinguish
 absent state from unavailable or corrupt state.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- loadOSPFBootCount -->
-<!-- source: internal/plugins/ospf/state.go -- initializeState -->
+<!-- source: internal/plugins/ospf/state.go -- initializeState, runningEnginesLost, runningStateFix -->
 <!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact -->
 <!-- source: internal/plugins/ospf/gr_preserve.go -- capturePrefixLSIDs, restoreInterfaceIDs, v6OriginateGraceLSA -->
 <!-- source: internal/plugins/ospf/packet/grace_lsa.go -- GraceLSA, EncodeGraceLSA, DecodeGraceLSA -->

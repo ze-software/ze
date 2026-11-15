@@ -152,9 +152,9 @@
 </table>
 <h2 id="executive-conclusion">Executive conclusion</h2>
 <ul>
-<li><strong>VyOS</strong> has the widest Linux-router integration surface in the inspected source. Its own code covers CLI schema, config and operational scripts, firewall, NAT, VPNs, services, commit-confirm, rollback, archive, REST/OpenAPI, GraphQL, and platform integration. Runtime protocol implementation mostly comes from FRR and the Linux/VPP/system service stack.</li>
-<li><strong>freeRtr</strong> has the widest router-native protocol and service surface in the inspected source: many routing protocols, LSP/tunnel families, crypto/VPNs, NETCONF, Java CLI/config, internal services, and dataplane export paths. Most of that breadth sits in large Java registries and runtime classes.</li>
-<li><strong>Ze</strong> has the most integrated management plane among the three in the inspected source. Its BGP/control-plane architecture, YANG-modelled config and commands, generated plugin registration, CLI/web/REST/gRPC/MCP surfaces, built-in SSH management, HTMX web UI, minimal kernel/init, appliance runtime, diagnostics, and performance/testing tools are designed together. It is narrower than VyOS and freeRtr in legacy protocols and services today.</li>
+<li><strong>VyOS</strong> has the widest range of integrated Linux router features in the inspected source. Its own code covers CLI schema, config and operational scripts, firewall, NAT, VPNs, services, commit-confirm, rollback, archive, REST/OpenAPI, GraphQL, and platform integration. Runtime protocol implementation mostly comes from FRR and the Linux/VPP/system service stack.</li>
+<li><strong>freeRtr</strong> has the widest range of built-in routing protocols and services in the inspected source: many routing protocols, LSP/tunnel families, crypto/VPNs, NETCONF, Java CLI/config, internal services, and dataplane export paths. Most of that breadth sits in large Java registries and runtime classes.</li>
+<li><strong>Ze</strong> has the most integrated management plane among the three in the inspected source. Its BGP/control-plane architecture, YANG-modelled config and commands, generated plugin registration, CLI, web, REST/gRPC, and MCP interfaces, built-in SSH management, HTMX web UI, minimal kernel/init, appliance runtime, diagnostics, and performance/testing tools are designed together. It is narrower than VyOS and freeRtr in legacy protocols and services today.</li>
 </ul>
 <h2 id="feature-matrices-by-category">Feature matrices by category</h2>
 <p>These are the operator-facing feature matrices. Cells intentionally start with
@@ -177,7 +177,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Ze and VyOS include ECMP style static route surfaces; freeRtr has static route objects.</td>
+<td>Ze and VyOS include static route configuration with ECMP; freeRtr has static route objects.</td>
 </tr>
 <tr>
 <td>BGP core</td>
@@ -198,14 +198,14 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>ADD-PATH, route refresh, extended messages, extended nexthop and related capability surfaces are evidenced.</td>
+<td>ADD-PATH, route refresh, extended messages, extended nexthop and related capabilities are supported by the cited evidence.</td>
 </tr>
 <tr>
 <td>BGP Graceful Restart / LLGR</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>VyOS evidence is config-surface level through FRR.</td>
+<td>VyOS evidence comes from configuration options for FRR.</td>
 </tr>
 <tr>
 <td>Route server and route reflector</td>
@@ -275,7 +275,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Scope differs by implementation and config surface.</td>
+<td>Scope differs by implementation and available configuration options.</td>
 </tr>
 <tr>
 <td>IS-IS L1/L2</td>
@@ -394,7 +394,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>VyOS evidence is BGP monitor config surface.</td>
+<td>VyOS evidence is BGP monitoring configuration.</td>
 </tr>
 <tr>
 <td>MRT dump/import/export</td>
@@ -439,7 +439,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td>Ze has a netlink backend; VyOS manages Linux interfaces; freeRtr abstracts interfaces through Java and helpers rather than a Ze-like netlink backend.</td>
 </tr>
 <tr>
-<td>VPP interface backend or VPP interface surface</td>
+<td>VPP interface backend or configuration</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
@@ -520,7 +520,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-partial">∿</td>
-<td>freeRtr evidence is protocol imports and tunnel surface, not exact CLI lines for every name.</td>
+<td>freeRtr evidence is protocol imports and tunnel configuration, not exact CLI lines for every name.</td>
 </tr>
 <tr>
 <td>WireGuard interface/tunnel</td>
@@ -611,7 +611,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Ze supports tc/VPP backends and L2TP shaping; VyOS and freeRtr have broader policy surfaces.</td>
+<td>Ze supports tc/VPP backends and L2TP shaping; VyOS and freeRtr have more policy options.</td>
 </tr>
 <tr>
 <td>Netns/container interface binding</td>
@@ -646,7 +646,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Ze uses nftables; VyOS has firewall/zone model; freeRtr has ACL/filter surfaces.</td>
+<td>Ze uses nftables; VyOS has firewall/zone model; freeRtr has ACLs and filters.</td>
 </tr>
 <tr>
 <td>Rich match/action rules</td>
@@ -744,7 +744,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-partial">∿</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Ze has self-cert and appliance cert replacement; VyOS and freeRtr expose broader PKI/config surfaces.</td>
+<td>Ze has self-cert and appliance cert replacement; VyOS and freeRtr expose more certificate and key configuration options.</td>
 </tr>
 <tr>
 <td>SSH service</td>
@@ -996,7 +996,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-partial">∿</td>
 <td class="cell-partial">∿</td>
-<td>Ze has a dedicated looking glass service; the others have route show surfaces.</td>
+<td>Ze has a dedicated looking glass service; the others have commands for displaying routes.</td>
 </tr>
 <tr>
 <td>Update, config archive, backup</td>
@@ -1055,11 +1055,11 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td>freeRtr generates NETCONF/YANG from help, but not a Ze/VyOS style command catalog.</td>
 </tr>
 <tr>
-<td>Register-once operator surfaces</td>
+<td>Shared definitions for management interfaces</td>
 <td class="cell-yes">✓</td>
 <td class="cell-partial">∿</td>
 <td class="cell-partial">∿</td>
-<td>Ze registers commands, config, plugins, RPCs, and events once, then exposes them through CLI, web, REST/gRPC, MCP, generated docs, completion, authorization, and audit. VyOS has generated CLI/config artifacts. freeRtr has broad CLI plus NETCONF/help generation. The inspected sources did not show the same Ze-style all-surface pipeline.</td>
+<td>Ze registers commands, config, plugins, RPCs, and events once, then exposes them through CLI, web, REST/gRPC, MCP, generated docs, completion, authorization, and audit. VyOS has generated CLI/config artifacts. freeRtr has broad CLI plus NETCONF/help generation. The inspected sources did not show shared definitions supplying all of those interfaces as they do in Ze.</td>
 </tr>
 <tr>
 <td>Candidate/draft config model</td>
@@ -1129,7 +1129,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-partial">∿</td>
-<td>freeRtr has HTTP API permissions, not a typed REST/OpenAPI surface.</td>
+<td>freeRtr has HTTP API permissions, not a REST API with defined data types and an OpenAPI description.</td>
 </tr>
 <tr>
 <td>GraphQL</td>
@@ -1213,7 +1213,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Shape differs by product.</td>
+<td>Available automation mechanisms differ by product.</td>
 </tr>
 </tbody>
 </table>
@@ -1367,7 +1367,7 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 <td class="cell-partial">∿</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Ze kernel tooling exists; exact sysctl/kernel tuning surface is broader in VyOS/freeRtr.</td>
+<td>Ze kernel tooling exists; the range of sysctl and kernel settings is broader in VyOS/freeRtr.</td>
 </tr>
 <tr>
 <td>Runtime sysctl management</td>
@@ -1781,9 +1781,9 @@ about non-BGP router OS breadth.</p>
 </ul>
 <h3 id="vyos">VyOS</h3>
 <ul>
-<li>VyOS has the broadest operator-facing Linux router surface in <code>vyos-1x</code>: schemas and Python owners for protocols, interfaces, services, VPN, firewall/NAT, QoS, VPP, management APIs, platform config, commit-confirm, rollback, and support archive.</li>
+<li>VyOS has the broadest range of Linux router features available to operators in <code>vyos-1x</code>: schemas and Python owners for protocols, interfaces, services, VPN, firewall/NAT, QoS, VPP, management APIs, platform config, commit-confirm, rollback, and support archive.</li>
 <li>Source root is the CLI/config/runtime integration layer. The image builder and protocol daemon implementations are outside this checkout. The README says image builds belong in <code>vyos-build</code>, and protocol runtime commonly delegates to FRR, nftables, strongSwan, systemd, Linux, VPP, and related packages.</li>
-<li>Best fit from this evidence: mature Linux distribution router UX and integration surface with very broad feature exposure.</li>
+<li>Best fit from this evidence: mature Linux router operating system with a broad range of integrated features.</li>
 </ul>
 <h3 id="freertr">freeRtr</h3>
 <ul>
@@ -1797,7 +1797,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <th>Product</th>
 <th>Inspected root</th>
-<th><span class="concept-evidence">Primary evidence surface</span></th>
+<th><span class="concept-evidence">Primary sources of evidence</span></th>
 </tr>
 </thead>
 <tbody>
@@ -1870,7 +1870,7 @@ about non-BGP router OS breadth.</p>
 <td>Present. GR plugin configures restart-time and long-lived-stale-time, augments peer/group capability. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang:1-44</code></span></span></td>
 <td>Present. Global BGP graceful-restart node with <code>stalepath-time</code>; per-neighbor graceful-restart leaf (enable/disable/restart-helper). <span class="ev-src"><span class="ev-ref"><code>include/bgp/protocol-common-config.xml.i:1520-1538</code></span><span class="ev-ref"><code>include/bgp/neighbor-graceful-restart.xml.i:2-24</code></span></span></td>
 <td>Present. freeRtr default filters set <code>graceful-restart 60000</code> and <code>longlived-graceful 0</code> for BGP; capability encode with restart/long-lived timers is source-visible. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgRtr.java:377-378</code></span><span class="ev-ref"><code>src/org/freertr/rtr/rtrBgpSpeak.java:211-216</code>, <code>:984</code>, <code>:995</code></span></span></td>
-<td>All three have source evidence, with VyOS at the config-surface (FRR) level.</td>
+<td>All three have source evidence, with VyOS at the level of configuration options for FRR.</td>
 </tr>
 <tr>
 <td>Route server and route reflector</td>
@@ -2124,7 +2124,7 @@ about non-BGP router OS breadth.</p>
 <ul>
 <li>Ze uses a typed Go interface backend abstraction. The iface component parses config into typed entries, then dispatches lifecycle, addressing, routes, link state, tunnels, VLANs, bridge operations, MAC, MTU and route queries through the active Backend. <code>netlink</code> is the default backend, <code>vpp</code> is also registered, and OnConfigure loads the configured backend. Some interface leaves and kinds are still explicitly Linux/netlink-gated, including DHCP client, mirror, veth, bridge, tunnel, WireGuard, XFRM and PPPoE, so Ze is narrower than VyOS/freeRtr in appliance breadth, but its interface control plane is not netlink-only.</li>
 <li>VyOS is schema-first around interface-definitions XML and Python conf_mode owners. Feature breadth is high in the inspected source: many discrete interface kinds are first-class CLI nodes, with includes for common addressing, DHCP, VRF, MTU, IPv6 ND, mirror, VLAN, QoS and containers. VPP has parallel interface definitions for selected kinds.</li>
-<li>freeRtr centralizes a very large router-native interface model in cfgIfc.java and related cfg classes, with broad protocol handlers and custom dataplane backends. It exposes many interface and tunnel functions through cfgIfc commands, VPDN types, service daemons and native/P4/XDP dataplane code. It is broad and router-specific, but feature evidence often lives in large Java config surfaces rather than small per-feature files.</li>
+<li>freeRtr centralizes a very large router-native interface model in cfgIfc.java and related cfg classes, with broad protocol handlers and custom dataplane backends. It exposes many interface and tunnel functions through cfgIfc commands, VPDN types, service daemons and native/P4/XDP dataplane code. It is broad and router-specific, but feature evidence often lives in large Java configuration classes rather than small per-feature files.</li>
 <li>Paths likely worth citing in the final comparison are the files listed above, especially Ze <code>backend.go</code>, <code>register.go</code>, netlink and VPP backend registrations, <code>ifacevpp.go</code>, VyOS <code>interface-definitions/interfaces_*.xml.in</code> and <code>include/interface/vif-s.xml.i</code>, and freeRtr <code>cfgIfc.java</code>, <code>cfgVpdn.java</code>, <code>cfgInit.java</code>, <code>misc/native/p4emu_*.h</code> and <code>p4xdp_*.c</code>.</li>
 </ul>
 <h2 id="evidence-appendix-security-firewall-nat-vpn-and-aaa">Evidence appendix: security, firewall, NAT, VPN, and AAA</h2>
@@ -2187,7 +2187,7 @@ about non-BGP router OS breadth.</p>
 <td>Ze: not found in inspected sources as dedicated NPTv6 or NAT64. It can use nft <code>ip6</code>/<code>inet</code> NAT chain actions, but dedicated NPT/NAT64 model not found.</td>
 <td>VyOS NAT66/NPTv6 model help says <code>Network Prefix Translation (NAT66/NPTv6)</code> and has source and destination NAT66 rules plus masquerade. NAT64 source translation: (owner node, source rule, translation). <span class="ev-src"><span class="ev-ref"><code>interface-definitions/nat66.xml.in:3-5</code>, <code>:15-24</code>, <code>:93-111</code>, <code>:128-145</code></span><span class="ev-ref"><code>interface-definitions/nat64.xml.in:3-16</code></span></span></td>
 <td>freeRtr: IPv4/IPv6 NAT rules are emitted from VRF for both families. NAT64 translation is supported and tested via the family-agnostic <code>ipv[46] nat</code>, but there is no dedicated <code>nat64</code> keyword and NPTv6 is absent. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgVrf.java:456-460</code>, <code>:696-699</code></span><span class="ev-ref"><code>src/rtr.ftr:988</code></span><span class="ev-ref"><code>src/rtr.csv:992</code></span></span></td>
-<td>VyOS has the clearest dedicated NPTv6/NAT64 configuration surface.</td>
+<td>VyOS has the clearest dedicated NPTv6/NAT64 configuration.</td>
 </tr>
 <tr>
 <td>Zones</td>
@@ -2211,7 +2211,7 @@ about non-BGP router OS breadth.</p>
 <td>Ze sets have <code>flags-dynamic</code> and per-element timeouts: <code>SetFlagDynamic</code> and timeout; parser handles per-element timeout. <span class="ev-src"><span class="ev-ref"><code>internal/component/firewall/yang/ze-firewall-conf.yang:637-672</code></span><span class="ev-ref"><code>internal/component/firewall/model.go:594-603</code></span><span class="ev-ref"><code>internal/component/firewall/config.go:1183-1248</code></span></span></td>
 <td>VyOS has <code>firewall group dynamic-group address-group</code> and <code>ipv6-address-group</code>. <span class="ev-src"><span class="ev-ref"><code>interface-definitions/firewall.xml.in:103-132</code></span></span></td>
 <td>freeRtr: not found in inspected sources as a named dynamic firewall group. ACL reflect can create forward entries on match with timeout, which is dynamic behavior but not a named dynamic group. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgAceslst.java:94-97</code></span></span></td>
-<td>Ze and VyOS have explicit dynamic set/group surfaces.</td>
+<td>Ze and VyOS have configuration for dynamic sets and groups.</td>
 </tr>
 <tr>
 <td>QoS/security policing</td>
@@ -2227,7 +2227,7 @@ about non-BGP router OS breadth.</p>
 <td>Ze: not found as a first-class IPsec/IKE subsystem in inspected source. Alternate search found OSPF IPsec files and interop plan/test references, but no generic VPN IPsec config component.</td>
 <td>VyOS full IPsec/IKE: PSK and post-quantum preshared key; ESP group lifetimes, bytes, packets, mode, PFS, proposals: <code>:83-263</code>; IKE group DPD, reauth, IKEv1/IKEv2, lifetime, MOBIKE, mode, DH, PRF, proposals: <code>:288-700</code>. <span class="ev-src"><span class="ev-ref"><code>interface-definitions/vpn_ipsec.xml.in:13-77</code></span></span></td>
 <td>freeRtr IPsec profile: transform group, cipher, hash, PRF, seconds, random, bytes, preshared key, role, protected IPv4/IPv6, ISAKMP version, replay window. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgIpsec.java:83-96</code>, <code>:118-160</code>, <code>:192-195</code></span></span></td>
-<td>VyOS has strongest inspected IPsec/IKE surface. freeRtr has native crypto IPsec profile. Ze lacks generic VPN IPsec in inspected sources.</td>
+<td>VyOS has the widest range of IPsec/IKE configuration options in the inspected sources. freeRtr has native crypto IPsec profile. Ze lacks generic VPN IPsec in inspected sources.</td>
 </tr>
 <tr>
 <td>WireGuard</td>
@@ -2243,7 +2243,7 @@ about non-BGP router OS breadth.</p>
 <td>Ze: not found in inspected sources. Alternate search found no Ze-owned OpenVPN component.</td>
 <td>VyOS OpenVPN supports tun/tap, ciphers, hashes, mode <code>site-to-site/client/server</code>, UDP and TCP variants, local and remote hosts/ports, server clients/pools, reject-unconfigured-clients, TOTP MFA, shared-secret, TLS certs/CA/DH, tls-auth/crypt, peer fingerprint, TLS version and active/passive TLS role, mode site-to-site/client/server <code>:297-312</code>, server node <code>:452</code>, TOTP MFA <code>:745</code>, shared-secret-key <code>:828</code>. <span class="ev-src"><span class="ev-ref"><code>interface-definitions/interfaces_openvpn.xml.in:1-263</code></span></span></td>
 <td>freeRtr imports and fields for <code>clntOpenvpn</code>, tunnel type <code>openvpn</code>; implementation is <code>clntOpenvpn</code> and connects UDP as <code>openvpn</code>. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgIfc.java:41-42</code>, <code>:977-980</code>, <code>:1519-1522</code>, <code>:2614-2617</code>, <code>:2810-2812</code></span><span class="ev-ref"><code>src/org/freertr/clnt/clntOpenvpn.java:26-36</code>, <code>:408-410</code></span></span></td>
-<td>VyOS has broad OpenVPN server/client surface. freeRtr has client/tunnel implementation. Ze not found.</td>
+<td>VyOS has a broad range of OpenVPN server and client options. freeRtr has client/tunnel implementation. Ze not found.</td>
 </tr>
 <tr>
 <td>L2TP/IPsec</td>
@@ -2848,7 +2848,7 @@ about non-BGP router OS breadth.</p>
 <li><strong>VyOS gNMI:</strong> not found in inspected sources. No gNMI management server exists under <code>src</code>, <code>python</code>, <code>interface-definitions</code>, <code>op-mode-definitions</code>, <code>schema</code>, or <code>README.md</code>.</li>
 <li><strong>VyOS NETCONF:</strong> not found as management API in inspected sources. The only <code>netconf</code> hits were netlink-event comments/classes in <code>vyos-network-event-logger</code>, not NETCONF RPC/server code.</li>
 <li><strong>VyOS web UI/HTMX/MCP:</strong> not found in inspected sources. The repo contains HTTP API/GraphQL services but no browser router UI or HTMX/MCP integration in inspected paths.</li>
-<li><strong>freeRtr REST/OpenAPI/JSON management output:</strong> freeRtr has HTTP API permissions (<code>servHttp.java:439-444</code>) and XML/NETCONF sessions but no typed REST/OpenAPI surface; JSON CLI output does exist as a <code>json</code> table mode (<code>userFormat.java:39</code>).</li>
+<li><strong>freeRtr REST/OpenAPI/JSON management output:</strong> freeRtr has HTTP API permissions (<code>servHttp.java:439-444</code>) and XML/NETCONF sessions but no REST API with defined data types and an OpenAPI description; JSON CLI output does exist as a <code>json</code> table mode (<code>userFormat.java:39</code>).</li>
 <li><strong>freeRtr rollback:</strong> <code>configure revert</code> restores running to startup (<code>userExec.java:3759-3772</code>) and a session-drop auto-revert exists (<code>userLine.java:445-483</code>), but there is no numbered-revision rollback like Ze/VyOS.</li>
 <li><strong>freeRtr external plugin SDK:</strong> scripts, schedulers, aliases, VDCs, processes, and HTTP script/API hooks exist, but a standalone external plugin SDK/API comparable to Ze was not found in inspected sources.</li>
 <li><strong>freeRtr HTMX/MCP/gNMI:</strong> not found in inspected sources.</li>
@@ -3256,7 +3256,7 @@ about non-BGP router OS breadth.</p>
 <td>Debug command test files found for Ze under <code>debug-invalid-subsystem.ci</code>, <code>debug-enable-show.ci</code>; debug plugin source. Production diagnostics includes raw BGP capture commands. <span class="ev-src"><span class="ev-ref"><code>test/ui/debug-help.ci</code></span><span class="ev-ref"><code>internal/plugins/debug/debug.go</code></span><span class="ev-ref"><code>docs/guide/production-diagnostics.md:42-69</code></span></span></td>
 <td>Debug flags enabled by environment or files under <code>/tmp</code> and <code>/config</code>, registered flags <code>developer</code>, <code>log</code>, <code>ifconfig</code>, <code>command</code>; smoketest shim has and prints set/del/commit/op outputs. <span class="ev-src"><span class="ev-ref"><code>python/vyos/debug.py:21-49</code>, <code>:52-84</code>, <code>:101-135</code></span><span class="ev-ref"><code>/tmp/vyos.smoketest.debug</code></span><span class="ev-ref"><code>smoketest/scripts/cli/base_vyostest_shim.py:43-50</code>, <code>:70-111</code></span></span></td>
 <td>Debugger has hundreds of static flags by subsystem, including user commands and protocol/service traffic; Prometheus traffic debug logs rx/tx. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/util/debugger.java:12-80</code>, <code>:121-180</code></span><span class="ev-ref"><code>src/org/freertr/serv/servPrometheus.java:165-166</code>, <code>:215-216</code></span></span></td>
-<td>freeRtr exposes the broadest explicit debug flag surface in inspected code.</td>
+<td>freeRtr exposes the broadest range of explicit debug flags in inspected code.</td>
 </tr>
 <tr>
 <td>Crash and core support</td>
@@ -3301,7 +3301,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Topology and interop tests</td>
-<td>Native Docker interop against FRR, BIRD, GoBGP, ExaBGP, and strongSwan is implemented by <code>internal/le/interoplab/bgp</code>, <code>internal/le/interoplab/ipsec</code>, and the action table in; <span data-ze-stat="interop.scenarios_display">220+</span> scenarios cover BGP, IS-IS, and OSPF. <span class="ev-src"><span class="ev-ref"><code>internal/le/integration/gates.go</code></span></span></td>
+<td>Native Docker interop against FRR, BIRD, GoBGP, ExaBGP, and strongSwan is implemented by <code>internal/le/interoplab/bgp</code>, <code>internal/le/interoplab/ipsec</code>, and the action table in; <span data-ze-stat="interop.scenarios_display">390+</span> scenarios across <span data-ze-stat="interop.suite_count">8</span> lab suites cover routing, VPNs, access and multi-node topologies. <span class="ev-src"><span class="ev-ref"><code>internal/le/integration/gates.go</code></span></span></td>
 <td>GitHub workflow builds a custom ISO and runs smoketests in containers with privileged options; VPP smoketest and config-load jobs, <code>:225-252</code>, <code>:325-352</code>. Topology/interop beyond QEMU/VPP smoketest not found in inspected <code>vyos-1x</code> source. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:150-183</code>, <code>:192-218</code></span></span></td>
 <td>Readme says <code>img</code> VM images are used for interop and dataplane testing; tester can launch multiple routers with generated ports and captures, selftest/topology scripts and. <span class="ev-src"><span class="ev-ref"><code>readme.md:55-60</code></span><span class="ev-ref"><code>src/org/freertr/user/userTester.java:36-48</code>, <code>:1437-1440</code>, <code>:2422-2429</code></span><span class="ev-ref"><code>src/t*.sh</code></span><span class="ev-ref"><code>cfg/*.tst</code></span></span></td>
 <td>Ze has most explicit source docs for third-party interop.</td>
@@ -3393,7 +3393,7 @@ about non-BGP router OS breadth.</p>
 </tr>
 <tr>
 <td>Modularity</td>
-<td>Top-level modularity shape</td>
+<td>How the code is divided into modules</td>
 <td>Components and plugins are split under, discovered by registries and generated imports. Generated import root states it imports plugins and schema packages to trigger <code>init</code> registration in. <span class="ev-src"><span class="ev-ref"><code>internal/component/</code></span><span class="ev-ref"><code>internal/plugins/</code></span><span class="ev-ref"><code>internal/component/plugin/all/all.go:1-8</code></span></span></td>
 <td>Each feature is typically an XML definition plus a conf mode script. <code>protocols bgp</code> to, with priority at <code>:6</code>. <span class="ev-src"><span class="ev-ref"><code>interface-definitions/protocols_bgp.xml.in:3</code></span><span class="ev-ref"><code>${vyos_conf_scripts_dir}/protocols_bgp.py</code></span></span></td>
 <td>Static global registries in <code>cfgAll</code>: routers at, interfaces and policy objects around <code>:224-361</code>, service daemon lists around <code>:379-500</code>. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgAll.java:229-230</code></span></span></td>
@@ -3525,7 +3525,7 @@ about non-BGP router OS breadth.</p>
 <td>Ze build-tag tests prove protocols compile out, for example; dispatch comments mention gated CLI imports in. <span class="ev-src"><span class="ev-ref"><code>cmd/ze/hub/build_tag_protocols_absent_test.go:1-12</code></span><span class="ev-ref"><code>cmd/ze/ze_core_dispatch.go:43-48</code></span></span></td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
-<td>[analysis] Ze can reduce binary surface by build tags. VyOS and freeRtr feature surface appears package/source included rather than mechanically gated in inspected sources.</td>
+<td>[analysis] Ze can exclude code from the binary with build tags. The inspected VyOS and freeRtr sources appear to select features through packages or source inclusion rather than build tags.</td>
 </tr>
 </tbody>
 </table>
@@ -3625,7 +3625,7 @@ about non-BGP router OS breadth.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 23:25 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

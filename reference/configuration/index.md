@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 38 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 39 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
@@ -2224,9 +2224,8 @@ The api-server container under it is the shared parent of the REST and gRPC tran
   - **max-sessions** `uint16`: Maximum concurrent BMP sessions
     The default is 100 and the range is 1 to 1000. The count is per listener, so two server entries admit twice this number of sessions. Over the limit Ze closes the new connection and logs a warning, and the sessions already open keep running.
   - **route-action** `enumeration`: Action for received BMP Route Monitoring messages
-    monitor is the default and is the only action Ze performs. redistribute is accepted by the schema and is not implemented: Ze writes a warning in the log and acts as monitor. Under monitor the routes of a BMP Route Monitoring message go to the BMP RIB, which show bmp rib reads. They reach neither BGP best-path selection nor the FIB.
+    monitor is the default and the only value. The routes of a BMP Route Monitoring message go to the BMP RIB, which show bmp rib reads. They reach neither BGP best-path selection nor the FIB, because a BMP receiver is a monitoring station: RFC 7854 defines no use of the routes it is told about. Any other value is refused when the config loads. The leaf stays with one value on purpose: a value removed from the enumeration is refused, while a removed leaf would be skipped in silence.
     - `monitor`: Store in BMP RIB for visibility (show bmp rib), isolated from BGP best-path and FIB
-    - `redistribute`: Store in BMP RIB and redistribute into BGP best-path selection
   - **server <name>** `list`: BMP receiver listen endpoints
     The ze:listener extension marks this list, so config validation refuses a second listener that binds the same protocol, port and address. Ze opens one TCP listener for each entry. A bind that fails is logged, and the other entries keep their listener. An empty list binds nothing, because the receiver has no default endpoint.
     - **ip** `ip-address`: Listen IP address
@@ -2859,9 +2858,9 @@ Flow export configuration. Ze exports interface counters to every collector. It 
 
 *Provided by `interface` ([ze-iface-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-show-cmd.yang)); `vrrp` ([ze-vrrp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-cmd.yang), [ze-vrrp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-conf.yang))*
 
-Interface-level class-of-service bindings and inline QoS maps.
+Interface-level class-of-service profile bindings.
 
-This container merges into ze-iface-conf. Remove the cos plugin and every QoS leaf disappears from the interfaces.
+This container merges profile references into ze-iface-conf. Removing the cos plugin removes these references; inline QoS maps remain owned by the interface component.
 
 - **backend** `string`: Interface management backend: netlink or vpp.
   Ze loads the backend this name selects, and it refuses an unknown name with 'unknown backend' and the list of registered names. netlink drives the Linux kernel through rtnetlink. vpp drives the VPP data plane, and it is linked in only under the ze_vpp build tag.
@@ -2906,7 +2905,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **stp** `boolean`: Enable Spanning Tree Protocol
     Ze writes 1 or 0 to /sys/class/net/<bridge>/bridge/stp_state. The default false leaves the bridge with no loop protection, so it forwards a frame as soon as a port comes up. Set it true where two ports can reach the same L2 segment.
   - **unit <name>** `list`: Logical interface unit.
-    The cos plugin adds the class-of-service leaf and the inline ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that carries a profile and an inline map together. Both routes need vlan-id on the unit, because the map reaches the kernel 802.1Q subinterface.
+    The cos plugin adds a profile reference to the unit. Its value overrides the interface reference, and 'none' stops inheritance. Inline maps belong to ze-iface-conf and remain available without this plugin. A profile and an inline map cannot be used together, and both need vlan-id.
     - **class-of-service** `string`: Class-of-service profile of this unit.
       The value is the name of a profile. The value 'none' stops the unit from inheriting the profile of the parent interface.
     - **description** `string`: Unit description
@@ -3105,7 +3104,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -3148,7 +3147,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **os-name** `string`: OS device this logical interface name binds to.
     When this leaf is omitted, ze uses the logical name as the OS device name, so every interface whose name already matches its kernel device resolves unchanged. Set the leaf to alias a readable interface name to a different kernel device. The iface resolver then maps the logical name to this OS device. ze init records the discovered OS name here.
   - **unit <name>** `list`: Logical interface unit.
-    The cos plugin adds the class-of-service leaf and the inline ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that carries a profile and an inline map together. Both routes need vlan-id on the unit, because the map reaches the kernel 802.1Q subinterface.
+    The cos plugin adds a profile reference to the unit. Its value overrides the interface reference, and 'none' stops inheritance. Inline maps belong to ze-iface-conf and remain available without this plugin. A profile and an inline map cannot be used together, and both need vlan-id.
     - **class-of-service** `string`: Class-of-service profile of this unit.
       The value is the name of a profile. The value 'none' stops the unit from inheriting the profile of the parent interface.
     - **description** `string`: Unit description
@@ -3347,7 +3346,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -3388,7 +3387,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **os-name** `string`: OS device this logical interface name binds to.
     When this leaf is omitted, ze uses the logical name as the OS device name, so every interface whose name already matches its kernel device resolves unchanged. Set the leaf to alias a readable interface name to a different kernel device. The iface resolver then maps the logical name to this OS device. ze init records the discovered OS name here.
   - **unit <name>** `list`: Logical interface unit.
-    The cos plugin adds the class-of-service leaf and the inline ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that carries a profile and an inline map together. Both routes need vlan-id on the unit, because the map reaches the kernel 802.1Q subinterface.
+    The cos plugin adds a profile reference to the unit. Its value overrides the interface reference, and 'none' stops inheritance. Inline maps belong to ze-iface-conf and remain available without this plugin. A profile and an inline map cannot be used together, and both need vlan-id.
     - **class-of-service** `string`: Class-of-service profile of this unit.
       The value is the name of a profile. The value 'none' stops the unit from inheriting the profile of the parent interface.
     - **description** `string`: Unit description
@@ -3587,7 +3586,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -3727,7 +3726,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -3769,12 +3768,22 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       Ze refuses the other ipv6 leaves while enabled is not true, because without IPv6CP no IPv6 reaches the session device.
     - **forwarding** `boolean`: Allow this interface to forward IPv6 packets between interfaces.
       The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA acceptance, unless accept-ra is set to 2.
+  - **ipv6cp** `container`: IPv6CP Configure-Request retransmission timer.
+    IPv6CP configures the IPv6 link independently of IPCP. Its Restart timer controls retries while IPv6CP negotiates, including after an LCP restart. A timing-only change takes effect on the next session. The setting is retained even while IPv6 is disabled.
+    - **restart-timer** `uint16`: Milliseconds before retrying an unanswered IPv6CP request.
+      After each IPv6CP Configure-Request, wait this many milliseconds before retrying. The default of three seconds follows RFC 1661 Section 4.6. A shorter timer can exhaust retries on a lossy link.
   - **keepalive** `container`: Dead-peer detection by LCP Echo-Request (RFC 1661 Section 5.8).
     Ze sends an LCP Echo-Request on the session every interval and counts the requests the access concentrator leaves unanswered. Any Echo-Reply resets the count. The session ends on the unanswered request that reaches the failure count, and the client then reconnects. A change to these leaves keeps the running session up: the next session uses the new values. Detection takes about interval times failures seconds. A small interval with failures 1 can end a session on a lossy line that is still usable.
     - **failures** `uint8`: Unanswered Echo-Requests in a row that end the session.
       The session ends when this many Echo-Requests in a row have no Echo-Reply. The range is 1 to 255 and the default is 3, so the default detection time is about 30 seconds.
     - **interval** `uint16`: Seconds between two LCP Echo-Requests.
       Ze sends one LCP Echo-Request each interval while the session is up. The range is 1 to 3600 seconds and the default is 10.
+  - **lcp** `container`: LCP Configure-Request retransmission timer and request limit.
+    LCP retransmits an unanswered Configure-Request after restart-timer milliseconds and ends negotiation after max-configure unanswered requests. A valid negotiation reply renews the request budget. A timing-only change keeps the running session and takes effect on the next session, including its later LCP renegotiations.
+    - **max-configure** `uint8`: Maximum LCP Configure-Requests without a valid negotiation reply.
+      The number of unanswered LCP Configure-Requests allowed before negotiation ends. The first request counts toward this limit. RFC 1661 Section 4.6 recommends the default of ten requests.
+    - **restart-timer** `uint16`: Milliseconds to wait before retransmitting an unanswered LCP request.
+      The timer starts after each LCP Configure-Request. Expiry sends another request while the request budget remains. The default is three seconds, as RFC 1661 Section 4.6 recommends.
   - **mtu** `uint16`: Maximum transmission unit
     The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **no-default-route** `empty`: Do not install a default route through the PPP interface.
@@ -4131,7 +4140,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -4174,7 +4183,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
   - **peer** `string`: Veth peer name
     Ze validates the peer name with the same rules as name. Ze sets the peer link state to up right after it creates the pair. The schema gives the peer end no units, so ze puts no address on it.
   - **unit <name>** `list`: Logical interface unit.
-    The cos plugin adds the class-of-service leaf and the inline ingress-qos-map and egress-qos-map lists to the unit. The class-of-service value of the unit overrides the value of the interface, and 'none' stops the inheritance. Ze refuses a unit that carries a profile and an inline map together. Both routes need vlan-id on the unit, because the map reaches the kernel 802.1Q subinterface.
+    The cos plugin adds a profile reference to the unit. Its value overrides the interface reference, and 'none' stops inheritance. Inline maps belong to ze-iface-conf and remain available without this plugin. A profile and an inline map cannot be used together, and both need vlan-id.
     - **class-of-service** `string`: Class-of-service profile of this unit.
       The value is the name of a profile. The value 'none' stops the unit from inheriting the profile of the parent interface.
     - **description** `string`: Unit description
@@ -4373,7 +4382,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -4545,7 +4554,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -4697,7 +4706,7 @@ This container merges into ze-iface-conf. Remove the cos plugin and every QoS le
       A lower value is preferred. On link-down, ze increases the metric by 1024, which deprioritizes the interface. The default 254 ranks a learned default below a static default and below a protocol-learned one, the way rib distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned default on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it. A value above 0 also makes ze own the IPv6 default routes of the interface: ze sets accept_ra_defrtr=0 and installs the ::/0 routes itself.
     - **sysctl-profile** `node-name[]`: Named sysctl profiles to apply to this unit.
       The built-in profiles are dsr, router, hardened, multihomed and proxy. A user-defined profile comes from a sysctl { profile ... } config block. Ze applies the profiles in order, and the last one wins on a key that two profiles both set.
-    - **vlan-id** `uint16`: VLAN identifier
+    - **vlan-id** `vlan-id`: VLAN identifier
       The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses a unit that carries this leaf, because only gretap and ip6gretap carry Ethernet frames.
     - **vrf** `string`: Not implemented. Ze refuses a config that sets this leaf.
       Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so that the refusal can say why. It becomes functional when VRF support ships.
@@ -4966,6 +4975,16 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
   Seconds of peer silence before sending HELLO. RFC 2661 recommends 60s. A value more than 3600, which is one hour, is rejected, because it disables keepalive.
 - **hello-retries** `uint8`: Unanswered HELLO intervals tolerated before the peer is declared dead.
   Dead-peer detection threshold: consecutive unanswered HELLO keepalive intervals tolerated before an established tunnel's peer is declared dead and the tunnel is torn down. The effective detection time is hello-retries x hello-interval, measured from the last proof of peer liveness. That proof is a delivered control message, or an acknowledgement of one of our messages, including a ZLB ACK of a HELLO. A value of 0 disables dead-peer detection, and reliable-transport retransmit exhaustion, about 31s with the default max-retransmit, is then the only teardown signal. The default is 2.
+- **lcp** `container`: LCP retransmission timer and limits for new sessions.
+  LCP retransmission settings for new sessions. Established sessions retain their admitted values.
+  - **max-configure** `uint8`: Unanswered Configure-Request transmission limit, 1 to 255, default 10.
+    Maximum Configure-Request transmissions without a valid Configure-Ack, Configure-Nak or Configure-Reject. Changes apply to new sessions only.
+  - **max-failure** `uint8`: Configure-Nak limit before rejecting unacceptable options, 1 to 255, default 5.
+    Configure-Naks sent without a Configure-Ack before unacceptable options are rejected and desired options are no longer appended. Changes apply to new sessions only.
+  - **max-terminate** `uint8`: Unanswered Terminate-Request transmission limit, 1 to 255, default 2.
+    Maximum Terminate-Request transmissions without a Terminate-Ack, including the first request. Changes apply to new sessions only.
+  - **restart-timer** `uint16`: LCP Restart timer in milliseconds, 100 to 60000, default 3000.
+    Wait after each Configure-Request or Terminate-Request, and after zeroing the Restart counter. A shorter interval increases per-session wakeups. Changes apply to new sessions only.
 - **max-logins** `uint32`: Maximum concurrent PPP logins the CQM observer tracks.
   Maximum concurrent PPP logins tracked by the CQM observer. The value controls the size of the pre-allocated sample ring pool. When the maximum is exceeded, the least recently used login's data is evicted.
 - **max-retransmit** `uint8`: Retransmissions of an unacknowledged control message before the tunnel is cleared.
@@ -6093,7 +6112,7 @@ PKI certificate and key store. Presence of this block enables certificate-based 
   - **certificate** `string`: X.509 CA certificate, as a PEM document or as base64-encoded DER.
     The trust anchor itself, with no private key. Paste the PEM as it is printed, headers and line breaks included, which is what 'ze show pki local-ca pem' gives you and what a .crt file holds. Base64-encoded DER with no headers is also read, for a config written before PEM was accepted.
   - **crl** `string[]`: Certificate revocation lists this CA issued, each a PEM document or base64-encoded DER.
-    Certificate revocation lists this CA issued, each an 'X509 CRL' PEM document or base64-encoded DER. EAP-TLS on TLS 1.3 checks the revocation status of every certificate on a peer's chain except the trust anchor. RFC 9190 Section 5.4 makes that check mandatory. An EAP-TLS peer that validates against this CA and finds no current list here is refused. Publish a fresh list before the nextUpdate of the one here passes: an expired list answers nothing about the present and refuses the same peers. A list that revokes nothing is a valid answer and is what a CA publishes while it has withdrawn no certificate.
+    Certificate revocation lists this CA issued, each an 'X509 CRL' PEM document or base64-encoded DER. EAP-TLS on TLS 1.3 checks the revocation status of every certificate on a peer's chain except the trust anchor. RFC 9190 Section 5.4 makes that check mandatory. An EAP-TLS peer that validates against this CA and finds no current list here is refused. IKE certificate authentication also checks every certificate on a peer's chain, except the trust anchor, against the lists of each ca entry whose certificate is on that chain, once any such entry holds a list: a revoked certificate, or one whose issuer has no current list, is refused. An intermediate CA a peer's chain passes through is added as a ca entry with its own lists. Publish a fresh list before the nextUpdate of the one here passes: an expired list answers nothing about the present and refuses the same peers. A list that carries a critical extension Ze cannot process (a delta CRL indicator, an issuing distribution point, a critical entry extension) answers nothing either, per RFC 5280 Section 5.2. A list that revokes nothing is a valid answer and is what a CA publishes while it has withdrawn no certificate.
 - **certificate <name>** `list`: Device certificate with optional private key and intermediate certificates.
   One entry holds the certificate this device presents, the intermediate certificates that lead toward its trust anchor, and the private key that signs with it. The certificate leaf is mandatory and the private container is not, so an entry can hold a certificate Ze sends and cannot sign with. A TLS listener that asks for the key of such an entry is refused, and is never served another certificate in its place. Ze validates every entry when it loads the config. An expired certificate refuses the commit and stops the daemon from starting. A certificate that builds no chain to a ca entry in this block does the same.
   - **certificate** `string`: X.509 device certificate, as a PEM document or as base64-encoded DER.
@@ -6120,7 +6139,7 @@ Declares the plugins this daemon runs, and the hub transport they connect back o
     - `json`: JSON encoding
     - `text`: Human-readable text encoding
   - **respawn** `boolean`: Respawn on exit
-    States what you expect ze to do when this plugin's process exits. The plugin itself declares whether it may be started again, and this leaf is a request inside that declaration. With no leaf here the plugin's own declaration decides. With 'false' the plugin is left stopped even when it would have been started again. With 'true' against a plugin that declares it must not be restarted, ze refuses to start, and the error names the plugin and the policy it declared: ze honors neither side in silence. The spelling comes from ExaBGP, whose process block carries the same leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which the plugin is disabled and 'show health' reports plugin-down.
+    States what you expect ze to do when this plugin's process exits. The plugin itself declares whether it may be started again, and this leaf is a request inside that declaration. With no leaf here the plugin's own declaration decides. With 'false' the plugin is left stopped even when it would have been started again. With 'true' against a plugin that declares it must not be restarted, ze refuses to start, and the error names the plugin and the policy it declared: ze honors neither side in silence. The spelling comes from ExaBGP, whose process block carries the same leaf. A restart is bounded at 5 in 60 seconds and 20 in the life of the daemon, after which the plugin is disabled and 'show health' reports doctor-plugin-stopped.
   - **run** `string`: Command to execute plugin as external process (with args)
     The command line that starts the plugin. The engine runs it with '/bin/sh -c', so arguments, quoting and a PATH lookup work as they do in a shell. The directory of the running ze binary is added to PATH as a fallback, so 'ze plugin <name>' finds the binary in a development tree. The child reads ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, ZE_PLUGIN_HUB_TOKEN, ZE_PLUGIN_CA_PEM and ZE_PLUGIN_NAME from its environment, and connects back over TLS. A value of the form 'ze.<plugin>' names a built-in plugin, which the engine then runs in this process rather than as a fork. run and use are mutually exclusive, and a block that sets both is refused.
   - **timeout** `string`: Startup timeout (e.g., 10s, 1m)
@@ -6460,6 +6479,16 @@ This block with any content in it enables the subsystem. Use 'enabled false' to 
     Ze takes the global max-sessions-per-mac when this leaf is absent or 0. A PADR from a MAC already at the cap gets a PADS carrying an error tag and session ID 0x0000 instead of a new session.
   - **service-name** `string[]`: Per-interface Service-Name filter. Overrides the global service-name list when set.
     Ze answers a PADI whose Service-Name tag holds a value of this list, and it answers a PADI whose tag is empty. A PADI naming any other service gets no PADO. An empty list here takes the global list, and an empty global list accepts every Service-Name.
+- **lcp** `container`: LCP retransmission timer and limits for new sessions.
+  LCP retransmission settings for new sessions. Established sessions retain their admitted values.
+  - **max-configure** `uint8`: Unanswered Configure-Request transmission limit, 1 to 255, default 10.
+    Maximum Configure-Request transmissions without a valid Configure-Ack, Configure-Nak or Configure-Reject. Changes apply to new sessions only.
+  - **max-failure** `uint8`: Configure-Nak limit before rejecting unacceptable options, 1 to 255, default 5.
+    Configure-Naks sent without a Configure-Ack before unacceptable options are rejected and desired options are no longer appended. Changes apply to new sessions only.
+  - **max-terminate** `uint8`: Unanswered Terminate-Request transmission limit, 1 to 255, default 2.
+    Maximum Terminate-Request transmissions without a Terminate-Ack, including the first request. Changes apply to new sessions only.
+  - **restart-timer** `uint16`: LCP Restart timer in milliseconds, 100 to 60000, default 3000.
+    Wait after each Configure-Request or Terminate-Request, and after zeroing the Restart counter. A shorter interval increases per-session wakeups. Changes apply to new sessions only.
 - **max-sessions** `uint16`: Maximum concurrent PPPoE sessions per interface.
   The 16-bit session ID range limits the count to 1 through 65535.
 - **max-sessions-per-mac** `uint16`: Maximum concurrent sessions one subscriber MAC address may hold.
@@ -6488,9 +6517,30 @@ Each destination protocol has its own container that holds the import rules. To 
       - `accept`: Import a route that passes every filter
       - `reject`: Do not import a route that passes every filter
 
+## request
+
+Request an operation on running state.
+
+Operational actions that change the running subscriber policy.
+
+- **class-of-service** `container`: Apply subscriber class-of-service policy.
+  These actions apply a named profile to a subscriber's access VLAN.
+  - **session** `container`: Change one subscriber's VLAN marking maps.
+    The RADIUS owner prepares a change, applies its maps, then commits it after every owner succeeds. Rollback restores the maps captured before prepare.
+    - **transaction** `string`: JSON transaction operation, selection or token.
+      One JSON object carries the operation and its session selection or opaque token. This internal transaction is carried through authenticated command dispatch.
+- **l2tp** `container`: L2TP runtime operations.
+  Operations on live subscriber sessions use the running daemon.
+  - **shaper** `container`: Subscriber shaping operations.
+    The shaper confirms backend application before a rate change succeeds.
+    - **rate** `container`: Manage a subscriber rate transaction.
+      Prepare captures the complete last successfully programmed shaping state. Apply changes both directions. Rollback restores that state, and commit releases the transaction. Tokens belong to the source peer and an owner retains only one pending transaction.
+      - **transaction** `string`: JSON transaction operation and values.
+        A JSON object carries the operation and token, or the interface and rates for prepare.
+
 ## rib
 
-*Provided by `rib` ([ze-rib-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/yang/ze-rib-conf.yang))*
+*Provided by `rib` ([ze-rib-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/yang/ze-rib-conf.yang), [ze-sysrib-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/yang/ze-sysrib-api.yang))*
 
 System RIB configuration.
 
@@ -7636,6 +7686,12 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
       - `both`: Both directions, as a mirrored pair of entries.
       - `in`: Traffic arriving from the unprotected side.
       - `out`: Traffic leaving for the unprotected side.
+    - **icmp-code** `union`: ICMP code or start-end code range the selector matches, or any.
+      The ICMP code, one number or an inclusive range written start-end, such as 0-3. RFC 4301 Section 4.4.1.1 allows 'a single type and a range of codes, a single type and ANY code, and ANY type and ANY code', so a code needs icmp-type, and commit refuses a range whose start is above its end. The kernel selector matches a value under a mask, so Ze installs a code range as the fewest mask-aligned blocks that cover exactly that range, one kernel policy per block, all added and removed together. No code outside the range matches.
+      - `any`: Every ICMP code of the type.
+    - **icmp-type** `union`: ICMP message type the selector matches, or any.
+      The ICMP message type of RFC 4301 Section 4.4.1.1: 'If the Next Layer Protocol value is ICMP, then there is a 16-bit selector for the ICMP message type and code.' It needs protocol 1 (ICMP) or 58 (ICMPv6), and commit refuses it under any other protocol or beside a port other than any. An ICMP message has one type whichever way it travels, so a both entry installs the same type in each direction. With action discard and direction in, the entry rejects that type of ICMP arriving in the clear at this node from the remote prefix: the per-type control of RFC 4301 Sections 6.1.1 and 6.1.2. An ICMP message arriving on a Child SA is decided by that SA's peer on Linux. When its icmp-error-check is true (the default), the kernel delivers a message this entry refuses whenever the header the message carries after its ICMP header, with addresses and ports reversed, matches the SA it arrived on, whatever the ICMP type. So commit refuses a discard entry, in or both, matching ICMP in a family such a peer's selectors carry, whatever its type and prefixes. In the other direction the kernel sends an ICMP error this router generates into a Child SA of such a peer even where a bypass entry would carry it in clear, so commit refuses a bypass entry, out or both, with type any or an ICMP error type (IPv4 3, 4, 5, 11, 12; IPv6 1, 2, 3, 4: the types Linux 7.3 sends through its return-SA lookup, listed in icmp_overlap.go) and a remote prefix overlapping that peer's remote selectors. With icmp-error-check false on that peer, this entry decides. A peer with vti bind meets neither refusal: its Child SA policies carry the xfrm interface's if_id, which neither kernel path compares with this entry. The VPP dataplane compares no ICMP type or code, so it refuses an entry that names one rather than matching every ICMP message. Linux classifies every IP fragment as type 0 code 0, and it classifies forwarded traffic before reassembling it, so commit refuses type 0 with an icmp-code that includes 0 on an out or both entry: its outbound half would also take every forwarded ICMP fragment between the prefixes. Use direction in, or an icmp-code range starting at 1.
+      - `any`: Every ICMP message type.
     - **local** `container`: The local side of the selector.
       Local is Ze's own side of the IPsec boundary. It is the source of an outbound packet and the destination of an inbound one, which is the swap direction both performs.
       - **port** `union`: Local port of the selector.
@@ -7790,8 +7846,18 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         With `initiate` Ze starts the IKE_SA_INIT exchange toward remote-address. With respond Ze starts nothing and waits. Ze matches an unsolicited IKE_SA_INIT to a respond peer when the source address of the datagram equals its remote-address. A respond peer that names no remote-address therefore matches nothing.
         - `initiate`: Start the IKE_SA_INIT exchange toward remote-address.
         - `respond`: Start nothing and wait for an IKE_SA_INIT whose source is remote-address.
+      - **df-bit** `enumeration`: DF bit of the tunnel header: copy, clear or set.
+        What this peer's tunnel-mode Child SAs write into the DF bit of the outer IPv4 header they build. RFC 4301 Section 8.1: 'This means that it MUST be possible to configure the implementation's treatment of the DF bit (set, clear, copy from inner header) for each SA. This applies to SAs where both inner and outer headers are IPv4.' The default copy is the option the same section makes mandatory. Clear lets a router on the path fragment a tunnel packet that exceeds its link, at the cost of reassembly at the far end. With copy, a router returns Fragmentation Needed for a DF-set packet and the tunnel's path MTU is learned and aged; with clear no path MTU is learned from the tunnel's packets, and the tunnel's MTU is its outer route's. Commit refuses clear or set on a transport-mode peer, which builds no outer header, and on a peer whose local-address or remote-address is IPv6, whose header has no DF bit. Commit refuses set on every dataplane today: the Linux kernel copies or clears the bit and has no flag that sets it, and VPP's ESP encrypt path ignores its set flag. A change restarts the peer.
+        - `clear`: Write a clear DF bit, so routers on the path may fragment the tunnel packet.
+        - `copy`: Copy the DF bit of each inner IPv4 header into the tunnel header.
+        - `set`: Write a set DF bit whatever the inner header carries.
+      - **dscp-map** `union`: DSCP of the tunnel header: copy, or 0 to 63.
+        The DSCP this peer's tunnel-mode Child SAs write into the outer header they build: copy, or one value 0 to 63 for every packet. RFC 4301 Section 5.1.2.1 constructs the outer DS Field as 'copied from inner hdr (5)', and note 5 says: 'If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain'. A value here is that mapping for a domain that gives all of this tunnel's traffic one class. The Linux kernel can copy or write 0 and nothing else, so on the Linux dataplane commit refuses a value from 1 to 63, and so does the Child SA install; VPP writes any value. Commit refuses a value on a transport-mode peer, which builds no outer header. A change restarts the peer.
+        - `copy`: Copy the DSCP of each inner header into the tunnel header.
       - **esp-group** `leafref`: Reference to an ESP group name.
         The group MUST be declared under vpn ipsec esp-group, and commit refuses a name no group carries. It supplies the ESP proposals Ze offers for this peer's Child SAs and the lifetime those SAs run under.
+      - **icmp-error-check** `boolean`: Check the payload of an ICMP error a Child SA carries.
+        Whether this peer's Child SAs carry the ICMP error processing of RFC 4301 Section 6.2. When true, an ICMP error that arrives on a Child SA with IP and ICMP headers this peer's traffic selectors do not cover is checked against the header of the packet that triggered it, with source and destination addresses and ports reversed, and is dropped unless that header matches the selectors of the SA it arrived on. An outbound ICMP error that no SA and no Security Policy Database entry would carry is sent through the Child SA that carries the return traffic of the packet it reports. When false, neither happens: an ICMP error is carried only where a traffic selector or a Security Policy Database entry covers its own headers, and every other one is dropped unread. RFC 4301 Section 6.2 names that as the way to carry ICMP errors without inspecting their payload: configure an entry that explicitly carries them. The Linux XFRM dataplane performs both for an ICMP error addressed to Ze itself and for one Ze generates. For a forwarded ICMP error the kernel reaches the payload check only when no forward policy matches the error's own headers, and Ze's catch-all entry always does: a forwarded error that arrives on a Child SA with headers the selectors do not cover is dropped, whatever this leaf says. A forwarded error leaving towards a Child SA is mapped to the return SA only when the outbound lookup passes it untransformed: under `unmatched bypass` the catch-all lets it through and the kernel then maps it, while under `unmatched discard` the catch-all drops it first. Linux cannot tell a bypass entry from no entry here: an error that a vpn ipsec policy bypass entry, or the catch-all under `unmatched bypass`, would carry in clear is still mapped to the return SA, although Section 6.2 maps it only 'if no SPD entry would allow carriage of this outbound ICMP error message'. And an ICMP message arriving on a Child SA that an inbound discard entry refuses is delivered whenever its embedded header matches the SA. So while this leaf is true, commit refuses `unmatched bypass`, a bypass entry that would carry an ICMP error to this peer's remote selectors, and an inbound discard entry matching ICMP in a family the selectors carry, naming this leaf false as one fix; a configuration the daemon starts with logs the conflict at start instead. A peer with vti bind is exempt from these refusals: its Child SA policies carry the xfrm interface's if_id, which neither kernel path compares with an operator entry. The VPP dataplane, reached only through the test override ze.test.ike.dataplane, performs neither, so commit refuses this leaf true there and names icmp-error-check false as the fix.
       - **ike-group** `leafref`: Reference to an IKE group name.
         The group MUST be declared under vpn ipsec ike-group, and commit refuses a name no group carries. It supplies the IKE proposals, the IKE SA lifetime and the Dead Peer Detection timers of this peer.
       - **local-address** `string`: Local endpoint IP address.
@@ -7813,7 +7879,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - **local** `container`: The local side of the selector pair (TSi when Ze initiates, TSr when Ze responds).
           The prefix under it is mandatory once a traffic-selector entry exists, and commit refuses an entry that leaves it out. The port under it takes any unless the protocol leaf names a protocol that carries ports.
           - **port** `union`: Local port of the selector.
-            Local port of the selector. RFC 7296 Section 3.13.1 requires the port fields to be 0 and 65535 whenever the protocol is 0 or defines no port, so a value other than any needs the protocol leaf to name a protocol that has ports.
+            Local port of the selector. RFC 7296 Section 3.13.1 requires the port fields to be 0 and 65535 whenever the protocol is 0 or defines no port, so a value other than any needs the protocol leaf to name a protocol that has ports. Linux accepts specific TCP, UDP, SCTP and UDP-Lite ports. A DCCP-specific port is refused because XFRM cannot select it. For ICMP the number is type times 256 plus code; for Mobility Header protocol 135 it is Type times 256, with a zero low octet, so MH Type 5 has wire value 1280. Ze refuses every specific MH Type because the Linux receive-flow decoder does not extract it for exact classification; port any remains usable. VPP also refuses constrained MH and UDP-Lite selectors because its SPD ignores those fields.
             - `any`: Every port. RFC 7296 Section 3.13.1 encodes it as start 0, end 65535.
           - **prefix** `ip-prefix`: Local traffic the Child SA carries.
             The value is a CIDR prefix, and Ze installs it as the local selector of the kernel policy. Under mode transport the prefix MUST cover exactly one address, a /32 or a /128. RFC 7296 Section 2.23.1 requires one IP address in TSi and in TSr, so commit refuses anything wider there.
@@ -7822,7 +7888,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - **remote** `container`: The remote side of the selector pair (TSr when Ze initiates, TSi when Ze responds).
           It obeys the rules the local container states. Ze narrows the peer's proposal against the pair of prefixes, and it answers TS_UNACCEPTABLE when no non-empty subset remains.
           - **port** `union`: Remote port of the selector.
-            It follows the same rule as the local port: a value other than any needs the protocol leaf.
+            It follows the same rule as the local port: a value other than any needs the protocol leaf. The ICMP type/code, MH high-octet Type encoding and backend limits stated on the local port apply here too.
             - `any`: Every port. RFC 7296 Section 3.13.1 encodes it as start 0, end 65535.
           - **prefix** `ip-prefix`: Remote traffic the Child SA carries.
             The value is a CIDR prefix, and Ze installs it as the remote selector of the kernel policy. The single-address rule the local prefix states applies here as well under mode transport.
@@ -7835,7 +7901,7 @@ Ze declares one subsystem under it today, which is ipsec. That subsystem holds t
         - **bind** `string`: VTI interface name to bind this peer's traffic to.
           Route-based IPsec encrypts the traffic the routing table forwards into the named XFRM interface. Commit refuses a name beside mode transport, because an XFRM interface carries tunnel-mode encapsulation. Ze installs the Child SA with the if-id of the named interface. A name that is not an XFRM interface, or one whose if-id is 0, refuses the Child SA, so the tunnel stays down rather than coming up unbound.
   - **unmatched** `enumeration`: Disposition of traffic no SPD entry matches: discard or bypass.
-    The disposition of the catch-all entry Ze installs last in the Security Policy Database, in every direction and for both address families. RFC 4301 Section 5: 'If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.' The catch-all is that policy, so a packet no other entry names always meets one. The default is discard, the entry RFC 4301 Section 4.4.1 asks for: 'Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.' It also drops the router's own traffic where it crosses in the clear: BGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and path-MTU errors) and IPv6 neighbor discovery, which is ICMPv6 (protocol 58). So write a bypass entry under policy for every flow that must still cross in the clear, or set bypass to pass all of it. A commit that would turn the discard on while this leaf is unset is refused until the leaf is written. The IKE control plane keeps its own bypass at order 100 either way.
+    The disposition of the catch-all entry Ze installs last in the Security Policy Database, in every direction and for both address families. RFC 4301 Section 5: 'If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.' The catch-all is that policy, so a packet no other entry names always meets one. The default is discard, the entry RFC 4301 Section 4.4.1 asks for: 'Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.' It also drops the router's own traffic where it crosses in the clear: BGP, SSH, DNS, NTP, ICMP (ping, traceroute, show mtu probes and path-MTU errors) and IPv6 neighbor discovery, which is ICMPv6 (protocol 58). So write a bypass entry under policy for every flow that must still cross in the clear, or set bypass to pass all of it. A commit that would turn the discard on while this leaf is unset is refused until the leaf is written. The IKE control plane keeps its own bypass at order 100 either way. bypass carries ICMP errors in clear, and Linux would still send one about a tunnelled packet into the Child SA of a site-to-site peer whose icmp-error-check is true, so commit refuses bypass beside such a peer; set icmp-error-check false on it. An ICMP bypass entry under policy meets the same refusal. A peer with vti bind is exempt: its Child SA policies carry the xfrm interface's if_id, which the kernel's error mapping never looks up.
     - `bypass`: Pass traffic no SPD entry matches in the clear.
     - `discard`: Discard traffic no SPD entry matches (RFC 4301 Section 5).
 

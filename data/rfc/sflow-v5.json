@@ -2,16 +2,19 @@
   "stem": "sflow-v5",
   "title": "sFlow: A Method for Monitoring Traffic in Switched and Routed Networks",
   "walked": true,
-  "requirements": 43,
+  "requirements": 42,
   "implementer": "ze",
   "implemented": true,
   "must": {
-    "total": 32,
-    "kept": 32,
-    "ze-proven": 22,
+    "total": 31,
+    "kept": 31,
+    "ze-proven": 21,
     "os-verified": 0,
     "os-gap": 1,
-    "ze-gap": 9,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 0,
+    "not-built": 9,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -21,13 +24,14 @@
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "not-ever": 0,
-    "not-yet": 0,
-    "not-decided": 8,
+    "proof-pending": 0,
+    "exclusion-unchecked": 0,
+    "not-assessed": 8,
+    "not-built": 0,
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 22
+    "unit": 21
   },
   "unmet": [
     "SFLOW-V5-4.3-1",

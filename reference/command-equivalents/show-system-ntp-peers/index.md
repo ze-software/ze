@@ -11,11 +11,11 @@ Show NTP peers with offset\, RTT\, stratum\, and reachability\.
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
-- Answer shape: not declared
+- Answer shape: doc
 - Address fields: none
 - Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, when the answer has rows: match, count, first, last, display, fill
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none

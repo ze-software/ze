@@ -450,6 +450,32 @@ again 30 seconds later, doubling the wait after each refusal up to 300 seconds.
 The warning it logs names the fix, which is the same as above without the pool,
 since a pool is the responder's to lease.
 
+The same happens when Ze is the side that started the IKE SA and cannot install
+or bind the Child SA it negotiated in IKE_AUTH: the kernel refused the install
+(a transform it lacks, or a container started without `/dev/net/tun` for a
+Child SA that must receive both ESP forms), the peer's `vti` binding names no
+XFRM interface, or Ze could not build the Child SA at all (its esp-group holds no
+proposal Ze can use, or its keys could not be derived). Ze deletes the Child SA pair, keeps the IKE SA with no Child SA,
+and asks again 30 seconds later, doubling the wait after each refusal up to 300
+seconds. The warning repeats only at each retry, and it carries the fix the
+refusal names, such as `--device /dev/net/tun` for the missing device. The first
+attempt after the cause is gone installs the Child SA with no restart.
+
+<!-- source: internal/component/ike/engine/established.go -- runEstablished, the errChildInstall and errChildBinding arm, and the build-failure arm -->
+<!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
+<!-- source: internal/component/ike/engine/create_child.go -- errChildProposal, errChildKeying -->
+<!-- source: internal/component/ike/engine/create_child.go -- childCreateSchedule, childCreateFirst, childCreateMax, childInstallRefusedFix, finishChildCreate -->
+
+`show doctor` reports each peer whose Child SA this node refused after the peer
+accepted it, under `doctor-ipsec-child-install-refused` (check
+`ipsec-child-install`): the peer, when, the cause, the next attempt and the fix.
+The row clears once a Child SA installs, whichever exchange installs it.
+
+<!-- source: internal/component/ike/engine/doctor_child_install.go -- recordChildRefused, childInstallFindings, childInstallRefused -->
+<!-- source: internal/component/ike/engine/reconcile.go -- setChildSA -->
+<!-- test: internal/component/ike/engine/doctor_child_install_test.go TestChildInstallFindings -->
+<!-- test: internal/component/ike/engine/doctor_child_install_test.go TestRecordChildRefusedClearsOnInstall -->
+
 A tunnel keeps its selectors until its kernel policies are gone, not only until
 the tunnel ends. If Ze cannot remove a policy when a tunnel ends, after a
 transient netlink error for example, the policy can still send packets into the
@@ -546,6 +572,70 @@ SHA-1 signatures in that mode: enable RFC 7427 on the peer instead.
 <!-- source: internal/component/ike/engine/register_signature_eddsa.go -- chooseEd25519Signature, signEd25519, verifyEd25519 -->
 <!-- source: internal/component/ike/engine/register_signature_ed448.go -- chooseEd448Signature, signEd448, verifyEd448 -->
 <!-- source: internal/component/ike/engine/auth_ecdsa.go -- signECDSAAuth -->
+
+### What a peer certificate must allow
+
+Ze refuses a peer certificate issued for another purpose, as RFC 4945 requires.
+The rules apply to the peer's own certificate, not to its CAs:
+
+| Extension in the peer certificate | Accepted when |
+|-----------------------------------|---------------|
+| no extendedKeyUsage | always |
+| extendedKeyUsage | it names id-kp-ipsecIKE (1.3.6.1.5.5.7.3.17) or anyExtendedKeyUsage, beside any other purpose |
+| no keyUsage | always |
+| keyUsage | it sets digitalSignature or nonRepudiation |
+
+A certificate whose extendedKeyUsage names only TLS purposes is refused. This
+includes a Let's Encrypt certificate (serverAuth, and on older ones
+clientAuth), and strongSwan's recipe for Windows clients,
+`pki --issue --flag serverAuth --flag ikeIntermediate`. strongSwan and
+libreswan accept such a peer, so a tunnel that worked against them can fail
+against Ze. The refusal names the extension found. To fix it, reissue the peer
+certificate with no extendedKeyUsage, or add id-kp-ipsecIKE to it. With
+openssl, put this line in the extension file given to `openssl x509 -req
+-extfile` or `openssl ca -extfile`:
+
+```
+extendedKeyUsage = 1.3.6.1.5.5.7.3.17
+```
+
+Add `serverAuth` after a comma when the same certificate also serves a Windows
+client. strongSwan's `pki --issue` cannot write id-kp-ipsecIKE: the extended key
+usages its `--flag` option writes are serverAuth, clientAuth, ikeIntermediate,
+ocspSigning and msSmartcardLogon only. Issue that certificate with openssl, or with
+strongSwan and no `--flag`, which writes no extendedKeyUsage.
+<!-- source: internal/component/ike/engine/cert_payload.go -- getRemoteCert -->
+
+### Revoking a peer certificate
+
+Ze checks a certificate peer against the revocation lists in the PKI store. To
+revoke a peer certificate, add the list its CA published to the `crl` of the
+`pki ca` entry that holds that CA:
+
+```
+pki {
+    ca corp-root { certificate "<pem>"; crl "<pem>"; }
+}
+```
+
+Ze then checks every certificate on the peer's chain, except the trust anchor,
+against the lists of each `pki ca` entry whose certificate is on that chain. A
+peer whose certificate is on a list is refused, and the log names the
+certificate, its serial number and the CA that revoked it. When the peer's
+certificate comes from an intermediate CA that the peer sends in its CERT
+payloads, add that intermediate as a `pki ca` entry with its own `crl`. It
+needs no other reference: Ze finds it on the chain.
+
+Once any `ca` on the chain holds a list, the check is strict. A certificate
+whose issuer has no current list is refused, so publish a fresh list before the
+`nextUpdate` of the one in the config passes. A list with a critical extension
+Ze cannot process (a delta CRL, an issuing distribution point) answers nothing
+and refuses the same way. When no `ca` on the chain holds a list, the peer
+authenticates and Ze logs a warning that its revocation status was not
+checked. Ze fetches no list from a CRL distribution point and asks no OCSP
+responder for an IKE peer.
+<!-- source: internal/component/pki/store.go -- CAEntriesFor -->
+<!-- source: internal/core/eap/revocation.go -- VerifyChainsNotRevoked, crlSet.currentListFrom -->
 
 An `eap-tls` peer whose EAP-TLS client sends its certificate without the
 intermediate that issued it can still authenticate. Store that intermediate as a
@@ -1178,6 +1268,9 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Replay protection | Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default |
 | Lifetime | Time-based rekeying, from the ESP group's `lifetime` in seconds. Ze carries no byte lifetime, so RFC 4301 Section 4.4.2.1's simultaneous use of both is not met |
 | Policy order | `policy-priority` ranks this peer's SPD entries, lower first. See SPD ordering below |
+| DF bit | `df-bit copy` (default), `clear` or `set`: what the tunnel header carries in its DF bit. See DF bit of the tunnel header below |
+| Tunnel DSCP | `dscp-map copy` (default) or a value 0 to 63 for every tunnel header. See DSCP of the tunnel header below |
+| ICMP errors | `icmp-error-check true` (default) or `false`: whether an ICMP error a Child SA carries has its payload checked. `enable` and `disable` are accepted too, and `ze config fmt` and `show` print the value that way. See ICMP error messages below |
 
 ### SPD ordering
 
@@ -1201,6 +1294,230 @@ renegotiate. Ze refuses such a value at commit.
 <!-- source: internal/component/ike/engine/child.go -- childPolicies -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
+
+### ICMP error messages
+
+An ICMP error reports a packet, and its own headers name the router that sent
+it, not the flow the packet belonged to. RFC 4301 Section 6.2 therefore asks
+for two things. An error that arrives on a Child SA with headers its selectors
+do not cover is checked against the header it carries: "the receiver must
+extract the header of the triggering packet from the ICMP payload, and reverse
+fields as described above to determine if the packet is consistent with the
+selectors for the SA via which the ICMP error message was received." And an
+outbound error that no SA and no SPD entry would carry goes to "the SA that
+would carry the return traffic associated with the packet that triggered the
+ICMP error message."
+
+By default Ze does both:
+
+- an ICMP error addressed to Ze that arrives on a Child SA is delivered only
+  when its embedded header, with source and destination addresses and ports
+  reversed, falls inside the selectors of the SA it arrived on. Otherwise it is
+  dropped.
+- an ICMP error Ze generates about a packet of a tunnelled flow is sent
+  through the Child SA that carries the return traffic of that packet.
+
+To turn both off for a peer:
+
+```
+set vpn ipsec site-to-site peer branch icmp-error-check false
+```
+
+An ICMP error is then carried only where a traffic selector or a `vpn ipsec
+policy` entry covers its own headers, and every other one is dropped unread.
+RFC 4301 Section 6.2 allows this as the way to carry ICMP errors without
+inspecting their payload, by configuring an entry that explicitly carries
+them.
+
+A forwarded ICMP error, one Ze routes between two other hosts, is a different
+case on Linux. One that arrives on a Child SA with headers the selectors do not
+cover is dropped whatever the leaf says, because the kernel reads its payload
+only when no forward policy matches it, and Ze's catch-all always does. One
+leaving towards a Child SA is mapped to the return SA under `unmatched
+bypass`, and dropped under `unmatched discard`, where the catch-all blocks it
+before the mapping runs. `LL-XFRM-ICMP-TRANSIT` in
+[Linux limitations](https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md) has the kernel
+functions.
+
+Linux also maps an error that a bypass entry would carry in clear. Section 6.2
+maps an outbound error to the return SA only "if no SPD entry would allow
+carriage of this outbound ICMP error message", but the kernel cannot tell a
+bypass entry from no entry: whenever the lookup on the error's own headers
+finds no Child SA, it sends the error through the SA that carries the return
+traffic. So with a `vpn ipsec policy` bypass entry that covers ICMP errors
+towards hosts behind a peer, or with `unmatched bypass`, an error about a
+tunnelled packet would go into the tunnel rather than out in clear.
+
+Commit refuses that pair rather than installing an entry the kernel does not
+honour. A peer whose `icmp-error-check` is true is refused beside
+`unmatched bypass`, and beside a bypass entry that is `out` or `both`, has
+protocol 0 or the ICMP protocol of its family, has `icmp-type any` or an ICMP
+error type (IPv4 3, 4, 5, 11 and 12; IPv6 1, 2, 3 and 4, the types Linux 7.3
+sends through its return-SA lookup, listed with their kernel callers in
+`icmp_overlap.go`), and has a remote prefix that overlaps the peer's remote
+traffic selectors. A peer with no traffic selector accepts any selector, so
+every such entry overlaps it. The refusal is conservative about the entry's
+local prefix and its order, and looks at neither. The kernel picks the address
+an error leaves from, so no commit can know it. An entry ranked below the
+peer's own policy is overridden for every error whose address falls outside
+the peer's local selectors. A protocol 0 entry ranked above it may not be
+overridden for every error, but it is overridden for some, so it is refused
+too.
+
+A route-based peer (`vti bind`) is exempt. Its Child SA policies carry the
+xfrm interface's `if_id`, and the kernel's return-SA lookup only looks at
+policies whose `if_id` is 0 (`xfrm_lookup` in `net/xfrm/xfrm_policy.c`), so it
+never maps an error into that peer's tunnel. ICMP that arrives on the
+interface is checked against that `if_id` too (`xfrmi_decode_session`), where
+no `vpn ipsec policy` entry applies.
+
+The refusal names the peer and the entry, and one of these fixes it:
+
+```
+set vpn ipsec site-to-site peer branch icmp-error-check false
+set vpn ipsec unmatched discard
+```
+
+For an entry, the refusal prints the exact command: `set vpn ipsec policy
+<name> remote prefix <prefix>` with a prefix that does not overlap the peer's
+remote selectors, which it lists (not offered when a remote selector covers a
+whole family, as a peer with no selector does), then
+`set vpn ipsec policy <name> icmp-type <type>` with a type that is not an
+error, such as 8, for a protocol 1 or 58 entry, or `set vpn ipsec policy
+<name> protocol <protocol>` for a protocol 0 entry.
+
+`ze config validate` refuses the same configuration, because the check is part
+of the IPsec plugin's offline verifier. A configuration the daemon starts with
+is not verified, so the same conflict is logged at start at Error level and
+reported by `ze doctor` under `config-plugin-verify`.
+
+The VPP dataplane performs neither check. VPP is reached only through the test
+override `ze.test.ike.dataplane`, and there commit refuses a peer whose
+`icmp-error-check` is true (the default, which keeps the RFC 4301 Section 6.2
+processing on Linux), naming `icmp-error-check false` as the fix.
+
+<!-- source: internal/component/ike/ipsec/config.go -- parseSiteToSitePeer -->
+<!-- source: internal/component/ike/engine/icmp_overlap.go -- refuseICMPErrorBypass, refuseICMPCheckDiscard, bypassEntryFix, warnICMPOverlapAtStart -->
+<!-- source: internal/component/ike/engine/config.go -- validateIPsecSections -->
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane, childPairPolicy -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
+
+### DF bit of the tunnel header
+
+RFC 4301 Section 8.1 makes the DF treatment of each tunnel-mode SA
+configurable: "set, clear, copy from inner header". `df-bit` under a peer is
+that setting, for the IPv4 tunnel header the peer's outbound Child SAs build.
+
+```
+vpn {
+    ipsec {
+        site-to-site {
+            peer branch {
+                remote-address 198.51.100.1;
+                df-bit clear;
+            }
+        }
+    }
+}
+```
+
+| Value | Tunnel header DF bit | Linux | VPP |
+|-------|----------------------|-------|-----|
+| `copy` (default) | the inner IPv4 header's DF bit | yes | yes |
+| `clear` | always clear, so a router on the path may fragment the tunnel packet | yes | yes |
+| `set` | always set | refused at commit | refused at commit |
+
+`clear` is for a path that drops large tunnel packets and never returns
+Fragmentation Needed: the routers fragment instead, and the far end reassembles.
+Commit refuses `clear` or `set` on a `mode transport` peer, which builds no
+tunnel header, and on a peer whose `local-address` or `remote-address` is IPv6,
+whose header has no DF bit. `set` is refused on every dataplane today: the Linux
+kernel copies or clears the bit and has no flag that sets it, and VPP's ESP path
+ignores its set flag. Changing `df-bit` restarts the peer.
+
+### DSCP of the tunnel header
+
+RFC 4301 Section 5.1.2.1 copies the inner DSCP into the tunnel header, and says
+that when the packet "will immediately enter a domain for which the DSCP value
+in the outer header is not appropriate, that value MUST be mapped to an
+appropriate value for the domain". `dscp-map` under a peer is that mapping:
+`copy` (the default), or one value 0 to 63 written into every tunnel header.
+
+| Value | Linux | VPP |
+|-------|-------|-----|
+| `copy` | yes | yes (before this leaf, VPP wrote 0) |
+| `0` | yes | yes |
+| `1` to `63` | refused at commit: the kernel can only copy or write 0 | yes |
+
+Commit refuses a value on a `mode transport` peer. Changing `dscp-map`
+restarts the peer.
+
+### Path MTU of a tunnel
+
+On Linux the path MTU of a tunnel-mode SA is the path MTU of its outer route.
+When a router on the way between the tunnel endpoints sends back an ICMP
+Fragmentation Needed or Packet Too Big about an ESP packet, the kernel finds
+the SA from the SPI in the quoted packet, lowers the outer route's PMTU, and
+takes the ESP header, IV, ICV, padding and outer IP header off it to give the
+inner MTU (RFC 4301 Section 8.2.1). A packet larger than that inner MTU is then
+handled as Section 8.2.1 says:
+
+| Packet | What happens |
+|--------|--------------|
+| IPv4 with DF set | dropped, and the sender gets an ICMP Fragmentation Needed carrying the inner MTU |
+| IPv4 with DF clear | encrypted, then the ESP packet is fragmented and forwarded; no ICMP |
+| IPv6 | dropped, and the sender gets a Packet Too Big carrying the inner MTU |
+
+With the default `df-bit copy` the tunnel header carries the inner packet's DF
+bit, so the routers return Fragmentation Needed and the PMTU is learned. With
+`df-bit clear` an IPv4 tunnel header always carries DF clear, so the routers
+fragment the tunnel packets, return nothing, and no PMTU is learned from them.
+The SA's PMTU is then the MTU of the outer route: the first-hop link's, or a
+PMTU other traffic to the same tunnel endpoint learned, which ages as below.
+The table above still holds against that MTU, and a tunnel packet larger than
+a link further on is fragmented by that router and reassembled by the far end.
+The kernel also clears the DF bit of every IPv4 outbound SA when
+`net.ipv4.ip_no_pmtu_disc` is set, whatever `df-bit` says, and `show vpn ipsec
+dataplane sa` then reads `df-bit` `clear`. `ze doctor` reports it as
+`doctor-ipsec-no-pmtu-disc`, naming each IPv4 `df-bit copy` peer it affects and
+the fix, `set sysctl setting net.ipv4.ip_no_pmtu_disc value 0`.
+
+<!-- source: internal/component/ike/engine/doctor_pmtu_disc.go -- checkIPsecNoPMTUDisc -->
+
+A learned PMTU expires: after the aging period the SA's PMTU returns to the
+MTU of the first-hop link, and the next large packet finds the path MTU again
+(RFC 4301 Section 8.2.2, the RFC 1191 Section 6.3 reset). The period is the
+kernel's route PMTU expiry, 600 seconds by default, one value per address
+family of the tunnel endpoints, set like any other kernel tunable:
+
+```
+sysctl {
+    setting net.ipv4.route.mtu_expires {
+        value 300;
+    }
+    setting net.ipv6.route.mtu_expires {
+        value 300;
+    }
+}
+```
+
+Commit refuses a period below 1 second or above 2147483. The period applies to
+every PMTU the box learns, not only IPsec ones, and a PMTU already learned
+keeps the period it was learned with.
+
+The VPP dataplane learns no PMTU: VPP takes no action on an ICMP
+Fragmentation Needed or Packet Too Big about an ESP packet, and its only path
+MTU is a value configured per destination (`ip path-mtu`), which never ages.
+Over VPP the SA's PMTU is the MTU of the outgoing interface.
+
+<!-- source: internal/core/sysctl/known_linux.go -- init -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc -->
+
+<!-- source: internal/component/ike/ipsec/outer_header.go -- parseDFBit, parseDSCPMap, ValidateOuterHeader -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmDontEncapDSCP -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmNoPMTUDisc -->
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppTunnelFlags -->
 
 ## Security Policy Database entries
 
@@ -1232,6 +1549,8 @@ for it.
 | `local port` | 1 to 65535, or `any` | `any` | Local port selector |
 | `remote prefix` | CIDR | none, required | The far side of the boundary |
 | `remote port` | 1 to 65535, or `any` | `any` | Remote port selector |
+| `icmp-type` | 0 to 255, or `any` | `any` | ICMP message type, under protocol 1 or 58 |
+| `icmp-code` | 0 to 255, `start-end`, or `any` | `any` | ICMP code or inclusive code range, under one `icmp-type` |
 
 `both` installs a mirrored pair, one entry in each direction: the outbound entry
 keeps local and remote as written, and the inbound entry swaps them, because the
@@ -1243,7 +1562,7 @@ tunnels and carves its hole out of them. Raise it above 2000 to let a tunnel
 win instead. An order at or below 100 is refused at commit, for the reason
 `policy-priority` states above.
 
-Four rules are refused at commit rather than approximated at install time,
+These rules are refused at commit rather than approximated at install time,
 because a widened selector fails in both directions: a widened bypass passes
 protected traffic in the clear, and a widened discard black-holes traffic the
 operator meant to carry.
@@ -1252,10 +1571,112 @@ operator meant to carry.
   policy selector carries one family.
 - A port other than `any` needs `protocol` to name a transport that has ports:
   6 (TCP), 17 (UDP) or 132 (SCTP).
-- A port range is not accepted. The kernel selector carries a port and a mask,
-  which expresses every port or one exact port and nothing between them.
+- A port range is not accepted. An entry installs one selector, and the kernel
+  selector carries a port and a mask, which expresses a block aligned on a
+  power of two but not an arbitrary range; Ze does not split one entry into
+  several.
 - `action` has no default. A bypass written where a discard was meant passes
   exactly the traffic the entry exists to stop.
+- `icmp-type` and `icmp-code` need `protocol` 1 (ICMP) or 58 (ICMPv6), and
+  `icmp-code` needs an `icmp-type`. RFC 4301 Section 4.4.1.1 allows "a single
+  type and a range of codes, a single type and ANY code, and ANY type and ANY
+  code", and nothing else.
+- An `out` or `both` entry with `icmp-type 0` and an `icmp-code` that includes
+  0 (`any`, `0`, or a range starting at 0) is refused. Linux reads no ICMP type
+  or code from an IP fragment, so the kernel classifies every fragment as type 0
+  code 0, and it classifies forwarded traffic before reassembling it. The
+  outbound half of such an entry would also pass in the clear, or drop, every
+  forwarded ICMP fragment between its prefixes, whatever message it belongs to:
+  the hazard RFC 4301 Section 7.4 names for a bypass. Write it with `direction
+  in`, because traffic for Ze itself is reassembled before it is classified, or
+  with an `icmp-code` range that starts at 1.
+
+### ICMP type and code selectors
+
+The kernel reads an ICMP message's type into the selector's source port and its
+code into the destination port, and matches each under a mask. Ze installs a
+type as one exact match, and a code range as the fewest mask-aligned blocks that
+cover exactly that range, one kernel policy per block, added and removed
+together. RFC 4301 Section 4.4.1.1 requires the test
+`(T-start*256) + C-start <= (t*256) + c <= (T-end*256) + C-end`, and no code
+outside the range matches. An ICMP message has one type whichever way it
+travels, so a `both` entry installs the same type and code in each direction.
+
+The same entries are the ICMP controls of RFC 4301 Section 6.1. Section 6.1.1
+requires that an administrator can "accept or reject unauthenticated ICMP
+traffic", at the granularity of ICMP type. An `in` entry with `discard` rejects
+one type arriving at Ze, and with `bypass` accepts it. The Linux kernel checks
+every ICMP message delivered to Ze against the inbound policies before it
+processes it (`icmp_rcv`, `net/ipv4/icmp.c`, and its IPv6 counterpart):
+
+```
+set vpn ipsec policy no-redirect action discard
+set vpn ipsec policy no-redirect direction in
+set vpn ipsec policy no-redirect protocol 1
+set vpn ipsec policy no-redirect icmp-type 5
+set vpn ipsec policy no-redirect local prefix 0.0.0.0/0
+set vpn ipsec policy no-redirect remote prefix 0.0.0.0/0
+```
+
+Section 6.1.2 asks for controls over ICMP error messages "received on the
+protected side of the boundary, and directed to the IPsec implementation". Write
+the same kind of `in` entry with the protected-side subnet as the remote prefix,
+for example `remote prefix 10.1.0.0/16` and `icmp-type 3` to refuse Destination
+Unreachable from the hosts behind Ze. Those hosts send in the clear, so the
+entry decides every such message.
+
+An ICMP message that arrives on a Child SA is decided by that SA's peer. When
+the peer's `icmp-error-check` is true (the default) and an `in` discard entry
+refuses the message, Linux reads the header the message carries after its ICMP
+header, reverses its addresses and ports, and delivers the message when that
+header matches the SA it arrived on. The type plays no part: the kernel does not
+check that the message is an error, so a message of any type whose following
+bytes read as such a header would be admitted, whatever the discard entry
+says. With `icmp-error-check false` on that peer, the entry decides. `icmp_rcv`
+(`net/ipv4/icmp.c`) and `icmpv6_rcv` (`net/ipv6/icmp.c`) make this check when
+the last state that decrypted the message carries `XFRM_STATE_ICMP`, the flag
+`icmp-error-check true` sets; `LL-XFRM-ICMP-TRANSIT` in
+[Linux limitations](https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md) records it.
+
+For an ICMP error forwarded to a protected host, Linux can search the reversed
+quoted header before applying the final forwarding disposition. Ze uses the
+namespace's XFRM forwarding default for `unmatched`, rather than a forwarding
+catch-all that would hide that lookup. The Child SA's forwarding PROTECT
+entries remain in force, including on an XFRM interface. With the check enabled,
+a consistent quoted header can select that SA's policy; an inconsistent one is
+dropped. Disabling the check requires the error's own headers to be allowed by
+the SA's selectors and receive policy. It does not authorize an error outside
+them. Ze preserves the namespace's inbound and outbound default dispositions
+and restores the previous forwarding default when its SPD is released. Another
+XFRM policy manager must coordinate default-policy writes with Ze; an observed
+external change refuses a reload or restoration rather than being overwritten.
+The diagnostic code `doctor-ipsec-forward-default` reports a missing host
+permission, an unreadable default, a conflicting policy manager, or a restoration
+that has not completed. Its finding names the next command. A shutdown failure
+also remains in the warning log when the daemon connection has already closed.
+
+So commit refuses a discard entry that is `in` or `both`, has protocol 0 or
+the ICMP protocol of its family, any `icmp-type`, and a family the selectors of
+a peer with `icmp-error-check true` can carry. Its prefixes and its order do
+not matter, because the kernel's second check reads neither the message's own
+source nor the address it arrived at. A peer with `vti bind` is exempt: ICMP
+that arrives on its xfrm interface is checked at the interface's `if_id`,
+where no `vpn ipsec policy` entry applies. The refusal names the peer and the
+entry; set `icmp-error-check false` on the peer, or delete the entry. The
+`unmatched discard` catch-all is not refused: delivering an error whose
+payload matches the SA is the Section 6.2 processing itself.
+
+These entries install inbound and outbound policies only. ICMP that Ze forwards
+between two other hosts is decided by the Child SA forward policies and the
+catch-all entry below; an operator entry does not reach it yet.
+
+The VPP dataplane compares ports only for TCP, UDP and SCTP, so an ICMP type
+entry there would match every ICMP message. Ze refuses such an entry on VPP
+with a message naming the reason, rather than installing it wider than written.
+
+A tunnel can negotiate an ICMP selector too. IKE carries the type in the high
+eight bits of the port and the code in the low eight; Ze programs the type and
+code from the sending side's value in each direction.
 
 On Linux a discard entry is an XFRM policy with action `block` and a bypass is
 `allow` with no template. On VPP they are `IPSEC_API_SPD_ACTION_DISCARD` and
@@ -1271,10 +1692,10 @@ no key and no negotiation, so they are in force whether or not any tunnel is up.
 RFC 4301 Section 5: "If no policy is found in the SPD that matches a packet
 (for either inbound or outbound traffic), the packet MUST be discarded." The
 Linux kernel does the opposite with no matching policy: it passes the packet in
-the clear. So Ze installs a last entry itself, a wildcard selector in every
-direction (in, out and forward) for IPv4 and IPv6, at the largest priority the
-kernel holds, so every entry above is searched first. Its disposition is one
-leaf:
+the clear. Ze installs last IN and OUT entries for IPv4 and IPv6 at the largest
+priority the kernel holds, so every entry above is searched first. Forwarding
+uses the namespace's XFRM default disposition, after ordinary policies and the
+ICMP quoted-header lookup. Its disposition is one leaf:
 
 ```
 set vpn ipsec unmatched discard
@@ -1329,10 +1750,16 @@ set vpn ipsec policy icmp6 remote prefix ::/0
 ```
 
 Order 3000 ranks these entries after a tunnel's default 2000, so ICMP that a
-tunnel's traffic selectors cover still goes through the tunnel. The refusal and
-the start-up log below print the same ICMP example.
+tunnel's traffic selectors cover still goes through the tunnel. These entries
+carry ICMP errors in clear, so commit refuses them beside a site-to-site peer
+whose `icmp-error-check` is true and that has no `vti bind` (see ICMP error
+messages above): set `icmp-error-check false` on each such peer, and the
+entries then decide where an error goes. The refusal and the start-up log below print the same ICMP
+example.
 
-Or write `set vpn ipsec unmatched bypass` to pass all of that traffic.
+Or write `set vpn ipsec unmatched bypass` to pass all of that traffic, with
+the same `icmp-error-check false` on each site-to-site peer that has no
+`vti bind`.
 
 Ze cannot list those flows for you: they live in every other part of the
 configuration and in the routing table, and an exemption list that missed one
@@ -1362,8 +1789,13 @@ error level, with the same facts and commands as the refusal, so the console
 says why BGP or SSH went quiet:
 
 ```
-ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0
+ike: the SPD catch-all DISCARD is in force because `vpn ipsec unmatched` is not set and its default is discard (RFC 4301 Section 4.4.1): ... bypass-entries=0 code=doctor-ipsec-implicit-discard
 ```
+
+`ze doctor` reports the same state for as long as it lasts, as the error
+`doctor-ipsec-implicit-discard` with the same text, and names
+`set vpn ipsec unmatched discard` as the fix that confirms the default.
+<!-- source: internal/component/ike/engine/doctor_implicit_discard.go -- checkIPsecImplicitDiscard -->
 
 A box with no `vpn ipsec` block keeps a `bypass` catch-all: it configured no
 IPsec boundary.
@@ -1432,8 +1864,8 @@ the way and be dropped. So for every XFRM interface a peer binds, Ze installs
 None of these is installed under `unmatched bypass`, since the catch-all already
 passes the traffic.
 
-Each bound XFRM interface's own database also gets a final entry: a `discard`
-in, out and fwd for IPv4 and IPv6 at the interface's `if_id`, ranked last, so
+Each bound XFRM interface's own database also gets final `discard` entries in
+IN and OUT for IPv4 and IPv6 at the interface's `if_id`, ranked last, so
 the interface's Child SA policies are always searched first. A packet routed
 into the interface that no Child SA covers is dropped there and counted by the
 kernel's `XfrmOutPolBlock` counter. This entry discards under both values of
@@ -1441,7 +1873,9 @@ kernel's `XfrmOutPolBlock` counter. This entry discards under both values of
 drops a packet there that matches no Child SA whatever entry it meets, so a
 `bypass` at the interface would only be listed as one. It goes in before the
 `if_id` 0 entries above hand any packet to the interface, and comes out after
-them.
+them. Its FWD lookup uses the namespace default after the Child policies and
+ICMP quoted-header lookup; a tunnel-mode packet no policy covers is still
+rejected even when that default accepts.
 
 The entries follow the interface: Ze reads its index and
 addresses and `if_id` through the interface resolver, and reads them again when an
@@ -1541,14 +1975,23 @@ guard. When any of them is missing the apply fails rather than run without the
 guard:
 
 ```
-vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN on Linux 6.10 or later (an older kernel refuses the guard's bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
+vpn ipsec application-override deny: Ze could not attach its setsockopt guard to the cgroup2 root (<kernel error>). Without it any process holding CAP_NET_ADMIN can exempt its sockets from the IPsec policy. Run ze with CAP_BPF and CAP_NET_ADMIN (under systemd, a ze unit written by an older ze does not grant CAP_BPF: stop ze with `sudo systemctl stop ze`, then rewrite the unit with `sudo ze install systemd --force --start`) on Linux 6.10 or later (an older kernel refuses the guard's bpf_get_ns_current_pid_tgid call), mount cgroup2 at /sys/fs/cgroup, or set `vpn ipsec application-override allow` to accept that risk.
 ```
 <!-- source: internal/component/ike/engine/application_override.go -- attachOverrideGuard -->
 <!-- source: internal/component/ike/dataplane/override_guard_linux.go -- overrideGuardInstructions -->
 
-Until an apply succeeds, `ze doctor` reports the same refusal as
-`doctor-ipsec-override-guard`, so a boot that left IPsec down on such a host says
-why.
+Until an apply succeeds, `show doctor` reports the same refusal as
+`doctor-ipsec-override-guard`, and so does a `ze doctor` the running daemon
+answers, so a boot that left IPsec down on such a host says why. The check reads
+what the IKE engine recorded in the process that answers doctor. It therefore
+reports nothing in a `ze doctor` no daemon answered, and nothing in a daemon that
+runs the IKE engine as an external plugin.
+
+<!-- source: internal/component/ike/engine/register.go -- DoctorChecks, ipsec-application-override at the post-config phase -->
+<!-- source: internal/component/ike/engine/doctor_application_override.go -- checkIPsecApplicationOverride -->
+<!-- source: internal/component/ike/engine/application_override.go -- overrideRefusal, appliedOverride -->
+<!-- source: internal/component/doctor/answer.go -- Answer -->
+<!-- source: internal/component/doctor/local_route.go -- answerLocalWith -->
 
 A reload moves between the two values with no restart, and removing `vpn ipsec`
 detaches the program after the catch-all leaves.
@@ -1574,26 +2017,617 @@ its direction, and role `esp-form-socket` or `socket-override`.
 RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
 UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form
 ([LL-XFRM-STATE-ONE-ESP-FORM](https://github.com/ze-software/ze/blob/main/docs/architecture/linux-limitations.md#ll-xfrm-state-one-esp-form)).
-Ze serves the second form beside the kernel. A raw IPPROTO_ESP
-reader takes the datagram XFRM refused. It re-presents that datagram through port 4500,
-which carries UDP_ENCAP, so the kernel hands XFRM the form its template wants. One
-established Child SA therefore keeps carrying traffic when its peer changes ESP form
-mid-session, with no rekey and no delete.
+Ze serves the second form beside the kernel, on a Child SA whose inbound state
+is UDP-encapsulated: one whose IKE SA runs on port 4500, with or without a NAT.
+One established Child SA therefore keeps carrying traffic when its peer changes
+ESP form mid-session, with no rekey and no delete.
 
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA, the AcceptBothESPForms branch -->
 <!-- source: internal/component/ike/engine/child.go -- inbound.AcceptBothESPForms -->
+<!-- source: internal/component/ike/engine/create_child.go -- newChildSA, UDPEncap -->
+
+Bare ESP for such a Child SA reaches XFRM through one of two paths. On both, the
+packet XFRM decrypts arrives on an interface where Linux runs the inbound IPsec
+policy check, so the Child SA's traffic selectors and `unmatched discard` hold
+for it as RFC 4301 Section 5.2 requires.
+
+| Path | What it carries | Interface the decrypted packet arrives on |
+|---|---|---|
+| Fast path, in the kernel | Every whole bare ESP datagram from the SA's peer to its local address, received on a link the program is attached to | The link the datagram arrived on |
+| Complete path, in Ze | What the fast path leaves alone: fragmented datagrams (read after the kernel reassembles them), an IPv4 header with options, a frame that carries a VLAN tag (a rule on the VLAN's parent interface can match the tag, and would see UDP where it matches ESP), and a link the program is not attached to. It reads IPv4 only | `ze-espform` |
+
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathIPv4, espFormFastPathIPv6 -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver, run -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNSysctls -->
+
+On a distribution kernel, the loaded module `esp4_offload` can consume bare
+ESP during Generic Receive Offload (GRO), before either of Ze's paths sees it.
+While a dual-form SA is installed, `ze doctor` reports that module under
+`doctor-ipsec-esp-form-offload`. Its systemd fix is:
+
+```sh
+sudo systemctl stop ze && sudo modprobe -r esp4_offload && sudo systemctl start ze
+```
+
+Stopping Ze interrupts all its tunnels and removes their SAs, which can hold
+references that prevent the module from unloading. Ze does not request
+hardware offload for its SAs, so negotiating them again does not autoload this
+module. Another IPsec owner can still hold or load it: if unloading fails,
+the command leaves Ze stopped. Stop that owner and retry before starting Ze.
+If another owner needs the module, disable GRO on the receiving interfaces
+through their existing `offload { gro false; }` configuration instead. Without
+systemd, stop and start Ze with the supervisor that runs it, with
+`sudo modprobe -r esp4_offload` between those steps.
+
+An unreadable receiver state or module list is a separate
+`doctor-ipsec-esp-form-offload-unknown` warning, with the command to inspect the
+dataplane's warnings or restore missing procfs. A readable module list proves
+only whether the module is loaded; it cannot detect an ESP GRO implementation
+built into the kernel. Ze's runtime kernel does not enable that feature.
+<!-- source: internal/component/ike/engine/doctor_esp_form_offload_linux.go -- answerESPFormOffload, espFormOffloadModuleFindings -->
+<!-- source: internal/component/ike/engine/register_esp_form_offload_linux.go -- init -->
+<!-- source: internal/component/ike/engine/apply.go -- shutdown, stopAllPeers -->
+<!-- source: vendor/github.com/vishvananda/netlink/xfrm_state_linux.go -- xfrmStateAddOrUpdate -->
+<!-- source: internal/component/iface/offload_linux.go -- applyOffloads -->
+
+The fast path is a tc ingress program. It adds a UDP header with the IKE ports
+to a bare ESP datagram for a watched Child SA, in place, so the kernel receives
+the form the state expects on the real link. Ze attaches it to every interface
+except `lo` and `ze-espform` while any Child SA is served this way, and to an
+interface created later. An interface type the program cannot read is logged by
+name, and its bare ESP goes to the complete path. When the program cannot load
+at all, the complete path carries all bare ESP.
+
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathSpec, espFormFastPathEthernetL2, espFormFastPathL3L2 -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- the fast path's attach lifecycle -->
+
+The doctor check `ipsec-esp-form-fast-path` reports a fast path that could not
+load, or that stopped following new interfaces, as a
+`doctor-ipsec-esp-form-fast-path` warning carrying the cause and the fix
+(`CAP_BPF` and `CAP_NET_ADMIN`, which a unit written by an older ze lacks: stop ze
+and rewrite the unit with
+`sudo systemctl stop ze && sudo ze install systemd --force --start`; or a kernel
+with TCX), and each interface it does not serve as a `doctor-ipsec-esp-form-link`
+warning naming the interface and the reason. That warning's fix is a step on the
+peer, so its message carries it (on strongSwan, set `encap = yes` in the
+connection and run `swanctl --load-conns`), or routing the traffic over an
+interface of a type the fast path serves. Its fix line is the command that shows
+the interface, `ze show interface name <interface> detail`, or `ze show interface`
+when the interface's name cannot be typed as one command word. A fast path
+whose state Ze could not read is the same warning, with the command that lists
+the warnings naming the cause.
+
+A fast path that loaded and then detached itself is a different warning under
+the same code. Ze shuts the program's firewall gate while it checks the
+nftables ruleset, and when the kernel refuses that write, Ze removes the program
+from every interface rather than let it rewrite bare ESP past a firewall rule
+that should see it. All bare ESP then takes the complete path, at its rate
+bound, until ze restarts or until no Child SA is served in both ESP forms and
+one is installed again. The warning says the gate could not be shut and names
+the refused write, and its fix is `sudo systemctl restart ze`. It names no
+capability or kernel step: the program had loaded. Only a fast path that never
+loaded gets the `CAP_BPF` warning above.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- writeGateLocked, detachLocked -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFastPathFindings, espFormFastPathDetached -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormFastPathDetached -->
+
+Ze picks each inbound SPI at random, so two Child SAs on two different local
+addresses can draw the same one. The kernel serves both, but the fast path
+serves one SA per SPI, the first one installed, so bare ESP for the second SA
+takes the complete path at its rate bound. The same check reports this as a
+`doctor-ipsec-esp-form-fast-path` warning that names the SPI and both local
+addresses. Its fix is `ze clear vpn ipsec sa peer <name>` for the peer that
+holds the second SA: Ze has no command that rekeys one Child SA, so the clear
+negotiates that peer's SAs again, and the new Child SA draws a new SPI. That
+peer's tunnel carries no traffic until its new SAs are up. When Ze cannot name
+the peer, for example while a rekey replaces the SA, or when the peer's name
+cannot be typed as one command word, the fix is `ze show vpn ipsec sa`, which
+lists each peer with its inbound SPI but not its local address. Clear either
+peer whose Child SA carries that SPI: either way the cleared peer's new Child
+SA draws a new SPI, the other SA holds the SPI alone, and the fast path serves
+it. The warning goes when either SA is removed.
+
+Ze also logs the collision at Warn when the second SA is installed, but only
+while the fast path is attached: a fast path that could not load or detached
+itself serves no SA, so the collision costs nothing more and that status has
+its own warning. The log line's fix is the listing, `ze show vpn ipsec sa`, and
+its message says that clearing either peer whose Child SA carries the SPI, with
+`ze clear vpn ipsec sa peer <name>`, ends the collision. A MOBIKE move that
+would put an SA on the local address where another SA with the same inbound SPI
+is received is refused before Ze changes anything, and the tunnel stays on its
+old address. The refusal's fix is `ze show vpn ipsec sa`; clear either of the
+two peers to end the collision.
+
+A MOBIKE move also needs the complete path. After the move the SA's inbound
+state carries the ESP-in-UDP template, so the kernel refuses its bare ESP and
+only Ze's receiver, its raw ESP socket and the `ze-espform` device, serves that
+form. When the SA was not served in both forms before the move and those cannot
+open, Ze refuses the move with nothing changed, and the tunnel stays on its old
+address. The refusal names the SPI and both local addresses, and its fix is the
+one the cause names, shown once. Every cause the host can produce names its own
+fix:
+
+| Cause | Fix |
+|-------|-----|
+| No permission to open the raw ESP socket (no `CAP_NET_RAW`), or to exempt it from the inbound policy check (no `CAP_NET_ADMIN`) | `sudo systemctl stop ze && sudo ze install systemd --force --start` |
+| A Linux security module (SELinux or AppArmor) refuses the raw ESP socket or its exemption (`EACCES`); no capability changes that | `sudo journalctl -b --grep 'avc:\|apparmor="DENIED"'`, which lists the denials, then change the policy for ze |
+| ze reached its limit of open files (`EMFILE`); the ze unit sets `LimitNOFILE=65536` | `sudo systemctl stop ze && sudo ze install systemd --force --start` |
+| The host reached its limit of open files (`ENFILE`) | `sudo sysctl -w fs.file-max=9223372036854775807`, the value systemd sets at boot |
+| The kernel is short of memory (`ENOMEM`, `ENOBUFS`) | `free -m` |
+| The TUN device does not open, or `ze-espform` cannot be created | The fix the TUN refusal names, such as `ls -l /dev/net/tun` or `modprobe tun` |
+| No permission to configure `ze-espform` after Ze created it | `sudo systemctl stop ze && sudo ze install systemd --force --start`; in Docker, start the container with `--cap-add NET_ADMIN` |
+| Another step of the configuration of `ze-espform` failed, and Ze removed it again | `ze show log recent level warn component ike.dataplane`, whose warnings carry the kernel's answer |
+| An IPv4 setting of `ze-espform` that Ze could not write, for a reason other than a read-only `/proc/sys` | `sudo sysctl -w net.ipv4.conf.default.<setting>=<value>`, as the refusal names it |
+| Any other answer of the socket or its exemption | `ze show log recent level warn component ike.dataplane`: Ze tries again at the next install, and by itself while such an SA is installed |
+
+The same causes refuse the install of a Child SA that must receive both ESP
+forms, with the same fix. Ze records its last failure to open its own receiver
+for bare ESP, and the doctor check reports it as a `doctor-ipsec-esp-form-tun`
+error with the cause, the time and the fix, until an open succeeds. When the
+TUN outcome the last configuration apply recorded has the same cause, the check
+reports this one error alone.
+
+The raw ESP socket can also fail after it opened. The Child SAs it served stay
+installed, so Ze opens the receiver again by itself while such an SA is
+installed: at once, then further apart, doubling up to 30 seconds. The wait
+starts again at once only after a receiver that served for a minute, so a socket
+that fails right after each open is not reopened in a tight loop. Ze logs each
+stop at Warn and raises it on the report bus as a
+`doctor-ipsec-esp-form-reader-stopped` error event, which `ze show errors` and
+`ze show doctor` report even when the receiver opened again at once. Until it
+opens, bare ESP for those SAs is received only where the fast path rewrites it,
+and the next install, or a move onto the ESP-in-UDP form, opens it or is refused
+with the cause.
+
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormSharedSPI, espFormSharedSPIPeer, espFormCompletePathFindings -->
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRegistry.shared -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver.Watch, serveLocked, espFormReceiver.acquire, reopenReaderLocked -->
+<!-- source: internal/component/ike/dataplane/espform_open_linux.go -- openESPFormPaths, espFormSocketRefusal, espFormBypassRefusal, espFormSecurityModuleRefusal, espFormOpenFailure, espFormReceiver.revive, reopenWaitLocked -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNStepRefusal, espFormTUNSysctlWriteRefusal -->
+<!-- source: internal/component/ike/engine/register_esp_form_reader.go -- espFormReaderStoppedSink, espFormReaderStoppedIssue -->
+<!-- test: internal/component/ike/dataplane/espform_reopen_linux_test.go TestESPFormReceiverBacksOffAReaderThatDiesAtOnce -->
+<!-- test: internal/component/ike/engine/register_esp_form_reader_test.go TestESPFormReaderStoppedSinkRaisesEachStopOnce -->
+<!-- source: internal/component/ike/dataplane/xfrm_migrate_linux.go -- MigrateTunnel, xfrmMigrationCollision, xfrmMigrationUnserved -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormSharedSPI -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_complete_path_test.go TestDoctorESPFormCompletePathFailure -->
+<!-- test: internal/component/ike/dataplane/espform_reopen_linux_test.go TestESPFormReceiverReopensAStoppedReaderByItself -->
+
+The fast path runs before netfilter, so Ze keeps it off while a firewall rule or
+policy on the input path could drop ESP. The check then reports a
+`doctor-ipsec-esp-form-firewall` warning naming the first site that could drop
+it. Bare ESP takes the complete path, after the input path, so the firewall
+still decides on it. The warning says what that costs: the complete path's rate
+bound, the datagrams above it dropped before XFRM sees them, and the input
+interface a rule sees, which is `ze-espform`. To keep the fast path, and only if
+that ESP should be accepted, accept `protocol esp` ahead of that site in its
+chain; otherwise leave the firewall as it is. The warning says who writes the
+site's table, and its fix depends on that:
+
+- A table Ze does not own (its kernel name does not start with `ze_`) takes the
+  nft command that inserts the accept at the head of the base chain, such as
+  `sudo nft 'insert rule inet "filter" "input" meta l4proto esp accept'`. When
+  the table or chain name holds a quote or a control character, Ze prints no
+  command to paste: the fix is `sudo nft list ruleset`, and the warning says to
+  insert that rule with nft. A table created with the owner flag, which
+  `nft list ruleset` marks `# owner`, takes that change only from the process
+  that owns it.
+- A table of Ze's firewall configuration (its kernel name is `ze_` and the
+  table's name in the configuration) is rewritten at each firewall commit, so an
+  nft rule there would be gone after the next one. The fix is three lines to
+  paste into `ze config edit`, here for table `wan` and chain `input`:
+
+  ```
+  set firewall table wan chain input term accept-esp from protocol esp
+  set firewall table wan chain input term accept-esp then accept
+  commit now
+  ```
+
+  The editor adds a new term after the chain's existing terms and has no
+  command that moves a term ahead of another, so `accept-esp` accepts ESP only
+  where no earlier term of the chain drops it. While an earlier term can drop
+  ESP, that term stays the site and the fast path stays off.
+- A table a Ze plugin or component writes (it reserved the table's name) has
+  rules that follow that plugin's state, and Ze rewrites the table whenever the
+  state changes, so neither an nft rule nor the configuration editor changes it
+  for long. The warning names the plugin and what decides its rules, and the fix
+  is the command that shows that state: `show bgp rib best | family ipv4/flow`
+  for the flowspec-firewall plugin's `ze_flowspec`, or
+  `show firewall ruleset ipsec_source_guard` for the IKE engine's tunnel-source
+  guard. The rule changes only with that state.
+- A `ze_` table that no plugin reserved and whose table or chain name the
+  configuration cannot hold is neither, and the fix is `show firewall ruleset`.
+
+When the fast path started and Ze could not open its nftables reader or join
+the monitor that follows the ruleset's changes, or that monitor was closed, the
+fast path is off for safety, and the same warning names the cause, with
+`sudo systemctl restart ze` as the fix: nothing reads the ruleset again until
+ze restarts, or until no Child SA is served in both ESP forms and one is
+installed again. When the reader and the monitor are open but one read of the
+ruleset failed, Ze needs no restart: the monitor still runs, so the next commit
+to the ruleset, by Ze's firewall or by any other program, makes Ze read it
+again, and nothing reads it before then. The warning says so, and its fix,
+`sudo systemctl restart ze`, reads the ruleset at once. When the monitor
+fails, Ze needs no restart: it watches the ruleset again by itself, after a wait
+that doubles from one second up to thirty seconds, and turns the fast path back
+on once a fresh read of the ruleset finds no rule that can drop ESP. While the
+fast path is off for that reason, the warning says no restart is needed for the
+firewall reading, and its
+fix is `ze show log recent level warn component ike.dataplane`, which names why
+the monitor keeps failing, usually a missing `CAP_NET_ADMIN`.
+
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFirewallFindings, espFormFirewallBlocked, espFormFirewallUnread, espFormFirewallDumpFailed, espFormFirewallRewatching -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- firewallWatchEnded, firewallRewatchFailed, publishFirewall, adoptFirewallLocked, espFormFirewallAccept, espFormForeignTableAccept, espFormNFTQuotable -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormOwnedTableAccept, espFormConfigSite -->
+<!-- source: internal/component/firewall/reservation.go -- TableControl, TableControlOf -->
+<!-- source: internal/plugins/flowspec-firewall/register_tables.go -- the flowspec table's TableControl -->
+<!-- source: internal/component/ike/engine/register_tables.go -- the tunnel-source guard's TableControl -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormFirewallReading, espFormNFTRewatchMax, FirewallAcceptFix, FirewallAcceptHow -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestESPFormOwnedTableAccept -->
+
+
+Ze's own firewall commits hold the fast path off while they land: the IKE
+engine registers a firewall commit observer that takes the hold before the
+nftables backend applies a reconcile and releases it once the apply returns.
+With the IKE engine run as a forked plugin, the daemon's commits take no hold,
+and Ze learns of them from the nftables monitor alone.
+
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- checkIPsecESPFormFastPath, espFormFastPathUnavailable, espFormLinkRefused, espFormLinkFix, espFormFastPathUnread, espFormFirewallBlocked, espFormFirewallUnread -->
+<!-- source: internal/component/ike/engine/register_firewall_observer.go -- holdESPFormFastPathForCommit -->
+<!-- source: internal/component/firewall/commit_observer.go -- CommitObserver, RegisterCommitObserver, applyObserved -->
+
+The check reads the state the IKE engine's own process holds, so it is a runtime
+check the engine answers: `show doctor` runs it, and so does `ze doctor` when the
+running daemon answers it. A `ze doctor` no daemon answered reports
+`doctor-runtime-not-checked` instead.
+
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFastPathCheckDecl -->
+<!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks, answerDoctorCheck -->
+<!-- source: internal/component/doctor/local_route.go -- answerLocalWith, runtimeNotChecked -->
+
+The same check reports `doctor-ipsec-esp-form-tun`, an error, when Ze could not
+create a usable `ze-espform` interface for the complete path. For example, Ze
+can neither open nor create `/dev/net/tun`. Or Ze cannot write `/proc/sys` (it
+is read-only, as in a container), and the interface would take from
+`net.ipv4.conf.default` a `disable_policy` of 1, which skips the inbound policy
+check, or a strict `rp_filter` (the larger of `conf.default` and `conf.all` is
+1). Every Child SA on UDP port 4500 is then refused at install, because such an
+SA must receive bare ESP as well as ESP-in-UDP.
+
+The IKE engine checks this itself on every configuration apply that configures
+an IPsec peer on the Linux kernel dataplane, because any IKE SA can move to UDP
+port 4500. The apply opens the device as a Child SA install would, so where the
+node is missing the apply creates it. It logs a refusal once per apply, at WARN.
+The doctor check only reads the outcome that apply recorded, so `show doctor`
+never creates the device node. While the receiver watches a Child SA it holds
+the device, and the check reports no finding. The message names the cause, and
+the fix is the one the refusal gives, listed below after the complete path. A
+refusal that names no fix gets `ze show log recent level warn component
+ike.dataplane`.
+
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormTUNFindings, espFormTUNUnavailable -->
+<!-- source: internal/component/ike/engine/apply.go -- recordESPFormTUN -->
+<!-- source: internal/component/ike/dataplane/espform_tun_probe_linux.go -- ESPFormTUNAvailable, predictESPFormTUNSysctls -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- settleESPFormTUNUnwritable -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestRecordESPFormTUN -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormFastPath -->
+
+The complete path is a raw `IPPROTO_ESP` reader. Linux gives it a copy of the
+bare datagram XFRM refused. Ze writes that datagram again with the UDP header
+into its own TUN interface `ze-espform`, which has `disable_policy` 0, and the
+kernel receives it there. The complete path runs in Ze, so it is bounded to 5000
+datagrams per second, with a burst of 10000. The fast path has no such bound.
+
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormReceiver, run -->
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRate, espFormBurst, writeESPForm -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- openESPFormTUN, espFormTUNSysctls -->
+
+The complete path needs the TUN clone device `/dev/net/tun`. Where the node is
+missing, as in a container started without `--device /dev/net/tun`, Ze creates
+it (`c 10 200`, mode 0600, in `/dev/net`) when the kernel allows it: the process
+must hold `CAP_MKNOD` in the initial user namespace, and the device cgroup must
+grant the device. A default Docker container meets both. Ze never changes a node
+that exists. When Ze can neither open nor create the node, it refuses every
+Child SA that must receive both ESP forms, with an error that names the cause and
+the fix. Under Docker the fix is `--device /dev/net/tun` (Compose:
+`devices: [/dev/net/tun]`); on a host it is `modprobe tun`; a kernel without
+`CONFIG_TUN` needs a new kernel; and creating `ze-espform` needs `CAP_NET_ADMIN`.
+The refusal is not a configuration error: without the device, Ze cannot receive
+bare ESP on the SA and still run the inbound policy check (RFC 4301 Section 5.2).
+
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- openESPFormTUNClone, createESPFormTUNNode, espFormTUNNodeMode -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNMissingRefusal, espFormTUNOpenRefusal, espFormTUNNoDriverRefusal, espFormTUNSetIffRefusal, espFormTUNWhy -->
+
+The kernel gives the new `ze-espform` interface the values of
+`net.ipv4.conf.default`, and Ze writes `disable_policy` 0 and `rp_filter` 2 on it
+only where the interface does not already hold them. In a container whose
+`/proc/sys` is read-only, start the container with
+`--sysctl net.ipv4.conf.default.disable_policy=0 --sysctl net.ipv4.conf.default.rp_filter=2`
+(Docker accepts `net.*` sysctls for the container's own network namespace).
+Otherwise Ze refuses a Child SA that must accept both ESP forms when the
+interface would skip the inbound policy check or use strict reverse-path
+filtering.
+
+Setting `net.ipv4.conf.all.disable_policy` to 1 turns the inbound policy check
+off on every interface of the host, `ze-espform` included, and Ze reports
+nothing about it: that is the operator's choice for the whole host, and Ze does
+not override it.
+
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNSysctls, settleESPFormTUNSysctls, settleESPFormTUNUnwritable -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNDisablePolicyRefusal, espFormTUNRPFilterRefusal -->
+
+Both paths keep the outer TOS octet the bare datagram arrived with, so XFRM copies an ECN
+congestion mark (CE) from the outer header into the decrypted packet, as RFC 7296 Section
+2.24 requires: the fast path never rewrites that octet, and the complete path copies it into
+the header it builds.
+
+<!-- source: internal/component/ike/dataplane/espform.go -- writeESPForm, espFormBareIPv4 -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathIPv4 -->
+<!-- test: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE -->
+
+**The cost for a firewall rule.** A packet the complete path carries arrives on
+`ze-espform`, not on the link it came in on. A firewall rule that matches the
+input interface sees `ze-espform` for that traffic.
+
+The fast path does not take a decision away from the firewall. It adds the UDP
+header at tc ingress, and Linux runs tc ingress before the firewall: before the
+netdev ingress hook and before `prerouting`. A datagram it rewrote would reach a
+rule on `protocol esp` as UDP to port 4500. So the fast path rewrites only while
+no nftables rule or chain policy on the input path could drop or change the
+peer's ESP: a
+base chain on the `ingress`, `prerouting` or `input` hook of an `inet`, `ip`,
+`netdev` or `bridge` table. While one could, the fast path leaves bare ESP as it
+arrived, and the rule keeps deciding. That holds for a Ze firewall term on
+`protocol esp` and for a rule an operator added with `nft` alike, because Ze
+reads the kernel's ruleset, not its own configuration. A rule Ze cannot read in
+full, such as one using an iptables extension or an expression Ze does not know,
+counts as one that could drop ESP.
+
+Ze tells a rule that cannot match ESP from one that can only by the match the
+rule opens with: `meta l4proto` equal to a protocol other than ESP, in any
+table; the IPv4 protocol field (`ip protocol`) equal to one, in an `inet` or `ip`
+table only; or `meta nfproto ipv6`, in an `inet` or `ip` table, as the rule's
+first match. In a `netdev` or `bridge` table an `ip protocol` match does not
+count, because the packet there need not be IPv4. `meta l4proto udp drop` cannot match ESP. A rule
+whose first match is an address, a port or an interface counts as one that can,
+even when a protocol match follows, and so does a rule on `meta l4proto != esp`.
+Ze's own drops open with their protocol for that reason, so the GTSM drops of a
+BGP peer with `connection ttl max`, and an on-host DDoS mitigation against a
+protocol other than ESP, keep the fast path on. A DDoS mitigation against ESP
+itself, or against a protocol Ze has no name for, keeps it off: the first
+opens with ESP, the second with the victim's address, and both can drop ESP
+sent to that address.
+
+<!-- source: internal/component/gtsm/gtsm.go -- listenPortTerm, peerTerms -->
+<!-- source: internal/plugins/ddos/local/match.go -- buildDropTerm -->
+
+A rule that can match ESP keeps the fast path on only when all it does is
+select, count, log or rate-limit, and it then accepts or goes on to the next
+rule. A rule that matches nothing but `protocol esp`, counts at most and
+accepts ends the check of its chain: ESP is accepted there. Any rule that can match ESP and
+changes something counts as one that could drop it: a mark or conntrack mark
+set, `notrack`, a DSCP or other header rewrite, a TCP option strip, a set
+lookup (`ip saddr @trusted`, because a set element can carry a `connlimit` or
+`quota` of its own that the rule does not show), a map lookup, a set update,
+`dup`, a named object, `quota` or `connlimit`. The warning and `show doctor`
+name the rule and the reason.
+
+Ze reads the tables, chains and rules itself, through nftables dumps of its own,
+so no expression is lost in the reading. One reading is several dumps, so Ze
+reads the ruleset's generation number before the first dump and after the last.
+Every commit changes that number. When the two differ, a commit landed while Ze
+read, so what it read is not one ruleset: Ze turns the fast path off and reads
+again. The comparison does not catch every such commit: the kernel changes the
+number before it applies a commit's table and chain changes, so a reading that
+begins in between sees the new number and the old rules. The notice the kernel
+sends once a commit is applied covers that case, because every commit Ze hears
+of turns the fast path off until Ze has read the ruleset again. While commits
+keep coming faster than Ze can read (fail2ban adding addresses to a set every
+few milliseconds, each addition a commit), the fast path stays off, and Ze
+waits between readings, 50 ms at first, doubling to one second. A dump the
+kernel flags as interrupted (`NLM_F_DUMP_INTR`, a commit inside one dump) counts
+the same way: it is a commit, never a failed read, so it turns the fast path off
+and Ze reads again, waiting between readings while such dumps keep coming. The
+fast path comes back on once a reading finds the ruleset unchanged and safe, and
+no restart is needed.
+
+When the commits keep coming for ten seconds or longer, `show doctor` reports it
+under `doctor-ipsec-esp-form-firewall`: the nftables ruleset has kept changing
+since at least the time it names, so the fast path stays off, and bare ESP takes the
+complete path at its rate bound, at most 5000 datagrams per second. The fix line
+is `sudo nft monitor`, which shows each commit as it lands, so you can see which
+tool keeps committing. Then make that tool batch its changes, or stop it:
+fail2ban, for example, commits each ban on its own. For the firewall reading, no
+restart is needed: the fast path comes back on once the commits pause long
+enough for one reading, and that reading finds no rule that can drop ESP. The
+warning says it that way because another warning beside it, for a fast path
+that stopped following new interfaces, does name a restart. A stream shorter
+than ten seconds is reported nowhere: the fast path outlasts a burst of commits.
+While the fast path is unavailable or detached, `show doctor` reports that
+alone: no program reads the firewall gate then, so a stream of commits changes
+nothing for bare ESP.
+
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- espFormNFTRejudgeFirst, espFormNFTRejudgeMax, firewallCommitted, judgeWatched, espFormRulesetMoved, firewallMoving -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormFirewallMoving, ESPFormFirewallMovingReportAfter, ESPFormFixMoving -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFastPathFindings, espFormFirewallMoving -->
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRate -->
+
+Ze reads base chains only. A rule that can match ESP and jumps to another chain,
+goes to one, returns, or picks its verdict from a verdict map counts as one that
+could drop ESP, and Ze does not read the chain it leads to: in the kernel a
+return in a base chain skips every later rule and meets the chain's policy, so a
+later accept would prove nothing. To keep the fast path, accept ESP ahead of the
+jump. The flowspec-firewall plugin's base chain `flowspec-in`, in table
+`ze_flowspec`, holds such a jump with no match while Ze selects a FlowSpec route
+whose action is a traffic-rate limit above zero, or a traffic-action whose
+terminal bit asks for later routes to apply too, and ends with a `goto` with no
+match while it selects a route that marks traffic. Either keeps the fast path
+off while that route is selected, and the warning names the plugin's command,
+`show bgp rib best | family ipv4/flow`, which lists the routes the table
+follows.
+
+<!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormJudgeRule, espFormFirstLoad, espFormExcludesESP, espFormAcceptsESP, espFormHarmless, espFormJudgeVerdict -->
+<!-- source: internal/component/ike/dataplane/espform_firewall_kernel_linux.go -- espFormKernelReader, espFormDumpMessage, errESPFormDumpInterrupted -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathInstructions, the VLAN tag skip -->
+<!-- source: internal/plugins/flowspec-firewall/rule_chains.go -- ruleChains, beforeMarkActions -->
+<!-- source: internal/plugins/flowspec-firewall/state.go -- the flowspec-in base chain, the finish-matching goto -->
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- the rate-limit, traffic-action and mark actions -->
+
+<!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, espFormBaseChains -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- judgeFirewall, publishFirewall, espFormNFTRewatchFirst, nextWait, watchAgain -->
+<!-- source: internal/component/ike/dataplane/espform_state.go -- espFormNFTRewatchMax -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathInstructions, the gate lookup -->
+<!-- test: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go TestRFC4301BareESPFirewallDropKeepsTheFastPathOff -->
+
+With the fast path off, the complete path carries the bare ESP the firewall lets
+through. It reads a datagram after the `input` chain, so a rule there has
+already judged it, and writes it into `ze-espform`, where it reaches the firewall
+a second time, as UDP to port 4500. That costs what the complete path costs: at
+most 5000 datagrams per second, with a burst of 10000. Ze drops the datagrams
+above that rate before XFRM decrypts them. A rule keyed on the input interface
+sees `ze-espform`, not the link the datagram arrived on.
+
+<!-- source: internal/component/ike/dataplane/espform.go -- espFormRate, espFormBurst, espFormLimiter -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- run, the limiter.allow skip -->
+<!-- source: internal/component/ike/dataplane/espform_tun_linux.go -- espFormTUNName -->
+
+The fast path cannot see every filter on the host, and it cannot take back a
+datagram it already rewrote. Ze reads only the nftables ruleset, so anything else
+that decides on bare ESP after tc ingress sees the rewritten datagram as UDP to
+port 4500. The list below holds the limits known today, each with what to do
+about it. It is not a complete list of what can run on a Linux host: a filter of
+another kind that matches ESP after tc ingress meets the same limit, and the
+same fix applies to it: match UDP to port 4500 from the peer as well as ESP.
+
+- Rules loaded with iptables-legacy live in the kernel's x_tables, which Ze
+  does not read, so the fast path rewrites bare ESP past them. Write the rule
+  in nftables, or load it with iptables-nft, whose rules are nftables rules
+  that Ze reads.
+- Bridge rules loaded with ebtables-legacy live in the kernel's ebtables
+  tables, which Ze does not read either, so on a bridge port the fast path
+  rewrites bare ESP past them. Write the rule in an nftables `bridge` table,
+  which Ze reads, or load it with ebtables-nft.
+- A BPF program attached to a netfilter hook (a `BPF_LINK_TYPE_NETFILTER`
+  link, at `prerouting` or `input`) runs inside netfilter, but it is not an
+  nftables rule, and no nftables dump shows it. It sees a rewritten datagram as
+  UDP to port 4500. `sudo bpftool link show` lists these links. Make the
+  program match UDP to port 4500 from the peer as well as ESP, or detach it.
+- A tc ingress program or filter that Ze did not install and that runs after
+  Ze's program sees a rewritten datagram as UDP to port 4500. Ze attaches its
+  program at the head of the interface's TCX chain and passes every packet on.
+  Match UDP port 4500 from the peer there as well as ESP, or remove that
+  program.
+- Linux chooses a route for each packet, and checks its source address, after
+  tc ingress, so an `ip rule` that selects on the protocol (`ipproto esp`)
+  sees a rewritten datagram as UDP. Two cases reach that difference:
+  - With reverse-path filtering on (`rp_filter` 1 or 2), Linux checks the
+    source with a route lookup back to the peer. That lookup walks the rules,
+    and the `local` rule at priority 0 does not stop it, because the peer's
+    address is not local. An `ipproto esp` rule that answers `prohibit`,
+    `blackhole` or `unreachable`, or that sends the lookup to a table with no
+    route back to the peer (in strict mode, `rp_filter` 1, no route back
+    through that link), then drops bare ESP as a reverse-path failure and lets
+    the rewritten datagram through. With `rp_filter` 0 the check drops nothing.
+  - When the `local` rule no longer sits at priority 0, as the usual Linux VRF
+    setup moves it, the route lookup for the packet itself reaches the rules
+    placed ahead of the `local` rule. An `ipproto esp` rule there then decides
+    on bare ESP and not on the rewritten datagram.
+
+  Only an `ip rule` you wrote that selects on `ipproto esp` reaches this
+  difference. Ze does not read the routing rules, as it does not read
+  iptables-legacy rules. A firewall rule that sets a mark on ESP, for an
+  `fwmark` rule to pick up, keeps the fast path off, so no datagram the fast
+  path rewrote misses a mark that rule would have set.
+
+  Ze adds no `ipproto` rule and never moves the `local` rule: its own rules
+  select on a source address or on a mark, behind the `local` rule. Where you
+  added such a rule, give UDP from the peer to port 4500 the same priority and
+  the same action, keeping any other selector your rule has. For the route
+  lookup of the packet itself (the second case):
+
+  ```
+  sudo ip rule add priority <priority> from <peer> ipproto udp dport 4500 <action>
+  ```
+
+  For the reverse-path lookup (the first case), which looks up the route back
+  to the peer, so the peer is its destination, and in which Linux swaps the two
+  ports, so `sport 4500` names the datagram's destination port:
+
+  ```
+  sudo ip rule add priority <priority> to <peer> ipproto udp sport 4500 <action>
+  ```
+
+  `<priority>` and `<action>` are your `ipproto esp` rule's (for example
+  `prohibit`, or `lookup <table>`), and `<peer>` is the IPsec peer's address.
+  For the second case, keeping the `local` rule at priority 0 also removes the
+  difference, because locally addressed traffic is then delivered before any
+  later rule is read.
+- Ze learns of a commit another program makes (an `nft` command, firewalld)
+  only after it lands, from the nftables monitor, which turns the fast path off
+  until Ze has judged the ruleset again. A reading that such a commit lands in
+  the middle of is not used when the generation number Ze reads around it
+  moved. When the commit moved that number just before the reading began and
+  applied its changes during it, the reading can be used, and the monitor's
+  notice of that commit then turns the fast path off again. Bare ESP that
+  arrives in between, the monitor's latency plus the end of a reading already
+  under way, is rewritten past the new rule. It is still decrypted and
+  checked against the Child SA's selectors: what it misses is the rule. If that
+  window matters, commit the rule that drops ESP through Ze's firewall, whose
+  commits hold the fast path off while they land.
+- An IKE engine run as an external plugin takes no hold across Ze's own
+  firewall reloads, so those reloads have the same monitor window. Where the
+  window matters, run the IKE engine inside the daemon, as Ze does by default.
+- The hold Ze's own firewall commit takes stops the fast path from rewriting
+  from the moment it begins. A datagram the fast path rewrote just before that
+  is still on its way to the firewall hooks as UDP to port 4500, and if the
+  commit lands before those hooks see it, a rule the commit adds for bare ESP
+  does not see it. The window is the time one datagram takes from tc ingress to
+  the input hook, and no setting closes it. Where that matters, commit the rule
+  before the IPsec peer comes up.
+- A rule that drops UDP, such as `meta l4proto udp drop`, cannot match bare
+  ESP, so Ze reads it as one that cannot drop ESP and keeps the fast path on,
+  yet it drops the datagram the fast path rewrote into UDP. That fails closed:
+  the ESP is lost, never let through. Such a rule also drops the peer's IKE
+  messages on UDP port 4500 unless an earlier rule accepts them, and the
+  rewritten datagram carries the same ports as those messages, so an earlier
+  rule that accepts the peer's IKE on UDP port 4500 accepts it too. Accept the
+  peer's IKE ahead of the UDP drop, as the IKE SA needs anyway.
+
+<!-- source: internal/core/iprule/iprule.go -- IPsecSourceGuardPriority, the rules Ze adds behind the local rule -->
+<!-- source: internal/plugins/policyroute/translate.go -- buildActions, the fwmark rule priorities from 100 -->
+<!-- source: internal/plugins/fib/kernel/mplscontext_linux.go -- ensureMPLSSelector, the local rule kept at priority 0 -->
+<!-- source: internal/component/firewall/commit_observer.go -- CommitObserver, the hold's window -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathPorts -->
+<!-- source: internal/component/ike/dataplane/espform_firewall_kernel_linux.go -- openESPFormNFTReader, startESPFormNFTWatch -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- linkAdded, serve -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathNext -->
+<!-- source: internal/component/ike/engine/register_firewall_observer.go -- holdESPFormFastPathForCommit, the forked-engine limit -->
+
+A peer that encapsulates ESP itself (strongSwan `encap = yes`) never uses either
+path.
 
 The reader carries a per-socket inbound policy exemption. Linux applies the inbound IPsec
 policy check before it queues a packet to a raw socket. Ze's own Child SA policy refuses
-exactly the datagrams this reader exists to recover. The exemption reaches that one socket.
-XFRM still decrypts, still owns the replay window, and still applies the inbound policy to
-the re-presented datagram.
+exactly the datagrams this reader exists to recover. The exemption reaches that one socket,
+and covers only the reading of the still-encrypted copy: the datagram Ze writes into
+`ze-espform` gets the inbound policy check like any other. XFRM still decrypts and still
+owns the replay window.
 
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormBypassInboundPolicy -->
 
-The second-form reader serves IPv4. An SA that asks for both forms over IPv6 is refused
-rather than installed with one form. The form Ze SENDS is a separate decision and follows
-the NAT verdict alone: Ze encapsulates when it detected a NAT.
+Receiving both forms over an IPv6 outer header is a gap owed after the first release.
+Ze has no IPv6 IKE transport yet: the IKE listener opens IPv4 sockets only, so no Child SA
+has IPv6 outer addresses. An SA that asks for both forms over IPv6 is refused rather than
+installed with one form. `plan/post-release/features/spec-ike-ipv6-transport.md` owns the
+work. The fast path's program already holds an IPv6 rewrite, which nothing reaches yet,
+and it leaves alone an IPv6 header followed by an extension header and an IPv6 datagram
+whose checksum the network card already summed; no complete path serves those over IPv6
+either, since it reads IPv4 only. The form Ze SENDS is a separate decision and follows the NAT verdict alone: Ze
+encapsulates when it detected a NAT.
+
+<!-- source: internal/component/ike/transport/udp.go -- newTransport, the udp4 listener -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA -->
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane, outbound.UDPEncap -->
 
 ## Traffic selectors and narrowing
 
@@ -1636,6 +2670,28 @@ missing combination. Add the missing entries, or remove the entry that brings in
 extra prefix.
 
 <!-- source: internal/component/ike/engine/config.go -- validateSelectorCombinations -->
+
+An omitted `port`, or `port any`, leaves that side unconstrained. A specific port
+requires a protocol that defines the field: TCP (6), UDP (17), SCTP (132) or
+UDP-Lite (136). DCCP (33) defines ports too, but Linux XFRM cannot select them,
+so Ze refuses a specific DCCP port; DCCP with `port any` is accepted. Protocols
+without ports, including GRE (47) and ESP (50), require `port any`.
+
+For ICMP, the number is the IKE type/code value: type times 256 plus code.
+For IPv6 Mobility Header protocol 135, the IKE value is the Type times 256,
+with a zero low octet: Type 5 is 1280, rather than 5. Ze understands that
+encoding, but refuses every specific MH Type at config verify and negotiation.
+The Linux receive-flow decoder does not fill the Type used by XFRM: an exact
+Type 5 policy drops even matching received and forwarded packets.
+`protocol 135` with `port any` remains usable. The wanted exact-Type kernel
+feature is tracked in `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`.
+
+The VPP backend refuses constrained MH and UDP-Lite selectors because its SPD
+does not compare those fields. Linux supports UDP-Lite ports.
+
+<!-- source: internal/component/ike/ipsec/traffic_selector.go -- ValidForProtocol, ProgrammableForProtocol, checkPortProgrammable -->
+<!-- source: internal/component/ike/engine/child.go -- childPairPolicy -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppICMPSelectorError -->
 
 The inner family of a tunnel does not have to match its outer family. RFC 4301
 Section 5.1.2: "IPsec allows the IP version of the encapsulating header to be
@@ -1713,6 +2769,19 @@ program exactly is narrowed FURTHER, never rounded outward: an address range tha
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
 one port becomes its first port. A rekey is never narrowed below the scope in use.
 
+A proposed or answered selector of exactly port 0, or under ICMP of type 0 code 0 (the
+IKE port value 0), is dropped from the answer as responder and refused as initiator. Linux
+reads no port, ICMP type or ICMP code from an IP fragment, so it classifies every fragment
+as port 0, type 0 and code 0, and it classifies forwarded traffic before reassembling it.
+A Child SA with such a selector would carry every fragment between its prefixes, and RFC
+4301 Section 7.3 forbids that: "a receiver MUST discard non-initial fragments that arrive
+on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this
+feature has been negotiated." Ze negotiates no `NON_FIRST_FRAGMENTS_ALSO`. Any port, any
+other single port, and an ICMP selector of any other type or code are unaffected.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, portMatchesEveryFragment -->
+<!-- source: internal/component/ike/engine/child.go -- childPolicyPair -->
+
 Editing a peer's `traffic-selector` list and committing restarts that peer. The tunnel
 drops and comes back carrying the new selectors, and the kernel policy follows. This is
 what RFC 7296 Section 2.9.2 asks for: a rekey that would need a narrower scope means the
@@ -1743,8 +2812,9 @@ shrank and the tunnel will hard-expire unless one end is corrected.
 A port other than `any` needs `protocol` to name a protocol that defines ports, such as 6
 for TCP or 17 for UDP. Section 3.13.1 requires the port fields to be 0 and 65535 whenever
 the protocol is 0, so the combination is refused at commit rather than widened silently.
-Opaque ports are refused for the same reason: no dataplane backend can express an exact
-match on port 0, so accepting one would install an any-port policy.
+Opaque ports are refused at commit too. OPAQUE names a port that is not visible in the
+packet, and Ze does not yet map that meaning onto a dataplane selector, so it refuses
+rather than install a guess.
 
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable, PortSelector.Wire -->
 
@@ -1870,12 +2940,35 @@ the kernel refused, a state it expired, and a policy that outlived its owner.
 
 | Command | What it reads |
 |---|---|
-| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
+| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, timestamps, and the `df-bit`, `dscp-map` and `icmp-error-check` the SA holds. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
 | `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, if-index, tunnel endpoints, and the peer that installed each policy. `spd` names the SPD holding the policy (`node` for if-id 0, the XFRM interface a peer binds with `vti bind`, or `if-id <n>` for one no bound interface has), and `role` names the job Ze installed it for (`catch-all`, `interface-catch-all`, `interface-exemption`, `ike-bypass`, `child-sa`, `operator`, `ospf`). A policy Ze did not install reports its owner and its role as unknown |
 | `show vpn ipsec dataplane drift` | Each expected Child SA identity absent from the kernel. The command exits non-zero when it finds drift, so a script can test it |
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
 
 RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this command tree.
+
+Each SA row also carries the options the SA holds, read back from the kernel, never from
+the config: `df-bit` (`copy` or `clear`, RFC 4301 Section 8.1), `dscp-map` (`copy`, or the
+fixed outer DSCP as a decimal value, Section 5.1.2.1) and `icmp-error-check` (`true` or
+`false`, Section 6.2). On Linux they come from the state's `XFRM_STATE_NOPMTUDISC`,
+`XFRM_SA_XFLAG_DONT_ENCAP_DSCP` and `XFRM_STATE_ICMP` flags. The row says what the kernel
+does, which can differ from the config: the kernel clears the DF bit of an IPv4 outbound
+SA whenever `net.ipv4.ip_no_pmtu_disc` is set, and the row then reads `df-bit` `clear`. A backend that
+cannot read them back sets `options-known: false` and the three keys to null.
+
+An SA row's `direction` is `in` or `out` only when the kernel recorded one for the state
+(its `XFRMA_SA_DIR` attribute), and `unknown` otherwise. A known direction nulls the
+options that side cannot carry: an `in` row shows `df-bit` and `dscp-map` as null, an `out`
+row shows `icmp-error-check` as null. Ze installs its states without a direction, so its own
+rows read `unknown` and show all three options as the kernel holds them.
+
+Each policy row carries `icmp-error-return` (`true` or `false`): whether the kernel may send
+an outbound ICMP error that no SA and no entry carries through the SA this entry resolves to,
+the RFC 4301 Section 6.2 mapping. On Linux it is the policy's `XFRM_POLICY_ICMP` flag, which Ze
+sets on the outbound policy of a peer with `icmp-error-check true`.
+
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- saOptionsFromState, saDirFromKernel -->
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- saInfoToMap, policyInfoToMap -->
 
 A read that cannot happen is an error, never an empty table. No backend loaded, a backend
 that cannot enumerate, and a process without CAP_NET_ADMIN each get their own message. An
@@ -2001,7 +3094,27 @@ Prometheus exposes `ze_ipsec_sa_count`, `ze_ipsec_tunnel_up{peer}`, `ze_ipsec_tu
 `ze_ipsec_error_notify_sent_total{type,protected}` counts error notifications Ze sent, by
 notify type and by whether the carrying message was encrypted.
 `ze_ipsec_error_notify_suppressed_total{reason}` counts the ones a guard stopped, by the
-name of that guard.
+name of that guard. Four reasons count IKE messages that failed their integrity check,
+which Ze drops without answering and without changing the SA (RFC 7296 Section 2.4):
+`handshake-unauthenticated` during the IKE_AUTH exchange, in either role;
+`established-unauthenticated` on an established SA; `invalid-msgid-unauthenticated` for
+an out-of-window request on an established SA; and `held-successor-decrypt-failed` on a
+re-authenticated IKE SA held before adoption. A rising count means someone is sending
+datagrams under the SPIs of a live SA, or a path is damaging them.
+`ze doctor` warns under `ipsec-unauthenticated-input` for each peer whose handshake in
+progress dropped such a message, naming the peer, how many were dropped and the
+handshake state. The handshake keeps waiting for the peer's genuine answer, so the
+tunnel comes up late or not at all while the forgeries win the race. The warning
+clears when the handshake establishes or a new attempt starts.
+`ze doctor` also warns under `ipsec-peer-malformed-message` for each peer whose live IKE
+SA received messages that passed their integrity check and do not parse. Only the peer
+can build such a message, so the defect is in the peer's IKE software: Ze drops it and
+keeps the SA, but the exchange it carried is lost. Collect the peer's log and report it
+to the peer's vendor.
+<!-- source: internal/component/ike/engine/doctor_peer_malformed.go -- checkIPsecPeerMalformedMessage --><!-- source: internal/component/ike/engine/protected_input.go -- openProtected, dropUnauthenticated -->
+<!-- source: internal/component/ike/engine/doctor_unauthenticated_input.go -- checkIPsecUnauthenticatedInput -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound -->
+<!-- source: internal/component/ike/engine/held_successor.go -- handleHeldSuccessorInbound -->
 
 Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
 

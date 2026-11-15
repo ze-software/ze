@@ -1504,8 +1504,8 @@ report bus: any subsystem can push warnings (state-based) or errors
 return the aggregate as structured JSON. The login banner reads the same
 source, so nothing is silently hidden.</p>
 <p>SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose
-legacy AgentX/MIB agents, but Ze's operational surface (Prometheus, gNMI,
-gRPC, structured JSON events) already covers what those MIBs would carry,
+legacy AgentX/MIB agents, but Ze's monitoring interfaces (Prometheus, gNMI,
+gRPC, structured JSON events) already cover what those MIBs would carry,
 without maintaining a second protocol stack to do it.</p>
 <h2 id="api-programmability">API &amp; Programmability</h2>
 <table>
@@ -1583,7 +1583,7 @@ without maintaining a second protocol stack to do it.</p>
 <td class="cell-no">✕</td>
 </tr>
 <tr>
-<td>Register-once operator surfaces</td>
+<td>Shared definitions for management interfaces</td>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
@@ -1724,7 +1724,7 @@ without maintaining a second protocol stack to do it.</p>
 </tr>
 </tbody>
 </table>
-<p>Ze's register-once row means a command, config node, plugin, RPC, or event can feed the CLI, web workbench, REST/gRPC, MCP, generated docs, completion, authorization, and audit paths. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but not the same all-surface pipeline in the inspected sources.</p>
+<p>The shared-definitions row describes how a command, configuration node, plugin, RPC, or event can be defined once and used by the CLI, web interface, REST/gRPC, MCP, generated docs, completion, authorization, and audit. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but the inspected sources did not show shared definitions supplying all of those interfaces as they do in Ze.</p>
 <h2 id="operations">Operations</h2>
 <table>
 <thead>
@@ -2400,10 +2400,11 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">42,800+</span> Go test functions,
-<span data-ze-stat="tests.e2e_display">2,800+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">97</span> fuzz targets, and
-<span data-ze-stat="interop.target_display">13</span> interoperability test images covering routing and
-network services. That evidence can be checked. It is not a promise. Ze
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">45,600+</span> Go test functions,
+<span data-ze-stat="tests.e2e_display">2,900+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">100+</span> fuzz targets, and
+<span data-ze-stat="interop.target_display">13</span> test images in the main shared suite’s recorded set.
+That set covers routing and network services; other labs and tools use additional
+images, including pmacct. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
 on real networks. Use it in labs first.</p>
 <p><strong>Why no BGP confederations yet?</strong></p>
@@ -2514,7 +2515,7 @@ embeddable library mode. The full-router comparison belongs on the
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
                 </div>
             </div>
         </footer>

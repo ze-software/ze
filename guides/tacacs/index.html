@@ -263,8 +263,46 @@ override them.</p>
 lengths do not add up once de-obfuscated, which RFC 8907 Section 4.5 makes an
 ERROR, so Ze treats that server as unreachable (step 6): the next server is
 tried, then the local accounts. The log line <code>TACACS+ server unreachable</code> names
-the cause as <code>bad secret: body length mismatch after decryption</code>; correct
-<code>tacacs.server &lt;ip&gt;.key</code> to the secret the server holds for this device.</p>
+the cause as <code>bad secret: body length mismatch after decryption</code>.</p>
+<p>When every server fails, the error names each server in the order tried, with
+its cause, and the fix for the first server's cause:</p>
+<table>
+<thead>
+<tr>
+<th>Cause</th>
+<th>The error says</th>
+<th>Fix line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nothing listens on the port</td>
+<td><code>&lt;address&gt; refused the connection</code></td>
+<td><code>set system authentication tacacs server &lt;ip&gt; port &lt;the port the server listens on&gt;</code></td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td><code>&lt;address&gt; did not answer in time</code></td>
+<td><code>show ping &lt;ip&gt;</code></td>
+</tr>
+<tr>
+<td>Wrong shared secret</td>
+<td><code>&lt;address&gt; sent a reply that does not decode with the configured key</code></td>
+<td><code>set system authentication tacacs server &lt;ip&gt; key &lt;the server's shared secret&gt;</code></td>
+</tr>
+<tr>
+<td>Any other error</td>
+<td><code>&lt;address&gt; failed (&lt;the error&gt;)</code></td>
+<td><code>ze doctor</code></td>
+</tr>
+</tbody>
+</table>
+<p>The error never shows either secret. For example, with one server whose key
+differs from the server's:</p>
+<pre><code>no TACACS+ server answered the authentication request
+Ze tried each configured server in order, and each one failed: 192.0.2.1:49 sent a reply that does not decode with the configured key
+fix: set system authentication tacacs server 192.0.2.1 key &lt;the server's shared secret&gt;
+</code></pre>
 <p><code>TestTacPlusNGInterop</code> (<code>internal/component/tacacs</code>, build tag <code>docker</code>, run by
 <code>./le test integration docker-peers</code>) checks these outcomes against
 tac_plus-ng: a PAP login and its priv-lvl mapping, a wrong password, a wrong
@@ -272,7 +310,7 @@ shared secret, command authorization in both directions, and an accounting
 START.</p>
 <!-- source: internal/component/tacacs/tacplusng_docker_test.go -- TestTacPlusNGInterop -->
 <!-- source: internal/component/tacacs/reply.go -- validateReplyBody, ErrBadSecret -->
-<!-- source: internal/component/tacacs/client.go -- sendToServers -->
+<!-- source: internal/component/tacacs/client.go -- sendToServers, allServersFailed, serverFailure -->
 <p>The web login fallback follows the same terminal-rejection rule for ordinary
 local accounts. The separate ZeFS super-admin remains a recovery path through
 its reserved local profile; assigning a normal <code>admin</code> profile does not grant
@@ -523,6 +561,10 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -552,7 +594,7 @@ Local summary: <code>rfc/short/rfc8907.md</code>.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 28 October 2026 02:50 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

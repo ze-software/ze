@@ -351,6 +351,26 @@ block removes its terms; the table goes with the last GTSM peer. The full list o
 <!-- source: internal/component/gtsm/gtsm.go -- FilterTables, peerTerms -->
 <h3 id="table-families">Table Families</h3>
 <p><code>inet</code> (dual-stack), <code>ip</code>, <code>ip6</code>, <code>arp</code>, <code>bridge</code>, <code>netdev</code>.</p>
+<p>A table of family <code>arp</code> sees the ARP header where the other families see the
+IP header, so a match that reads the IP header or the transport header behind
+it is refused there at verify: <code>source-address</code>, <code>destination-address</code>,
+<code>source-port</code>, <code>destination-port</code>, <code>protocol</code>, <code>connection-state</code>,
+<code>connection-mark</code>, <code>tcp-flags</code>, a named-set match, and the IRR and
+domain-group leaves. The error names the leaf and says "family arp carries no
+IP header"; move the term to a table of family <code>ip</code>, <code>ip6</code> or <code>inet</code>.
+<code>icmp-type</code>, <code>icmpv6-type</code> and <code>dscp</code> keep their own family refusals.</p>
+<!-- source: internal/component/firewall/validate.go -- validateMatch, ipHeaderMatchLeaf -->
+<p>A table name a feature installs is reserved for that feature, in every
+family, whether or not the feature is configured. A table of yours whose
+kernel name (<code>ze_</code> + its name) is one of them, such as <code>vrrp</code>,
+<code>vrrp_owner_arp</code>, <code>vrrp_owner_nd</code>, <code>copp</code> or <code>iface_rpf</code>, is refused at
+verify with the owner that holds it: two owners in one kernel table would
+overwrite each other's chains. Rename the table. The reserved set depends on the
+features your build includes, because a feature compiled out of the build
+reserves nothing. The reserved names are listed in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/firewall/table-ownership-and-shutdown-flush.md" target="_blank" rel="noopener">table ownership</a>,
+Rule 2.</p>
+<!-- source: internal/component/firewall/reservation.go -- refuseReservedTableNames -->
 <h3 id="chain-types">Chain Types</h3>
 <p><code>filter</code>, <code>nat</code>, <code>route</code>.</p>
 <h3 id="hooks">Hooks</h3>
@@ -477,6 +497,31 @@ is a name every backend can program.</p>
 </tr>
 </tbody>
 </table>
+<p>On a host that runs IPsec, a rule on <code>esp</code> keeps deciding on the peer's bare
+ESP. On a Child SA whose inbound state is UDP-encapsulated, Ze's ESP form fast
+path adds a UDP header to a whole bare ESP datagram at tc ingress, which Linux
+runs before every firewall hook, so a rewritten datagram would pass the rule as
+UDP to port 4500. The fast path therefore rewrites only while no nftables rule
+or chain policy on the input path (an <code>ingress</code>, <code>prerouting</code> or <code>input</code> base
+chain) could drop the peer's ESP. A term that drops or rejects <code>protocol esp</code>
+there, or a chain with <code>policy drop</code> that ESP reaches without an accept,
+keeps the fast path off: bare ESP reaches the rule as ESP, and what the rule
+lets through goes to the complete path, which is bounded to 5000 datagrams per
+second and arrives on <code>ze-espform</code>. <code>show doctor</code> reports it as
+<code>doctor-ipsec-esp-form-firewall</code>, naming the table, chain and term. To keep the
+fast path, accept <code>protocol esp</code> in a term ahead of the one that could drop it.
+Ze reads only the nftables ruleset, and learns of another program's commit only
+after it lands, so other filters and other programs have limits of their own.
+The known ones are rules loaded with iptables-legacy or with
+ebtables-legacy, BPF programs attached to a netfilter hook, tc programs Ze did
+not install, <code>ip rule</code> entries that select on <code>ipproto esp</code>, and commits from
+other programs: <a href="../ipsec/#both-esp-wire-forms">Both ESP wire forms</a> lists each,
+with its fix. That list holds the limits known today, not every kind of filter
+a Linux host can run.</p>
+<!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, espFormBaseChains -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_gate_linux.go -- publishFirewall -->
+<!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormFirewallBlocked -->
+<!-- source: internal/component/ike/dataplane/espform_program_linux.go -- espFormFastPathIPv4 -->
 <p>A protocol outside this set is refused where it enters. The config editor
 refuses it at commit; a FlowSpec route that names one is refused at translation,
 counted, and logged with the protocol number and the route key. Ze does not
@@ -1308,6 +1353,10 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -1337,7 +1386,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

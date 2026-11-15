@@ -81,7 +81,7 @@ IS-IS meshes with BGP in **both** directions, matching the vendor IGP-BGP mutual
 
 OSPFv2 meshes with BGP in both directions like IS-IS, exports OSPF routes into BGP, and injects connected/static/BGP routes as Type 5 AS-External LSAs. Ze also implements stub, totally-stubby, and NSSA areas (RFC 3101) with Type 7 origination, translator election, and Type 7 to Type 5 translation. The RFC 3101 §2.4 border-router default is originated into every attached NSSA in both address families with no operator leaf, and the same install-side gates on a received Type 7 default (P-bit clear, summary import suppressed) apply to both; FRR gates the same origination on `default-information-originate`. Per-interface authentication covers simple password, keyed-MD5 (RFC 2328), HMAC-SHA (RFC 5709), and the RFC 7474 extended-sequence variant, with key chains for hitless rotation and sequence-number replay protection.
 
-## Policy & Route Manipulation
+## Policy &amp; Route Manipulation
 
 Ze uses plugin filters to manipulate routes in ordered import and export policies. Each direction lists named filter instances or explicit `<plugin>:<filter>` references under `filters` and requires `final accept;` or `final reject;`.
 
@@ -136,7 +136,7 @@ An `accept` response continues the chain, and a `reject` response drops the rout
 | TACACS+ AAA (RFC 8907) | Yes | No | No | Yes | No | No | No | No | No | No | Yes |
 | Memory-safe language | Yes | No | No | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
 
-## Monitoring & Observability
+## Monitoring &amp; Observability
 
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -159,9 +159,9 @@ An `accept` response continues the chain, and a `reject` response drops the rout
 
 Most BGP daemons expose operational issues through a mix of per-command output rather than a single aggregated view. Ze provides a cross-subsystem report bus: any subsystem can push warnings (state-based) or errors (event-based) onto a single place, and `ze show warnings` / `ze show errors` return the aggregate as structured JSON. The login banner reads the same source, so nothing is silently hidden.
 
-SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose legacy AgentX/MIB agents, but Ze's operational surface (Prometheus, gNMI, gRPC, structured JSON events) already covers what those MIBs would carry, without maintaining a second protocol stack to do it.
+SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose legacy AgentX/MIB agents, but Ze's monitoring interfaces (Prometheus, gNMI, gRPC, structured JSON events) already cover what those MIBs would carry, without maintaining a second protocol stack to do it.
 
-## API & Programmability
+## API &amp; Programmability
 
 | Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -169,7 +169,7 @@ SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose legacy Age
 | gRPC API | Yes | No | No | Partial | No | Yes | Yes | No | Yes | Yes | No |
 | REST API | Yes | No | No | Partial | No | No | No | No | No | Partial | No |
 | YANG model | Yes | No | No | Partial | No | No | No | No | No | No | No |
-| Register-once operator surfaces | Yes | No | No | Partial | No | No | No | No | No | No | Partial |
+| Shared definitions for management interfaces | Yes | No | No | Partial | No | No | No | No | No | No | Partial |
 | CLI tool | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Yes |
 | CLI JSON output | Yes | No | No | Yes | Yes | Yes | No | Yes | No | Yes | No |
 | Runtime route injection | Yes | No | No | No | No | Yes | No | Yes | Yes | Yes | Yes |
@@ -180,7 +180,7 @@ SNMP is a deliberate non-goal, not a gap: FRR and freeRtr both expose legacy Age
 | MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
 | SSH CLI access | Yes | No | No | No | No | No | No | No | No | No | Yes |
 
-Ze's register-once row means a command, config node, plugin, RPC, or event can feed the CLI, web workbench, REST/gRPC, MCP, generated docs, completion, authorization, and audit paths. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but not the same all-surface pipeline in the inspected sources.
+The shared-definitions row describes how a command, configuration node, plugin, RPC, or event can be defined once and used by the CLI, web interface, REST/gRPC, MCP, generated docs, completion, authorization, and audit. FRR has partial YANG/API evidence. freeRtr has integrated CLI, NETCONF, and help generation, but the inspected sources did not show shared definitions supplying all of those interfaces as they do in Ze.
 
 ## Operations
 
@@ -308,7 +308,7 @@ It is also pre-release, with a first release planned for 2026. It sits beside im
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by 42,800+ Go test functions, 2,800+ end-to-end tests, 97 fuzz targets, and 13 interoperability test images covering routing and network services. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
+Do not take that on faith: it is backed by 45,600+ Go test functions, 2,900+ end-to-end tests, 100+ fuzz targets, and 13 test images in the main shared suite’s recorded set. That set covers routing and network services; other labs and tools use additional images, including pmacct. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 

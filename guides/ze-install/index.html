@@ -47,10 +47,12 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="installation">Installation</h1>
-    <p>Ze provides commands for local installation, remote PXE provisioning, and appliance ISO installer media.</p>
+    <p>Choose a deployment path for the environment you want to evaluate. Ze is
+pre-release software; start with an isolated lab.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#choose-a-deployment-path">Choose a deployment path</a></li>
 <li><a href="#local-installation">Local Installation</a>
 <ol>
 <li><a href="#quick-start">Quick Start</a></li>
@@ -58,6 +60,7 @@
 <li><a href="#what-it-does">What It Does</a></li>
 <li><a href="#systemd-service">Systemd Service</a></li>
 </ol></li>
+<li><a href="#upgrading">Upgrading</a></li>
 <li><a href="#uninstalling">Uninstalling</a>
 <ol>
 <li><a href="#flags_1">Flags</a></li>
@@ -109,21 +112,98 @@
 <li><a href="#qemu-networking-note">QEMU Networking Note</a></li>
 </ol></li>
 </ol></details></nav><div class="doc-body">
+<h2 id="choose-a-deployment-path">Choose a deployment path</h2>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Guide</th>
+<th>Success check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exchange routes on one Linux host</td>
+<td><a href="../quickstart/#local-two-peer-lab">Two-peer quickstart</a></td>
+<td>Both peers establish and each received RIB contains the other peer's prefix. This checks the control plane.</td>
+</tr>
+<tr>
+<td>Run a Linux service</td>
+<td><a href="#local-installation">Local installation</a> and <a href="../ubuntu-build-install/">build prerequisites</a></td>
+<td>The service is active, authenticated management connects, and repeat installation retains configuration and credentials.</td>
+</tr>
+<tr>
+<td>Run a daemon in Docker</td>
+<td><a href="../docker/">Docker Compose</a></td>
+<td>A committed configuration change and the same login survive container recreation on the same named volume.</td>
+</tr>
+<tr>
+<td>Install a VM or dedicated router</td>
+<td><a href="../appliance/#build-an-image">Appliance build</a> and <a href="#appliance-iso-install">ISO installation</a></td>
+<td>After removing installer media, the written disk boots and authenticated SSH reports the selected image.</td>
+</tr>
+<tr>
+<td>Run a protocol topology</td>
+<td><a href="../netlab/">netlab and containerlab</a></td>
+<td>The <a href="../../labs/netlab/">live check</a> passes adjacencies, kernel routes, traffic between all three nodes and teardown. It last passed on arm64 on 2026-11-14.</td>
+</tr>
+</tbody>
+</table>
+<!-- source: examples/quickstart/r1.conf -- local lab endpoints and originated prefix -->
+<!-- source: examples/quickstart/r2.conf -- local lab endpoints and originated prefix -->
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: docker/compose.yaml -- named volume and bare start -->
+<!-- source: internal/le/test/qemu/install_iso.go -- executeISO -->
+<!-- source: internal/le/test/netlab/live.go -- RunLive -->
+<p>Completed deployment checks covered native systemd installation and removal,
+two-peer route exchange, and container configuration retention after recreation.
+The container check used a prepared runtime image without verified source
+identity. A separate private preview run prepared and checked Linux amd64 and
+arm64 binaries and archives, plus amd64 deployment and lab container exports,
+with source identity and checksums. That artifact check does not extend the
+container recreation proof to those images. See <a href="https://github.com/ze-software/ze/blob/main/docs/contributing/preview-artifacts.md" target="_blank" rel="noopener">preview preparation</a>;
+these pages do not provide a public release download.</p>
+<!-- source: internal/test/fixture/register_native_install.go -- nativeInstallLifecycle -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.installSelected, nativeService.Uninstall -->
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
+<!-- source: internal/test/fixture/deployment_quickstart.go -- deploymentQuickstart -->
+<!-- source: docker/compose.yaml -- named volume and bare start -->
+<!-- source: docker/Dockerfile.runtime -- prepared runtime images -->
+<!-- source: internal/le/build/preview/preview.go -- prepare -->
+<p>The appliance installation and update checks passed on amd64 with KVM. They
+covered selected-disk installation, preservation of an extra disk, installed-disk
+SSH access, and an image update followed by recovery to the previous root slot.
+Configuration and login survived the update and recovery. Arm64 boot and physical
+hardware installation remain unverified by these checks. See
+<a href="../appliance/#updating">appliance updates</a> for retention and recovery checks.</p>
+<!-- source: internal/le/test/qemu/install_iso.go -- executeISO -->
+<!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
+<p>Once <code>ze</code> is installed, <code>ze create agent skill</code> sets Claude Code or Codex up
+to test it: see <a href="../ai-agent/">Use Ze with an AI agent</a>.</p>
+<!-- source: internal/plugins/skills/agent_skill.go -- harnesses, localRun -->
 <h2 id="local-installation">Local Installation</h2>
-<p><code>ze install local</code> copies the ze binary to a standard system location
-and creates the config directory.</p>
+<p>Run <code>ze install</code> for the complete Linux installation. It installs the running
+binary, initializes absent state, and starts the service when systemd is
+available. Existing configuration and credentials are preserved.</p>
+<!-- source: internal/plugins/local/native.go -- RunNativeInstall, nativeRuntime.install -->
 <h3 id="quick-start">Quick Start</h3>
-<pre><code class="language-bash">sudo ze install local
+<pre><code class="language-bash">sudo ze install
 </code></pre>
-<p>This presents an interactive menu to select the installation prefix:</p>
-<pre><code>Select installation prefix:
-  1) /usr/local  (recommended)
-  2) /usr  (system)
-  3) /opt/ze  (self-contained)
-Choice [1]:
-</code></pre>
-<p>Use <code>--prefix</code> for non-interactive use:</p>
-<pre><code class="language-bash">sudo ze install local --prefix /usr/local
+<p>Build the command with the <a href="../ubuntu-build-install/">Linux installation guide</a>,
+or use a privately supplied <a href="https://github.com/ze-software/ze/blob/main/docs/contributing/preview-artifacts.md" target="_blank" rel="noopener">preview bundle</a>.
+From a built source checkout or extracted preview, use <code>sudo ./ze install</code>.
+The default installed binary is
+<code>/usr/local/bin/ze</code> and its private state is <code>/etc/ze</code>. A fresh installation asks
+for management credentials and creates a loopback-only SSH configuration. It
+does not configure the host's interfaces. Follow the connection command printed
+by the installer, then run <code>ze doctor</code> and inspect the service with
+<code>systemctl status ze.service</code>.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, selectNativeTarget -->
+<!-- source: internal/plugins/init/main.go -- runInstallInit -->
+<p>Choose a prefix or foreground operation explicitly:</p>
+<pre><code class="language-bash">sudo ze install --prefix /opt/ze
+sudo ze install --no-service
+sudo ze install --dry-run
 </code></pre>
 <h3 id="flags">Flags</h3>
 <table>
@@ -137,8 +217,13 @@ Choice [1]:
 <tbody>
 <tr>
 <td><code>--prefix</code></td>
-<td>interactive</td>
+<td><code>/usr/local</code></td>
 <td>Installation prefix (binary goes to <code>&lt;prefix&gt;/bin/ze</code>)</td>
+</tr>
+<tr>
+<td><code>--no-service</code></td>
+<td></td>
+<td>Install for foreground operation without a service</td>
 </tr>
 <tr>
 <td><code>--dry-run</code></td>
@@ -147,11 +232,19 @@ Choice [1]:
 </tr>
 </tbody>
 </table>
+<p>Without systemd, installation prints the foreground start command. Repeat
+<code>ze install</code> to replace the binary while keeping state and compatible service
+customizations. Conflicting paths or service definitions are refused before
+binary replacement. See <a href="#upgrading">Upgrading</a> for the steps and checks, and
+<a href="../operations/">Operations</a> for upgrades and recovery.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, nativeRuntime.selectedService, nativeTarget.preflight -->
 <h3 id="what-it-does">What It Does</h3>
 <ol>
-<li>Copies the running ze binary to <code>&lt;prefix&gt;/bin/ze</code></li>
-<li>Creates the config directory when it is absent, preserving any existing store</li>
+<li>Checks the selected paths and service before changing the installation.</li>
+<li>Initializes the private store only when it is absent.</li>
+<li>Installs the binary and starts the systemd service when available.</li>
 </ol>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
 <p>The config directory is resolved from the binary path following GNU prefix
 conventions:</p>
 <table>
@@ -176,10 +269,17 @@ conventions:</p>
 </tr>
 </tbody>
 </table>
-<p>After installation, run <code>ze init</code> to bootstrap the database.</p>
+<p>The installer creates a missing config parent with mode <code>0755</code>, so the service
+account can traverse it after ownership of the private <code>0700</code> config directory
+transfers. Existing parent permissions are preserved.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<p>The explicit <code>ze install local</code> command remains available for a binary-only
+installation. That lower-level path requires <code>ze init</code> and service setup as
+separate steps.</p>
+<!-- source: internal/plugins/local/cmd_install.go -- cmdInstall -->
 <h3 id="systemd-service">Systemd Service</h3>
-<p>After installing the binary and bootstrapping the database, use
-<code>ze install systemd</code> to set up the systemd service:</p>
+<p>The default <code>ze install</code> command handles systemd setup. For an existing manual
+installation, <code>ze install systemd</code> remains available:</p>
 <pre><code class="language-bash">sudo ze install local --prefix /usr/local
 sudo ze init
 sudo ze install systemd --start
@@ -206,8 +306,10 @@ LimitMEMLOCK=infinity
 WorkingDirectory=&lt;config-dir&gt;
 Environment=ZE_CONFIG_DIR=&lt;config-dir&gt;
 Environment=XDG_RUNTIME_DIR=/run/ze
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE CAP_BPF
+# Host tuning may need CAP_SYS_NICE. Future VRF/netns support may need CAP_SYS_ADMIN.
+# Add those capabilities only when the configured feature requires them.
 NoNewPrivileges=true
 ProtectSystem=true
 ProtectHome=true
@@ -216,6 +318,11 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 </code></pre>
+<p><code>CAP_BPF</code> lets ze load the eBPF programs of the IPsec ESP form fast path, the
+IPsec application override guard and traffic-usage; without it the kernel
+refuses each load, so a unit written by an older ze is rewritten with
+<code>sudo ze install systemd --force</code> while the daemon is stopped.</p>
+<!-- source: internal/plugins/systemd/unit.go -- capabilities -->
 <p><code>TimeoutStopSec=90</code> and <code>KillMode=mixed</code> serve the stop drain. On a stop, ze
 first drains its routing protocols for up to 60 s, then tears down for up to
 30 s, so systemd waits 90 s before its SIGKILL. <code>mixed</code> sends the stop SIGTERM
@@ -251,16 +358,103 @@ service after enabling it.</p>
 <p>The systemd unit sets <code>XDG_RUNTIME_DIR=/run/ze</code>, so the daemon socket is
 <code>/run/ze/ze.socket</code>. For local operator CLI access, configure
 <code>daemon { socket "/run/ze/ze.socket"; }</code> or export <code>XDG_RUNTIME_DIR=/run/ze</code>.</p>
+<h2 id="upgrading">Upgrading</h2>
+<p>To upgrade, run the install command of the new build over the existing
+installation. Use the same prefix. From the new build's checkout or extracted
+preview:</p>
+<pre><code class="language-bash">sudo ./ze install
+# For an installation under another prefix:
+sudo ./ze install --prefix /opt/ze
+</code></pre>
+<p>The installer finds the existing store and keeps it. Configuration and
+credentials stay, and the first-time setup does not run again. A running
+<code>ze.service</code> stops. The new binary is written to a temporary file beside the old
+one and renamed into place while the store's maintenance lock is held. Then the
+service starts again. An inactive service stays inactive. If a step fails, the
+installer puts the previous binary back and starts the service again if it was
+running.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
+<!-- source: internal/plugins/local/cmd_install.go -- copyInstalledBytes -->
+<!-- source: internal/plugins/local/native_replace.go -- nativeRuntime.recoverInstall -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Stop, nativeService.installSelected -->
+<p>The installer checks the selected paths before it changes anything. It refuses
+and changes nothing in these cases:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>The message says</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A component of the binary or configuration path is a symbolic link</td>
+<td><code>selected path &lt;path&gt; is a symbolic link; select a real installation path</code></td>
+</tr>
+<tr>
+<td>The binary path is not a regular file, or the configuration path is not a directory</td>
+<td><code>... is not a regular file</code> or <code>... is not a directory; select a real installation path</code></td>
+</tr>
+<tr>
+<td>A <code>ze init --from</code> import did not finish</td>
+<td><code>existing import artifact &lt;path&gt; requires recovery; complete ze init --from before installing</code></td>
+</tr>
+<tr>
+<td>The store is not a private directory</td>
+<td><code>store &lt;path&gt; is not private; restore its mode to 0700 before installing</code></td>
+</tr>
+<tr>
+<td>A distribution package owns the binary or <code>/etc/ze</code></td>
+<td><code>package-managed installation marker &lt;path&gt; exists; use its package manager to upgrade or remove Ze</code></td>
+</tr>
+<tr>
+<td>The command runs without root while a service is in use</td>
+<td><code>service installation requires root; run sudo ze install or use --no-service with a writable --prefix</code></td>
+</tr>
+<tr>
+<td><code>ze.service</code> is masked, differs from the policy systemd loaded, or another service definition supplies Ze</td>
+<td>the problem and the <code>systemctl cat</code>, <code>systemctl show</code> or <code>systemctl daemon-reload</code> command to run</td>
+</tr>
+</tbody>
+</table>
+<p>Each refusal starts with <code>Ze install did not finish</code> and names the <code>ze doctor</code>
+command for the selected configuration directory.</p>
+<!-- source: internal/plugins/local/native.go -- nativeTarget.preflight, nativePath, packageOwnership, packageMarkerOwnership, nativeRuntime.refuse -->
+<!-- source: internal/plugins/systemd/native.go -- nativeService.Preflight, nativeService.compatibleUnit -->
+<p>After the upgrade, confirm the new release and the same login:</p>
+<pre><code class="language-bash">/usr/local/bin/ze show version
+systemctl status ze.service --no-pager
+ssh -p 2222 YOUR_USERNAME@127.0.0.1
+</code></pre>
+<p><code>show version</code> answers without the daemon and prints <code>ze &lt;release&gt; (built &lt;date&gt;)</code>.
+It must name the new release. Log in with the same username and password as
+before the upgrade.</p>
+<!-- source: test/ui/native-install-upgrade.ci -- changed-version upgrade keeps configuration and login -->
+<!-- source: internal/test/fixture/register_native_install_upgrade.go -- nativeInstalledRelease, nativeReportsUpgrade -->
+<p>Keep the previous build before you upgrade. To go back, run its install command
+the same way. For configuration rollback and the checks before and after a
+software change, see <a href="../lifecycle/#software-updates">Lifecycle</a>.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install -->
 <h2 id="uninstalling">Uninstalling</h2>
-<p><code>ze uninstall systemd</code> removes the systemd service; <code>ze uninstall local</code>
-removes the binary and optionally the config directory. Always remove the
-service before the binary, so nothing is left running (or trying to restart)
-a binary that is gone.</p>
-<pre><code class="language-bash">ze uninstall systemd            # stop, disable, and remove the systemd unit
-ze uninstall systemd --purge    # also remove the ze user and group
-ze uninstall local              # remove binary
-ze uninstall local --purge      # also remove config directory and database
-ze uninstall local --dry-run    # preview what would be removed
+<p>Run <code>ze uninstall</code> to stop and remove the service before removing its binary.
+A stop failure leaves the binary installed. Ordinary removal preserves private
+state, credentials and the service account. Use <code>--purge</code> only when the selected
+installation's state should also be removed.
+The default <code>/usr/local</code> prefix shares <code>/etc/ze</code> with distribution packages.
+Standalone installation and purge refuse while a package owns that shared
+state, including with <code>--no-service</code>. Remove a packaged installation with its
+package manager. A custom prefix has its own state directory and can be
+installed or purged independently.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.install, packageStateOwnership -->
+<pre><code class="language-bash">sudo ze uninstall --dry-run
+sudo ze uninstall
+</code></pre>
+<p>Choose a matching alternative instead of the ordinary removal above when the
+installation uses another prefix or its state must also be removed:</p>
+<pre><code class="language-bash">sudo /opt/ze/bin/ze uninstall --prefix /opt/ze
+# Or, for the default prefix with all selected installation state removed:
+sudo ze uninstall --purge
 </code></pre>
 <h3 id="flags_1">Flags</h3>
 <table>
@@ -274,8 +468,13 @@ ze uninstall local --dry-run    # preview what would be removed
 <tbody>
 <tr>
 <td><code>--prefix</code></td>
-<td>detect from running binary</td>
-<td>Installation prefix</td>
+<td><code>/usr/local</code></td>
+<td>Select the installation prefix</td>
+</tr>
+<tr>
+<td><code>--no-service</code></td>
+<td></td>
+<td>Remove a foreground installation without a service</td>
 </tr>
 <tr>
 <td><code>--purge</code></td>
@@ -296,6 +495,16 @@ ze uninstall local --dry-run    # preview what would be removed
 </table>
 <p>Without <code>--yes</code>, uninstall shows what will be removed and asks for
 confirmation before proceeding.</p>
+<!-- source: internal/plugins/local/native.go -- nativeRuntime.uninstall -->
+<p>The lower-level <code>ze uninstall systemd</code> and <code>ze uninstall local</code> commands remain
+available for manual installations. Use the service command first. Unlike the
+default removal, <code>ze uninstall systemd --purge</code> also removes the service account.
+<code>ze uninstall local --purge</code> also refuses to delete shared package-owned state,
+even when the selected standalone binary is absent. Ordinary local removal
+retains that state.</p>
+<!-- source: internal/plugins/systemd/cmd_uninstall.go -- serviceRuntime.cmdUninstall -->
+<!-- source: internal/plugins/local/cmd_uninstall.go -- cmdUninstall -->
+<!-- source: internal/plugins/local/native.go -- packageStateOwnership -->
 <p>To check the service status, use <code>systemctl status ze.service</code> directly.</p>
 <h2 id="installing-on-real-hardware-end-to-end">Installing on Real Hardware (End to End)</h2>
 <p>This bare-metal PXE walkthrough follows the same chain as
@@ -304,16 +513,24 @@ and initrd, write the disk, then log in over SSH. The reference sections below
 describe each piece.</p>
 <h3 id="1-build-the-disk-image">1. Build the disk image</h3>
 <p>Use the structured appliance builder (full reference:
-<a href="../appliance/">appliance guide</a>, "ze appliance"):</p>
-<pre><code class="language-bash">ze appliance init prod
+<a href="../appliance/">appliance guide</a>, "./ze-host appliance"):</p>
+<pre><code class="language-bash">./le build host-driver
+GOROOT="$(./le go stdpatch goroot)"
+export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+./ze-host appliance init prod
 # For real hardware: set image.kernel-profile to "hardware" and
 # image.arch to match the target CPU in appliance.json before build.
 # The build runs under Ze's patched Go tree (see below).
-GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
-ze appliance build prod
+./ze-host appliance build prod
 </code></pre>
+<p>Run these build-host commands from the source checkout after installing Go and
+Git. <code>./ze-host</code> contains <code>appliance</code> and <code>install remote</code>; the normal <code>./ze</code>
+launcher builds the daemon and does not contain the appliance builder. Keep the
+patched environment above for the remaining image-build steps.</p>
+<!-- source: internal/le/build/compile/build.go -- HostTags, HostBinary, hostPlan -->
+<!-- source: cmd/ze/setup_features_setup.go -- appliance and provisioning imports -->
 <p>The image's ze compiles only against Ze's patched standard library, so
-<code>ze appliance build</code> refuses unless its environment selects the patched
+<code>./ze-host appliance build</code> refuses unless its environment selects the patched
 GOROOT: the line before it sets <code>GOROOT</code>, <code>GOTOOLCHAIN=local</code> and the tree's
 <code>bin</code> first on <code>PATH</code>. Why, and every other build route:
 <a href="https://github.com/ze-software/ze/blob/main/docs/contributing/patching-the-standard-library.md" target="_blank" rel="noopener">patching the standard library</a>.</p>
@@ -323,22 +540,29 @@ credentials, and a seed config baked into <code>/perm/ze/database.zefs</code>. M
 <h3 id="2-build-the-installer-kernel-and-initrd">2. Build the installer kernel and initrd</h3>
 <p>The target PXE-boots a kernel + initrd, <em>not</em> the disk image. Build both for the
 target architecture:</p>
-<pre><code class="language-bash">ze appliance kernel prod                     # reads arch + profile from appliance.json
-ze appliance initrd                          # build/initrd/initrd.img.gz (pure Go)
+<pre><code class="language-bash">./ze-host appliance kernel prod                     # reads arch + profile from appliance.json
+./ze-host appliance initrd                          # build/initrd/initrd.img.gz (pure Go)
 </code></pre>
 <p>Choose the profile and architecture through the native command:</p>
-<pre><code class="language-bash">ze appliance kernel --profile hardware --arch amd64 prod
-ze appliance kernel --profile hardware --arch arm64 prod
-ze appliance initrd
+<pre><code class="language-bash">./ze-host appliance kernel --profile hardware --arch amd64 prod
+./ze-host appliance kernel --profile hardware --arch arm64 prod
+./ze-host appliance initrd
 </code></pre>
-<p>The <code>PROFILE</code> selects the driver set: <code>qemu</code> (default, virtio only) or
+<p>The installer <code>PROFILE</code> selects added driver requests: <code>qemu</code> (default, virtio) or
 <code>hardware</code> (EFI stub, framebuffer, Intel/Realtek/Broadcom/Mellanox NICs,
 AHCI, NVMe). A stock distro kernel will <strong>not</strong> boot the module-free initrd;
 see <a href="#installer-kernel">Installer Kernel</a>.</p>
+<p><code>image.kernel-profile</code> selects this installer profile, not the running appliance
+kernel. Runtime images currently use the shared <code>runtime</code> profile with both
+physical and virtual drivers. Both builders start from Linux <code>defconfig</code>, so a
+profile fragment is not an exhaustive list of the drivers in the result.</p>
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<!-- source: internal/appliance/runtimekernel.go -- RuntimeKernelTree -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <h3 id="3-start-the-provisioning-server">3. Start the provisioning server</h3>
 <p>On a ze device on the (isolated) provisioning network:</p>
 <!-- source: internal/plugins/provision/main.go -- Run -->
-<pre><code class="language-bash">sudo ze install remote \
+<pre><code class="language-bash">sudo ./ze-host install remote \
   --interface eth0 \
   --network 192.168.50.0/24 \
   --image ~/.config/ze/appliances/prod/ze-&lt;timestamp&gt;.img \
@@ -408,26 +632,40 @@ pass <code>ze.port=</code> in the iPXE cmdline.</li>
 reports a broken image, kernel, or initrd before hardware is touched.</li>
 </ul>
 <h2 id="appliance-iso-install">Appliance ISO Install</h2>
-<p>For appliances built with <code>ze appliance build</code>, ISO media is an offline
+<p>For appliances built with <code>./ze-host appliance build</code>, ISO media is an offline
 install transport for the gokrazy image. The image is gzip-compressed inside the
 ISO; the installer initrd decompresses it during installation. Create it with:</p>
 <!-- source: internal/appliance/cmd_iso.go -- runIso -->
-<pre><code class="language-bash">GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
-ze appliance build prod                       # under the patched Go tree, see "Build the disk image"
-ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
-ze appliance initrd                           # download or build installer initrd
-ze appliance iso prod
+<pre><code class="language-bash">./le build host-driver
+GOROOT="$(./le go stdpatch goroot)" &amp;&amp; export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
+./ze-host appliance build prod                       # under the patched Go tree, see "Build the disk image"
+./ze-host appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
+./ze-host appliance initrd                           # download or build installer initrd
+./ze-host appliance iso prod
 </code></pre>
-<p>Use <code>ze appliance iso --check</code> to verify all prerequisites (kernel, initrd,
-grub, xorriso) are available before building. The <code>kernel</code> and <code>initrd</code> commands
+<p>Use <code>./ze-host appliance iso --check prod</code> to check the named appliance's prerequisites
+before building. This checks the GRUB EFI modules for its target architecture,
+as well as the executable, kernel, initrd and xorriso. Omitting the name checks
+the host architecture. On Debian or Ubuntu, install <code>grub-efi-amd64-bin</code> for
+amd64 EFI modules or <code>grub-efi-arm64-bin</code> for arm64 EFI modules.</p>
+<!-- source: internal/appliance/cmd_iso.go -- runIso, checkISOPrerequisites -->
+<!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
+<p>The <code>kernel</code> and <code>initrd</code> commands
 download pre-built artifacts when configured, then fall back to the native
 local QEMU or Docker kernel builder and the Go initrd builder. Cached artifacts
 are stored under <code>$XDG_CACHE_HOME/ze/</code>.</p>
-<p>For arm64 targets (the kernel version is single-sourced in
+<p>The installer searches optical and removable media for its matching ISO.
+Optical devices can supply the image but cannot be selected as the disk to
+overwrite. On completion, the installer powers off; remove the installation
+media before booting the written disk.</p>
+<!-- source: internal/install/disk/iso.go -- findISOMedia, isISOMediaDisk -->
+<!-- source: internal/install/disk/run.go -- runISO -->
+<p>For arm64 targets, run on an arm64 build host and set <code>image.arch</code> to <code>arm64</code>
+in the named appliance's config first. The kernel version is single-sourced in
 <code>internal/appliance/kernel.version</code>; <code>--version</code> only overrides it and must be a
-kernel &gt;= 7):</p>
-<pre><code class="language-bash">ze appliance kernel --arch arm64
-ze appliance iso --kernel build/kernel/Image prod
+kernel &gt;= 7:</p>
+<pre><code class="language-bash">./ze-host appliance kernel --profile hardware --arch arm64 prod
+./ze-host appliance iso --kernel build/kernel/Image prod
 </code></pre>
 <p>The ISO installer decompresses and writes the embedded image to the target disk.
 Unlike PXE provisioning, it does not download <code>/install/database.zefs</code> or write a
@@ -446,7 +684,7 @@ whole-disk target. The initrd rejects ambiguous implicit disk selection in ISO
 mode, excludes the ISO source media from target candidates, and requires a
 builder-generated media id match before it trusts a mounted installer volume.</p>
 <!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- find ISO media -->
-<pre><code class="language-bash">ze appliance iso --target /dev/vda prod
+<pre><code class="language-bash">./ze-host appliance iso --target /dev/vda prod
 </code></pre>
 <p>The generated ISO includes the installer kernel, initrd, the selected image,
 its checksum, and metadata. It contains the full provisioned appliance image, so
@@ -463,10 +701,11 @@ present.</p>
 <!-- source: internal/install/disk/run.go -- runISO -->
 <!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 <h2 id="remote-provisioning-pxe">Remote Provisioning (PXE)</h2>
-<p><code>ze install remote</code> is a one-command provisioning server that PXE-boots
+<p><code>./ze-host install remote</code> is a one-command provisioning server that PXE-boots
 target machines with a gokrazy image containing ze.</p>
 <blockquote>
-<p><strong>Warning: the provisioning network MUST be isolated.</strong> Run <code>ze install remote</code> only on a dedicated segment with no other DHCP server. On a shared
+<p><strong>Warning: the provisioning network MUST be isolated.</strong> Run
+<code>./ze-host install remote</code> only on a dedicated segment with no other DHCP server. On a shared
 network a foreign DHCP server (for example a corporate one) can win the
 boot-time race and hand the target a lease with no route back to <code>ze.server</code>;
 the installer then probes an unreachable server until <code>ze.wait</code> expires and
@@ -477,8 +716,8 @@ the same L2 segment is unsupported and can still break provisioning.</p>
 </blockquote>
 <h3 id="how-it-works">How It Works</h3>
 <ol>
-<li>The operator runs <code>ze install remote</code> on an existing ze device connected
-to the provisioning network.</li>
+<li>The operator runs <code>sudo ./ze-host install remote</code> on a Linux provisioning
+host connected to the provisioning network.</li>
 <li>Ze generates a config enabling DHCP (with PXE extensions), TFTP, and
 an HTTP image server, then forks itself (<code>ze -</code>) with the config piped
 to stdin.</li>
@@ -491,7 +730,7 @@ enables DHCP client on each ethernet NIC, and starts SSH for operator
 access.</li>
 </ol>
 <h3 id="quick-start_1">Quick Start</h3>
-<pre><code class="language-bash">ze install remote \
+<pre><code class="language-bash">sudo ./ze-host install remote \
   --interface eth0 \
   --network 192.168.1.0/24 \
   --image /path/to/gokrazy.img \
@@ -666,18 +905,18 @@ takes precedence over dynamic generation for operator customization.</p>
 <p>Bootfiles are served from <code>build/pxe/tftp/</code> via TFTP.
 The installer kernel and initrd are served from <code>build/pxe/boot/</code>
 via HTTP. Stock iPXE binaries are bundled in <code>tools/ipxe-binaries/</code> and
-staged automatically by <code>ze install remote</code>.</p>
+staged automatically by <code>./ze-host install remote</code>.</p>
 <p>The default <code>--pxe-dir build/pxe</code> is relative to the working directory. Run
-<code>ze install remote</code> from the repository root, or pass an absolute
+<code>./ze-host install remote</code> from the repository root, or pass an absolute
 <code>--pxe-dir</code>. The command stages bundled iPXE files and the explicit
 <code>--kernel</code> and <code>--initrd</code> artifacts under that root.</p>
 <h3 id="ssh-credentials">SSH Credentials</h3>
 <p>The <code>--ssh-password</code> is bcrypt-hashed (cost 10) before being embedded
 in the generated config as <code>ssh-password-hash</code>. The plaintext password
 is never written to disk or config. It is visible in the process listing
-(<code>ps aux</code>) while <code>ze install remote</code> is running.</p>
+(<code>ps aux</code>) while <code>./ze-host install remote</code> is running.</p>
 <h3 id="generated-config">Generated Config</h3>
-<p><code>ze install remote</code> generates a standard ze config in brace format and
+<p><code>./ze-host install remote</code> generates a standard ze config in brace format and
 pipes it to a child <code>ze</code> process. The generated config enables three
 plugins:</p>
 <ul>
@@ -688,7 +927,7 @@ plugins:</p>
 <p>The same provisioning setup can be achieved by writing the config
 manually and running <code>ze &lt;config-file&gt;</code>.</p>
 <h3 id="watching-provisioning-activity">Watching Provisioning Activity</h3>
-<p><code>ze install remote</code> runs the install servers at <code>info</code> log level by default, so the
+<p><code>./ze-host install remote</code> runs the install servers at <code>info</code> log level by default, so the
 terminal shows the live boot sequence with no extra flags:</p>
 <ul>
 <li><strong>dhcpserver</strong> logs each lease: <code>dhcpserver: lease request=DISCOVER reply=OFFER mac=… ip=… bootfile=…</code></li>
@@ -707,7 +946,7 @@ network) and the install did not complete.</p>
 <h3 id="confirming-which-image-is-installed">Confirming Which Image Is Installed</h3>
 <p>A failed PXE install never writes the disk, so the target reboots into whatever was on
 it before (for example a previous ISO install) and can look unchanged. To confirm the
-build actually running, <code>ze appliance build</code> bakes a manifest into the image at
+build actually running, <code>./ze-host appliance build</code> bakes a manifest into the image at
 <code>/perm/ze/build.json</code>, which <code>ze version</code> reports:</p>
 <pre><code>ze 26.06.17 (built …)
   …
@@ -734,7 +973,7 @@ or pre-stage files in <code>build/pxe/boot/</code></li>
 <code>build/pxe/tftp/</code> if not present</li>
 </ul>
 <h3 id="shutdown">Shutdown</h3>
-<p>SIGTERM or SIGINT sent to <code>ze install remote</code> is forwarded to the child
+<p>SIGTERM or SIGINT sent to <code>./ze-host install remote</code> is forwarded to the child
 ze process. The child shuts down cleanly (closes listeners, drains
 connections). Closing the parent also sends EOF on the stdin pipe,
 which ze treats as a shutdown signal.</p>
@@ -753,7 +992,7 @@ reachable.</li>
 </ol>
 <h3 id="operator-workflow">Operator Workflow</h3>
 <ol>
-<li>SSH into the device using the credentials pre-provisioned by <code>ze install remote</code>.</li>
+<li>SSH into the device using the credentials pre-provisioned by <code>./ze-host install remote</code>.</li>
 <li>Configure ze via the CLI (<code>ze config edit</code>, then commit).</li>
 <li>The committed config replaces the bootstrap config. On the next restart,
 ze starts in normal mode.</li>
@@ -802,7 +1041,7 @@ the installer media before the next boot.</li>
 <h3 id="building-the-initrd">Building the Initrd</h3>
 <p>Prerequisites: the Go toolchain only. The initrd is built in pure Go, so no
 <code>busybox</code>, <code>cpio</code>, or <code>gzip</code> host tools are required.</p>
-<pre><code class="language-bash">ze appliance initrd
+<pre><code class="language-bash">./ze-host appliance initrd
 </code></pre>
 <p>This cross-compiles <code>cmd/ze-installer</code> for the target architecture and packs the
 single static binary into <code>build/initrd/initrd.img.gz</code> (the <code>/init</code> entry of a
@@ -904,7 +1143,7 @@ client architecture via iPXE's <code>${buildarch}</code>: x86 clients get <code>
 which never registers on x86 and can dead-end <code>/dev/console</code> if left on an x86
 cmdline).</p>
 <!-- source: internal/install/disk/console_linux.go -- setupConsoles; internal/plugins/imageserver/handler.go -- serveBootIPXE -->
-<p>Existing <code>ze install remote</code> deployments need no <code>ze.source</code> change because the
+<p>Existing <code>./ze-host install remote</code> deployments need no <code>ze.source</code> change because the
 default source is <code>http</code>.</p>
 <!-- source: internal/install/disk/cmdline.go -- parseCmdline -->
 <p>The installer selects a non-removable block device via sysfs. Virtual devices
@@ -982,7 +1221,7 @@ the right kernel is site-specific.</p>
 <tr>
 <th>Profile</th>
 <th>File</th>
-<th>Drivers</th>
+<th>Added driver requests</th>
 <th>Use case</th>
 </tr>
 </thead>
@@ -990,8 +1229,8 @@ the right kernel is site-specific.</p>
 <tr>
 <td><code>qemu</code> (default)</td>
 <td><code>qemu.config</code></td>
-<td>virtio NIC + block</td>
-<td>QEMU tests, fast build</td>
+<td>virtio NIC + block + SCSI</td>
+<td>QEMU installer tests</td>
 </tr>
 <tr>
 <td><code>hardware</code></td>
@@ -1002,15 +1241,19 @@ the right kernel is site-specific.</p>
 </tbody>
 </table>
 <p>Both profiles merge onto a shared base (<code>kernel.config</code>) that provides IP
-autoconfiguration, SCSI, ext4, initramfs, devtmpfs and serial console.</p>
-<pre><code class="language-bash">ze appliance kernel prod
-ze appliance kernel --profile hardware --arch amd64
-ze appliance kernel --builder qemu --arch arm64 prod
+autoconfiguration, SCSI, ext4, initramfs, devtmpfs and serial console. The build
+starts with Linux <code>defconfig</code>, so this table does not enumerate every driver in
+the result. These installer profiles do not select a smaller runtime kernel.</p>
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel -->
+<pre><code class="language-bash">./ze-host appliance kernel prod
+./ze-host appliance kernel --profile hardware --arch amd64
+./ze-host appliance kernel --builder qemu --arch arm64 prod
 </code></pre>
 <p>Set <code>image.kernel-profile</code> to <code>"hardware"</code> in <code>appliance.json</code> so
-<code>ze appliance kernel &lt;name&gt;</code> picks it up automatically. The CLI selects Docker
+<code>./ze-host appliance kernel &lt;name&gt;</code> picks it up automatically. The CLI selects Docker
 first, then the shared QEMU backend, unless <code>--builder</code> forces one path.</p>
-<p><code>ze appliance kernel</code> resolves the open profile registry in Go and passes the
+<p><code>./ze-host appliance kernel</code> resolves the open profile registry in Go and passes the
 fragments to <code>internal/appliance/kernelbuilder</code>. The worker merges and checks
 the config, then rejects any required symbol that is not built in. Docker and
 QEMU are native backends of the same Go driver. Output is cached by target,
@@ -1048,7 +1291,7 @@ restart with an interrupted import.</p>
 <pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof test qemu installer
 </code></pre>
 <p><code>./le test qemu installer-iso</code> exercises the ISO transport. It creates an ISO
-through <code>ze appliance iso</code>, boots it, verifies the embedded image is written
+through <code>./ze-host appliance iso</code>, boots it, verifies the embedded image is written
 without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
 in with the embedded ZeFS credentials.</p>
 <!-- source: internal/le/test/qemu/actions.go -- Actions -->
@@ -1078,7 +1321,7 @@ default installer kernel.</p>
 </tr>
 <tr>
 <td><code>ZE_INSTALL_ARCH</code></td>
-<td>host arch (<code>amd64</code> for ISO evidence)</td>
+<td>host arch, for every installer kind</td>
 <td>Target architecture for QEMU installer evidence and generated appliance config (<code>arm64</code>/<code>amd64</code>)</td>
 </tr>
 <tr>
@@ -1118,7 +1361,7 @@ default installer kernel.</p>
 only the first guest connection, which stalls the installer's second and third
 downloads (image, zefs); the gateway handles the sequential connections the
 installer makes. This is only a test-harness concern; real PXE installs use a
-real network and <code>ze install remote</code> on port 80.</p>
+real network and <code>./ze-host install remote</code> on port 80.</p>
 </div>
 </div>
             </section>
@@ -1134,6 +1377,10 @@ real network and <code>ze install remote</code> on port 80.</p>
                     <a class="page-sidebar-link" href="../../guides/quickstart/">
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
@@ -1164,7 +1411,7 @@ real network and <code>ze install remote</code> on port 80.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 30 October 2026 17:53 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
                 </div>
             </div>
         </footer>

@@ -224,27 +224,25 @@ bgp {
 }
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
-<p>The <code>role { import rs }</code> leaf also requires both chains to name a filter that
-can refuse a path through a transit provider. This is separate from RFC 8212's
-explicit-policy requirement. To disable that filter check, name the filter with
-the <code>inactive:</code> member prefix. The member remains in the chain but never executes:</p>
+<p>The <code>role { import rs }</code> leaf needs no filter of yours beyond RFC 8212's explicit
+policy: the role inserts the RFC 7454 upstream check, <code>bgp-role:upstream-asn</code>, on
+the session's import chain for you. It rejects a route whose AS path carries one of
+your transit providers' ASNs. The check is not required: to run a session without
+it, name the member with the <code>inactive:</code> prefix. The member remains in the chain
+but never executes:</p>
 <pre><code>filter {
     import {
-        filters [ inactive:reject-asn-NO-TRANSIT ];
-        final accept;
-    }
-    export {
-        filters [ inactive:reject-asn-NO-TRANSIT ];
+        filters [ inactive:bgp-role:upstream-asn ];
         final accept;
     }
 }
 </code></pre>
-<p>The prefix goes on the member, inside the brackets. Inside each direction block,
-<code>inactive: filters reject-asn-NO-TRANSIT;</code> deactivates an existing member. Keep the
-<code>final accept;</code> decision when the member is inactive. That explicit final,
-not the inactive reference, supplies operator policy. See
-<a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both forms, and
-<a href="../bgp-role/">bgp-role.md</a> for the roles that bind.</p>
+<p>The prefix goes on the member, inside the brackets. Keep the <code>final accept;</code>
+decision: that explicit final, not the inactive reference, supplies operator
+policy. See <a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-deactivate.md" target="_blank" rel="noopener">config-deactivate.md</a> for both forms, and
+<a href="../bgp-role/">bgp-role.md</a> for which directions each role checks and how the
+provider set is derived.</p>
+<!-- source: internal/component/bgp/plugins/role/upstream.go -- upstreamInsertions -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <p><code>ip dynamic</code> is valid at group level only. A peer that states it is refused. Two more statements are required, and the configuration is refused without them: at least one <code>range</code>, and an explicit <code>connect false</code>. Ze only accepts on a dynamic group and never dials one, so an absent <code>connect</code> leaf, which YANG defaults to true, is refused rather than corrected.</p>
 <table>
@@ -412,6 +410,8 @@ not the inactive reference, supplies operator policy. See
 </tbody>
 </table>
 <p><code>reconnect</code> with no value means <code>timer</code> when <code>idle-timeout</code> is above zero, and <code>never</code> when it is zero. A family that configured nothing therefore stays down after a teardown, and the peer state reads <code>idle-hold</code> until an operator restarts it. <code>ze show warnings</code> carries the prefix-hold warning for the whole hold.</p>
+<p>Both reconnect waits forget their history after a stable session. Ze waits 5 seconds before it redials a peer whose session failed, and doubles the wait after each new failure, up to 60 seconds. A <code>timer</code> wait doubles the same way, up to one hour. When a session stayed established for at least 60 seconds before it ended, the next wait starts again from 5 seconds, and the <code>timer</code> wait from <code>idle-timeout</code>. A session that ends sooner keeps the longer wait, so a peer that flaps is still slowed down. A teardown you request and an inbound connection from the peer still redial at once.</p>
+<!-- source: internal/component/bgp/reactor/peer_run.go -- run, cycleStayedEstablished -->
 <p>The teardown NOTIFICATION and the log line name the family that exceeded its maximum.</p>
 <h2 id="attached-programs">Attached programs</h2>
 <p><code>attach process &lt;name&gt;</code> states which events a peer feeds a program, and which message types that program can originate toward the peer. Ze reads both halves at delivery.</p>
@@ -518,6 +518,10 @@ ze cli -c "show bgp rib status"
                         <span class="page-sidebar-link-label">Quickstart</span>
                         <small>Start from a minimal working setup.</small>
                     </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
                         <small>Install Ze, create the store, and start SSH.</small>
@@ -547,7 +551,7 @@ ze cli -c "show bgp rib status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 9 November 2026 22:03 UTC</span>
+                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
                 </div>
             </div>
         </footer>

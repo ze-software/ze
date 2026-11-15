@@ -21,7 +21,7 @@ List the completion candidates for a partial command\.
 - Command pipes: none
 - Pipe aliases: none
 
-Ze completes a command NAME from the partial text\. Write \'args\' before the command name to complete an ARGUMENT of that command instead\, in the form \'system command complete args \<cmd\> \[\<completed\>\.\.\.\] \<partial\>\'\.
+Ze completes a command NAME from the partial text\. Write \'args\' before the command name to complete an ARGUMENT of that command instead\, in the form \'system command complete args \<cmd\> \[\<completed\>\.\.\.\] \[\<partial\>\]\'\. With no partial it lists every candidate\. A builtin answers from the daemon\'s own state\, a plugin command from the plugin that registered it\.
 
 ## Arguments
 

@@ -19,10 +19,10 @@ Groups without typed inputs expose an `arguments` string.
 |------|-------------|
 | `ze_execute` | Dispatch a supported daemon command string with the caller's permissions. |
 | `ze_reference` | Reference assembled from this binary's registries and schemas; the same JSON data as `ze help ai --json`. |
-| Generated groups | Discover current names and action/input schemas through `tools/list`; do not assume a route-specific tool name. |
+| Generated groups | Discover current names and action/input schemas through `tools/list`; do not assume a route-specific tool name. <!-- doc-links: ignore (MCP method name, not a path) --> |
 
 `ze_execute` and `ze_reference` are the fixed tools. Generated tool groups read
-the live command list at `tools/list` time. Groups with named actions expose an
+the live command list at `tools/list` time. Groups with named actions expose an <!-- doc-links: ignore (MCP method name, not a path) -->
 `action` enum; selector parameters appear only where the command supports them.
 <!-- source: internal/component/mcp/tools.go -- toolHandlers, groupCommands, buildToolDef -->
 
@@ -88,7 +88,7 @@ explanations are maintained text, not a guarantee that every example is current.
 
 An AI assistant connected via MCP can:
 
-1. Read `tools/list` and call `ze_reference` to discover this daemon's commands.
+1. Read `tools/list` and call `ze_reference` to discover this daemon's commands. <!-- doc-links: ignore (MCP method name, not a path) -->
 2. Call `ze_execute` with `show bgp peer list` to inspect configured peers.
 3. Announce through `ze_execute` with `send bgp * update text origin igp next-hop 10.0.0.1 nlri add 10.0.0.0/24`.
 4. Call `ze_execute` with `show bgp rib sent peer peer1 family ipv4/unicast` to inspect that peer's sent routes.
@@ -140,6 +140,18 @@ what makes the `task` result type interpretable, because a client can reject a
 `resultType` that no advertised extension defines.
 
 <!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
+
+### Client compatibility
+
+A client connects only if it speaks revision `2026-07-28`. One that opens with
+the `initialize` handshake of an earlier revision gets error `-32020`, which
+names the revision Ze speaks, and cannot connect. The owner-run
+[real-client lane](https://github.com/ze-software/ze/blob/main/docs/contributing/mcp-client-verification.md) records each
+client tried. In its first round, on 2026-11-11, Claude Code 2.1.322 connected
+and called `ze_reference`. Codex 0.167.1 opened with the `2025-06-18`
+`initialize` handshake and could not connect.
+
+<!-- source: internal/component/mcp/headers.go -- initializeEraError -->
 
 ### Cacheable results
 
@@ -205,6 +217,17 @@ flag is itself a test, because the server must still serve an undeclaring client
 synchronously.
 
 <!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
+
+The `tools-size` directive measures the `tools/list` answer a running daemon <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
+serves: tool count, total bytes, the largest tool, and each tool's input schema
+size and depth. It prints one violation line for each tool that breaks a limit
+strict clients enforce: an input schema above 13,312 bytes, nesting deeper
+than 10 levels, an `enum` with no sibling `type`, or a `oneOf`, `allOf` or
+`anyOf`. `test/plugin/mcp-tools-list-structural-limits.ci` refuses a catalog
+that prints a violation.
+
+<!-- source: internal/test/cli/cmd_mcp.go -- sizeDirective -->
+<!-- source: internal/test/cli/cmd_mcp_calls.go -- measureToolsSize, toolSchemaBytesMax, toolSchemaDepthMax -->
 
 See [MCP Guide](../../guides/mcp/overview/index.md) for details and
 [MCP Remote Access](../../guides/mcp/remote-access/index.md) for tunneling.

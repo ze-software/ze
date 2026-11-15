@@ -46,9 +46,9 @@ Task-oriented guides for protocol setup, access services, migration, and diagnos
 
 **Automate**
 
-## Use and extend every surface
+## Use and extend Ze's interfaces
 
-Management transports, browser and public interfaces, and the plugin SDK.
+Management APIs, browser and public interfaces, and the plugin SDK.
 
 - [REST and gRPC authentication, commands, config sessions, and streaming](https://ze-software.net/guides/api/)
 - [gNMI Capabilities, Get, Set, Subscribe, TLS, and metrics](https://ze-software.net/guides/gnmi/)
@@ -77,14 +77,14 @@ Information-oriented pages generated from live data where possible.
 
 ## Understand the system
 
-Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.
+Explanations of architecture, comparisons, performance, labs, and deployment examples.
 
-- [Architecture engine, config, plugins, and operator surfaces](https://ze-software.net/architecture/)
+- [Architecture engine, configuration, plugins, and management interfaces](https://ze-software.net/architecture/)
 - [Route selection how Ze picks the best path, step by step](https://ze-software.net/architecture/route-selection/)
 - [Compare Ze against BIRD, FRR, GoBGP, and others](https://ze-software.net/compare/)
 - [Performance measured BGP benchmarks and methodology](https://ze-software.net/performance/)
 - [VPP deployment reference startup.conf, NIC, LCP, and notes](https://ze-software.net/architecture/vpp-deployment/)
-- [Labs and usage examples interop proof and deployment shapes](https://ze-software.net/labs/)
+- [Labs and usage examples tests with other routers and deployment examples](https://ze-software.net/labs/)
 - [Chaos testing deterministic faults, properties, replay, and shrink](https://ze-software.net/guides/chaos-testing/)
 - [IXP route server member policy, validation, and replay checks](https://ze-software.net/use-cases/route-server/)
 - [Transit edge with RPKI dual transit, origin validation, and failover](https://ze-software.net/use-cases/transit-edge-rpki/)
@@ -106,4 +106,4 @@ Project context for people deciding whether to try Ze or help shape it.
 - [RFC implementation guide how a new RFC gets built and proven](https://ze-software.net/contribute/rfc-implementation-guide/)
 - [Documentation testing keep docs honest with tested command output](https://ze-software.net/contribute/documentation-testing/)
 - [Project history how ExaBGP's programmable model grew into Ze](https://ze-software.net/project/history/)
-- [Contributor testing choose the right proof layer and run it locally](https://ze-software.net/contribute/testing/)
+- [Contributor testing choose tests for your change and run them locally](https://ze-software.net/contribute/testing/)

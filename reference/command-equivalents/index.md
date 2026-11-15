@@ -1,6 +1,6 @@
 # Command Equivalents
 
-499 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+509 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -101,6 +101,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
+| `create agent skill` | daemon, offline | - | - | - | - | [details](create-agent-skill/) |
 | `create bgp peer` | Daemon | - | - | - | - | [details](create-bgp-peer/) |
 | `create interface address` | Daemon | - | - | - | - | [details](create-interface-address/) |
 | `create interface bridge name` | Daemon | - | - | - | - | [details](create-interface-bridge-name/) |
@@ -125,7 +126,9 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
+| `delete agent skill` | daemon, offline | - | - | - | - | [details](delete-agent-skill/) |
 | `delete bgp peer` | Daemon | - | - | - | - | [details](delete-bgp-peer/) |
+| `delete data key` | Daemon | - | - | - | - | [details](delete-data-key/) |
 | `delete debug module` | daemon, offline | - | - | - | - | [details](delete-debug-module/) |
 | `delete debug profile name` | daemon, offline | - | - | - | - | [details](delete-debug-profile-name/) |
 | `delete interface name` | Daemon | - | - | - | - | [details](delete-interface-name/) |
@@ -208,6 +211,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
 | `request config archive` | Daemon | - | - | - | - | [details](request-config-archive/) |
 | `request data backup` | Daemon | - | - | - | - | [details](request-data-backup/) |
+| `request data repair` | Daemon | - | - | - | - | [details](request-data-repair/) |
 | `request data restore` | Daemon | - | - | - | - | [details](request-data-restore/) |
 | `request halt` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-halt/) |
 | `request interface down` | Daemon | - | - | - | - | [details](request-interface-down/) |
@@ -231,6 +235,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request peer refresh` | Daemon | `clear bgp neighbor <peer> soft-inbound` | `clear bgp ipv4 unicast <peer> soft in` | - | `reset bgp <peer> soft in` | [details](request-peer-refresh/) |
 | `request peer resume` | Daemon | - | - | - | - | [details](request-peer-resume/) |
 | `request peer teardown` | Daemon | `clear bgp neighbor <peer>` | `clear bgp ipv4 unicast <peer>` | - | `reset bgp <peer>` | [details](request-peer-teardown/) |
+| `request plugin restart` | Daemon | - | - | - | - | [details](request-plugin-restart/) |
 | `request quiesce` | Daemon | - | - | - | - | [details](request-quiesce/) |
 | `request reboot` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reboot/) |
 | `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
@@ -286,6 +291,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `show aaa accounting` | Read-only | - | - | - | - | [details](show-aaa-accounting/) |
+| `show agent context` | read-only, offline | - | - | - | - | [details](show-agent-context/) |
+| `show agent skill` | read-only, offline | - | - | - | - | [details](show-agent-skill/) |
 | `show announcements` | Read-only | - | - | - | - | [details](show-announcements/) |
 | `show anomaly detect` | Read-only | - | - | - | - | [details](show-anomaly-detect/) |
 | `show anomaly observe` | Read-only | - | - | - | - | [details](show-anomaly-observe/) |
@@ -359,6 +366,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config validation` | read-only, offline | - | - | - | - | [details](show-config-validation/) |
 | `show crashes` | Read-only | - | - | - | - | [details](show-crashes/) |
 | `show data cat` | read-only, offline | - | - | - | - | [details](show-data-cat/) |
+| `show data check` | read-only, offline | - | - | - | - | [details](show-data-check/) |
 | `show data list` | read-only, offline | - | - | - | - | [details](show-data-list/) |
 | `show data registered` | read-only, offline | - | - | - | - | [details](show-data-registered/) |
 | `show ddos flowspec` | Read-only | - | - | - | - | [details](show-ddos-flowspec/) |
@@ -619,6 +627,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `update bgp irr as-set` | Daemon | - | - | - | - | [details](update-bgp-irr-as-set/) |
 | `update bgp irr asn` | Daemon | - | - | - | - | [details](update-bgp-irr-asn/) |
 | `update bgp peer prefix` | Daemon | - | - | - | - | [details](update-bgp-peer-prefix/) |
+| `update data config` | Daemon | - | - | - | - | [details](update-data-config/) |
+| `update data key` | Daemon | - | - | - | - | [details](update-data-key/) |
 | `update firewall domain-group` | Daemon | - | - | - | - | [details](update-firewall-domain-group/) |
 | `update firewall irr all` | Daemon | - | - | - | - | [details](update-firewall-irr-all/) |
 | `update firewall irr as-set` | Daemon | - | - | - | - | [details](update-firewall-irr-as-set/) |

@@ -142,6 +142,14 @@ Without BGP, Ze installs the metrics registry before plugins start. Their
 startup counters then use the same registry that the exporter serves.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig; cmd/ze/hub/main_system.go -- startStandaloneTelemetry -->
 
+For the system RIB, `show doctor` includes `rib-routing-view` in both plugin
+placements. It reports an initializing or unavailable routing view and names
+the configured plugin's restart command. `ze_rib_view_ready` becomes one after
+the authoritative view and its output synchronize. `ze_rib_view_resync_total`
+counts reconstruction attempts, and `ze_rib_view_pending_prefixes` shows
+prefixes held for snapshot or forwarding reconciliation.
+<!-- source: internal/component/sysrib/doctor_route_view.go -- findings, newRouteViewHealth -->
+
 The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
 
 ```
@@ -285,7 +293,8 @@ diff nd.txt ze.txt
 | `ze_host_storage_size_bytes` | gauge | `name` | Block device size in bytes |
 | `ze_host_thermal_temp_mc` | gauge | `name`, `device` | Thermal sensor reading in millicelsius |
 
-Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.
+Ze collects host metrics once when the exporter starts and again every 30 seconds. The detector caches an inventory for 60 seconds, so a value can be up to a minute old. Neither interval is configurable. Linux only; on other platforms no host metrics are registered.
+<!-- source: internal/component/bgp/config/loader_create.go -- NewCachedDetector 60s, StartRefresh 30s -->
 
 ### Contained Panics
 <!-- source: internal/core/taskguard/guard.go -- MetricName, Guard.SetMetricsRegistry, Guard.Task -->

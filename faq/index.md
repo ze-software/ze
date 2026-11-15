@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-Straight answers about what Ze does, where it is ready, and what adopting it involves. Ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues) when your question is missing.
+These answers cover what Ze does, its release status, and what adopting it involves. If your question is missing, you can ask on [Discord](https://discord.gg/T8s7CjPDne) or open an [issue](https://github.com/ze-software/ze/issues).
 
 ## Product and readiness
 
@@ -8,27 +8,27 @@ Start here if you are deciding whether Ze belongs in your network.
 
 **What is Ze?**
 
-Ze is an open-source configuration and protocol engine. The repository also builds a Linux network operating system around that engine. It speaks BGP, manages network interfaces, programs the FIB, and serves one configuration over SSH, a web UI, API, and MCP.
+Ze is an open-source configuration and protocol engine, also available as a Linux network operating system. It speaks BGP, manages network interfaces, updates the forwarding table, and lets you manage the same configuration through SSH, a web interface, APIs, and AI tools using MCP (Model Context Protocol).
 
-The core is a protocol-agnostic supervisor with an event bus, configuration provider, and plugin manager. Each subsystem registers its own YANG model. Ze uses that model to derive the CLI, completion, validation, web editor, generated reference, and MCP tools.
+The core manages configuration, plugins, and communication between components, while individual subsystems implement the network protocols. Each subsystem defines its configuration in a YANG schema. Ze uses those definitions for its command syntax, completion, validation, web editor, reference pages, and MCP tools.
 
 **Is Ze ready for production?**
 
-No. Ze is pre-release software. The BGP engine is substantial and heavily tested, but production exposure remains limited, and both APIs and configuration syntax can still change.
+No. Ze is pre-release software. The BGP engine has automated tests, but production exposure remains limited, and both APIs and configuration syntax can still change.
 
-Use Ze in a lab today. Build a route server, migrate an ExaBGP configuration, run the interop labs against FRR or BIRD, and report failures. The [roadmap](https://ze-software.net/project/roadmap/) lists the release work, while the [quality pages](https://ze-software.net/quality/) show the evidence already available.
+A lab is a useful place to try Ze today, whether you want to build a route server, migrate an ExaBGP configuration, or test it against FRR or BIRD. Reports of failures help us find what those tests miss. The [roadmap](https://ze-software.net/project/roadmap/) lists the release work, while the [quality pages](https://ze-software.net/quality/) describe the available tests and their limits.
 
 **What can Ze actually do today?**
 
-Ze has a broad BGP implementation, YANG-modeled configuration with commit and rollback, Linux interface and FIB management, an SSH CLI, a web interface, APIs, observability, and a plugin system.
+Ze implements BGP and manages Linux interfaces and forwarding tables. You can change configuration through SSH, a web interface, or APIs, review and commit those changes, and roll them back. It also provides monitoring and a plugin system.
 
 OSPF, IS-IS, MPLS, firewall, VPN, PPPoE, and L2TP code also exists, but those areas remain experimental. Use the [feature catalog](https://ze-software.net/features/) for current status instead of treating this answer as a compatibility matrix.
 
 **Why would I use Ze instead of BIRD, FRR, or GoBGP?**
 
-Choose a mature daemon when you need an established production platform today. Ze is worth evaluating when you want its configuration model, generated operator surfaces, plugin architecture, ExaBGP migration path, or built-in evidence tooling.
+A mature daemon is the better choice when you need an established production platform today. Ze may be worth evaluating if you want a shared configuration model across its CLI, web interface, and APIs, or if its plugins and ExaBGP migration tools fit your deployment. Its [quality pages](https://ze-software.net/quality/) also make the test methods and evidence available for review.
 
-The core remains protocol-agnostic, and each subsystem brings its own YANG model. One schema drives configuration, validation, CLI, web, generated reference, and MCP. The [comparison pages](https://ze-software.net/compare/) show where Ze leads, where it differs, and where the mature projects remain ahead.
+Each subsystem supplies a YANG model that defines its configuration and supplies the CLI, validation, web editor, reference pages, and MCP tools. The [comparison pages](https://ze-software.net/compare/) describe the differences between Ze and other projects, including features Ze still lacks.
 
 ## Running and adopting Ze
 
@@ -54,7 +54,7 @@ The appliance packages the same binary and configuration into a read-only system
 
 **Will my configuration keep working as Ze changes?**
 
-Treat configuration syntax as unstable until the first release. Breaking changes belong in the [change log](https://ze-software.net/project/changes/) and should arrive with an automatic migration or a clear error. Silent reinterpretation is a bug.
+Configuration syntax can change before the first release, and changes are described in the [change log](https://ze-software.net/project/changes/). An existing configuration may need editing when you update Ze. Silent reinterpretation is a bug.
 
 Configuration stability is an explicit milestone on the [roadmap](https://ze-software.net/project/roadmap/).
 
@@ -86,11 +86,11 @@ Ze currently has no subscription, paid support tier, or separate commercial enti
 
 **How is AI used to develop Ze?**
 
-Ze is written with AI coding agents, and the project uses them to reach quality. To get there, we built a framework that constrains and guides how an agent develops a feature: a spec is agreed before any code, tests are written before the implementation, a separate agent that did not write the change reviews it, and gates refuse a commit that breaks a rule. These rules live in the repository next to the code, so every agent session works under the same ones. [How Ze is developed with AI](https://ze-software.net/project/ai-development/) explains the process and where it came from.
+AI coding agents write Ze's code under a process we developed to guide their work and check the result. We agree on a specification before implementation, write tests first, and ask a separate agent to review the change. Automated checks enforce the repository's rules before a change is committed. Keeping the instructions beside the code gives each new session the same requirements. [How Ze is developed with AI](https://ze-software.net/project/ai-development/) explains how this process developed.
 
-As with human development, the process is iterative, and the first version of something is often not fully correct. Proving a feature takes many passes and a lot of time and compute. For an RFC, every requirement has to be found, tested, and shown to fail when the code is broken, and that coverage keeps growing after the first implementation is published. The [RFC compliance pages](https://ze-software.net/quality/rfc-compliance/) show what is proven and what is still missing.
+As with human development, the first version is often not fully correct, and we improve it through repeated testing and review. Checking a feature thoroughly takes time and computing resources. For an RFC, every requirement has to be identified and tested, and each test has to detect a deliberate fault in the behavior it checks. That coverage keeps growing after the first implementation is published. The [RFC compliance pages](https://ze-software.net/quality/rfc-compliance/) show what the tests establish and what is still missing.
 
-The website is where this shows the most. An RFC defines behaviour in clear, strict terms, so a test can check that Ze follows it. The same can not be said of a web page: free text has no specification to test against, which is why the site is likely to carry more mistakes than the code. Still, we generate most of the site's information from the code itself, so that figures, feature lists, and references reflect the actual state of the software. We revise it often, and between passes some pages will not be fully right. If you spot a mistake on the site or in Ze, please tell us on [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://github.com/ze-software/ze/issues).
+The website is harder to check automatically. An RFC can define behavior precisely enough for a test, while free text leaves more room for unclear explanations and mistakes. Most of the site's figures, feature lists, and references are generated from the code, but the prose still needs review and is likely to contain more mistakes than the code. We revise it as we find them. If you spot a mistake on the site or in Ze, we would appreciate a report on [Discord](https://discord.gg/T8s7CjPDne) or the [issue tracker](https://github.com/ze-software/ze/issues).
 
 **How do I get help or report a security problem?**
 

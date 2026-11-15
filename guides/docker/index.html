@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Docker - Ze</title>
+        <meta name="description" content="Ze documentation: guide/docker.md" />
+        <meta property="og:title" content="Docker - Ze" />
+        <meta property="og:description" content="Ze documentation: guide/docker.md" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Docker - Ze" />
+        <meta name="twitter:description" content="Ze documentation: guide/docker.md" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/guides/docker/" />
+        <meta property="og:url" content="https://ze-software.net/guides/docker/" />
+        <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../assets/header.html" data-site-root="../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../#top">Ze</a>
+                    <a href="../../#top">Home</a>
+                    <a href="../../docs/">Docs</a>
+                    <a href="../../features/">Features</a>
+                    <a href="../../compare/">Compare</a>
+                    <a href="../../project/roadmap/">Roadmap</a>
+                    <a href="../../project/changes/">Changes</a>
+                    <a href="../../faq/">FAQ</a>
+                    <a href="../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="md-content reveal cat-platform">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Guide</span>
+    <h1 id="docker">Docker</h1>
+    <p>Run Ze in Docker for BGP evaluation or a daemon deployment where the host owns
+the network interfaces. This guide starts from the repository root and uses the
+supplied Compose file. Docker and its Compose plugin must already be installed.</p>
+</div>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#two-images">Two images</a></li>
+<li><a href="#build-the-deployment-image">Build the deployment image</a></li>
+<li><a href="#build-the-lab-image">Build the lab image</a></li>
+<li><a href="#initialize-persistent-state">Initialize persistent state</a></li>
+<li><a href="#verify-and-configure">Verify and configure</a></li>
+<li><a href="#persistence-updates-and-removal">Persistence, updates and removal</a></li>
+<li><a href="#run-without-compose">Run without Compose</a></li>
+<li><a href="#limitations">Limitations</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol></details></nav><div class="doc-body">
+<!-- source: docker/compose.yaml -- build context, service and persistent volume -->
+<p>Ze is pre-release software. For an immutable VM or hardware image, see
+<a href="../appliance/">VM Appliance</a>. For a native Linux service, see
+<a href="../ubuntu-build-install/">Linux installation</a>. To compare every route, see
+<a href="../ze-install/#choose-a-deployment-path">Choose a deployment path</a>.</p>
+<h2 id="two-images">Two images</h2>
+<p>Ze builds two container images. They carry the same daemon features and differ in the base.</p>
+<table>
+<thead>
+<tr>
+<th>Local image</th>
+<th>Recipe</th>
+<th>Target</th>
+<th>Base</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze:local</code></td>
+<td><code>docker/Dockerfile</code></td>
+<td>Deployment</td>
+<td><code>scratch</code>: no shell, no libc, no package manager</td>
+</tr>
+<tr>
+<td><code>netlab/ze:latest</code></td>
+<td><span class="ev-src"><span class="ev-ref"><code>docker/Dockerfile.lab</code></span></span></td>
+<td>Labs under netlab and containerlab</td>
+<td><code>tini</code> and <code>iproute2</code>. <span class="ev-src"><span class="ev-ref"><code>alpine:3.24.3</code></span></span></td>
+</tr>
+</tbody>
+</table>
+<p>These are local build tags, not public registry downloads. Use the deployment
+image for a daemon and the lab image with netlab/containerlab. Lab tools execute
+<code>sh</code> and <code>ip</code> inside nodes to assign topology addresses; the scratch image has
+neither. For the lab image, see <a href="../netlab/">netlab</a>.</p>
+<!-- source: docker/Dockerfile -- FROM scratch, ENTRYPOINT ["/ze"] -->
+<!-- source: docker/Dockerfile.lab -- FROM alpine:3.24.3, apk add tini iproute2, ENTRYPOINT and CMD -->
+<!-- source: docker/Dockerfile -- default feature-tag derivation and deployment image -->
+<p>The <a href="https://github.com/ze-software/ze/blob/main/docs/contributing/preview-artifacts.md" target="_blank" rel="noopener">preview artifact builder</a> instead
+packages its inspected native binary through <code>docker/Dockerfile.runtime</code>.
+Those prepared images carry the binary's exact tags, including <code>ze_distro</code>;
+the source-building commands below keep their own feature selection.</p>
+<!-- source: docker/Dockerfile.runtime -- deployment and lab -->
+<!-- source: internal/le/build/preview/images.go -- prepareImages, exportImage -->
+<p>Both images include system CA certificates for outbound HTTPS requests,
+including <code>ze init --from https://...</code>.</p>
+<!-- source: docker/Dockerfile -- runtime certificate bundle -->
+<!-- source: docker/Dockerfile.lab -- ca-certificates package -->
+<!-- source: internal/core/fetch/fetch.go -- metadataClient, doToFile -->
+<p>Both deployment recipes also provide an empty <code>/tmp</code> with mode <code>1777</code> for
+temporary files during provisioning and configuration reload.</p>
+<!-- source: docker/Dockerfile -- runtime-root temporary directory -->
+<!-- source: docker/Dockerfile.runtime -- deployment temporary directory -->
+<h2 id="build-the-deployment-image">Build the deployment image</h2>
+<pre><code class="language-bash">docker build -t ze:local -f docker/Dockerfile .
+</code></pre>
+<p>Choose another repository or tag with the normal Docker tag argument:</p>
+<pre><code class="language-bash">docker build -t myregistry/ze:v1 -f docker/Dockerfile .
+</code></pre>
+<p>The Dockerfile derives the default tag set from <code>feature-gates.txt</code>.
+<code>ZE_TAGS</code> adds tags on top of that set:</p>
+<pre><code class="language-bash">docker build --build-arg ZE_TAGS=maprib -t ze:maprib -f docker/Dockerfile .
+</code></pre>
+<p>That command builds the default feature set plus <code>maprib</code>.</p>
+<!-- source: docker/Dockerfile -- feature_tags and ZE_TAGS -->
+<h2 id="build-the-lab-image">Build the lab image</h2>
+<pre><code class="language-bash">docker build -t netlab/ze:latest -f docker/Dockerfile.lab .
+</code></pre>
+<p>This produces <code>netlab/ze:latest</code>. The image runs <code>ze</code> under <code>tini</code>, which
+forwards SIGHUP and SIGTERM. See <a href="../netlab/">netlab</a>.</p>
+<!-- source: docker/Dockerfile.lab -- image contents and entrypoint -->
+<h2 id="initialize-persistent-state">Initialize persistent state</h2>
+<p>Use the supplied Compose file in place, from the repository root. Its build
+context is the repository; copying the file elsewhere changes that context.
+Initialization, offline configuration commands and the daemon all mount the same
+named volume at <code>/etc/ze</code> and use the same <code>ZE_CONFIG_DIR</code>.</p>
+<!-- source: docker/compose.yaml -- build.context, environment and ze-data volume -->
+<pre><code class="language-bash">docker compose -f docker/compose.yaml build
+docker compose -f docker/compose.yaml run --rm ze init
+</code></pre>
+<p>Choose a username and strong password at the prompt. Keep the default host
+<code>127.0.0.1</code>, port <code>2222</code> and instance name <code>ze</code>; the Compose hostname makes that
+name stable. There is no password in the image or Compose file. Initialization
+creates a private store in the volume and refuses to replace an existing store.
+Run it once, before first start.</p>
+<!-- source: docker/compose.yaml -- hostname and persistent store -->
+<!-- source: internal/plugins/init/main.go -- initialization prompts and replacement refusal -->
+<p>For this newly initialized volume, import the supplied management configuration
+in place of the <code>ze.conf</code> seed that initialization generated. <code>--yes</code> confirms
+replacement of that seed; the initialized credential store persists. The
+configuration enables SSH without taking over host interfaces. The input is
+streamed into the image; no shell is needed inside it.</p>
+<!-- source: docker/ze.conf -- management listener -->
+<!-- source: internal/component/config/cli/cmd_import.go -- configuration import from stdin -->
+<pre><code class="language-bash">docker compose -f docker/compose.yaml run --rm -T ze config import --yes --name ze.conf - &lt; docker/ze.conf
+docker compose -f docker/compose.yaml up -d
+</code></pre>
+<h2 id="verify-and-configure">Verify and configure</h2>
+<pre><code class="language-bash">docker compose -f docker/compose.yaml logs ze
+docker compose -f docker/compose.yaml exec ze /ze status
+docker compose -f docker/compose.yaml exec ze /ze cli -c "show bgp peer list"
+ssh -p 2222 YOUR_USERNAME@127.0.0.1
+</code></pre>
+<p>The initial configuration enables management and defines no BGP peer. Add a
+peer through the SSH editor using <a href="../bgp-peering/">BGP peering</a>, commit the
+change, and check the peer and received routes. For a complete two-peer example,
+start with the <a href="../quickstart/">local quickstart</a> or <a href="../netlab/">netlab</a>.</p>
+<!-- source: docker/ze.conf -- management-only initial config -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer configuration -->
+<p>Compose publishes SSH on the host's loopback port <code>2222</code>, and BGP on port <code>179</code>.
+To allow remote operator access, publish SSH on your management address and
+apply the host's access policy. Web/API listeners need their own explicit
+configuration and port publication. Exposing a Docker port does not enable a
+service in Ze.</p>
+<!-- source: docker/compose.yaml -- published ports -->
+<!-- source: docker/ze.conf -- enabled SSH service -->
+<h2 id="persistence-updates-and-removal">Persistence, updates and removal</h2>
+<p>Configuration commits and credentials live in the named volume. Recreating the
+container keeps them. Bare <code>start</code> reads the active config from that store, so
+there is no bind-mounted file competing with the committed configuration.</p>
+<!-- source: docker/compose.yaml -- bare start and named volume -->
+<!-- source: cmd/ze/ze_core_start.go -- stored active configuration -->
+<!-- source: internal/le/test/deployment/compose.go -- the recreation proof, ./le test deployment docker-compose -->
+<pre><code class="language-bash"># Recreate without discarding the store, then verify your configuration.
+docker compose -f docker/compose.yaml up -d --force-recreate
+docker compose -f docker/compose.yaml exec ze /ze cli -c "show bgp peer list"
+
+# Stop and remove the container; retain its volume.
+docker compose -f docker/compose.yaml down
+</code></pre>
+<p>Before an update, export or back up the configuration using the
+<a href="../lifecycle/">lifecycle guide</a>, record the running image ID, and retain the
+previous image. Build a new image from the selected source revision, recreate
+the container during a maintenance window, and verify login, peers and routes.
+Roll back by selecting the retained image and restoring a compatible config if
+the syntax changed. Do not use the daemon's binary self-update inside a container.</p>
+<!-- source: docker/compose.yaml -- image and build configuration -->
+<!-- source: docker/Dockerfile -- immutable image executable -->
+<p><code>docker compose -f docker/compose.yaml down --volumes</code> also deletes this Compose
+project's named state volume. Use it only to discard the installation, after
+exporting anything you need. Ordinary <code>down</code> keeps the volume.</p>
+<!-- source: docker/compose.yaml -- project-owned named volume -->
+<h2 id="run-without-compose">Run without Compose</h2>
+<p>Use the same image entrypoint and explicit config-directory mount in plain
+Docker. This first-start sequence uses a new volume and replaces only the seed
+configuration generated by initialization, keeping its credential store:</p>
+<pre><code class="language-bash">docker volume create ze-data
+docker run --rm -it --hostname ze -e ZE_CONFIG_DIR=/etc/ze -v ze-data:/etc/ze ze:local init
+docker run --rm -i -e ZE_CONFIG_DIR=/etc/ze -v ze-data:/etc/ze ze:local config import --yes --name ze.conf - &lt; docker/ze.conf
+docker run -d --name ze --hostname ze --restart unless-stopped \
+  --ulimit memlock=-1 -e ZE_CONFIG_DIR=/etc/ze -v ze-data:/etc/ze \
+  -p 179:179 -p 127.0.0.1:2222:2222 ze:local start
+</code></pre>
+<p>Everything after the image name is a Ze command because the entrypoint is <code>/ze</code>.
+An explicit configuration path belongs after <code>start</code>. When using that form,
+mount a writable directory containing both the file and its store; a single
+read-only file mount prevents the editor from saving commits back to the file.</p>
+<!-- source: docker/Dockerfile -- ENTRYPOINT -->
+<!-- source: cmd/ze/ze_core_start.go -- explicit-file start -->
+<!-- source: cmd/ze/hub/config_source.go -- explicit configuration writeback -->
+<h2 id="limitations">Limitations</h2>
+<p>The deployment container runs on a scratch base. Features that require kernel access do not work without extra privileges. The same capability table applies to the lab image:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interface configuration</td>
+<td><code>--cap-add NET_ADMIN</code> or <code>--privileged</code></td>
+</tr>
+<tr>
+<td>VPP data plane</td>
+<td>Not supported in containers (use <a href="../appliance/">VM Appliance</a>)</td>
+</tr>
+<tr>
+<td>L2TP tunnels</td>
+<td><code>--cap-add NET_ADMIN</code> + host networking</td>
+</tr>
+<tr>
+<td>nftables / firewall</td>
+<td><code>--cap-add NET_ADMIN</code> + <code>--cap-add NET_RAW</code></td>
+</tr>
+<tr>
+<td>Binding port 179</td>
+<td>Works by default (container runs as root)</td>
+</tr>
+<tr>
+<td>Locking the executable in memory (<code>memlock</code> plugin)</td>
+<td><code>--ulimit memlock=-1</code> or <code>--cap-add IPC_LOCK</code>. Docker grants neither by default, so the lock fails, <code>ze doctor</code> warns under <code>doctor-memlock-rlimit-low</code>, and <code>show plugin list</code> reports the <code>memlock</code> row as <code>soft-failure</code></td>
+</tr>
+</tbody>
+</table>
+<p>For BGP peering without interface management (route server, looking glass, policy testing), no extra capabilities are needed.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p><strong>Container exits immediately:</strong> inspect <code>docker compose -f docker/compose.yaml logs ze</code>.
+Bare <code>start</code> needs the initialized store and imported active configuration. A bare
+config path without the <code>start</code> keyword is not a daemon command.</p>
+<!-- source: cmd/ze/ze_core_start.go -- startConfigPath -->
+<p><strong>Cannot connect to CLI:</strong> verify initialization, the imported SSH listener, and
+the <code>127.0.0.1:2222:2222</code> publication. Use the username and password you chose.
+The scratch image has no shell: use <code>/ze</code> directly with <code>docker exec</code>.</p>
+<!-- source: docker/compose.yaml -- management port publication -->
+<!-- source: docker/Dockerfile -- scratch runtime -->
+<p><strong>Peer won't connect:</strong> If peering with the host, use <code>--network host</code> or the Docker bridge gateway IP. Container-to-container peering works on a shared Docker network.</p>
+</div>
+</div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Guide</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Reader paths</h2>
+                    <a class="page-sidebar-link" href="../../docs/">
+                        <span class="page-sidebar-link-label">Documentation hub</span>
+                        <small>Return to the guide map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/quickstart/">
+                        <span class="page-sidebar-link-label">Quickstart</span>
+                        <small>Start from a minimal working setup.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ai-agent/">
+                        <span class="page-sidebar-link-label">Use Ze with an AI agent</span>
+                        <small>Let Claude Code or Codex drive Ze for you.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
+                        <span class="page-sidebar-link-label">Build on Ubuntu</span>
+                        <small>Install Ze, create the store, and start SSH.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Debug by symptom when something is wrong.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../guides/operator-access-rbac/">
+                        <span class="page-sidebar-link-label">SSH and RBAC</span>
+                        <small>Set up operator accounts and profiles.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Compare Ze commands with familiar NOS syntax.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 14 November 2026 12:43 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>
