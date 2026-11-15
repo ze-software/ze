@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -181,6 +181,51 @@ N-A: no wire format changes; the OPEN is the one Ze already sends at startup.
 - `internal/component/plugin/registration.go`, `internal/component/plugin/server/config_tx_bridge.go`, `reload_tx.go`
 - `internal/component/bgp/reactor/peer_settings_negotiation.go`, `session_negotiate.go`, `session.go`
 - Docs: `docs/guide/config-reload.md`, `docs/guide/plugins.md`, `docs/plugin-development/handlers.md`, `docs/architecture/api/process-protocol.md`
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| AC-1: a peer added by reload sends its configured Role and establishes | Run `./le --name session test bgp reload --pattern reload-add-peer-role-capability`; its new peer compares the OPEN bytes, including `09 01 03`, then receives End-of-RIB |
+| AC-2: each capability extractor returns the candidate declaration through config-verify | Read `pkg/plugin/sdk/capability_declaration.go` `composeCapabilityVerify` and `CandidateCapabilities`; run `TestComposedVerifyCarriesCandidateCapabilities` and the `capability_reload_test.go` tests of every current `DeclareCapabilitiesFrom` registrant |
+| AC-3: replacement publishes one complete set and refuses conflicts without mutation | Read `internal/component/plugin/registration.go` `ReplacePluginCapabilities`, `replacementLocked` and `planLocked`; run `TestReplacePluginCapabilities`, `TestReplacePluginCapabilitiesConflict` and `TestCapabilityTransactionAtomicOPENReplacement` |
+| AC-4: an unsuccessful transaction restores the previous declarations | Read `internal/component/plugin/server/config_tx_capabilities.go` `installStagedCapabilities` and `restoreCapabilities`, and their callers in `reload_tx.go`; run `TestConfigTxBridgeInstallsAndRestoresCapabilities` |
+| AC-5: a changed capability restarts only a session that can use it | Read `internal/component/bgp/reactor/peer_settings_negotiation.go` `pluginCapabilitiesKept` and `pluginDeclarationsKept`; run `TestNegotiationPluginCapabilityChange`, `TestReloadPluginCapabilityChange` and `TestReloadCapabilityBlockEdit`, then the changed-capability reload functional tests |
+| AC-6: a reload with unchanged capabilities keeps the session | Run `./le --name session test bgp reload --pattern reload-capability-unchanged-accepted`; its peer permits one TCP connection and the fixture confirms that the reload applied |
+| AC-7: operator and plugin-author instructions describe live replacement | Compare the four pages listed in Files to Modify with the current SDK, transaction bridge and reactor producers; record the documentation check result at closure |
+
+### Security Review Checklist
+
+| Check | What to verify |
+|-------|----------------|
+| Refusal precedence | `composeCapabilityVerify` preserves a plugin's own refusal and refuses an unreadable answer or failed extractor before publishing any candidate |
+| Declaration validation and ownership | `stageVerifiedCapabilities` accepts only transaction section verifiers; `capabilitiesFromRPC` and `planLocked` validate the declaration, encoding and code ownership before replacement |
+| Complete candidate and atomic publication | `CheckReplacePluginCapabilities` checks all staged owners with unchanged owners retained; `ReplacePluginCapabilities` holds its write lock across publication, so concurrent OPEN readers cannot observe a partial replacement |
+| Transaction compensation | `installStagedCapabilities` records the previous per-plugin declarations; every unsuccessful transaction reaches `restoreCapabilities`, including apply failure and abort, and restoration failures are reported |
+| Session safety | `pluginCapabilitiesKept` compares the declaration actually sent, refuses to assume an unreadable peer OPEN is unchanged, and does not keep a session whose changed code the peer advertised |
+| Process boundary | Candidate declarations are self-contained RPC values; the external config-verify answer and DirectBridge reach the same staging and publication path, with no plugin-specific exception |
+
+### Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update or source-aware check |
+|---|----------|----------|-------------------------------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | Check `features/configuration-reload.md` against the new accepted reload cases and its real-path evidence; read the level from `./le feature report` before changing any declaration |
+| 2 | Config syntax changed? | No | Existing capability leaves feed `CandidateCapabilities`; the implementation adds an RPC answer field, not YANG syntax |
+| 3 | CLI command added/changed? | No | The existing reload entry point reaches the transaction bridge; no command registration changes in this implementation |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md`, "A reload replaces the Stage 3 declaration through the config-verify answer": check absent, empty and complete-candidate semantics against `ConfigVerifyOutput.Capabilities` and `stageVerifiedCapabilities` |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, "When a Reload Changes a Plugin's Capability": check acceptance, ownership transfer, rollback and session restart behavior against the bridge and `pluginDeclarationsKept` |
+| 6 | Has a user guide page? | Yes | `docs/guide/config-reload.md`, "What Can Change Live": check the plugin-capability row and restart exceptions against the SDK, bridge and reactor |
+| 7 | Wire format changed? | Yes | The plugin RPC answer adds `capabilities`; document its Stage 3 shape in `docs/architecture/api/process-protocol.md`. BGP OPEN encoding is reused; inspect its reload proof rather than claim that an unchanged encoding removes the interop obligation |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/handlers.md`, "DeclareCapabilitiesFrom": check own-verifier precedence, candidate extraction, the answer field and `CandidateCapabilities`; check the SDK rules against that public contract |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | Check `rfc/short/rfc5492.md` and the affected capability RFCs against the actual tagged tests and records; resolve the interop requirement for changed OPEN/session behavior before closure, without publishing new coverage from this checklist |
+| 10 | Test infrastructure changed? | Yes | `f3b68fe48f` changes the test peer's established-file marker per session; compare its producer and current `docs/architecture/testing/ci-format.md` contract, and update that page if its claim is stale |
+| 11 | Affects daemon comparison? | No | This repairs the existing live-reload path; no new protocol, command surface or backend is introduced. Recheck `docs/comparison.md` for a restart-only claim before closure |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/api/process-protocol.md` describes verify staging, complete-candidate validation and atomic install/restore; check `docs/architecture/config/transaction-protocol.md` keeps verify side-effect-free and installs before apply |
+| 13 | Route metadata keys added/changed? | No | `CandidateCapabilities` and the injector exchange capability declarations; neither adds route metadata |
+| 14 | Prometheus counters added/changed? | No | The SDK composition, capability stage, injector replacement and session comparison add no metric registration |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | The existing extractors and capability codes remain registered; this changes when their values are replaced, not the registered inventory |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Source-anchor search finds the four pages in Files to Modify for `capability_declaration.go`, `config_tx_capabilities.go` and `peer_settings_negotiation.go`; verify every affected claim and run `./le doc check all` at closure |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Check the SDK extractor example in `docs/plugin-development/handlers.md` and the reload examples in the two operator guides against current handlers and the native functional proofs |
 
 ## Implementation Steps
 
