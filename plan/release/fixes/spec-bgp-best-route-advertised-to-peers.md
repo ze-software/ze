@@ -53,7 +53,7 @@ Existing Mechanisms and keeps it as an open question.
 
 | Evidence | What it shows | Where |
 |----------|---------------|-------|
-| netlab reference topology, before commit `ef1a3cf33d` | the render attached only `bgp-rib` and `redistribute-orchestrator` to each peer; r1 never told r2 about r3's loopback, and three of six sourced pings passed | commit `ef1a3cf33d` message; `plan/handover/deployment-user-journeys-2026-11-13/README.md`, "Progress after the migration" |
+| netlab reference topology, before commit `ef1a3cf33d` | the render attached only `bgp-rib` and `redistribute-orchestrator` to each peer; r1 never told r2 about r3's loopback, and three of six sourced pings passed | commit `ef1a3cf33d` message; `git show a64267bb2f:plan/handover/deployment-user-journeys-2026-11-13/README.md`, "Progress after the migration" |
 | the workaround in commit `ef1a3cf33d` | the render now loads and attaches `bgp-rs` and `bgp-adj-rib-in` on every peer, and sets `next-hop self` toward an external peer; all six pings then passed | `contrib/netlab/ze/ze.j2` |
 | the user guide | "When `bgp-rs` is not loaded, received routes are not forwarded to other peers. The `bgp-rib` plugin stores routes and performs best-path selection, but does not re-advertise them." | `docs/guide/route-reflection.md`, "Without Route Reflection" |
 | the architecture page | "`bgp-rib` forwards nothing between peers" | `docs/architecture/core-design.md`, the paragraph on a changed grant on a route-consuming process |

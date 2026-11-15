@@ -41,8 +41,8 @@ under the default, against the YANG text and RFC 4271 Section 5.1.3. The
 netlab render works around it explicitly.", he answered "yes". The evidence was
 a live netlab lab: r3 refused r2's loopback as the next hop of a forwarded
 route ("route ignored: semantically incorrect NEXT_HOP"), commit `ef1a3cf33d`
-and `plan/handover/deployment-user-journeys-2026-11-13/README.md`, "Progress
-after the migration".
+and `git show a64267bb2f:plan/handover/deployment-user-journeys-2026-11-13/README.md`,
+"Progress after the migration".
 
 That commit set `next-hop self` explicitly toward every external peer in the
 netlab render (`contrib/netlab/ze/ze.j2`, the `n.type == 'ebgp'` block). It is
