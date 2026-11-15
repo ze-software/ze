@@ -58,7 +58,7 @@ spelling, or refuse a hyphen in a registered key.
 **Behavior to preserve:**
 - `Get` precedence: a dotted spelling wins, then the last entry; aliases resolve to the canonical key
 - The connect-back variables the daemon writes are what the plugin reads
-- Every non-ze variable reaches the child unchanged, in its place
+- Every unrelated non-ze variable reaches the child unchanged, in its place; registered non-ze case/separator variants resolve to the value the parent reads
 - The runner's underscore spellings keep working (`TestTestBudgetEnvSurvivesAShell`, `TestParallelFactorEnvSurvivesAShell`)
 
 **Behavior to change:**
@@ -158,7 +158,7 @@ spelling, or refuse a hyphen in a registered key.
 | AC-3 | `Get` of a hyphenated key set in its underscore spelling | `Get` returns the value | The dotted spelling still wins when both are set, as before |
 | AC-4 | `MustRegister` of a key or alias whose normalized spelling reads another key | Panics `BUG:` naming both; the refused entry leaves no registered key and no claimed spelling | Registering one key twice is accepted: a registration can run twice in tests |
 | AC-5 | Inherited `ze.plugin.hub.token` in the daemon env | The plugin reads exactly one `ZE_PLUGIN_HUB_TOKEN`, the one the daemon issued | None |
-| AC-6 | Daemon env holds a registered non-ze key (`exabgp.*`) | The plugin gets the lower-case underscore form, which ExaBGP reads | None |
+| AC-6 | Daemon env holds a registered non-ze key (`exabgp.*`), including case/separator variants of it | The plugin reads the parent's value: dotted spelling wins, then the last entry; a winning dotted ExaBGP key gets its lower-case underscore form | A winning identifier keeps its spelling and case, so upper-case aliases remain readable; one normalized key has one child entry |
 | AC-7 | Declaration query of a `run` string | The queried child receives the same shell spellings, and no plugin-namespace key | Plugin-namespace keys stay removed, as before |
 
 ## End-to-End User Stories
@@ -206,6 +206,7 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 
 ## Files to Create
 - `internal/core/env/shell_test.go` - the three env tests
+- `internal/core/env/shell_precedence_test.go` - parent/child precedence for non-ze case variants, through a real shell, and identifier-only deduplication
 - `internal/component/plugin/process/process_env_test.go` - the live-fork test
 - `internal/test/fixture/register_fork_environment.go` - the `plugin/fork-environment` observer and its two test keys
 - `test/plugin/forked-plugin-reads-dotted-env-key.ci` - functional test, drafted at `test/draft/plugin/`
@@ -314,7 +315,7 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 | Read `-` as `_` in `normalize` | Ban `-` in registered keys | 29 ze keys are hyphenated and are operator contracts; renaming them changes that contract, reading them breaks nothing |
 | Rewrite the child environment (`ShellSafe`) | Exec the run string without a shell | An operator's `run` string may use shell syntax (pipes, `;`, `&`) |
 | Upper case for ze keys | Lower case | `ZE_*` is the documented spelling, and an inherited connect-back key renamed to the daemon's appended name is then overridden by it |
-| Lower case for other registered keys | Upper case | ExaBGP reads only dotted or lower-case underscore names (`Environment.setup`) |
+| Preserve the winning non-ze identifier's case; rewrite a dotted winner to lower-case underscores | Lowercase every registered alias, or retain conflicting case variants | ExaBGP's dotted settings need the lowercase shell form, while registered aliases such as `TIME` must retain their case. One normalized key carries the value the parent reads. |
 | Refuse a normalized collision at `MustRegister`, every spelling checked before any is recorded | Accept and let link order decide | One value would answer two keys with no sign, and a refused entry must leave no trace |
 
 ## Known Limitations
@@ -366,12 +367,12 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 
 ### What Was Implemented
 - Code landed as c268fa58d4 (`Spec-work: plugin-fork-environment`).
-- `ShellSafe` and `shellName` (`internal/core/env/env.go`): every ze key becomes one upper-case underscore entry, every registered key of another namespace one lower-case entry, a dotted spelling winning, then the last entry; every other variable passes unchanged in its place.
+- `ShellSafe` and `shellName` (`internal/core/env/env.go`): every normalized ze key becomes one upper-case underscore entry. Each other registered key becomes one entry with the value and shell spelling of the winning original entry: dotted wins, then the last entry. A winning non-ze identifier retains its case; every unrelated variable passes unchanged in its place.
 - `normalize` reads `-` as `_` through the `separators` replacer (`env.go`).
 - `claimSpellings` (`internal/core/env/registry.go`), called first in `MustRegister`, panics `BUG:` on a key or alias whose normalized spelling reads another key, checking every spelling before recording any; `isRegisteredSpelling` answers `shellName` from the registry.
 - `startExternal` (`internal/component/plugin/process/process.go`) builds the child environment with `env.ShellSafe(os.Environ())`, before `PATH` and the `ZE_PLUGIN_*` variables are appended.
 - `queryChildEnv` (`internal/component/plugin/declarations.go`) builds its inherited part the same way.
-- The declared copies of `normalize` read `-` as `_`: `normalizeEnvKey` (`internal/plugins/provision/main.go`), `environmentKeyReading` (`internal/test/fixture/fixture.go`).
+- The follow-up `22b2b48c06` removed provision's private normalizer: `hasEnvKey` uses `env.Without`. The fixture's `environmentKeyReading` delegates to `env.Normalize`, so both read the same separators as `Get`.
 - The fixture observer `plugin/fork-environment` (`forkEnvironment`, `internal/test/fixture/register_fork_environment.go`) registers two test keys and reads them back with `env.Get` in the forked process, failing with the key's name when either is missing.
 - `test/plugin/forked-plugin-reads-dotted-env-key.ci` sets both keys in the daemon's environment only and asserts the observer's OK line; this commit promotes it from `test/draft/plugin/`.
 - Five forked `.ci` comments that said the dotted form does not reach the fork are corrected (comments only).
@@ -382,7 +383,7 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 
 ### Documentation Updates
 - `docs/architecture/config/environment.md`: "OS spellings" rewritten (a hyphen is a separator, `MustRegister` refuses collisions) and a new "The shell spelling" paragraph with source anchors, in c268fa58d4.
-- `./le doc check all` and `./le spec citation anchors spec plan/release/fixes/spec-plugin-fork-environment.md`: not yet run, owed by the reviewing session.
+- `./le spec citation anchors spec plan/release/fixes/spec-plugin-fork-environment.md` completed with advisory mentions only. Source-anchored environment, fork and query claims were checked directly. No whole-tree documentation or repository check was run under the main thread's scoped-only instruction.
 
 ### Deviations from Plan
 - The stale-comment correction reached five `.ci` files, not the two Design Insights first named: `addpath-departure-rr-gr-retained-forked.ci` carried no false claim, and four more `community-*-forked.ci` carried the same false sentence as `community-tag-forked.ci`.
@@ -447,11 +448,36 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 
 ## Goal Validation (BLOCKING)
 
+The original implementation evidence below is historical. The current review
+fix and its fresh execution evidence are recorded in the following section.
+
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
 | A dotted or hyphenated ze key in the daemon's environment reaches a forked plugin, which reads it with `env.Get` | functional test, red-proven | `./le test bgp plugin --draft --pattern forked-plugin-reads-dotted-env-key` PASS on the HEAD build of le; with `p.cmd.Env = os.Environ()` in `startExternal` it FAILS with "the forked plugin read ze.test.fork.environment.dotted as \"\", want \"dotted\": the daemon's key did not reach it through the shell"; restored, green; `./le test stress-repro run suite "plugin --draft" test forked-plugin-reads-dotted-env-key any-failure iterations 80 parallel 8 burners 8`: not reproduced in 80 invocations |
 | The declaration query receives the same spellings | unit test over the real function | `TestQueryChildEnvSpellsZeKeysForTheShell`, green in `go test` of `internal/component/plugin` with full tags |
 | A hyphenated key has an identifier spelling, and no two registered keys share one | unit test | `TestGetReadsHyphenAsSeparator`, `TestMustRegisterRefusesASpellingCollision`, green under `go test -race ./internal/core/env/`; every test binary of the plugin and provision packages initialised without a collision panic |
+
+### Current review-fix execution evidence, 2026-11-15
+
+All commands ran in the main checkout, in the main thread. Prefix each command
+in this table with `CLAUDE_CODE_SESSION_ID=01a1df36-384e-7873-a487-85e51b996435`.
+The two env package commands also explicitly set `CGO_ENABLED=0`.
+No whole-tree verification or copied checkout was used.
+
+| Command | Observed result and goal |
+|---------|--------------------------|
+| `./le --name session test unit pkg path ./internal/core/env/ run '^TestShellSafePreservesNonZeDottedPrecedence$'` | RED before the producer fix: uppercase/mixed-case variants lost the parent's dotted value after rewriting; a real shell also exposed the mismatch. |
+| `./le --name session test unit pkg path ./internal/core/env/` | PASS, one package, `ok github.com/ze-software/ze/internal/core/env 1.331s`. Both new precedence tests and existing alias/collision/shell tests ran. |
+| `./le --name session test unit pkg path ./internal/component/plugin/ path ./internal/component/plugin/process/ path ./internal/plugins/provision/ run '^(TestQueryChildEnv(DropsEveryPluginVariableSpelling\|SpellsZeKeysForTheShell)\|TestForkedPluginReadsEveryZeKeySpelling\|TestHasEnvKeyNormalization)$'` | PASS, all three packages; logs show 2.616s, 2.001s and 1.232s respectively. The declaration query, live-start credentials and provision normalization remain covered. The backslashes before pipes in this Markdown cell only escape table delimiters; the executed regular expression used plain pipes. |
+| `./le --name session go lint run scope './internal/core/env/'` | PASS, host and Linux integration variants, zero issues. |
+| `./le --name session test bgp plugin --pattern forked-plugin-reads-dotted-env-key` | PASS, named `forked-plugin-reads-dotted-env-key`, 1/1, no skips, 1.3s. The forked observer read both keys; retained in the main tool transcript, which printed no log path. |
+
+The pre-fix failure and full env package logs were read directly at
+`tmp/session/2026-11-15-125434/scratch/job-unit-pkg-bb977219.log` and
+`tmp/session/2026-11-15-125434/scratch/job-unit-pkg-4fce67da.log`.
+The caller package log is `tmp/session/2026-11-15-125434/scratch/job-unit-pkg-06889574.log`.
+This compact record is the durable evidence; those task-owned logs can be
+removed after closure. No log path is asserted for lint or the functional run.
 
 ## Work Not Done
 
@@ -463,15 +489,45 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 
 | Field | Value |
 |-------|-------|
-| Artifact | owed: round 1 by an independent reviewer in the closing session (`Handoff: verify`) |
-| `./le spec review check` | not run |
-| Rounds | 0 so far |
-| Reviewer lenses used | owed |
+| Artifact | `tmp/review/plugin-fork-environment-01a1df36-384e-7873-a487-85e51b996435.md`, CLEAN, 25 reviewable paths |
+| `./le spec review check` | PASS: 25 code files, clean, hashes match the artifact. Only Markdown bookkeeping changed afterward. |
+| Rounds | 2: initial review found the precedence issue; fresh reviewer checked the fix and complete spec-owned source population |
+| Reviewer lenses used | Logic/data flow and removed-behavior preservation; security/credentials and peer-reachable panic/style; test wiring/discrimination and documentation |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
-| - | - | No review round has run yet | - | - |
+| 1 | ISSUE | Registered non-ze case variants can override a dotted value after a fork | `env.go` `ShellSafe`, `shellName` | Fixed by normalized-key grouping; focused test observed red, full env and caller packages, scoped lint and forked functional proof passed |
+
+### Larger unrelated finding routed at closure
+
+NOTE: the historical log-key tooling follow-up counts arbitrary quoted Go
+strings as logger declarations. This source-traced, PLAUSIBLE observation has
+not been runtime-reproduced and does not affect environment delivery or this
+spec's acceptance criteria. The larger producer-aware repair and its proof are
+owned by `plan/post-release/engineering/spec-harness-fail-open-guard-backlog.md`
+and its `guard-counts-quoted-text-as-declaration` journal row dated 2026-11-15.
+This review makes no claim that the log-key guard proves actual declarations.
+
+### Review fix diagnosis: non-ze spelling precedence
+
+| Part | Evidence or disposition |
+|------|-------------------------|
+| Symptom | Main ran `TestShellSafePreservesNonZeDottedPrecedence` red on 2026-11-15. The uppercase and mixed-case dotted-first cases read `from-identifier` from the rewritten environment instead of the parent's `from-dotted`; a real shell also exposed the mixed-case mismatch. |
+| Producing cause | `ShellSafe` grouped by exact output spelling after `shellName` preserved non-ze identifier case. `Get` and `LookupIn` group by normalized spelling, so the fork lost the dotted entry's precedence and retained conflicting entries. Introduced by the case-preservation follow-up `22b2b48c06`. |
+| Owning layer | `internal/core/env/env.go`, shared by the live plugin fork and declaration query. |
+| [workaround] | Change the plugin-start callers or require operators to remove alternate spellings. Rejected: this leaves the shared environment contract wrong and misses the declaration-query caller. |
+| [source] | Group `ShellSafe` entries by normalized key and retain the shell spelling and value of the precedence-winning entry. An unambiguous uppercase alias retains its case; a dotted ExaBGP key retains its lowercase shell spelling. |
+
+The new test covers both input orders and lowercase, uppercase, and mixed-case
+identifiers through a real shell. Existing tests are unchanged. The current
+execution table records the observed green proof. Original stress evidence
+predates this fix and is not presented as a fresh stress run.
+
+Retained red log: `tmp/session/2026-11-15-125434/scratch/job-unit-pkg-bb977219.log`.
+Purpose: observed pre-fix failures of the new regression. Compact red/green
+evidence is now recorded here and independent source review is complete; remove
+the raw log after closure together with the superseded green package logs.
 
 ## Pre-Commit Verification
 
@@ -490,7 +546,7 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 | AC-3 | `-` reads as `_` | `separators` in `env.go` maps both `.` and `-` to `_`; `TestGetReadsHyphenAsSeparator` green |
 | AC-4 | Collision refused, no trace | `claimSpellings` checks every spelling, then records; `TestMustRegisterRefusesASpellingCollision` green |
 | AC-5 | One daemon-issued token | `ShellSafe` runs before the `ZE_PLUGIN_HUB_TOKEN` append in `startExternal`; `TestForkedPluginReadsEveryZeKeySpelling` green |
-| AC-6 | Non-ze registered key lower case | `shellName` returns the normalized name for a registered non-ze key; `TestShellSafeSpellsEveryZeKeyAsAnIdentifier` green |
+| AC-6 | Non-ze key preserves the parent's value and the winning shell spelling | `shellName` preserves an identifier's case and rewrites a dotted winner; `TestShellSafePreservesNonZeDottedPrecedence` and `TestShellSafePreservesNonZeIdentifierPrecedence` pass in the full env package run on 2026-11-15 |
 | AC-7 | Query child spellings | `queryChildEnv` calls `env.ShellSafe`; `TestQueryChildEnvSpellsZeKeysForTheShell` green |
 
 ### Wiring Verified (end-to-end)
@@ -509,5 +565,5 @@ N-A: no wire-visible protocol change; the change is the process environment of a
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
 | `environment.md` "OS spellings": a dot, an underscore and a hyphen are one separator; `MustRegister` refuses a collision | `separators`, `claimSpellings` | Yes |
-| `environment.md` "The shell spelling": ze keys upper case, other registered keys lower case, dotted wins | `ShellSafe`, `shellName` | Yes |
+| `environment.md` "The shell spelling": ze keys upper case; a non-ze winner keeps its identifier case or uses the lowercase spelling when a dot must be removed; dotted wins | `ShellSafe`, `shellName` | Yes |
 | Forked `.ci` comments no longer claim the dotted form misses the fork | `grep -rn "dotted form does not reach" test/` returns nothing outside drafts | Yes |

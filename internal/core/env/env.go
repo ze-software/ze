@@ -85,8 +85,10 @@ const zeNamespace = "ze_"
 // rep_name = env_name.replace('.', '_')). A spelling of such a key that is
 // already an identifier keeps its name and case: a registered upper-case alias
 // (TIME, REV) reaches the child as the operator wrote it, never as time or rev.
-// Entries ShellSafe gives one name become one entry, holding the value Get
-// reads: a dotted spelling wins, then the last entry. Every variable that is
+// Entries with one normalized key become one entry, holding the value Get
+// reads: a dotted spelling wins, then the last entry. That winning entry also
+// supplies the shell spelling, so a dotted non-ze key cannot lose precedence
+// to an identifier whose case the shell preserves. Every variable that is
 // no key of this package passes unchanged, in its place. environ is left
 // unchanged.
 func ShellSafe(environ []string) []string {
@@ -106,18 +108,19 @@ func ShellSafe(environ []string) []string {
 		}
 		hasDot := strings.Contains(name, ".")
 		renamed := spelling + "=" + value
-		slot, seen := slots[spelling]
+		norm := normalize(name)
+		slot, seen := slots[norm]
 		if !seen {
-			slots[spelling] = len(childEnv)
-			dotted[spelling] = hasDot
+			slots[norm] = len(childEnv)
+			dotted[norm] = hasDot
 			childEnv = append(childEnv, renamed)
 			continue
 		}
-		if dotted[spelling] && !hasDot {
+		if dotted[norm] && !hasDot {
 			continue
 		}
 		childEnv[slot] = renamed
-		dotted[spelling] = dotted[spelling] || hasDot
+		dotted[norm] = dotted[norm] || hasDot
 	}
 	return childEnv
 }

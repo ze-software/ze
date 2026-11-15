@@ -14,15 +14,18 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Hold the nine inherited harness and tooling observations below. Their current
+Hold the nine inherited harness and tooling observations below, and own the
+separate current source-traced observation recorded after their table. Their current
 dispositions differ; they are not nine confirmed live defects. Each was homed at
 `spec-fixit-test-harness-fail-open-guards` while that spec collected this class.
 That spec closed on 2026-08-14 having shipped its own four guards, and
 `ai/rules/planning.md` requires every row naming it as Destination to be
 resolved inside the closing commit. This file is that destination.
 
-**Nothing here is commissioned.** The rows keep Status `deferred` and name this
-file so no record dangles. Thomas has not scheduled the work.
+**The nine inherited rows are not commissioned.** They keep Status `deferred`
+and name this file so no record dangles. The current observation below is a
+larger, independent tooling repair owned here; it is not part of the plugin
+environment fix that found it.
 
 This file owns the retained observations. The destinations surveyed on
 2026-08-14 were proposals, not assignments to sibling specs. Reconciliation
@@ -44,6 +47,46 @@ no code change.
 | G | Point frontmatter has a closed five-field set, `kind`, `level`, `stage`, `rationale`, `excepted-by` (`pointKeys` in `internal/le/rules/points.go`); `title` remains absent | `plan/post-release/engineering/spec-rules-situation-index.md` | Owner decision: add an authored point title, or keep the existing slug/body inventory. The historical population counts must be remeasured if commissioned |
 | H | A point-body digest on each `Binding` remains a proposed change to the binding contract | `plan/post-release/engineering/spec-rules-situation-index.md`, weakly | Owner decision: require digest-backed re-affirmation on body changes, or retain review-based binding maintenance. No sibling scope is changed here |
 | I | `isTestPath` (`internal/le/testweakened/testweakened.go`) now calls `isPythonTest`; `detector.go` accepts `test_*.py` and `*_test.py` | A combined untracked/Python audit spec with D | The claim that Python gets zero signal is superseded. Broader Python populations need a current witness and an explicit contract before further work is scheduled |
+
+## Current source-traced observation: quoted text is counted as a logger declaration
+
+Found on 2026-11-15 during independent review of `spec-plugin-fork-environment`.
+This is PLAUSIBLE from current source, not a reproduced test result.
+`subsystemReadingsInGo` in `internal/le/doc/wiring/checks.go` scans every
+double-quoted multi-segment literal in every Go file under its source roots,
+including tests. `addSubsystemReadings` records these strings as declared
+subsystems, and `checkLogSubsystemKeys` accepts a key with a matching reading.
+The test source `log_subsystem_test.go` itself contains `bgp-no-such-thing`,
+the key its isolated fixture expects the gate to refuse. No logger registration
+is needed for such a string to enter the real tree's accepted set.
+
+The repair needs a producer-aware census of logger declarations and plugin
+registration names. Excluding test files alone is insufficient: an unrelated
+literal in a production file has the same effect. Preserve legitimate declared
+subsystems, their hierarchical prefixes, and the case/separator reading that
+`env.Normalize` defines. This separate design is not implemented during closure
+of the environment fix.
+
+### Reproduction and proof owed
+
+1. Add planned `TestLogSubsystemIgnoresUnrelatedLiterals` in the wiring package.
+   A fixture contains a non-logger Go literal named `bgp-no-such-thing` and a
+   changed `.ci` that sets that log key. Run the real checker and require refusal.
+   Repeat with the literal in a test file and in a comment.
+2. Drive the same checker with a real logger declaration and a plugin
+   registration. Require their exact names and valid hierarchical prefixes to
+   pass in each supported separator spelling; a nonexistent extra suffix must
+   fail.
+3. Main runs the planned regression with
+   `./le --name session test unit pkg path ./internal/le/doc/wiring/ run '^TestLogSubsystemIgnoresUnrelatedLiterals$'`.
+   Observe red before the producer fix and green after it, then run the scoped
+   wiring package regressions. The test named here does not exist yet.
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `guard-counts-quoted-text-as-declaration.md` | 2026-11-15 | Log-subsystem gate accepts unrelated Go string literals as declarations |
 
 ## Provenance
 

@@ -324,11 +324,15 @@ another namespace that a shell would drop becomes its lower-case underscore
 form (`exabgp.api.ack` becomes `exabgp_api_ack`), the only form ExaBGP reads
 besides the dotted one, since ExaBGP matches the case written. A spelling of
 such a key that is already an identifier keeps its name and case, so a
-registered upper-case alias such as `TIME` or `REV` arrives as written. Where
-several entries take one name in the child, it gets the value `Get()` reads: a
-dotted spelling wins, then the last entry. A variable that is no registered key
-and not in the `ze.` namespace passes unchanged. The live plugin start and the declaration query both build the
-child environment through it, and the live start then appends the
+registered upper-case alias such as `TIME` or `REV` arrives as written. Entries
+with the same normalized key become one child entry: the dotted spelling wins,
+then the last entry. The winning entry supplies both its value and its shell
+spelling. Thus `exabgp.api.ack=true` takes precedence over
+`EXABGP_API_ACK=false` in either order and reaches the child once as
+`exabgp_api_ack=true`, so the child's `Get()` reads the same value as the parent.
+A variable that is no registered key and not in the `ze.` namespace passes
+unchanged. The live plugin start and the declaration query both build the child
+environment through it, and the live start then appends the
 `ZE_PLUGIN_*` connect-back variables, which replace any inherited value of the
 same name.
 <!-- source: internal/core/env/env.go -- ShellSafe, shellName -->
