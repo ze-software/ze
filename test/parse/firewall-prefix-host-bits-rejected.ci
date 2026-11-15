@@ -1,0 +1,86 @@
+# Test: does the installed offline validator reject host bits in either
+# firewall address leaf, rather than silently accept a different network?
+# A unit test cannot establish the ze config validate command's registered
+# verifier path, exit status and rendered correction for a real config file.
+# VALIDATES: spec-firewall-prefix-normalize AC-1, AC-2, AC-7.
+# PREVENTS: the parser guard existing only in unit calls while validation accepts.
+
+stdin=source-v4:refused=config-plugin-verify:terminator=EOF_SOURCE_V4
+firewall {
+    backend nft;
+    table wan {
+        family inet;
+        chain input {
+            term allow-service {
+                from { source-address 10.10.10.1/30; }
+                then { accept; }
+            }
+        }
+    }
+}
+EOF_SOURCE_V4
+
+stdin=destination-v4:refused=config-plugin-verify:terminator=EOF_DESTINATION_V4
+firewall {
+    backend nft;
+    table wan {
+        family inet;
+        chain input {
+            term allow-service {
+                from { destination-address 10.10.10.1/30; }
+                then { accept; }
+            }
+        }
+    }
+}
+EOF_DESTINATION_V4
+
+stdin=source-v6:refused=config-plugin-verify:terminator=EOF_SOURCE_V6
+firewall {
+    backend nft;
+    table wan {
+        family inet;
+        chain input {
+            term allow-service {
+                from { source-address 2001:db8:10:10::1/126; }
+                then { accept; }
+            }
+        }
+    }
+}
+EOF_SOURCE_V6
+
+stdin=destination-v6:refused=config-plugin-verify:terminator=EOF_DESTINATION_V6
+firewall {
+    backend nft;
+    table wan {
+        family inet;
+        chain input {
+            term allow-service {
+                from { destination-address 2001:db8:10:10::1/126; }
+                then { accept; }
+            }
+        }
+    }
+}
+EOF_DESTINATION_V6
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=source-v4
+expect=exit:code=1
+expect=stdout:contains=10.10.10.1/30
+expect=stdout:contains=fix: source-address 10.10.10.0/30
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=destination-v4
+expect=exit:code=1
+expect=stdout:contains=10.10.10.1/30
+expect=stdout:contains=fix: destination-address 10.10.10.0/30
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=source-v6
+expect=exit:code=1
+expect=stdout:contains=2001:db8:10:10::1/126
+expect=stdout:contains=fix: source-address 2001:db8:10:10::/126
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=destination-v6
+expect=exit:code=1
+expect=stdout:contains=2001:db8:10:10::1/126
+expect=stdout:contains=fix: destination-address 2001:db8:10:10::/126

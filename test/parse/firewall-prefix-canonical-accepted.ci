@@ -1,0 +1,63 @@
+# Test: can an operator still validate canonical network and host prefixes,
+# default routes and named-set references after the host-bit refusal?
+# A unit test cannot establish the installed command and registered verifier
+# still accept these actual YANG configuration spellings.
+# VALIDATES: spec-firewall-prefix-normalize AC-3, AC-5.
+# PREVENTS: a blanket refusal of literal address matches or named sets.
+
+stdin=config:terminator=EOF_CONFIG
+firewall {
+    backend nft;
+    table wan {
+        family inet;
+        chain input {
+            term network-v4 {
+                from { source-address 10.10.10.0/30; }
+                then { accept; }
+            }
+            term network-v6 {
+                from { destination-address 2001:db8:10:10::/126; }
+                then { accept; }
+            }
+            term default-v4 {
+                from { destination-address 0.0.0.0/0; }
+                then { accept; }
+            }
+            term default-v6 {
+                from { source-address ::/0; }
+                then { accept; }
+            }
+            term host-v4 {
+                from { source-address 192.0.2.1/32; }
+                then { accept; }
+            }
+            term host-v6 {
+                from { destination-address 2001:db8::1/128; }
+                then { accept; }
+            }
+            term set-v4 {
+                from { source-address @trusted-v4; }
+                then { accept; }
+            }
+            term set-v6 {
+                from { destination-address @trusted-v6; }
+                then { accept; }
+            }
+        }
+        set trusted-v4 {
+            type ipv4;
+            flags-interval;
+            element 192.0.2.0/24 {}
+        }
+        set trusted-v6 {
+            type ipv6;
+            flags-interval;
+            element 2001:db8::/32 {}
+        }
+    }
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

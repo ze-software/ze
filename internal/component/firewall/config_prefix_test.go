@@ -151,8 +151,7 @@ func TestParseFirewallConfigPrefixErrorContext(t *testing.T) {
 			if err == nil {
 				t.Fatal("ParseFirewallConfig accepted a prefix with host bits")
 			}
-			var operator *opererr.Error
-			if !errors.As(err, &operator) {
+			if _, ok := errors.AsType[*opererr.Error](err); !ok {
 				t.Fatalf("wrapped error %v lost its operator error", err)
 			}
 			for _, part := range []string{`table "wan"`, `chain "input"`, `term "allow-service"`, "10.10.10.1/30"} {

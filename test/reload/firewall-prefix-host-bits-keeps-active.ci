@@ -1,0 +1,92 @@
+# Test: does a refused live prefix edit keep both the active config and the
+# installed kernel rule, and can the operator then commit the corrected prefix?
+# A unit test cannot prove transaction persistence and nft kernel state survive
+# an actual rejected reload. The compiled observer checks both between reloads.
+# VALIDATES: spec-firewall-prefix-normalize AC-6 through the running daemon.
+# PREVENTS: rejecting only offline validation, or applying a refused candidate.
+
+option=needs-linux:caps=net-admin
+option=storage:value=disk
+
+stdin=ze-bgp:terminator=EOF_CONFIG
+firewall {
+    backend nft;
+    table prefix_guard {
+        family inet;
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy accept;
+            term original {
+                from { source-address 192.0.2.0/24; }
+                then { accept; }
+            }
+        }
+    }
+}
+plugin {
+    external prefix-proof {
+        run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+    }
+}
+EOF_CONFIG
+
+tmpfs=prefix-invalid.conf:refused=config-plugin-verify:terminator=EOF_INVALID
+firewall {
+    backend nft;
+    table prefix_guard {
+        family inet;
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy accept;
+            term candidate-invalid {
+                from { source-address 198.51.100.1/24; }
+                then { accept; }
+            }
+        }
+    }
+}
+plugin {
+    external prefix-proof {
+        run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+    }
+}
+EOF_INVALID
+
+tmpfs=prefix-corrected.conf:terminator=EOF_CORRECTED
+firewall {
+    backend nft;
+    table prefix_guard {
+        family inet;
+        chain input {
+            type filter;
+            hook input;
+            priority 0;
+            policy accept;
+            term corrected {
+                from { source-address 198.51.100.0/24; }
+                then { accept; }
+            }
+        }
+    }
+}
+plugin {
+    external prefix-proof {
+        run "le test fixture firewall/prefix-host-bits-keeps-active prefix-invalid.conf prefix-corrected.conf";
+    }
+}
+EOF_CORRECTED
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=45s
+expect=exit:code=0
+expect=stderr:contains=PREFIX_REFUSAL_KEPT_ACTIVE_AND_KERNEL
+expect=stderr:contains=PREFIX_CORRECTION_COMMITTED_AND_INSTALLED
+expect=stderr:contains=fix: source-address 198.51.100.0/24
+expect=key:path=meta/config/ze-bgp.conf/active:exists=true
+expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
+expect=key:glob=object/*:not-contains=candidate-invalid
