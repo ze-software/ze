@@ -34,8 +34,17 @@ files, no package under `internal/component/plugin/` imports
 | An operator | `plugin { external <name> { run ...; } }` (`internal/component/plugin/yang/ze-plugin-conf.yang`) | `docs/guide/plugins.md` |
 
 A field or method name in `rpc` is wire, not Go: renaming a JSON tag breaks
-every plugin written in another language. An external plugin's own YANG is not
-compiled yet (`docs/plugin-development/schema.md`, "What works today").
+every plugin written in another language.
+
+An external plugin already brings its own YANG over the protocol: the `schema`
+field of its Stage 1 declaration carries the module as `yang-text`
+(`docs/plugin-development/protocol.md`, "Stage 1: Registration"), and the
+engine stores it. What is missing is on the engine's side: the stored module
+is not compiled into the config schema yet, so the operator cannot write
+config under the plugin's own root
+(`docs/plugin-development/schema.md`, "What works today"). The work that
+compiles it at startup is
+`plan/post-release/features/spec-plugin-external-yang-at-startup.md`.
 
 ## Boundaries
 
