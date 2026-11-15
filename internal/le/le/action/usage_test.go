@@ -171,3 +171,50 @@ func TestKeywordPageCarriesTheDeclaration(t *testing.T) {
 		t.Errorf("an unknown keyword was answered %v, want a refusal naming quiet", err)
 	}
 }
+
+// VALIDATES: a keyword that declares no Values but answers its candidates from
+// a Source lists them on its page, each with its summary, read when the page is
+// asked for; a keyword with neither lists no values.
+// PREVENTS: a value held in a registry that only tab completion offers, so a
+// reader of `le help <area> <verb> <keyword>` cannot learn what to type.
+func TestKeywordPageListsTheCandidatesItsSourceAnswers(t *testing.T) {
+	asked := 0
+	list := New("site", Action{
+		Verb: "build", Summary: "build the site", Why: "build the site.",
+		Parameters: []Parameter{
+			{
+				Keyword: "producer", Kind: KindLabel, Value: "name", Requirement: Optional, Repeat: true,
+				Help: "render only this producer's pages",
+				Source: func() []Candidate {
+					asked++
+					return []Candidate{{Value: "blog", Summary: "writes its pages"}, {Value: "search"}}
+				},
+			},
+			{Keyword: "output", Kind: KindPath, Value: "directory", Requirement: Optional, Help: "where it goes"},
+		},
+		AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
+	}).Actions()
+	if asked != 0 {
+		t.Fatalf("the listing asked the source %d time(s) before any page was rendered", asked)
+	}
+	page, err := list.KeywordPage("le", "build", "producer")
+	if err != nil {
+		t.Fatalf("producer: %v", err)
+	}
+	text := renderAt(page, 100)
+	for _, want := range []string{"values:", "blog: writes its pages\n", " search\n", "repeat: yes"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the keyword page lacks %q:\n%s", want, text)
+		}
+	}
+	if asked != 1 {
+		t.Errorf("the page asked the source %d time(s), want once", asked)
+	}
+	page, err = list.KeywordPage("le", "build", "output")
+	if err != nil {
+		t.Fatalf("output: %v", err)
+	}
+	if text := renderAt(page, 100); strings.Contains(text, "values:") {
+		t.Errorf("a keyword with no values and no source lists values:\n%s", text)
+	}
+}

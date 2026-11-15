@@ -364,14 +364,27 @@ func keywordFacts(parameter Parameter) string {
 }
 
 // keywordDescription is the body of a keyword's page, one fact per line, and
-// each declared value on its own line with what it does.
+// each value on its own line with what it does.
+//
+// The values are the declared ones, or, for a keyword that declares none, the
+// candidates its Source answers now. A keyword whose values live in a registry
+// (the site producers, the RFC profiles) would otherwise be offered only to a
+// reader who presses tab, and le help covers every value le accepts.
 func keywordDescription(parameter Parameter) string {
 	var tb textbuf.Buffer
 	tb.Str("kind: ").Str(parameter.Kind.String()).Str(" (").Str(parameter.Kind.Meaning()).Str(")\n")
-	if len(parameter.Values) != 0 {
+	candidates := parameter.ValueCandidates()
+	if len(candidates) == 0 && parameter.Source != nil {
+		candidates = parameter.Source()
+	}
+	if len(candidates) != 0 {
 		tb.Str("values:\n")
-		for _, candidate := range parameter.ValueCandidates() {
-			tb.Str("  ").Str(candidate.Value).Str(": ").Str(candidate.Summary).Byte('\n')
+		for _, candidate := range candidates {
+			tb.Str("  ").Str(candidate.Value)
+			if candidate.Summary != "" {
+				tb.Str(": ").Str(candidate.Summary)
+			}
+			tb.Byte('\n')
 		}
 	}
 	tb.Str("required: ")

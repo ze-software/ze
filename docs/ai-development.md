@@ -81,7 +81,7 @@ A few limits now apply whatever the task, and for several of them the tooling re
 - Run destructive version control commands, or touch work belonging to another session. Several agents work in the same checkout at once.
 - Implement protocol behaviour from memory. An agent reads the RFC text and, where the RFC is silent, the source of established open source implementations so that Ze interoperates with them.
 
-## What has stayed my job
+## What I still do myself
 
 When an agent gets something wrong, I look beyond the code fix to the rule or check that allowed the mistake through. I correct the process so that the next session does not repeat it, which can be frustrating. It is much the same work I do at Exa, although the replies I get when I challenge an AI are rather different.
 

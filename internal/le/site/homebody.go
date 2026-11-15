@@ -394,7 +394,7 @@ Keep the logs if a check fails.</pre>
                             <tr role="row"><th scope="row" role="rowheader">Multi-node topologies</th><td role="cell">{{ze:interop.protocols.topology}}</td><td role="cell">Links, routes and service interactions between nodes.</td></tr>
 {interop_other_row}
                         </tbody>
-                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell">{{ze:interop.scenarios}}</td><td role="cell">Each scenario is counted once by its primary protocol or test area, including cases that exercise several protocols.</td></tr></tfoot>
+                        <tfoot role="rowgroup"><tr role="row"><th scope="row" role="rowheader">All scenarios</th><td role="cell">{{ze:interop.scenarios}}</td><td role="cell">Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests.</td></tr></tfoot>
                     </table>
                 </section>
                 <div class="index4-test-grid" aria-label="Other test layers">

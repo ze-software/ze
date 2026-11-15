@@ -1,0 +1,122 @@
+{
+  "revision": "9eb98b1a7fec7562368ebadd8aff13498d8da1ba",
+  "source_home_sha256": "33c485d1100ea7cc7f64c62efc637543b60240065747d1c042231475a2b727a1",
+  "scenario_total": 397,
+  "scenario_suite_total": 8,
+  "legacy_image_counter": 13,
+  "legacy_image_counter_members": [
+    "FRR",
+    "bird",
+    "dnsmasq",
+    "freertr",
+    "gobgp",
+    "kea",
+    "keepalived",
+    "knot",
+    "openbgpd",
+    "rustbgpd",
+    "rustybgp",
+    "stayrtr",
+    "unbound"
+  ],
+  "suites": {
+    "interop": 243,
+    "interop-ipsec": 85,
+    "interop-l2tp": 13,
+    "interop-pppoe": 16,
+    "interop-radius": 7,
+    "interop-radius-subscriber": 5,
+    "interop-rsvpte": 10,
+    "interop-topology": 18
+  },
+  "scope": "Tracked scenario directories in committed test/interop*/scenarios/<scenario>/, hidden scenario names excluded. Inventory, not passing-run evidence.",
+  "legacy_image_counter_scope": "Direct test/interop/Dockerfile.* excluding Ze, plus separately supplied FRR. This omits the separately pulled pmacct image and images in other suites, so it must not be displayed as a complete peer-image or lab count.",
+  "protocols": {
+    "bgp": 142,
+    "ospfv2": 36,
+    "ospfv3": 20,
+    "isis": 14,
+    "bfd": 5,
+    "bmp": 4,
+    "rpki": 3,
+    "vrrp": 2,
+    "dns": 2,
+    "dhcpv4": 3,
+    "dhcpv6": 2,
+    "ldp": 3,
+    "as112": 6,
+    "gtsm": 1,
+    "ipsec": 85,
+    "l2tp": 13,
+    "pppoe": 16,
+    "radius": 12,
+    "rsvpte": 10,
+    "topology": 18
+  },
+  "protocol_grouping": {
+    "scope": "Each scenario is counted once by its primary protocol or test area. Cross-protocol cases remain in their primary group. This is the same pinned inventory of 397 scenarios, not passing-run evidence.",
+    "shared_suite_name_prefixes": {
+      "bgp": [
+        "bgp",
+        "addpath",
+        "as",
+        "frr",
+        "local",
+        "no",
+        "peer",
+        "show",
+        "shutdown"
+      ],
+      "ospfv2": [
+        "ospf"
+      ],
+      "ospfv3": [
+        "ospfv3"
+      ],
+      "isis": [
+        "isis"
+      ],
+      "bfd": [
+        "bfd"
+      ],
+      "bmp": [
+        "bmp"
+      ],
+      "rpki": [
+        "rpki",
+        "rtr"
+      ],
+      "vrrp": [
+        "vrrp"
+      ],
+      "dns": [
+        "dns"
+      ],
+      "dhcpv4": [
+        "dhcpv4"
+      ],
+      "dhcpv6": [
+        "dhcpv6"
+      ],
+      "ldp": [
+        "ldp"
+      ],
+      "as112": [
+        "as112"
+      ],
+      "gtsm": [
+        "gtsm"
+      ]
+    },
+    "shared_suite_scenario_overrides": {
+      "ospf-ipsec-ah-frr": "ospfv3",
+      "ospf-ipsec-frr": "ospfv3",
+      "ospf-multiaf-frr": "ospfv3",
+      "ospf-multiaf-v4-frr": "ospfv3"
+    },
+    "radius_suites": [
+      "interop-radius",
+      "interop-radius-subscriber"
+    ]
+  }
+}

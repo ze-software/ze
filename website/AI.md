@@ -124,6 +124,47 @@ Before it builds, it warns on stderr about every supported feature published on
 a stale recorded run; `./le site build refresh` re-records those first
 (`docs/contributing/feature-maturity.md`, "Recorded runs").
 
+### Reviewing a page while you edit it
+
+`./le site build producer <name>` renders one producer's pages over the
+existing full artifact in seconds, from the working tree, with no commit and
+no whole-site rebuild. The review loop is:
+
+1. Edit the page's source.
+2. Run `./le --name session site build producer <name>`.
+3. Look at the page in `../gh-pages`, and go back to 1.
+
+The tests and the commit come only once the owner approves the pages; a full
+`./le site build` and `./le site check` then complete the change, as above.
+
+`--name session` matters because a plain `./le` runs an le built from
+committed HEAD. The page sources under `website/` and `docs/` are read from the
+working tree either way, but an uncommitted edit to a producer's Go code, or to
+the shell every page shares, reaches the page only through an le built from the
+working tree. A person outside an agent session spells it `--name <name>`. The
+release roadmap is the exception to both: it is generated from committed HEAD
+(`docs/contributing/gh-pages.md`, "Release roadmap").
+
+`./le help site build producer` lists every producer, read from the registry,
+and says which ones read the finished artifact (the sitemap, the search index,
+`llms-full.txt`). Those run after the page producers a run names, whatever the
+order on the line, so `producer docs producer search` rebuilds the docs pages
+and the index that finds them. A name the registry does not hold is refused with the list. The
+producer of a published route is named in its claim in the build record,
+`tmp/site/producers-<key>.json`.
+
+The run needs a full artifact this checkout built, and refuses with the
+command that makes one otherwise. It skips seeding, staging and the native
+surfaces: it publishes the command catalog, configuration tree and site facts
+the last full build wrote, so a change to a stylesheet, a script, a copied
+asset or the code those data files describe needs the full build. It stamps
+only the pages it wrote, and carries the previous stamp onto one whose bytes did
+not otherwise change. It merges its claims into the build record rather than
+replacing it, so `./le site check` still reads every other producer's pages as
+claimed. It refuses `partial` and `refresh`, which are whole-site steps.
+<!-- source: internal/le/site/buildproducer.go -- BuildProducers, selectProducers, fullArtifactClaims, mergeClaims, stampWritten -->
+<!-- source: internal/le/site/actions.go -- buildWhy, runProducerBuild -->
+
 ### Website architecture
 
 - **Data sources.** Published pages come from structured data and Markdown.
@@ -738,11 +779,11 @@ The homepage's Getting started section presents the same two-peer lab as
 setup commands and a separate prompt. The AI path uses the installed Ze skill,
 checks the established session and both received prefixes, and stops only the
 processes the agent started. Both paths use the existing terminal grid, which
-stacks on narrow screens. Shared tutorial, setup and alternative-use links
-follow the two paths.
+stacks on narrow screens. The agent launch and Codex hook-trust instructions
+stay inside the AI path. There is no Good starting points block below it.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
-Testing evidence follows Latest news, after the management walkthrough. Its
+Testing evidence follows the management walkthrough, with no Latest news band. Its
 cards describe the behavior checked, with links to the test methods. Counts
 represent Go test functions, functional scenarios, fuzz targets, interop
 scenarios and a bounded image list, not a passing-run total. The RFC card

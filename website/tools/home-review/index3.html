@@ -1,0 +1,501 @@
+<!doctype html>
+<!--
+Second review draft requested by Thomas: product demonstrations stay on the page.
+Source: main/website/tools/home-review/index3.html and index3.css.
+Baseline stylesheet: main/website/tools/home-review/index2.css, kept for comparison.
+Served copies: ../gh-pages/index3.html and ../gh-pages/assets/index3.css.
+Retain these review deliverables until Thomas approves, replaces or rejects this
+alternative. Remove the served copies when superseded; do not publish this draft.
+The feature directory preserves the current homepage's 52 entries. In an approved
+implementation it must use the existing generated feature data, not a second list.
+Statistics use the current site's data-ze-stat contract and snapshot fallbacks.
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Ze · Homepage review, version 2</title>
+    <meta name="description" content="A review draft for Ze: a network OS and platform for immutable services, with one configuration for routing, interfaces and services." />
+    <link rel="icon" href="assets/ze.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/vendor/fonts/fonts.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+    <link rel="stylesheet" href="assets/index2.css" />
+    <link rel="stylesheet" href="assets/vendor/asciinema-player.css" />
+    <link rel="stylesheet" href="assets/index3.css" />
+    <script src="assets/vendor/asciinema-player.min.js" defer></script>
+    <script src="assets/site.js" defer></script>
+</head>
+<body class="review-page review-version-two">
+    <a class="skip-link" href="#top">Skip to main content</a>
+    <div id="site-header-mount" data-header-src="assets/header.html" data-site-root="">
+        <nav class="site-header-fallback" aria-label="Site navigation">
+            <a class="brand" href="./">Ze</a>
+            <a href="guides/quickstart/">Quickstart</a>
+            <a href="docs/">Docs</a>
+            <a href="features/">Features</a>
+            <a href="project/roadmap/">Roadmap</a>
+            <a href="contribute/">Contribute</a>
+        </nav>
+    </div>
+
+    <main class="home-review" id="top" tabindex="-1">
+        <aside class="review-notice" aria-label="Review draft">
+            <span>Homepage draft · version 2</span>
+            <div class="review-version-links"><a href="index2.html">First draft</a><a href="./">Current homepage <span aria-hidden="true">↗</span></a></div>
+        </aside>
+
+        <section class="review-hero" aria-labelledby="review-hero-title">
+            <div class="review-hero-grid">
+                <div class="review-hero-copy">
+                    <p class="review-eyebrow">Ze, an OpenNOS</p>
+                    <h1 id="review-hero-title">A network OS.<br /><em>A platform for immutable services.</em></h1>
+                    <p class="review-hero-intro">Configure routing, interfaces and network services together. Connect directly to Ze over SSH, make changes in the browser, or automate the same configuration through its APIs.</p>
+                    <ul class="review-keypoints" aria-label="Key capabilities">
+                        <li>Self-contained</li><li>Extend with plugins</li><li>Appliance option</li><li>ExaBGP compatible</li>
+                    </ul>
+                    <div class="review-actions">
+                        <a class="review-button review-button-primary" href="guides/quickstart/">Try the BGP quickstart <span aria-hidden="true">→</span></a>
+                        <a class="review-button review-button-ghost" href="#demo-dashboard">Watch a 45-second demo</a>
+                    </div>
+                    <p class="review-hero-status"><span class="review-status-dot" aria-hidden="true"></span>Pre-release · No stable release yet. Start in an isolated lab.</p>
+                </div>
+                <aside class="review-fit-card" aria-label="Where to evaluate Ze">
+                    <span class="review-eyebrow">What Ze is useful for</span>
+                    <h2>Explore the operator workflow before choosing a deployment.</h2>
+                    <dl>
+                        <div><dt>A routing lab</dt><dd>Exchange routes and inspect sessions before involving a live network.</dd></div>
+                        <div><dt>ExaBGP automation</dt><dd>Try an existing configuration and process script through the migration tools.</dd></div>
+                        <div><dt>A service or appliance</dt><dd>Keep an existing Linux host, use Docker, or build a dedicated system.</dd></div>
+                    </dl>
+                    <p>Ze is pre-release. Features have different maturity levels, migration has limits, and public stable downloads are not available.</p>
+                    <a href="#evidence">Inspect the evidence and limitations ↓</a>
+                </aside>
+            </div>
+            <figure class="review-inline-demo review-overview-demo" id="demo-overview" aria-labelledby="overview-title">
+                <figcaption class="review-demo-heading"><div><span class="review-eyebrow">The complete demonstration · 32 minutes 57 seconds</span><h2 id="overview-title">One running router, eight live configuration topics.</h2><p>Follow ExaBGP migration, the BGP dashboard, live configuration, deliberate faults and recovery. Play, pause, seek or use full screen here.</p></div><a href="#demo-dashboard">Prefer a short introduction? Watch 45 seconds ↓</a></figcaption>
+                <div class="review-player-frame" data-cast-poster="43"><div class="terminal-demo__player" data-terminal-demo-player data-cast-src="assets/demos/showcase.cast" data-cols="137" data-rows="36" aria-label="Full continuous Ze showcase, 32 minutes 57 seconds"></div><noscript><p class="terminal-demo__noscript">The player requires JavaScript. The complete transcript is available immediately below.</p></noscript></div>
+                <details class="review-transcript" data-code-copy="off"><summary>Read the complete showcase transcript on this page</summary><pre><code>One running router, eight live configuration topics
+
+0. Migrate an actual ExaBGP neighbor configuration:
+   ze exabgp migrate /src/demos/terminal/showcase/exabgp.conf
+   Read the resulting bgp group and peer, remote address and AS numbers.
+   This previews migration; it does not replace the lab's active configuration.
+
+1. Connect to the base lab over SSH. Exit configuration mode, open monitor bgp,
+   press s to sort by ASN, then q to return to the operational prompt.
+   The transit and FRR peers are established before any feature is committed.
+
+2. RPKI: add cache and validation binding live. Compare Valid, NotFound and
+   Invalid routes; explain the ROA, stop the cache, diagnose and restore it.
+3. IRR: query a local test server, bind AS-TEST and import filtering live.
+   Prove accepted and refused routes; diagnose a wrong AS-SET and restore it.
+4. BFD: add a profile and opt-in to the established FRR BGP peer. Cut its link,
+   show BFD diagnostics and BGP history, restore the link and the sessions.
+5. OSPF: add the area and interface. Follow Full adjacency through the router
+   database to the loopback route. Diagnose a Hello mismatch and restore it.
+6. IPsec: load IKE, ESP, authenticated peer/selectors and XFRM route in one
+   candidate. Prove negotiated and kernel SPIs with protected-host traffic.
+   Mismatch ESP alone, diagnose NO_PROPOSAL_CHOSEN without calling IKE down,
+   restore the matching ESP group, clear the peer SAs and prove traffic again.
+7. VRRP: add the gateway and uplink tracking. Observe master, tracked-link
+   demotion and reduced priority; stop the companion master to show failover
+   while the shown Ze stays running. Restore the companion and tracked link.
+8. Traffic usage: attach accounting live, identify the heavy source and port,
+   stop the burst, and observe recovery without changing forwarding.
+9. Commit confirmed: leave a risky hostname change unconfirmed, observe its
+   automatic rollback, then explicitly accept the next change and prove it stays.
+10. Recap: the same daemon received each live commit, diagnostic and recovery.
+
+Every topic uses its standalone recording's configure.tape and show.tape.
+The showcase is recorded as one continuous session, not assembled from casts.
+See each topic transcript for the commands, topology and vendor references.
+BGP vendor mapping: FRR show bgp summary displays session state; Ze's monitor bgp
+adds the interactive live view used here.
+https://docs.frrouting.org/en/latest/bgp.html#clicmd-show-ip-bgp-all-summary-wide-json
+
+Ordered visible commands from the continuous tape and its shared topic fragments:
+
+$ ze-demo card showcase intro
+$ ze exabgp migrate /src/demos/terminal/showcase/exabgp.conf
+$ ze-demo card showcase bgp
+$ sshpass -e ssh ze-demo
+ze# exit
+ze&gt; monitor bgp
+ze&gt; exit
+
+RPKI live configuration, outage diagnosis and recovery:
+$ ze-demo card topic-rpki lab
+ze# load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf
+ze# load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf
+ze# load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+$ ze cli -c 'show bgp adj-rib-in | yaml | no-more'
+$ ze-demo run showcase-lab control rtr-cache stop
+$ ze cli -c 'show log recent component bgp.rpki level warn count 3 | yaml | no-more'
+$ ze-demo run showcase-lab control rtr-cache start
+$ ze cli -c 'show bgp rpki status | yaml | no-more'
+
+IRR live configuration, wrong AS-SET and repaired route decisions:
+$ ze-demo card topic-irr lab
+ze# load file absolute merge /src/demos/terminal/topics/irr/1-server.conf
+ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# load file absolute merge /src/demos/terminal/topics/irr/3-import.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show bgp irr check customer 10.0.0.0/24 | yaml | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf
+ze# commit now
+$ ze cli -c 'show bgp irr prefix customer | yaml | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf
+ze# commit now
+$ ze cli -c 'update bgp irr as-set AS-TEST | yaml | no-more'
+$ ze-demo run showcase-lab control customer reannounce
+$ ze cli -c 'show bgp adj-rib-in | no-more'
+
+BFD opt-in, link failure and session recovery:
+$ ze-demo card topic-bfd overview
+ze# load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf
+ze# load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+$ ze-demo run showcase-lab control frr down
+$ ze cli -c 'show bgp peer 172.29.0.2 history | no-more'
+$ ze-demo run showcase-lab control frr up
+$ ze cli -c 'show bfd session address 172.29.0.2 | no-more'
+
+OSPF adjacency, Hello mismatch diagnosis and recovery:
+$ ze-demo card topic-ospf overview
+ze# load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf
+ze# load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf route | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf
+ze# commit now
+$ ze cli -c 'show metrics name ze_ospf_packets_dropped_total label interface frr0 label reason hello-interval | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf
+ze# commit now
+$ ze cli -c 'show ospf neighbor detail | no-more'
+$ ze cli -c 'show ospf route | no-more'
+
+IPsec live tunnel, proposal mismatch and protected traffic recovery:
+$ ze-demo card topic-ipsec lab
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/1-ike.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/3-peer.conf
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/4-xfrm.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+$ ze-demo run showcase-lab control vpn ping
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf
+ze# commit now
+$ ze cli -c 'show vpn ipsec peer name responder | no-more'
+$ ze cli -c 'show log recent level warn | match NO_PROPOSAL_CHOSEN | last 1 | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane sa | yaml | no-more'
+$ ze cli -c 'show vpn ipsec dataplane drift | yaml | no-more'
+ze# load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf
+ze# commit now
+$ ze cli -c 'clear vpn ipsec sa peer responder | no-more'
+$ ze-demo run showcase-lab control vpn ping
+$ ze cli -c 'show vpn ipsec dataplane sa | no-more'
+
+VRRP tracked preference, reduced-priority takeover and recovery:
+$ ze-demo card topic-vrrp overview
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf
+ze# load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf
+ze# show | compare
+ze# commit now
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ze-demo run showcase-lab control tracked-uplink down
+$ ip link show zetrk1
+$ ze-demo run showcase-lab control keepalived stop
+$ ze cli -c 'show vrrp interface name zeptrk0 | no-more'
+$ ze-demo run showcase-lab control keepalived start
+$ ze-demo run showcase-lab control tracked-uplink up
+$ ze cli -c 'show vrrp statistics | no-more'
+
+Traffic accounting, heavier senders and settled counters:
+$ ze-demo card topic-traffic overview
+ze# load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf
+ze# load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf
+ze# show | compare
+ze# commit now
+$ ip netns exec traffic-peer ping -c 3 -W 2 10.77.0.1
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+$ ze-demo run showcase-lab control traffic burst
+$ ze cli -c 'show metrics name ze_traffic_usage_ingress_bytes_total label interface traffic0 label src_ip 10.77.0.2 | no-more'
+$ ze-demo run showcase-lab control traffic stop
+$ ze cli -c 'show traffic usage name traffic0 | no-more'
+
+Confirmed commit rollback and explicit acceptance:
+$ ze-demo card topic-commit-confirmed lab
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# show | compare
+ze# commit confirmed 8
+ze# show system host
+ze# show system host
+ze# show | compare
+ze# show | changes
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# show | compare
+ze# commit confirmed 15
+ze# commit accept
+ze# show system host
+ze# exit
+ze&gt; exit
+$ ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
+$ ze-demo card topic-commit-confirmed recap
+$ ze-demo card showcase recap
+</code></pre></details>
+                <p class="review-demo-provenance">A continuous recording from an isolated Linux namespace lab. The preview shows the BGP dashboard at 43 seconds; playback starts from the beginning. These are recorded interactions, so the controls replay the session rather than control a live router.</p>
+            </figure>
+            <div class="review-hero-network" aria-label="Routing and management">
+                <p><span>Route and connect</span><a href="guides/bgp-peering/">BGP</a> · <a href="guides/ospf/">OSPF</a> · <a href="guides/isis/">IS-IS</a> · <a href="features/interfaces/">Interfaces</a> · <a href="guides/ipsec/">IPsec VPN</a> · <a href="features/interfaces/#wireguard-configuration">WireGuard</a></p>
+                <p><span>Choose forwarding</span><a href="reference/plugins/fib-kernel/">Linux FIB</a> or <a href="reference/plugins/fib-vpp/">VPP</a></p>
+            </div>
+        </section>
+
+        <nav class="review-page-nav" aria-label="On this page">
+            <a href="#demos">Watch focused demos</a><a href="#try">Choose a setup</a><a href="#workflow">Browser workflow</a><a href="#fit">Why Ze</a><a href="#evidence">Evidence</a><a href="#capabilities">Capabilities</a><a href="#project">Project</a>
+        </nav>
+
+        <section class="review-section review-focused-demos" id="demos" aria-labelledby="demos-title">
+            <div class="review-section-heading"><div><span class="review-kicker">See useful behaviour here</span><h2 id="demos-title">Two focused demonstrations.</h2></div><p>Inspect the operator interface, then follow a configuration change through automatic rollback and explicit acceptance. Each recording has its own player and complete transcript on this page.</p></div>
+            <article class="review-inline-demo review-focused-demo" id="demo-dashboard" aria-labelledby="dashboard-title">
+                <div class="review-demo-heading"><div><span class="review-badge">45 seconds · Monitor</span><h3 id="dashboard-title">Inspect a BGP peer without leaving the terminal.</h3><p>The dashboard lists the routers Ze is peering with and their session state. This recording sorts the table and opens one peer’s details.</p></div><div class="review-demo-takeaway"><span>What to look for</span><p>Established sessions, a changing sort order, and the selected peer’s live detail view.</p></div></div>
+                <div class="review-player-frame"><div class="terminal-demo__player" data-terminal-demo-player data-cast-src="assets/demos/cli-dashboard.cast" data-cols="137" data-rows="36" aria-label="BGP dashboard demonstration, approximately 45 seconds"></div><noscript><p class="terminal-demo__noscript">The player requires JavaScript. Read the complete transcript below.</p></noscript></div>
+                <details class="review-transcript" data-code-copy="off"><summary>Read the BGP dashboard transcript</summary><pre><code>$ ssh ze-demo
+ze# exit
+ze&gt; monitor bgp
+
+The dashboard polls three local BGP sessions. Press "s" to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and "q" to leave the dashboard.
+</code></pre></details>
+                <p class="review-demo-provenance">Ze 26.10.09 · Recorded local lab · Play, pause, seek and full screen are available in the player.</p>
+            </article>
+            <article class="review-inline-demo review-focused-demo" id="demo-rollback" aria-labelledby="rollback-title">
+                <div class="review-demo-heading"><div><span class="review-badge">2 minutes 38 seconds · Configure</span><h3 id="rollback-title">Watch an unaccepted change roll back.</h3><p>A confirmed commit applies a change temporarily. In this lab the hostname returns to its earlier value when the operator leaves the first change unaccepted; the next change stays after explicit acceptance.</p></div><div class="review-demo-takeaway"><span>What to look for</span><p>The active hostname, the rollback notice, and a second accepted change that remains after the deadline.</p></div></div>
+                <div class="review-player-frame"><div class="terminal-demo__player" data-terminal-demo-player data-cast-src="assets/demos/commit-confirmed.cast" data-cols="137" data-rows="36" aria-label="Confirmed commit rollback and acceptance demonstration, approximately 2 minutes 38 seconds"></div><noscript><p class="terminal-demo__noscript">The player requires JavaScript. Read the complete transcript below.</p></noscript></div>
+                <details class="review-transcript" data-code-copy="off"><summary>Read the confirmed commit transcript</summary><pre><code>Commit confirmed: rollback and acceptance on the running router
+
+Connect with sshpass -e ssh ze-demo. The SSH editor starts from edge-original.
+Load /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf, review
+show | compare, then run commit confirmed 15. Ze's timeout is in seconds,
+unlike Junos commit confirmed, whose timeout is in minutes.
+
+$ ze-demo card topic-commit-confirmed lab
+$ ze-demo card topic-commit-confirmed overview
+$ sshpass -e ssh ze-demo
+ze# show system host
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf
+ze# show | compare
+ze# commit confirmed 15
+
+Show the active edge-trial value, then deliberately leave the change
+unaccepted. Wait for the actual automatic rollback notice. Inspect show
+system host for edge-original, the empty show | compare view, and
+show | changes for the explicit No pending changes response.
+
+ze# show system host
+
+After the automatic rollback:
+ze# show system host
+ze# show | compare
+ze# show | changes
+
+Load /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf,
+compare, commit confirmed 15, then commit accept. Wait beyond the fifteen-second
+deadline and inspect edge-confirmed again. The accepted value must remain.
+
+ze# load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf
+ze# show | compare
+ze# commit confirmed 15
+ze# commit accept
+
+After waiting beyond the deadline:
+ze# show system host
+
+Leave the editor and run:
+ze# exit
+ze&gt; exit
+$ ze cli -c "show config history $ZE_CONFIG_DIR/ze.conf | yaml | no-more"
+The explicit config folder selects the running lab's stored revisions.
+History is a local read: a bare ze.conf selects the shell's current folder,
+not ZE_CONFIG_DIR. Both outcomes use the running daemon's session editor,
+never an offline file editor or a router restart.
+
+$ ze-demo card topic-commit-confirmed recap
+
+These are the authored walkthrough steps. Runtime validation and recording
+must succeed before this source is published as a recording.
+</code></pre></details>
+                <p class="review-demo-provenance">Ze 26.10.28 · Recorded Linux namespace lab · This example changes a hostname; its outcome does not establish rollback coverage for every feature.</p>
+            </article>
+            <p class="review-small-note">All three recordings play here and start only when you press Play. For other topics, the <a href="demos/terminal/">full recording catalogue</a> remains available.</p>
+        </section>
+
+        <section class="review-section review-try" id="try" aria-labelledby="try-title">
+            <div class="review-section-heading">
+                <div><span class="review-kicker">Start with something you can check</span><h2 id="try-title">Choose how to try Ze.</h2></div>
+                <p>A local BGP lab is the simplest starting point. If you already run ExaBGP or want a different deployment, follow the path that matches your setup.</p>
+            </div>
+            <div class="review-trial-grid">
+                <article class="review-trial review-trial-featured">
+                    <div class="review-card-top"><span class="review-badge">Local lab</span><span class="review-recommendation">Start here</span></div>
+                    <h3>Exchange your first routes.</h3>
+                    <p>Build Ze, start two peers on one Linux host, and inspect the route each receives. The tutorial includes the configuration, verification and cleanup.</p>
+                    <p class="review-success"><span>Success check</span>Both BGP sessions establish and each router’s received-route table contains the prefix advertised by the other.</p>
+                    <a class="review-card-link" href="guides/quickstart/">Open the two-peer quickstart <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="review-trial">
+                    <span class="review-badge">ExaBGP migration</span>
+                    <h3>Try an existing configuration.</h3>
+                    <p>Convert an ExaBGP configuration, review the result, and use the compatibility bridge for process scripts. The guide explains the limits and cutover checks.</p>
+                    <p class="review-success"><span>What you learn</span>Whether the converted configuration and bridged script produce the sessions and routes your automation expects.</p>
+                    <a class="review-card-link" href="use-cases/exabgp-migration/">Explore migration <span aria-hidden="true">→</span></a>
+                </article>
+                <article class="review-trial">
+                    <span class="review-badge">Linux or Docker</span>
+                    <h3>Keep your existing host.</h3>
+                    <p>Run Ze as a Linux service or in Docker. Follow the deployment guide for authenticated access, persistent configuration, updates and removal.</p>
+                    <p class="review-success"><span>What you gain</span>Ze’s operator tools on your existing host. Check authenticated access and configuration retention after the documented restart or recreation.</p>
+                    <div class="review-card-link-row"><a href="guides/ubuntu-build-install/">Linux service →</a><a href="guides/docker/">Docker →</a></div>
+                </article>
+                <article class="review-trial">
+                    <span class="review-badge">VM or appliance</span>
+                    <h3>Give Ze its own system.</h3>
+                    <p>Build an immutable gokrazy image with a read-only root and persistent configuration. The guide covers VM and hardware installation, updates and recovery.</p>
+                    <p class="review-success"><span>What you gain</span>A dedicated, read-only operating system with persistent configuration. Source builds are required; there is no public image release yet.</p>
+                    <a class="review-card-link" href="guides/appliance/">Explore the appliance <span aria-hidden="true">→</span></a>
+                </article>
+            </div>
+            <div class="review-other-paths"><span>Other ways to evaluate</span><a href="guides/netlab/">netlab and containerlab</a><a href="guides/public-looking-glass/">Publish a looking glass</a><a href="guides/ai-agent/">Try an AI agent</a><a href="guides/ze-install/#choose-a-deployment-path">Compare all deployment paths →</a></div>
+            <p class="review-small-note">The quickstart builds from source and needs Go and Git. It checks the BGP control plane; its received routes do not establish forwarding connectivity.</p>
+        </section>
+
+        <section class="review-section review-workflow" id="workflow" aria-labelledby="workflow-title">
+            <div class="review-workflow-copy">
+                <span class="review-kicker">Browser workflow · screenshot and transcript</span>
+                <h2 id="workflow-title">Edit, review, commit.<br />Then check the result.</h2>
+                <p>The browser provides the same edit, review and commit sequence. This local lab changes the hostname and checks the active value after committing. The image shows the resulting setting; the complete walkthrough is below.</p>
+                <ol class="review-steps">
+                    <li><span>01</span><div><strong>Edit the draft configuration</strong><p>Change the hostname from <code>ze-demo</code> to <code>edge-demo</code> before applying it.</p></div></li>
+                    <li><span>02</span><div><strong>Review the difference</strong><p>Open Review &amp; Commit and inspect the pending change.</p></div></li>
+                    <li><span>03</span><div><strong>Commit the draft</strong><p>Confirm the change through the browser interface.</p></div></li>
+                    <li><span>04</span><div><strong>Check the active setting</strong><p>Reload the value and verify that the hostname is <code>edge-demo</code>.</p></div></li>
+                </ol>
+                <details class="review-transcript" data-code-copy="off"><summary>Read the complete browser walkthrough here</summary><pre><code>Ze web configuration demo
+
+1. Open the local Ze HTTPS interface.
+2. Sign in as the local administrator.
+3. Open System / Identity in configuration mode.
+4. Change the hostname from ze-demo to edge-demo.
+5. Save the draft and open Review &amp; Commit.
+6. Verify the diff contains `host edge-demo`.
+7. Confirm the commit.
+8. Reload the setting and verify the active hostname is edge-demo.
+
+Expected result: Ze commits the browser user's isolated draft and the active YANG-backed hostname reads `edge-demo`.
+</code></pre></details>
+                <div class="review-text-links"><a href="features/web-interface/#browser-configuration-workflow">Explore the web interface →</a><a href="assets/demos/web-config.txt" download>Download the walkthrough</a></div>
+            </div>
+            <figure class="review-browser-capture">
+                <div class="review-window-bar"><span class="review-window-dots" aria-hidden="true">● ● ●</span><span>Ze / System / Identity</span><span class="review-still-label">Screenshot</span></div>
+                <div class="review-browser-image"><img src="assets/demos/web-config.webp" width="1680" height="1008" alt="Ze web configuration showing the committed hostname edge-demo in System Identity" loading="lazy" /></div>
+                <figcaption>Captured after the hostname commit in an isolated local Ze lab. This is a screenshot of the running interface.</figcaption>
+                <div class="review-interface-links"><a href="#browser-larger">Larger screenshot below ↓</a><a href="#demo-dashboard">Play the dashboard recording ↑</a><a href="#interface-screenshots">Other interface screenshots ↓</a></div>
+            </figure>
+            <details class="review-larger-capture" id="browser-larger"><summary>View the browser screenshot at page width</summary><img src="assets/demos/web-config.webp" width="1680" height="1008" alt="Larger screenshot of the committed edge-demo hostname in the Ze web interface" loading="lazy" /><p>Captured after the commit in an isolated local lab. <a href="assets/demos/web-config.webp" download>Download the original image</a>.</p></details>
+            <details class="review-larger-capture" id="interface-screenshots"><summary>Inspect the CLI editor, looking glass and dashboard screenshots here</summary><div class="review-static-gallery"><figure><img src="assets/product-editor.webp" width="1440" height="852" alt="Ze CLI configuration editor showing the pending transit-peer ASN change and contextual completions" loading="lazy" /><figcaption>CLI editor, captured in a local lab on 23 October 2026. The illustrated edit was not committed. <a href="assets/product-editor.webp" download>Original image</a> · <a href="guides/config-editor/">Editor guide</a>.</figcaption></figure><figure><img src="assets/product-routes.webp" width="2820" height="1848" alt="Ze looking glass showing prefix, AS path and community filters, a route graph and a table of routes" loading="lazy" /><figcaption>Looking glass, captured for the June 2026 LINX talk. <a href="assets/product-routes.webp" download>Original image</a> · <a href="features/looking-glass/">Looking glass details</a>.</figcaption></figure><figure><img src="assets/product-dashboard.webp" width="1384" height="811" alt="Ze terminal dashboard showing three established BGP sessions and message counters" loading="lazy" /><figcaption>A frame from the published dashboard recording. <a href="assets/product-dashboard.webp" download>Original image</a> · <a href="#demo-dashboard">Play the recording on this page</a>.</figcaption></figure></div></details>
+        </section>
+
+        <section class="review-section" id="fit" aria-labelledby="fit-title">
+            <div class="review-section-heading">
+                <div><span class="review-kicker">Reasons to investigate</span><h2 id="fit-title">One system to configure and operate.</h2></div>
+                <p>Ze combines a network OS with an extensible configuration and protocol engine. The practical differences are in how you manage it, extend it and inspect what it does.</p>
+            </div>
+            <div class="review-reason-grid">
+                <article class="review-reason"><span class="review-badge">Operate</span><h3>Connect directly to Ze.</h3><p>Ze runs its own SSH server, CLI and configuration editor. You can operate it without a host shell, then use the web interface or APIs to reach the same configuration model.</p><a href="features/cli-commands/">Explore CLI interaction →</a></article>
+                <article class="review-reason"><span class="review-badge review-badge-lavender">Extend</span><h3>Add services through plugins.</h3><p>The core supplies configuration and shared runtime services. Compiled Go modules and external processes extend Ze, so your automation can use its plugin interfaces.</p><div class="review-text-links"><a href="architecture/">Understand the engine →</a><a href="developers/plugins/">Develop a plugin →</a></div></article>
+                <article class="review-reason"><span class="review-badge review-badge-teal">Understand</span><h3>Read the definitions Ze uses.</h3><p>Command and configuration references come from the definitions used by the program. A website build updates those references when the definitions change, including settings supplied by plugins.</p><a href="blog/reference-from-the-system/">How the reference is generated →</a></article>
+                <article class="review-reason"><span class="review-badge">Automate</span><h3>Use the interface that fits the job.</h3><p>Use SSH or the browser for interactive changes, and REST, gRPC, gNMI or MCP for automation. The guides explain each interface’s operations and authentication.</p><div class="review-text-links"><a href="guides/api/">REST and gRPC →</a><a href="guides/gnmi/">gNMI →</a><a href="features/mcp-integration/">MCP →</a></div></article>
+            </div>
+            <div class="review-fit-footer"><a href="project/why-ze/">Why Ze exists →</a><a href="compare/">Compare with other routing software →</a><a href="features/ai-first/">AI tools and Ze’s command catalogue →</a></div>
+        </section>
+
+        <section class="review-section review-evidence" id="evidence" aria-labelledby="evidence-title">
+            <div class="review-section-heading">
+                <div><span class="review-kicker">Evidence for your decision</span><h2 id="evidence-title">Start with the role you have in mind.</h2></div>
+                <p>Available features, test coverage and production maturity answer different questions. Follow the evidence for your use case, then inspect the requirements and tests behind it.</p>
+            </div>
+            <div class="review-evidence-top">
+                <div class="review-role-evidence"><span class="review-badge review-badge-teal">By use case</span><h3>Inspect the requirements for your network role.</h3><p>The profile pages show proven requirements and remaining gaps. Use them alongside the deployment guide and feature maturity record.</p><a class="review-button" href="quality/rfc-compliance/profiles/">See completion by use case →</a><div class="review-text-links"><a href="use-cases/route-server/">IXP route server</a><a href="use-cases/transit-edge-rpki/">Transit edge with RPKI</a><a href="use-cases/">All use cases</a></div></div>
+                <div class="review-rfc-evidence"><span class="review-evidence-label">Across the reviewed RFC requirements</span><strong><span data-ze-stat="rfc.proven_percent">45.2</span><span class="review-percent">%</span></strong><p><span data-ze-stat="rfc.proven_display">2,150</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> mandatory requirements owed by Ze or the OS are proven.</p><p class="review-small-note">The population covers reviewed RFCs Ze implements. This figure measures requirement proof; the linked ledger explains exclusions, missing evidence and the earlier counting method.</p><a href="quality/rfc-compliance/">Inspect the RFC ledger →</a></div>
+            </div>
+            <div class="review-test-grid">
+                <a href="quality/unit-fuzz-mutation/"><strong data-ze-stat="tests.unit_display">45,400+</strong><span>Go tests</span><p>Check encoded bytes, parsed values, configuration and state transitions.</p></a>
+                <a href="quality/functional-ci/"><strong data-ze-stat="tests.e2e_display">2,900+</strong><span>End-to-end scenarios</span><p>Run commands, sessions, edits, commits and reloads through the program.</p></a>
+                <a href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests"><strong data-ze-stat="tests.fuzz_display">100+</strong><span>Fuzz targets</span><p>Generate parser inputs and preserve failures as regression cases.</p></a>
+                <a href="quality/qemu-interop-release/#docker-interop"><strong data-ze-stat="interop.target_display">13</strong><span>Interop test images</span><p>Exercise interactions with other routing, VPN and access implementations.</p></a>
+            </div>
+            <p class="review-small-note">These counts describe the test inventory, rather than a current passing-run total. <a href="quality/">Read how Ze is tested</a>, inspect <a href="features/interoperability-testing/">interop evidence</a>, or review the <a href="performance/">benchmark methods and results</a>.</p>
+            <div class="review-tested-with"><span>Other implementations used in testing</span><div><span class="concept-software">FRR</span><span class="concept-software">BIRD</span><span class="concept-software">GoBGP</span><span class="concept-software">OpenBGPd</span><span class="concept-software">FreeRtr</span><span class="concept-software">RustyBGP</span><span class="concept-software">rustbgpd</span><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a><span class="concept-software">StayRTR</span><span class="concept-software">pmacct</span><span class="concept-software">strongSwan</span><span class="concept-software">accel-ppp</span><span class="concept-software">xl2tpd</span><span class="concept-software">FreeRADIUS</span><span class="concept-software">keepalived</span></div><a href="quality/qemu-interop-release/#docker-interop">Read the scenarios and checks →</a></div>
+        </section>
+
+        <section class="review-section review-capabilities" id="capabilities" aria-labelledby="capabilities-title">
+            <div class="review-section-heading">
+                <div><span class="review-kicker">Explore the detail</span><h2 id="capabilities-title">Capabilities and current limitations.</h2></div>
+                <p>Feature pages explain the behaviour and limits. The <a href="reference/feature-status/">maturity record</a> separates available code from the evidence still needed before a feature can be recommended for production.</p>
+            </div>
+            <div class="review-reference-strip">
+                <a href="reference/configuration/"><span>Configuration</span><strong>The YANG tree</strong><small>Settings and plugin configuration →</small></a>
+                <a href="reference/cli/"><span>Commands</span><strong><span data-ze-stat="cli_commands">504</span> CLI commands</strong><small>Syntax, arguments and pipes →</small></a>
+                <a href="reference/plugins/"><span>Plugins</span><strong><span data-ze-stat="plugin_registrations">96</span> registered plugins</strong><small>Purpose, dependencies and source →</small></a>
+            </div>
+            <div class="review-directory">
+                <article class="review-directory-group"><h3><span class="review-badge">Operate</span></h3><p class="review-directory-purpose">Inspect state and manage the configuration.</p><div class="review-directory-links">
+                    <a href="features/formatting/">Output Formatting</a><a href="features/web-interface/">Web Workbench</a><a href="features/looking-glass/">Looking Glass</a><a href="features/cli-commands/">SSH CLI</a><a href="features/bgp-configuration/">YANG Configuration</a><a href="guides/production-diagnostics/">System Readiness</a>
+                </div><a class="review-directory-all" href="features/#operate">All operate features →</a></article>
+                <article class="review-directory-group"><h3><span class="review-badge review-badge-lavender">Routing</span></h3><p class="review-directory-purpose">Exchange routes and follow protocol state.</p><div class="review-directory-links">
+                    <a href="features/">MPLS / LDP / RSVP-TE</a><a href="guides/ospf/">OSPFv2 / OSPFv3</a><a href="guides/isis/">IS-IS</a><a href="guides/vrrp/">VRRP</a><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy" target="_blank" rel="noopener">Segment Routing ↗</a><a href="features/bgp-protocol/">Native BGP Engine</a><a href="guides/static-routes/">Static Routes</a><a href="features/bgp-protocol/">BFD</a><a href="guides/mrt-analysis/">MRT Recording</a>
+                </div><a class="review-directory-all" href="features/#routing">All routing features →</a></article>
+                <article class="review-directory-group"><h3><span class="review-badge review-badge-services">Services</span></h3><p class="review-directory-purpose">Configure tunnels, access and forwarding.</p><div class="review-directory-links">
+                    <a href="guides/ipsec/">IPsec VPN</a><a href="guides/l2tp/">L2TPv2 BNG</a><a href="guides/pppoe/">PPPoE Access</a><a href="features/interfaces/">Interface Management</a><a href="guides/firewall/">Firewall</a><a href="guides/policy-routing/">Policy Routing</a><a href="guides/vpp/">VPP Data Plane</a><a href="guides/as112/">AS112 Anycast DNS</a><a href="features/dns-resolver/">DNS Resolver</a>
+                </div><a class="review-directory-all" href="features/#services">All services features →</a></article>
+                <article class="review-directory-group"><h3><span class="review-badge review-badge-automate">Automate</span></h3><p class="review-directory-purpose">Connect scripts, agents and other systems.</p><div class="review-directory-links">
+                    <a href="guides/fleet-config/">Fleet Management</a><a href="features/ai-first/">AI Tool Interfaces</a><a href="reference/plugins/">Plugin System</a><a href="features/api-commands/">Programmable</a><a href="features/ai-first/">AI-First Design</a><a href="features/mcp-integration/">MCP Integration</a><a href="features/exabgp-compatibility/">ExaBGP Compatibility</a>
+                </div><a class="review-directory-all" href="features/#automate">All automate features →</a></article>
+                <article class="review-directory-group"><h3><span class="review-badge review-badge-teal">Observe</span></h3><p class="review-directory-purpose">Read measurements and investigate faults.</p><div class="review-directory-links">
+                    <a href="project/activity/">Development Activity</a><a href="features/">Tech-Support Bundle</a><a href="guides/flow-export/">Flow Export</a><a href="features/interoperability-testing/">Evidence Over Claims</a><a href="guides/monitoring/">Prometheus Telemetry</a><a href="features/">Health Registry</a><a href="features/">Host Inventory</a><a href="features/">Crash Capture</a><a href="guides/production-diagnostics/">Production Diagnostics</a>
+                </div><a class="review-directory-all" href="features/#observe">All observe features →</a></article>
+                <article class="review-directory-group"><h3><span class="review-badge review-badge-secure">Secure</span></h3><p class="review-directory-purpose">Inspect access controls and filtering.</p><div class="review-directory-links">
+                    <a href="guides/audit/">Audit Trail</a><a href="features/">PKI Store</a><a href="guides/anomaly/">DDoS and Anomaly Detection</a><a href="guides/irr-filtering/">IRR Route Filtering</a><a href="reference/plugins/">Secure by Default</a><a href="guides/tacacs/">TACACS+ AAA</a>
+                </div><a class="review-directory-all" href="features/#secure">All secure features →</a></article>
+                <article class="review-directory-group"><h3><span class="review-badge review-badge-setup">Setup</span></h3><p class="review-directory-purpose">Choose how Ze is built and deployed.</p><div class="review-directory-links">
+                    <a href="guides/ze-install/">ISO and PXE Install</a><a href="features/">Kernel Tunables</a><a href="guides/appliance/">Minimal Appliance Mode</a><a href="features/introspection/">Runs Itself</a><a href="guides/docker/">Docker Support</a><a href="guides/quickstart/">Choose Features at Build Time</a>
+                </div><a class="review-directory-all" href="features/#platform">All setup features →</a></article>
+                <aside class="review-directory-guide"><span class="review-kicker">Find the right page</span><h3>Keep the reference close.</h3><p>The documentation index groups guides by the job you want to do. The feature catalogue includes maturity filters.</p><a href="docs/">Open documentation →</a><a href="features/">Browse the feature catalogue →</a></aside>
+            </div>
+        </section>
+
+        <section class="review-section review-project" id="project" aria-labelledby="project-title">
+            <div class="review-project-heading"><div><span class="review-kicker">An open-source project, in development</span><h2 id="project-title">Follow what is changing.</h2><p>Ze is written with AI agents under a documented development process. The source, test methods, release work and engineering notes are open to inspection.</p><div class="review-text-links"><a href="project/ai-development/">How Ze is developed with AI →</a><a href="https://github.com/ze-software/ze">Source on GitHub ↗</a><a href="license/">AGPLv3 license →</a></div></div><aside class="review-release"><a href="zeledon/" aria-label="Meet Zeledon, the Ze mascot"><img src="assets/zeledon.svg" width="94" height="94" alt="Zeledon, the Ze bird mascot" loading="lazy" /></a><div><span>Planned release</span><strong>Initial version<br />Q4 2026</strong><p>No stable release yet.</p><a href="project/roadmap/">Remaining release work →</a></div></aside></div>
+            <div class="review-project-counts" aria-label="Project size">
+                <a href="project/activity/"><strong data-ze-stat="repo.go_source_lines_display">1.58 million</strong><span>lines of Go source code</span></a>
+                <a href="project/activity/"><strong data-ze-stat="repo.go_test_lines_display">1.86 million</strong><span>lines of Go test code</span></a>
+                <a href="project/activity/"><strong data-ze-stat="repo.go_vendor_lines_display">2.00 million</strong><span>lines of third-party Go code</span></a>
+            </div>
+            <p class="review-small-note">Repository inventory includes comments and blank lines. Source includes development tooling; third-party code is counted separately. <a href="project/activity/">Explore activity and measurement details →</a></p>
+            <div class="review-news-grid"><article><span class="review-badge review-badge-lavender">Engineering note</span><h3><a href="blog/reference-from-the-system/">Keeping documentation in step with the code</a></h3><p>How shared command definitions and recorded evidence supply the public reference.</p><a href="blog/">More articles →</a></article><article><span class="review-badge">Development update</span><h3><a href="project/changes/2026-10-25/">Configuration, routing policy and authentication changes</a></h3><p>The report covering 25 October to 9 November explains changes that can affect existing configurations.</p><a href="project/changes/">All development updates →</a></article><article class="review-community"><span class="review-badge review-badge-teal">Community</span><h3>Bring a configuration or a test result.</h3><p>A lab report, a migration failure or an interoperability test can help improve Ze before the first release.</p><div class="review-text-links"><a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Join Discord ↗</a><a href="contribute/">Ways to contribute →</a></div></article></div>
+            <nav class="review-project-links" aria-label="More about Ze"><a href="project/history/">Project history</a><a href="project/milestones/">Milestones</a><a href="talks/">Talks</a><a href="reference/dependencies/">Dependencies</a><a href="faq/">FAQ</a><a href="labs/bgp-interop/">Run the BGP interop lab</a><a href="labs/netlab/">Topology lab evidence</a></nav>
+        </section>
+    </main>
+    <footer><div class="footer-inner"><div class="footer-bottom"><span>Ze · Homepage review, version 2</span><a href="index2.html">First draft</a><a href="./">Current homepage</a><a href="license/">License</a><a href="legal/">Legal notice</a></div></div></footer>
+</body>
+</html>

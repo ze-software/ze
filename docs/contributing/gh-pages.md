@@ -296,6 +296,18 @@ and `./le site check` against that checkout.
 Use the native builder to preserve `.git` and generated media.
 <!-- source: internal/le/site/build.go -- Build, snapshotArtifact, seedArtifact, cleanArtifact -->
 
+To see one page while you edit it, render only the producer that writes it:
+`./le --name session site build producer <name>`. It re-renders that
+producer's pages over the existing full artifact in seconds, from the working
+tree, and writes nothing else. `--name session` builds the session's le from
+the working tree, because a plain `./le` is built from committed HEAD and never
+sees an uncommitted edit to a producer's code. `./le help site build producer`
+lists the producer names from the registry. Edit, run it, look at the page, and
+repeat; the tests and the commit come once the owner approves the pages. What
+the run keeps and skips, and why, is in `website/AI.md`, "Reviewing a page
+while you edit it".
+<!-- source: internal/le/site/buildproducer.go -- BuildProducers -->
+
 `./le site check` also refuses a page that shows a value of
 `data/site-facts.json` as plain text, outside its `data-ze-stat` or
 `data-ze-rfc` element, and lists each one under `plain-figures` with the page,

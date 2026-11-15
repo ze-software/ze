@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/le/feature"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -27,12 +28,43 @@ const valueDirectory = "directory"
 // published on a stale run before it builds (freshness.go).
 const keywordRefresh = "refresh"
 
+// keywordPartial asks `site build` to restage sources over the existing full
+// artifact rather than seed it from the last published one.
+const keywordPartial = "partial"
+
+// keywordProducer asks `site build` to render only the named producers over the
+// existing full artifact (buildproducer.go).
+const keywordProducer = "producer"
+
 // doesRender is the vocabulary verb the rendering names of this area perform.
 const doesRender = "render"
 
+// buildWhy is the page `./le help site build` prints. It carries the review
+// loop, because the reader who needs it is editing a page and asks the binary
+// how to see it, and the le that answers was built from committed HEAD.
+const buildWhy = "stage website sources and refresh the Pages artifact with native renderers.\n" +
+	"\n" +
+	"To see one page while you edit it, render only the producer that writes it:\n" +
+	"  ./le --name session site build producer <name>\n" +
+	"It re-renders that producer's pages over the existing full artifact in seconds,\n" +
+	"with no commit and no whole-site rebuild. ./le runs an le built from committed\n" +
+	"HEAD, which never sees an uncommitted edit to a producer; --name session builds\n" +
+	"this session's le from the working tree. Page sources under website/ and docs/\n" +
+	"are read from the working tree either way.\n" +
+	"The producer names, and the pass each runs in: ./le help site build producer.\n" +
+	"The producer of a published route is named in its claim in\n" +
+	"tmp/site/producers-<key>.json, which every build writes.\n" +
+	"A change to a stylesheet, a script, a copied asset or the code the command\n" +
+	"catalog and configuration tree describe needs the full build."
+
 var actions = leaction.New(area,
-	leaction.Action{Verb: "build", Heavy: true, Summary: "stage the website and refresh the Pages artifact", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the Pages artifact is written to", Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial", Kind: leaction.KindSwitch, Help: "restage sources over the existing full artifact"}, {Keyword: keywordRefresh, Kind: leaction.KindSwitch, Help: "refresh stale feature evidence before the build"}}, AnswerArgs: runBuild},
+	leaction.Action{Verb: "build", Heavy: true, Summary: "stage the website and refresh the Pages artifact", Why: buildWhy, Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the Pages artifact is written to", Value: valueDirectory, Requirement: leaction.Optional},
+			{Keyword: keywordPartial, Kind: leaction.KindSwitch, Help: "restage sources over the existing full artifact"},
+			{Keyword: keywordRefresh, Kind: leaction.KindSwitch, Help: "refresh stale feature evidence before the build"},
+			{Keyword: keywordProducer, Kind: leaction.KindLabel, Help: "render only this producer's pages over the artifact", Value: "name", Requirement: leaction.Optional, Repeat: true, Source: producerCandidates},
+		}, AnswerArgs: runBuild},
 	leaction.Action{Verb: "check", Summary: "check the Pages artifact holds no source inputs", Why: "verify that the Pages artifact contains no source-only website inputs",
 		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the Pages artifact directory to check", Value: valueDirectory, Requirement: leaction.Optional}}, AnswerArgs: runCheck},
 	leaction.Action{Verb: "bundle", Does: doesRender, Summary: "turn one deck into a self-contained HTML file", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,
@@ -67,6 +99,9 @@ func runBuild(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	if arguments.Has(keywordProducer) {
+		return runProducerBuild(root, arguments)
+	}
 	// The warning, and a refresh when asked, come before the build publishes.
 	stale, refreshed, err := freshness(os.Stderr, arguments.Has(keywordRefresh),
 		func() ([]feature.StaleFeature, error) { return feature.StaleSupported(root) },
@@ -75,13 +110,44 @@ func runBuild(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, err := Build(ctx, BuildOptions{Repository: root, Output: arguments.One(keywordOutput), Partial: arguments.Has("partial")})
+	report, err := Build(ctx, BuildOptions{Repository: root, Output: arguments.One(keywordOutput), Partial: arguments.Has(keywordPartial)})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 	report.StaleSupported = stale
 	report.Refreshed = refreshed
+	return report, 0
+}
+
+// runProducerBuild renders the named producers over the existing artifact.
+//
+// It refuses the two keywords that ask for a whole-site step it does not run:
+// partial restages every source, and refresh re-records the feature evidence a
+// full build publishes. Each is a usage mistake, so it answers 2, the code a
+// parse refusal answers. It reports through leaction.ReportError rather than
+// Area.Refuse, because the action table names this handler and a handler that
+// names the table back is an initialization cycle.
+func runProducerBuild(root string, arguments leaction.Arguments) (any, int) {
+	if arguments.Has(keywordPartial) {
+		leaction.ReportError(opererr.New("producer and partial cannot be combined",
+			"A producer run keeps the existing artifact. A partial build restages every source; omit producer for that build.",
+			"./le site build partial"))
+		return nil, 2
+	}
+	if arguments.Has(keywordRefresh) {
+		leaction.ReportError(opererr.New("producer and refresh cannot be combined",
+			"A refresh records feature evidence that only a full build publishes; omit producer for that build.",
+			"./le site build refresh"))
+		return nil, 2
+	}
+	report, err := BuildProducers(ProducerBuildOptions{
+		Repository: root, Output: arguments.One(keywordOutput), Producers: arguments.Values(keywordProducer),
+	})
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
 	return report, 0
 }
 
@@ -241,7 +307,9 @@ func runConfigTree(arguments leaction.Arguments) (any, int) {
 	defer restore()
 	root, err := lepath.Root()
 	if err != nil {
-		leaction.ReportError(err)
+		leaction.ReportError(opererr.Wrap(err, "Ze cannot find the checkout for the configuration reference",
+			"This command reads the checkout's YANG models. Run it from the Ze checkout.",
+			"cd <ze-checkout> && ./le site config-tree"))
 		return nil, 1
 	}
 	paths, err := resolvePaths(root, arguments.One(keywordOutput))

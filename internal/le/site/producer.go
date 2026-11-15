@@ -236,6 +236,14 @@ func coverageOf(output string, claims []Claim) (Coverage, error) {
 	if err != nil {
 		return Coverage{}, err
 	}
+	return coverageFrom(pages, claims), nil
+}
+
+// coverageFrom compares the pages an artifact publishes, as pageRegistry
+// answers them, against the claims its producers made. A producer run
+// (buildproducer.go) has already walked the artifact to stamp it, so it hands
+// the pages over rather than walking twice.
+func coverageFrom(pages []Page, claims []Claim) Coverage {
 	coverage := Coverage{Producers: len(allProducers()), Published: len(pages), Written: len(claims)}
 	writers := make(map[string]int, len(claims))
 	for _, claim := range claims {
@@ -249,7 +257,7 @@ func coverageOf(output string, claims []Claim) (Coverage, error) {
 			coverage.Unclaimed = append(coverage.Unclaimed, page.Route)
 		}
 	}
-	return coverage, nil
+	return coverage
 }
 
 // checkCoverage answers the coverage of an artifact this process did not build.

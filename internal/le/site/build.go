@@ -69,14 +69,10 @@ type BuildReport struct {
 // publication time into the footer of every published page.
 // The caller's context owns native daemon compilation and extraction.
 func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
-	paths, err := resolvePaths(options.Repository, options.Output)
+	paths, err := buildPaths(options.Repository, options.Output)
 	if err != nil {
 		return BuildReport{}, err
 	}
-	repository := paths.Repository
-	paths.testHealth = sync.OnceValues(func() (testhealth.Rendered, error) {
-		return liveTestHealth(repository)
-	})
 
 	// A derived artifact is absent for most of a session: a write to one of its
 	// inputs removes it, and only a shell command that spells its path rebuilds
@@ -171,6 +167,21 @@ func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 		Unstamped:    unstamped,
 		Coverage:     coverage,
 	}, nil
+}
+
+// buildPaths resolves the paths one build renders with, and gives every page
+// that states a test count one shared read of the test-health render
+// (Paths.testHealth). A full build and a producer run both start here.
+func buildPaths(repository, output string) (Paths, error) {
+	paths, err := resolvePaths(repository, output)
+	if err != nil {
+		return Paths{}, err
+	}
+	root := paths.Repository
+	paths.testHealth = sync.OnceValues(func() (testhealth.Rendered, error) {
+		return liveTestHealth(root)
+	})
+	return paths, nil
 }
 
 func trackedAndUntrackedSourceFiles(paths Paths) ([]string, error) {
