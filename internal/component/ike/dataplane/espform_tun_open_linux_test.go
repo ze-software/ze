@@ -1,4 +1,4 @@
-// Design: plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md -- the complete path re-presents on a policy-checked device
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the complete path re-presents on a policy-checked device
 // Related: espform_tun_linux.go -- openESPFormTUNClone, createESPFormTUNNode and the refusals under test
 //
 // VALIDATES: opening the TUN clone device /dev/net/tun. A missing node is created as

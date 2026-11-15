@@ -1,4 +1,4 @@
-// Design: plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md -- the complete path re-presents on a policy-checked device
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the complete path re-presents on a policy-checked device
 // Related: espform_tun_probe_linux.go -- predictESPFormTUNSysctls, the sysctl half of the probe under test
 // Related: espform_tun_linux.go -- settleESPFormTUNSysctls and probeESPFormTUNSysctlWritable
 //

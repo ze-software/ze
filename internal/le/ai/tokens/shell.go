@@ -101,6 +101,7 @@ var goJobVerbs = []string{"vet", wordTest, "build"}
 var leJobs = map[string]string{wordTest: "", "go": "", "job": "run", "repo": "compiles", "rfc": "check"}
 
 // The le words the help and commit figures read.
+// enumeration: exempt (the report selects help lookups and commit creation for measurement; it does not inventory CLI verbs)
 const (
 	leHelpWord   = "help"
 	leCommitWord = "commit"
@@ -177,6 +178,7 @@ func literalWord(word *syntax.Word) string {
 		return quoted.Value
 	}
 	quoted, isDouble := word.Parts[0].(*syntax.DblQuoted)
+	// refuse-by-default: guards classify -- an expanded word keeps its argument position but cannot name a command or file
 	if !isDouble {
 		return ""
 	}

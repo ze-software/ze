@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/release/validation/spec-fib-depth.md -- Linux netlink rich route programming
+// Design: docs/architecture/core-design.md -- Linux netlink rich route programming
 // Related: nexthop_linux.go -- buildRichRoute, buildMultiPath, buildGateway
 
 package fibkernel

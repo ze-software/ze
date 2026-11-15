@@ -75,12 +75,16 @@ Reuse is bound to the exact package provider in the prospective
 allowance. The root module identity, vendor inventory and nested-module
 boundaries come from the carried content, or HEAD for a file not carried;
 removed boundaries are absent. An uncarried `go.mod` cannot hide an import.
-An import the file already held at HEAD, or one it drops, asks nothing. The
+An import the file already held at HEAD, or one it drops, asks nothing. If the
+HEAD file does not parse, every import in the carried file is judged as added;
+an unreadable baseline cannot exempt a new use. The
 ledger is read as the commit leaves it: the carried copy when the commit
 carries the ledger, HEAD's otherwise, so a use-specific approval cannot come
 from an uncarried row. A commit that creates the ledger (HEAD
 holds none) is the seed and owes no record; since removing the ledger is
-refused, that happens once.
+refused, that happens once. Ledger rows are compared with HEAD and the recorded
+approvals after parsing both ledger versions; a malformed ledger refuses the
+commit instead of dropping a row.
 
 The refusal names the file, the package, the vendored module that provides it
 (or says no vendored module does), the importer, and the command Thomas runs.

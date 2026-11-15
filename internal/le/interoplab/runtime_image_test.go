@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	goversionpin "github.com/ze-software/ze/internal/le/go/versionpin"
 )
 
 func TestBuildTargetReachesDockerAsOneStageArgument(t *testing.T) {
@@ -77,7 +79,7 @@ func TestRuntimeRecipeKeepsDeploymentAndLabContracts(t *testing.T) {
 			t.Errorf("runtime recipe lacks %s", required)
 		}
 	}
-	for _, forbidden := range []string{"golang:", "go build", "COPY . ."} {
+	for _, forbidden := range []string{goversionpin.ImagePrefix, "go build", "COPY . ."} {
 		if strings.Contains(text, forbidden) {
 			t.Errorf("runtime recipe rebuilds or copies source: %s", forbidden)
 		}

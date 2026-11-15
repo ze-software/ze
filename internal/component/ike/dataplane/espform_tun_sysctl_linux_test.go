@@ -1,4 +1,4 @@
-// Design: plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md -- the complete path re-presents on a policy-checked device
+// Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- the complete path re-presents on a policy-checked device
 // Related: espform_tun_linux.go -- espFormTUNSysctls, readESPFormTUNSysctl and the sysctl refusals under test
 //
 // VALIDATES: ze-espform's IPv4 sysctls are written only where the device does not

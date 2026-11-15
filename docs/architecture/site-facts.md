@@ -426,7 +426,8 @@ committed `HEAD`. That snapshot supplies the page, its Markdown mirror, and
 revision, because the site's website-only source digest does not cover `plan/`.
 When a spec declares `RFC gaps`, the same snapshot's Profiles column reads
 `rfc/short/` and `rfc/profiles/` from that commit too, and those files join
-the input digest
+the input digest. Set membership uses only the specs in that snapshot; the
+collector does not read the checkout's local record of closed specs
 (`docs/contributing/spec-workflow.md`, "Committed release roadmap").
 <!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
@@ -436,7 +437,8 @@ Uncommitted edits and untracked specs cannot enter that inventory. Missing
 history or an unreadable plan tree stops the build. The output remains an
 inventory preview pending owner classification, and counts include each
 recorded spec regardless of lifecycle state. A deletion alone supplies no
-evidence of delivery. This separate provenance boundary leaves `repo-facts.json`
+evidence of delivery, and an unread local closure record is not an empty list
+of closed children. This separate provenance boundary leaves `repo-facts.json`
 and its existing update/check gate unchanged.
 <!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
 

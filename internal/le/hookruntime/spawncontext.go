@@ -65,6 +65,7 @@ func spawnContextNotice(ctx context) string {
 		return ""
 	}
 	tokens, err := contextsize.Last(ctx.transcript)
+	// refuse-by-default: guards hookAgentSpawned -- no notice means the size is unknown, never that the transcript fits the threshold
 	if err != nil {
 		return ""
 	}

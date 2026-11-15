@@ -93,7 +93,7 @@ func ReadAgentStart(tree, agentType string) (AgentStart, error) {
 	}
 	path := filepath.Join(tree, AgentDefinitionsDir, agentType+".md")
 	body, err := os.ReadFile(path) //nolint:gosec // agentType is validated as a file name above
-	// refuse-by-default: guards hookSubagentContext and the sync check's rows -- a type with no definition in the mirror gets no rule set; the definitions this checkout writes are the only ones it can read
+	// refuse-by-default: guards Omits -- an undefined type gets no rule set; only definitions this checkout writes can be read
 	if errors.Is(err, fs.ErrNotExist) {
 		return AgentStartUndefined, nil
 	}
