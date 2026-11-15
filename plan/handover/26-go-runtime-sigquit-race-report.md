@@ -77,7 +77,7 @@ spins for ever on darwin. The full account, with line references at
 |----------|--------------------------|
 | Approve, change or reject the issue text | Nothing is posted without it |
 | Publish the `go env` block as it is | It holds home directory paths and the Ze cache path. The Go issue form asks for it; trimming it is the alternative |
-| Offer the CL in the issue | The text says he has signed the Google CLA and can mail the change. Remove that sentence if he would rather only report |
+| Offer the CL in the issue | The text says he can mail the change as a CL. It does not mention the Google CLA he has signed: Gerrit knows it from his account. Remove the sentence if he would rather only report |
 | Name the project | The text says "a project of mine". The handover commit 54cebcd0a6 already cross-references Ze on #73470 |
 
 ## How to finish
