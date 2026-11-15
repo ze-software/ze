@@ -74,6 +74,7 @@ func evpnWithdrawBody(nlri []byte) []byte {
 func TestEVPNRelabelReplacesTheRoute(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.31")
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
@@ -118,6 +119,7 @@ func TestEVPNRelabelReplacesTheRoute(t *testing.T) {
 func TestEVPNWithdrawWithOtherLabelAndESIRemovesTheRoute(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.32")
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))

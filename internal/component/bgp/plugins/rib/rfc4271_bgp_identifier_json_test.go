@@ -82,6 +82,7 @@ func feedReceivedJSONWithIdentifier(t *testing.T, r *RIBManager, peer netip.Addr
 // would have chosen the other one.
 func TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	cidr := []byte{8, 10}
 
@@ -112,6 +113,7 @@ func TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail(t *testing.T) {
 // positive case.
 func TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	cidr := []byte{8, 10}
 

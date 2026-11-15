@@ -23,6 +23,7 @@ import (
 func TestRedistReplayEmitsUnderEmitLock(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	fam := family.Family{AFI: 1, SAFI: 1}

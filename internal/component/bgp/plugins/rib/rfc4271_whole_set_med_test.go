@@ -11,7 +11,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -191,7 +190,7 @@ func TestRFC4271WholeSetMEDRIBBestChange(t *testing.T) {
 	for _, order := range wholeSetMEDOrders() {
 		bus := newTestEventBus()
 		r := newTestRIBManagerWithBus(bus)
-		r.locRIB.Store(locrib.NewRIB())
+		electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.3"), netip.MustParseAddr("192.0.2.2"), netip.MustParseAddr("192.0.2.1"))
 		c := wholeSetMEDCandidates()
 		prefix := []byte{24, 203, 0, 113}
 		for _, i := range order {

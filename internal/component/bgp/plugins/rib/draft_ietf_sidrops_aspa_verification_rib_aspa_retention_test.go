@@ -214,9 +214,7 @@ func TestASPARetentionReceiveRecovery(t *testing.T) {
 			t.Run(strconv.FormatBool(text)+"/"+arrival, func(t *testing.T) {
 				bus := newTestEventBus()
 				r := newTestRIBManagerWithBus(bus)
-				loc := locrib.NewRIB()
-				r.SetLocRIB(loc)
-				t.Cleanup(func() { r.SetLocRIB(nil) })
+				loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 				unsubscribe := ribevents.ValidationChange.Subscribe(bus, r.validationChanged)
 				t.Cleanup(unsubscribe)
 				bridge, ctx := startValidationReceiver(t, bus)
@@ -262,9 +260,7 @@ func TestASPARetentionReplacementWithdrawal(t *testing.T) {
 		t.Run(removal, func(t *testing.T) {
 			bus := newTestEventBus()
 			r := newTestRIBManagerWithBus(bus)
-			loc := locrib.NewRIB()
-			r.SetLocRIB(loc)
-			t.Cleanup(func() { r.SetLocRIB(nil) })
+			loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"), netip.MustParseAddr("192.0.2.10"))
 			t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
 			bridge, ctx := startValidationReceiver(t, bus)
 			validationReceive(t, bridge, r, 10, 9)
@@ -314,9 +310,7 @@ func TestASPARetentionReplacementWithdrawal(t *testing.T) {
 func TestDisabledRPKISelectionFirstReceiveBecomesSelectable(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 	t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
 	bridge, ctx := startValidationReceiver(t, bus)
 	if _, err := bridge.ExecuteCommand(ctx, "disable", "request bgp adj-rib-in disable-validation", nil, ""); err != nil {

@@ -91,6 +91,7 @@ func identifierTestUpdate() []byte {
 // would have chosen the other one.
 func TestBestPathStepFComparesThePeerBGPIdentifier(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	cidr := []byte{8, 10}
 
@@ -120,6 +121,7 @@ func TestBestPathStepFComparesThePeerBGPIdentifier(t *testing.T) {
 // to any single answer would pass the positive case.
 func TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	cidr := []byte{8, 10}
 

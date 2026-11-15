@@ -3,45 +3,45 @@
     "rid": "RFC4271-9.1.2.2-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress",
-    "unit-sha": "a8f255b1003ba06d",
+    "unit-sha": "fe0053a65cf8888f",
     "claim-sha": "06acbcc79bd5ffca",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
-    "producer-sha": "b726a25d8ef5c754",
-    "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
+    "producer-sha": "60c376259daea5c3",
+    "break": "line 433: \"return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr\" -\u003e \"return b.PeerIP.Compare(a.PeerIP), BestStepPeerAddr\""
   },
   {
     "rid": "RFC4271-9.1.2.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail",
-    "unit-sha": "99ead1c5508dd3c1",
+    "unit-sha": "5b24035a320424af",
     "claim-sha": "f1a57c2dbea54c86",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
-    "producer-sha": "b726a25d8ef5c754",
-    "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
+    "producer-sha": "60c376259daea5c3",
+    "break": "line 413: \"return cmp, BestStepRouterID\" -\u003e \"return -cmp, BestStepRouterID\""
   },
   {
     "rid": "RFC4271-9.1.2.2-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress",
-    "unit-sha": "d7d133006aefac10",
+    "unit-sha": "bdee20a701830192",
     "claim-sha": "b9fb75b5da4803b3",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
-    "producer-sha": "b726a25d8ef5c754",
-    "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
+    "producer-sha": "60c376259daea5c3",
+    "break": "line 433: \"return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr\" -\u003e \"return b.PeerIP.Compare(a.PeerIP), BestStepPeerAddr\""
   },
   {
     "rid": "RFC4271-9.1.2.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier",
-    "unit-sha": "5485e0d0afbfda82",
+    "unit-sha": "d6f4fd89962b8d9a",
     "claim-sha": "f1a57c2dbea54c86",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePairWithReason",
-    "producer-sha": "b726a25d8ef5c754",
-    "break": "body of comparePairWithReason replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
+    "producer-sha": "60c376259daea5c3",
+    "break": "line 413: \"return cmp, BestStepRouterID\" -\u003e \"return -cmp, BestStepRouterID\""
   },
   {
     "rid": "RFC4271-9.1.2.2-1",
@@ -80,11 +80,11 @@
     "rid": "RFC4271-9.1.2.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange",
-    "unit-sha": "ca09dfed6d58969a",
+    "unit-sha": "9c99f29ff9c72082",
     "claim-sha": "387cc2d40cba20af",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
+    "producer-sha": "2f1d07c11c858e50",
+    "break": "line 53: \"eligible = retainLowestMED(candidates[:eligible], explanation)\" -\u003e \"eligible = len(candidates[:eligible])\""
   }
 ]
