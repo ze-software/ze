@@ -3,8 +3,8 @@
   "requirement_sha": "55a65c2ec3be5b71",
   "tests": {
     "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path": "1a0ebc92282e3989",
-    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "fdd3980327455f38",
-    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793TwoOctetASPathKeepsMappableASNs": "fdd3980327455f38"
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "bc3c657fb7f1d046",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793TwoOctetASPathKeepsMappableASNs": "bc3c657fb7f1d046"
   },
   "units": {
     "internal/component/bgp/reactor/rfc6996_old_speaker_export_test.go::TestRFC6996OldSpeakerReceivesStrippedASPathAndAS4Path": "0bdb1bb130d9636e",

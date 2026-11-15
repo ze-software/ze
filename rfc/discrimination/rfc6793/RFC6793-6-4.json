@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-6-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793MalformedAS4PathDiscarded",
+    "unit-sha": "56f25c08e52f352c",
+    "claim-sha": "9b9dd43e61387be4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
+    "producer-sha": "2f371da5a96ab9b7",
+    "break": "line 330: \"recvAS4 = nil\" -\u003e \"return false, err\""
+  },
+  {
+    "rid": "RFC6793-6-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793WellFormedAS4PathNotDiscarded",
+    "unit-sha": "7470ded8e18992cb",
+    "claim-sha": "9a3246a4631b1b13",
+    "route": "mutant",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
+    "producer-sha": "2f371da5a96ab9b7",
+    "break": "line 332: \"recvAS4 = parsed\" -\u003e \"recvAS4 = parsed; recvAS4 = nil\""
+  }
+]

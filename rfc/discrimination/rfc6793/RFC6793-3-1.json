@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-3-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed",
+    "unit-sha": "2de9ad0e14b3147a",
+    "claim-sha": "57e70ffa9bb372f6",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/as4.go::AS4Path.WriteTo",
+    "producer-sha": "250aefbfdbb45795",
+    "break": "line 75: \"seg.Type == ASConfedSequence || seg.Type == ASConfedSet\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC6793-3-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed",
+    "unit-sha": "2de9ad0e14b3147a",
+    "claim-sha": "2f91410563f44e85",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/as4.go::AS4Path.WriteTo",
+    "producer-sha": "250aefbfdbb45795",
+    "break": "line 75: \"seg.Type == ASConfedSequence || seg.Type == ASConfedSet\" -\u003e \"true\""
+  }
+]

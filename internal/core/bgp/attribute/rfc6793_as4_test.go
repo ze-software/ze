@@ -131,15 +131,17 @@ func TestRFC6793DecodeFourOctetWhenNegotiated(t *testing.T) {
 
 // TestRFC6793DecodeTwoOctetWhenNotNegotiated proves the four-octet assumption is
 // bound to the negotiation rather than applied unconditionally: without the
-// capability the same bytes decode on a two-octet stride and the 8-octet
+// capability the same four ASN octets, with the two-octet segment count,
+// decode on a two-octet stride and the 8-octet
 // AGGREGATOR is rejected as the wrong length.
 //
 // RFC requirement: RFC6793-4.1-5 negative -- without the capability the receiver does NOT
-// assume four-octet entities: the identical AS_PATH bytes decode as two two-octet ASNs and
+// assume four-octet entities: the same four ASN octets, encoded with the valid
+// two-octet segment count, decode as two ASNs and
 // an 8-octet AGGREGATOR is rejected with ErrInvalidLength (the 6-octet form is required).
 func TestRFC6793DecodeTwoOctetWhenNotNegotiated(t *testing.T) {
 	t.Parallel()
-	// Same bytes as the four-octet case, but a 2-ASN two-octet sequence.
+	// The same four ASN octets as the four-octet case, with a 2-ASN segment count.
 	data := []byte{0x02, 0x02, 0xFA, 0x56, 0xEA, 0x01}
 	path, err := attribute.ParseASPath(data, false)
 	require.NoError(t, err)

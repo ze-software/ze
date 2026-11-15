@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-4.1-5",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated",
+    "unit-sha": "c459814c4652923a",
+    "claim-sha": "65a8df47ee8e3130",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/aspath.go::ParseASPath",
+    "producer-sha": "e64c824c82479c1e",
+    "break": "line 298: \"path := \u0026ASPath{}\" -\u003e \"fourByte = false; path := \u0026ASPath{}\""
+  },
+  {
+    "rid": "RFC6793-4.1-5",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated",
+    "unit-sha": "327be29f50772c9f",
+    "claim-sha": "4efc71edb598f064",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/aspath.go::ParseASPath",
+    "producer-sha": "e64c824c82479c1e",
+    "break": "line 298: \"path := \u0026ASPath{}\" -\u003e \"fourByte = true; path := \u0026ASPath{}\""
+  }
+]

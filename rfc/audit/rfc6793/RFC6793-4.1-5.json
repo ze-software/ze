@@ -1,13 +1,13 @@
 {
-  "note": "TestRFC6793DecodeFourOctetWhenNegotiated reads ParseASPath/ParseAggregator with fourByte=true and recovers 4200000001; the negative shows the same bytes decode on a 2-octet stride and an 8-octet AGGREGATOR is refused without the capability.",
+  "note": "TestRFC6793DecodeFourOctetWhenNegotiated calls ParseASPath and ParseAggregator with fourByte=true and recovers AS 4200000001 from four ASN octets and an 8-octet AGGREGATOR. TestRFC6793DecodeTwoOctetWhenNotNegotiated calls ParseASPath with fourByte=false over the same four ASN octets but a segment count of two, asserting AS 0xFA56 and AS 0xEA01; it refuses the 8-octet AGGREGATOR with ErrInvalidLength and accepts the valid 6-octet AS_TRANS form. These are codec-width assertions; they do not themselves exercise capability negotiation through a session.",
   "requirement_sha": "85a225abd5568a33",
   "tests": {
-    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "fdd3980327455f38",
-    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "fdd3980327455f38"
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "bc3c657fb7f1d046",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "bc3c657fb7f1d046"
   },
   "units": {
     "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "e426f08bfe6c6f60",
-    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "35f72eec2c5c6841"
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "03c289dd18edede0"
   },
   "verdict": "enforced"
 }

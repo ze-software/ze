@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/rfc6793_asn4_test.go::TestRFC6793ASN4CapabilityCarriesSpeakerAS",
+    "unit-sha": "c11c5b763a2ed70a",
+    "claim-sha": "91caef255d693e7b",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::ASN4.WriteTo",
+    "producer-sha": "c21839de5289ea4e",
+    "break": "line 361: \"a.ASN\" -\u003e \"a.ASN + 1\""
+  },
+  {
+    "rid": "RFC6793-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/rfc6793_asn4_test.go::TestRFC6793ASN4CapabilityValueMustBeFourOctets",
+    "unit-sha": "e6fac3e2458d6382",
+    "claim-sha": "209865dbf6e42b9b",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parseASN4",
+    "producer-sha": "333b37c6e150c849",
+    "break": "line 370: \"return nil, ErrShortRead\" -\u003e \"return \u0026ASN4{}, nil\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeFourOctetToNewSpeaker",
+    "unit-sha": "d6b18fff7e3fedad",
+    "claim-sha": "06504105f446f2e8",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/aspath.go::WriteToWithContext",
+    "producer-sha": "d61e99ee71285a85",
+    "break": "line 128: \"dstCtx == nil || dstCtx.ASN4()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC6793-4.1-4",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker",
+    "unit-sha": "074f9fdd916e83d5",
+    "claim-sha": "9ffb36f6ba4e6014",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/aspath.go::WriteToWithContext",
+    "producer-sha": "d61e99ee71285a85",
+    "break": "line 128: \"dstCtx == nil || dstCtx.ASN4()\" -\u003e \"true\""
+  }
+]
