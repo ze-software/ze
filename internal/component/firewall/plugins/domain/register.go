@@ -62,6 +62,13 @@ func registerDomainDoctor() {
 			os.Exit(1)
 		}
 	}
+	// An unsaved answer is also raised on the report bus (unsaved_issue.go),
+	// and the daemon accepts a plugin's raise only under a registered event
+	// code. Registered after its metadata, which RegisterEventCode requires.
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeDomainGroupUnsavedAnswer}); err != nil {
+		slog.Error("firewall-domain: event code registration failed", "code", codeDomainGroupUnsavedAnswer, "error", err)
+		os.Exit(1)
+	}
 	check := diagnostic.DoctorCheck{
 		Name:         "firewall-domain-group-data",
 		Phase:        diagnostic.DoctorPhasePostConfig,

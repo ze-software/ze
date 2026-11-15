@@ -187,6 +187,9 @@ func runFirewallDomain(conn net.Conn) int {
 	// startup coordinator is no longer reading the connection for this plugin's
 	// `ready` (Plugin.OnStarted, pkg/plugin/sdk/sdk_callbacks.go).
 	p.OnStarted(func(ctx context.Context) error {
+		// The bus accepts a raise only after the handshake, so the store
+		// mirrors its unsaved answers there from here on.
+		plug.cache.issues = p
 		plug.cache.keys = p.StateKeys(ctx)
 		plug.mu.RLock()
 		cfg := plug.config
@@ -682,7 +685,8 @@ func (plug *domainPlugin) recordSteadyAnswer(key nameKey, previous resolvedName,
 }
 
 // warnUnsavedAnswer logs an answer the store refused, with what the operator
-// loses. store.put has already recorded it for the unsaved-answer doctor check.
+// loses. store.put has already recorded it for the unsaved-answer doctor check
+// and raised it on the report bus.
 func warnUnsavedAnswer(key nameKey, effect string, err error) {
 	logger().Warn("firewall-domain: answer could not be saved",
 		"group", key.group, "name", key.name, "family", key.family.label,

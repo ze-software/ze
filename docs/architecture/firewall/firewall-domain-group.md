@@ -150,7 +150,21 @@ answers it through its doctor callback. Each finding names the group, the name,
 the family and the store error, and its fix is
 `update firewall domain-group <name>`. Only `show doctor`, and `ze doctor`
 when the daemon answers, runs it.
+
+The refused write is also raised on the report bus, so `show warnings` lists
+it: a warning under the same code, through the SDK's `RaiseIssue`, because a
+forked plugin's own bus is a copy nothing reads. Its subject is the group, the
+family and the name, and its message and fix are the finding's. The warning is
+set and dropped exactly when the record is: `put`, `open` and `purge` each make
+the bus agree with the record after they change it, raising once per record
+rather than once per failed write, and clearing with `ClearIssue` when a write
+succeeds, the group is cleared, or a configure no longer names the unit. A
+raise or clear the daemon did not take is logged under the same code and sent
+again at the unit's next write. The code is a registered event code, which the
+daemon requires of every raise a plugin sends.
 <!-- source: internal/component/firewall/plugins/domain/cache.go -- put, unsavedFor -->
+<!-- source: internal/component/firewall/plugins/domain/unsaved_issue.go -- syncIssue, syncAllIssues, raiseUnsaved, unsavedIssueSubject -->
+<!-- source: internal/component/firewall/plugins/domain/register.go -- registerDomainDoctor -->
 <!-- source: internal/component/firewall/plugins/domain/doctor.go -- unsavedAnswerCheckDecl, unsavedAnswerFindings, answerDoctorCheck -->
 <!-- source: internal/component/firewall/plugins/domain/domain.go -- warnUnsavedAnswer -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- Plugin.OnStarted -->

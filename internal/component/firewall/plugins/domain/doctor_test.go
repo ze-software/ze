@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -374,12 +377,131 @@ func TestUnsavedAnswerIsReportedUntilAWriteSucceeds(t *testing.T) {
 	assert.Empty(t, diags, "a write that succeeds clears the finding")
 }
 
+// recordedIssues stands in for the daemon's report bus: it keeps the active
+// warnings by subject, counts the calls, and refuses a raise while refuse is
+// set, the way the daemon refuses one past its rate bound.
+type recordedIssues struct {
+	active map[string]sdk.Issue
+	raises int
+	clears int
+	refuse bool
+}
+
+var errRaiseRefused = errors.New("report-issue refused")
+
+func (r *recordedIssues) RaiseIssue(_ context.Context, issue sdk.Issue) error {
+	r.raises++
+	if r.refuse {
+		return errRaiseRefused
+	}
+	if r.active == nil {
+		r.active = make(map[string]sdk.Issue)
+	}
+	r.active[issue.Subject] = issue
+	return nil
+}
+
+func (r *recordedIssues) ClearIssue(_ context.Context, code, subject string) error {
+	r.clears++
+	if issue, ok := r.active[subject]; ok && issue.Code == code {
+		delete(r.active, subject)
+	}
+	return nil
+}
+
+// TestUnsavedAnswerIsRaisedOnTheReportBusUntilAWriteSucceeds proves a write
+// the store refuses is raised on the report bus under the doctor code, once
+// however often the write fails, and that the next write that succeeds clears
+// it: the bus warning is set and dropped exactly when the unsaved record is.
+//
+// ai/rules/user-facing-errors.md: a transient problem is raised on the report
+// bus under its doctor code, so show warnings lists it, and the raise goes
+// through the SDK because the plugin may run forked.
+// PREVENTS: a store refusal that only the log and show doctor see, and a
+// warning left active after the answer was saved.
+func TestUnsavedAnswerIsRaisedOnTheReportBusUntilAWriteSucceeds(t *testing.T) {
+	plug, _ := newTestPlugin(t, oneGroupConfig(), map[string]answer{
+		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
+	})
+	keys := &failingWrites{cacheKeys: plug.cache.keys, refuse: true}
+	plug.cache.keys = keys
+	bus := &recordedIssues{}
+	plug.cache.issues = bus
+
+	_, err := plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	require.Len(t, bus.active, 1, "the refused write is raised")
+	issue := bus.active["cdn ipv4 a.invalid"]
+	assert.Equal(t, codeDomainGroupUnsavedAnswer, issue.Code)
+	assert.Equal(t, rpc.ReportWarning, issue.Severity, "a warning stays active until it is cleared")
+	assert.Contains(t, issue.Message, errStoreRefused.Error(), "the raise names the cause")
+	assert.Equal(t, "update firewall domain-group cdn", issue.Fix)
+
+	_, err = plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.Equal(t, 1, bus.raises, "a second refused write raises nothing more")
+
+	keys.refuse = false
+	_, err = plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.Empty(t, bus.active, "a write that succeeds clears the warning")
+	assert.Equal(t, 1, bus.clears)
+
+	_, err = plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.Equal(t, 1, bus.clears, "a unit with no warning is not cleared again")
+}
+
+// TestUnsavedAnswerRaiseIsRetriedAndClearedWithTheGroup proves a raise the
+// daemon refused is sent again at the unit's next refused write, and that a
+// clear of the group, which drops the record, clears the warning too.
+func TestUnsavedAnswerRaiseIsRetriedAndClearedWithTheGroup(t *testing.T) {
+	cfg := oneGroupConfig()
+	plug, _ := newTestPlugin(t, cfg, map[string]answer{
+		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
+	})
+	keys := &failingWrites{cacheKeys: plug.cache.keys, refuse: true}
+	plug.cache.keys = keys
+	bus := &recordedIssues{refuse: true}
+	plug.cache.issues = bus
+
+	_, err := plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.Empty(t, bus.active, "the daemon refused the raise")
+
+	bus.refuse = false
+	_, err = plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.Equal(t, 2, bus.raises, "the refused raise is sent again")
+	require.Len(t, bus.active, 1)
+
+	_, err = plug.cache.purge(cfg.groups[0])
+	require.NoError(t, err)
+	assert.Empty(t, bus.active, "a clear of the group drops the warning with the record")
+	diags, err := plug.answerDoctorCheck(unsavedAnswerCheckName)
+	require.NoError(t, err)
+	assert.Empty(t, diags)
+}
+
+// TestUnsavedIssueSubjectFitsTheBus proves a subject past the bus's bound is
+// cut, and that two long names of one group keep distinct subjects.
+func TestUnsavedIssueSubjectFitsTheBus(t *testing.T) {
+	long := strings.Repeat("a", 240)
+	first := unsavedIssueSubject(nameKey{group: strings.Repeat("g", 64), name: long + ".one", family: v4Key().family})
+	second := unsavedIssueSubject(nameKey{group: strings.Repeat("g", 64), name: long + ".two", family: v4Key().family})
+	assert.LessOrEqual(t, len(first), rpc.ReportSubjectMax)
+	assert.LessOrEqual(t, len(second), rpc.ReportSubjectMax)
+	assert.NotEqual(t, first, second)
+}
+
 // TestUnsavedAnswerCheckIsDeclaredWithItsCode proves the runtime check
 // declares the code it answers, that `ze show diagnostic` can describe it, and
 // that the callback refuses a check name it never declared.
 func TestUnsavedAnswerCheckIsDeclaredWithItsCode(t *testing.T) {
 	assert.Equal(t, sdk.DoctorPhaseRuntime, unsavedAnswerCheckDecl.Phase)
 	assert.Equal(t, []string{codeDomainGroupUnsavedAnswer}, unsavedAnswerCheckDecl.Codes)
+	assert.Contains(t, diagnostic.EventCodes(), codeDomainGroupUnsavedAnswer,
+		"the daemon accepts the plugin's raise only under a registered event code")
 
 	found := false
 	for _, meta := range domainDiagnosticCodes {

@@ -85,6 +85,16 @@ type store struct {
 	// runtime doctor check names it (codeDomainGroupUnsavedAnswer).
 	unsaved map[nameKey]unsavedAnswer
 	keys    cacheKeys
+
+	// issues mirrors unsaved on the daemon's report bus, under the same code
+	// (unsaved_issue.go). Nil until OnStarted binds the plugin, and in the
+	// read-only store the post-config check opens: neither raises anything.
+	issues unsavedIssues
+	// reportMu orders the bus calls, and guards raised: the set of units
+	// whose warning the bus holds, as the last raise or clear answered. It is
+	// taken before mu, never under it, because a bus call is an RPC.
+	reportMu sync.Mutex
+	raised   map[nameKey]struct{}
 }
 
 // unsavedAnswer is one answer put could not write: why, and when.
@@ -103,6 +113,7 @@ func newStore(keys cacheKeys) *store {
 		keys:    keys,
 		entries: make(map[nameKey]resolvedName),
 		unsaved: make(map[nameKey]unsavedAnswer),
+		raised:  make(map[nameKey]struct{}),
 	}
 }
 
@@ -173,6 +184,8 @@ func (s *store) open(groups []group) error {
 		}
 	}
 	s.mu.Unlock()
+	// The bus drops the warning of every record this open dropped.
+	s.syncAllIssues()
 	return nil
 }
 
@@ -245,9 +258,13 @@ func (s *store) get(key nameKey) (resolvedName, bool) {
 // what a restart reads, so a failure to write is returned rather than logged:
 // a caller that recorded a change in memory alone would report success for
 // state the next boot does not have. A failure leaves memory unchanged and is
-// recorded for the doctor (unsavedFor) until a later put of the unit succeeds.
+// recorded for the doctor (unsavedFor) until a later put of the unit succeeds,
+// and raised on the report bus until then (syncIssue).
 func (s *store) put(key nameKey, value resolvedName) error {
 	err := s.write(key, value)
+	// Deferred before the lock, so it runs after the unlock: the bus call is
+	// an RPC and is never made under mu.
+	defer s.syncIssue(key)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err != nil {
@@ -364,6 +381,9 @@ func (s *store) entriesFor(g group) map[nameKey]resolvedName {
 // the addresses it has, so an operator who knows a group is finished says so
 // with `clear firewall domain-group`.
 func (s *store) purge(g group) (removed int, err error) {
+	// Deferred before the lock, so it runs after the unlock: the bus drops
+	// the warning of every unit this clear dropped, with no RPC under mu.
+	defer s.syncAllIssues()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.keys == nil {

@@ -201,19 +201,25 @@ func unsavedAnswerFindings(cache *store) []sdk.DoctorCheckDiagnostic {
 	unsaved := cache.unsavedFor()
 	out := make([]sdk.DoctorCheckDiagnostic, 0, len(unsaved))
 	for _, unit := range unsaved {
-		var tb textbuf.Buffer
-		tb.Str("firewall domain-group: ").Str(unit.key.group).Str(" could not save the answer for ")
-		tb.Str(unit.key.name).Str(" ").Str(unit.key.family.label).Str(" at ")
-		tb.Str(unit.failure.at.UTC().Format(time.RFC3339)).Str(" (").Err(unit.failure.err)
-		tb.Str("), so it enforces the addresses it held before and a restart does not have the newer answer")
 		out = append(out, sdk.DoctorCheckDiagnostic{
 			Code:     codeDomainGroupUnsavedAnswer,
 			Severity: string(diagnostic.SeverityWarning),
-			Message:  tb.String(),
+			Message:  unsavedAnswerMessage(unit),
 			Fix:      updateFix(unit.key.group),
 		})
 	}
 	return out
+}
+
+// unsavedAnswerMessage says what one unsaved answer costs and why. The doctor
+// finding and the report bus warning both carry it, so they read the same.
+func unsavedAnswerMessage(unit unsavedUnit) string {
+	var tb textbuf.Buffer
+	tb.Str("firewall domain-group: ").Str(unit.key.group).Str(" could not save the answer for ")
+	tb.Str(unit.key.name).Str(" ").Str(unit.key.family.label).Str(" at ")
+	tb.Str(unit.failure.at.UTC().Format(time.RFC3339)).Str(" (").Err(unit.failure.err)
+	tb.Str("), so it enforces the addresses it held before and a restart does not have the newer answer")
+	return tb.String()
 }
 
 // answerDoctorCheck is the plugin's doctor callback. It answers the one
