@@ -120,6 +120,16 @@ and the snapshot proxy. It is a sibling of `flooding_wiring.go` and
 
 <!-- source: internal/plugins/isis/lsdb_wiring.go -- the engine LSDB, the aging loop, SRM arming -->
 
+Every LSDB change is published as an `lsp-change` event by `publishLSPChange`.
+An emit the bus refuses is a defect in Ze and leaves the LSDB as it is:
+`noteLSPChangeRefused` counts each one in
+`ze_isis_lsp_change_events_refused_total` and logs only the first, because the
+event is per LSP ([`isis-4-component-config.md`](isis-4-component-config.md),
+"a refused event emit is a defect").
+
+<!-- source: internal/plugins/isis/lsdb_wiring.go -- publishLSPChange -->
+<!-- source: internal/plugins/isis/events.go -- noteLSPChangeRefused -->
+
 ## Trap: the aging tick is the only refresh driver in a quiescent network
 
 The aging pass folds in own-LSP and pseudo-node refresh. Without that, nothing

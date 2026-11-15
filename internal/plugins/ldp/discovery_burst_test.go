@@ -310,7 +310,9 @@ func TestDiscoverySendUnaffectedByReads(t *testing.T) {
 	// Send loop mirroring discoverOnInterface's post-fix select: send-only ticker.
 	helloTicker := time.NewTicker(cfg.HelloInterval)
 	defer helloTicker.Stop()
-	sendHello(nodeConn, peerAddr, localLSRID, cfg, slogutil.DiscardLogger())
+	if err := sendHello(nodeConn, peerAddr, localLSRID, cfg); err != nil {
+		t.Fatalf("sendHello: %v", err)
+	}
 	deadline := time.After(400 * time.Millisecond)
 sendLoop:
 	for {
@@ -318,7 +320,9 @@ sendLoop:
 		case <-deadline:
 			break sendLoop
 		case <-helloTicker.C:
-			sendHello(nodeConn, peerAddr, localLSRID, cfg, slogutil.DiscardLogger())
+			if err := sendHello(nodeConn, peerAddr, localLSRID, cfg); err != nil {
+				t.Fatalf("sendHello: %v", err)
+			}
 		}
 	}
 

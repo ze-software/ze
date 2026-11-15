@@ -107,8 +107,9 @@ func (m *Machine) Verify(data []byte, c packet.Control) error {
 	return m.authPair.Verifier.Verify(data, c, &m.rcvAuthSeq)
 }
 
-// CloseAuth releases the persister, if any. Called from the engine's
-// session teardown path.
+// CloseAuth releases the persister, if any, and answers its failure to save
+// the last TX sequence number (auth.SeqPersister.Close). Called from the
+// engine's closeAuth, which reports that failure.
 func (m *Machine) CloseAuth() error {
 	if m.authPair == nil || m.authPair.Persister == nil {
 		return nil

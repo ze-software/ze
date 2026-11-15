@@ -17,6 +17,7 @@ import (
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	ifcomp "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -234,6 +235,17 @@ var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 		Description: "An OSPFv2 interface on an `ipv4 unnumbered` unit borrows the address of a donor interface that OSPF does not run on. The unnumbered link advertises no route to the borrowed address, so no other router can reach this router at that address. Add the donor to OSPF, usually as a passive interface: `set ospf interfaces interface <donor> area <area>` and `set ospf interfaces interface <donor> passive true`.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ospf-unnumbered-donor-absent"},
 	},
+	{
+		Code:  codeOSPFv3IPsecEntryLeft,
+		Title: "OSPFv3 IPsec left an entry it installed in the IPsec dataplane",
+		Description: "OSPFv3 IPsec (RFC 4552) could not delete a security association or a security policy it " +
+			"installed for an interface or a neighbor. Ze no longer tracks the entry, so it stays in the IPsec " +
+			"dataplane until it is deleted by hand, and a policy left behind still requires IPsec on that " +
+			"interface's OSPF packets. The event's fix is the ip xfrm command that deletes the entry from the " +
+			"kernel's XFRM backend; with another IPsec backend, ze show vpn ipsec dataplane sa and ze show vpn " +
+			"ipsec dataplane policy list what that backend holds.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-ospfv3-ipsec-entry-left"},
+	},
 }
 
 func registerOSPFDiagnosticCodes() {
@@ -242,6 +254,9 @@ func registerOSPFDiagnosticCodes() {
 	}
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeOSPFInterfaceAddressesUnavailable}); err != nil {
 		panic("BUG: register OSPF interface address event: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeOSPFv3IPsecEntryLeft}); err != nil {
+		panic("BUG: register OSPFv3 IPsec entry event: " + err.Error())
 	}
 }
 
@@ -386,6 +401,14 @@ func runOSPFEngine(conn net.Conn) int {
 
 	p := sdk.NewWithConn(Namespace, conn)
 	defer func() { _ = p.Close() }()
+	// OSPF's problems reach the daemon's report bus through p behind the plugin
+	// report queue (issues.go). Started before any engine, so the first problem
+	// already reaches the daemon; deferred after p.Close, so it stops after
+	// shutdownAll and before p closes: the reports the engines' teardown queued
+	// are still sent.
+	issues := issuequeue.Start(p)
+	issueQueue.Store(issues)
+	defer issues.Stop()
 
 	// Ship SPF routes to the engine over RPC when OSPF runs FORKED (locrib.Default()
 	// is nil in a subprocess). No-op in-process, where the installer writes the local

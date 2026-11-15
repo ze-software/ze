@@ -16,6 +16,7 @@ Information Base, and a dataplane write through the MPLS FIB event bus.
 | Event bus types | `events.go` |
 | `show ldp ...` proxies | `cmd_show.go` |
 | Port 646 readiness check | `doctor.go` |
+| Problems reported to the operator | `problems.go` |
 
 ## Decision: local label exhaustion refuses the FEC
 
@@ -300,6 +301,48 @@ VPP) is described in `docs/architecture/mpls/mpls-kernel.md`, "Doctor checks".
 <!-- source: internal/plugins/ldp/doctor.go -- the port 646 readiness check -->
 <!-- source: internal/plugins/ldp/doctor_label.go -- labelEntriesCheckDecl, labelDoctorFindings -->
 <!-- source: internal/plugins/ldp/register.go -- OnDoctorCheck, DoctorChecks -->
+
+## Decision: a discovery or session problem is logged once per condition
+
+Three problems reach the operator at the default level, each as one WARN line
+with what, why and the fix, under a doctor code LDP registers
+(`registerLDPDiagnosticCodes`), and as a raise on the daemon's report bus
+under the same code. The raise goes through the SDK (`RaiseIssue`,
+`ClearIssue`), so it reaches the daemon when LDP runs forked; the process-local
+`internal/core/report` would not. Every raise and clear goes through the plugin
+report queue `runLDPEngine` starts (`docs/architecture/doctor-and-health-checks.md`,
+"Recent events"), so no discovery or session goroutine waits for the daemon;
+the WARN line says whether the queue took the raise (`report=queued`, or
+`report-error`), and a raise the daemon refuses later is logged at WARN under
+the same code.
+
+| Problem | Code | Counted in | Logged and raised |
+|---------|------|------------|-------------------|
+| A Hello that fails to send on an interface | `doctor-ldp-hello-send-failed` | `ze_ldp_hello_send_errors_total{interface}`, every failure | The first failure after a success raises a warning; while the daemon has refused the run's latest raise, a failure at least `helloDiscardQuiet` (a minute) after it raises again, with no new WARN line; the next Hello that sends, or the end of discovery on the interface, clears it |
+| A malformed datagram on the discovery port | `doctor-ldp-hello-discarded` | `ze_ldp_hello_discards_total{interface}`, every discard | The first discard after a quiet minute on the interface, as an error event |
+| A session that ended without Ze stopping it | `doctor-ldp-session-ended` | none | Each such end, as an error event; a session Ze stopped (adjacency expiry, reload, a KeepAlive it could not send) is an INFO line |
+
+A fatal Notification from the neighbor ends the session, so that end is the
+one problem and it WARNs once, under `doctor-ldp-session-ended`. The read loop
+records the Notification itself at INFO (`ldp: fatal notification received,
+closing the session`, with `status` and `refers-to`), and the error it returns,
+which is that WARN's cause, carries the status and the message type it refers
+to, so the second WARN it once wrote is not needed to keep either.
+<!-- source: internal/plugins/ldp/session.go -- processMessages -->
+
+A Hello goes out every Hello interval and a malformed Hello arrives at the
+rate its sender chooses, so a WARN per packet was rejected: it floods the log
+and hides the next problem. RFC 5036 section 3.5.1.2.1 discards a malformed
+discovery PDU "silently", which binds the wire: no Notification answers it,
+and the count and the line stay local. Every malformed datagram is counted,
+including the truncated ones that used to be dropped with no record. A
+failed close of the discovery socket and a failed TTL set carry the
+refuse-by-default annotation: discovery is stopping in the first case, and
+224.0.0.2 is link-local with a kernel default TTL of 1 in the second.
+
+<!-- source: internal/plugins/ldp/problems.go -- issueQueue, helloSendHealth, helloDiscardLog, noteHelloDiscard, reportSessionEnd, registerLDPDiagnosticCodes -->
+<!-- test: internal/plugins/ldp/problems_test.go TestLDPHelloSendRetriesARefusedRaiseOncePerWindow -->
+<!-- source: internal/plugins/ldp/register.go -- discoverOnInterface, processDiscoveryPacket, sendHello, runSession -->
 
 ## Trap: the delivered config shape
 

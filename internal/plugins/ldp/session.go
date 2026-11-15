@@ -693,10 +693,17 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace
 			// TCP connection and discard all state associated with the session".
 			// Returning ends the read loop, and the caller closes the connection
 			// and drops the peer's bindings.
+			//
+			// The problem is the session ending, which reportSessionEnd WARNs and
+			// raises under doctor-ldp-session-ended with this error as its cause, so
+			// the error carries the status and the message type it refers to, and
+			// this line only records the PDU at INFO: a second WARN would report the
+			// one end twice.
 			if nm.Status&statusFatalBit != 0 {
-				s.log.Warn("ldp: fatal notification received, closing the session",
+				s.log.Info("ldp: fatal notification received, closing the session",
 					"status", nm.Status, "refers-to", nm.ReferMessageType)
-				return fmt.Errorf("%w: status %#08x", errPeerFatalNotification, nm.Status)
+				return fmt.Errorf("%w: status %#08x, refers to message type %#04x",
+					errPeerFatalNotification, nm.Status, nm.ReferMessageType)
 			}
 			s.log.Info("ldp: advisory notification received",
 				"status", nm.Status, "refers-to", nm.ReferMessageType)

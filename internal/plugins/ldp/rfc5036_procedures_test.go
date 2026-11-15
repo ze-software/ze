@@ -403,7 +403,9 @@ func TestRFC5036DistinctLSRIDFormsAdjacency(t *testing.T) {
 	if !ok {
 		t.Fatalf("LocalAddr = %T, want *net.UDPAddr", rx.LocalAddr())
 	}
-	sendHello(tx, dest, lsrID, ldpConfig{HelloHoldTime: 15 * time.Second}, slogutil.DiscardLogger())
+	if err := sendHello(tx, dest, lsrID, ldpConfig{HelloHoldTime: 15 * time.Second}); err != nil {
+		t.Fatalf("sendHello: %v", err)
+	}
 	if err := rx.SetReadDeadline(time.Now().Add(ldpReadTimeout)); err != nil {
 		t.Fatalf("SetReadDeadline: %v", err)
 	}

@@ -774,7 +774,8 @@ func (e *engine) emitLSPChange(level, lspID string, sequence uint32, action stri
 // topology -- specifically an Equal received LSP that only refreshed the held
 // Remaining Lifetime (ISO/IEC 10589 clause 7.3.16): the web UI still wants the
 // "refresh", but SPF would recompute an identical route set, so a stream of
-// duplicates must not thrash it. A nil bus makes this a no-op.
+// duplicates must not thrash it. A nil bus makes this a no-op. A refused emit is
+// counted, and its first one logged, by noteLSPChangeRefused (events.go).
 func (e *engine) publishLSPChange(level, lspID string, sequence uint32, action string) {
 	e.publishBGPLS()
 	bus := getEventBus()
@@ -787,7 +788,7 @@ func (e *engine) publishLSPChange(level, lspID string, sequence uint32, action s
 		Sequence: sequence,
 		Action:   action,
 	}); err != nil {
-		e.log.Debug("isis: lsp-change emit", "lsp-id", lspID, "err", err)
+		e.noteLSPChangeRefused(level, lspID, err)
 	}
 }
 

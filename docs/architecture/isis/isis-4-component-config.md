@@ -176,6 +176,32 @@ registry is set by `setMetricsRegistry`, not per engine.
 <!-- source: internal/plugins/isis/circuit/dis.go -- elect -->
 <!-- source: internal/plugins/isis/register.go -- setMetricsRegistry -->
 
+## Decision: a refused event emit is a defect, and it is warned
+
+The `session-up`, `session-down` and `lsp-change` events are how other plugins
+learn of IS-IS adjacency and database changes. The bus refuses an emit only for
+an event pair its registry does not hold, and `registerISIS` registers all
+three, so a refusal is a defect in Ze: the adjacency or the database is
+unaffected and the engine goes on, but its consumers miss the change. A
+refusal is also raised as an error event under `doctor-internal-defect`,
+through the SDK (`sdk.Plugin.RaiseIssue`) behind the plugin report queue
+(`issues.go`) like every IS-IS problem, never through `internal/core/report`,
+whose bus in a forked process is a copy the daemon never reads. The line says
+whether the queue took the raise (`report=queued`, or `report-error`), and a
+raise the daemon refuses later is logged at WARN under the same code.
+
+A refused session event logs one WARN line per refusal under
+`doctor-internal-defect`, naming the event, the neighbor and the level, with
+`ze show isis neighbor` as the fix: an adjacency changes state at most once per
+Hello exchange, so the lines cannot flood. A refused `lsp-change` is per LSP and
+stays refused for the life of the process, so only its first refusal logs, with
+`ze show isis database` as the fix, and
+`ze_isis_lsp_change_events_refused_total` counts every one.
+
+<!-- source: internal/plugins/isis/events.go -- warnSessionEventRefused, noteLSPChangeRefused -->
+<!-- source: internal/plugins/isis/issues.go -- issueQueue, internalDefectRaiseFailed -->
+<!-- source: internal/plugins/isis/lsdb_wiring.go -- publishLSPChange -->
+
 ## Decision: the system ID is derived from the NET
 
 When no explicit `system-id` leaf is given, the system ID is the first NET's 6
@@ -262,7 +288,10 @@ defaults.
 
 `doctor-isis-net-missing`, `doctor-isis-system-id-mismatch`, and
 `doctor-isis-interface-level-mismatch`, plus the
-`isis-config-sanity` check. The raw-socket check and its code stay owned by the
+`isis-config-sanity` check. `doctor-isis-hello-send-failed` is an event code:
+no check can see a Hello fail before it is sent, so `registerISISDiagnosticCodes`
+registers it as one and the recent-events check reports each raise (see
+[`isis-5-adjacency.md`](isis-5-adjacency.md)). The raw-socket check and its code stay owned by the
 transport (see [`isis-3-l2-transport.md`](isis-3-l2-transport.md)). Each
 `ze_isis_*` metric series is registered by the layer that produces it; this layer
 only threads the registry through.

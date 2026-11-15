@@ -104,6 +104,8 @@ func TestISISMetricsRegistered(t *testing.T) {
 		// isis-5 adjacency
 		"ze_isis_adjacencies_up":    {"interface", "level"},
 		"ze_isis_adjacencies_total": {"level"},
+		// isis-4 events: lsp-change events the bus refused
+		"ze_isis_lsp_change_events_refused_total": {},
 		// isis-6 lsdb
 		"ze_isis_lsps":                   {"level"},
 		"ze_isis_lsp_fragments":          {"level"},

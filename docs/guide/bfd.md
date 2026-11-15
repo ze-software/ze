@@ -209,7 +209,33 @@ restart. Without persistence, it must re-synchronise with the peer's replay
 window. Explicit-file startup selects the store beside that file without a
 `ze.config.dir` pin.
 
-Authentication failures increment `ze_bfd_auth_failures_total{mode}`.
+Authentication failures increment `ze_bfd_auth_failures_total{mode}` on
+every dropped packet. The first failure of a session, and the first after
+each minute, is also logged at Warn under the doctor code
+`doctor-bfd-auth-failed`, naming the peer, the check that failed and the
+profile to fix, and raised in `show warnings` (source `bfd`). The warning
+clears when a packet verifies again, when the session's authentication
+changes, when the session is removed, or when no packet has failed for two
+minutes: a peer that fails and then falls silent sends no packet that could
+verify, and its warning would otherwise stay for as long as the session is
+configured. A packet that verifies does not restart the minute, so bad
+packets mixed with the peer's good ones give one warning a minute. The secret
+is never logged.
+<!-- source: internal/component/bfd/engine/problems.go -- warnAuthFailedLocked, clearAuthWarning, expireQuietWarnings -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestAuthFailureIsCountedWarnedOnceAndClearedOnRecovery -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestInterleavedAuthFailuresWarnAndRaiseOncePerWindow -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestAuthWarningIsWithdrawnOnceTheFailuresStop -->
+
+When the state store refuses to save the sequence number, the first refusal
+of each run is logged at Warn under `doctor-bfd-auth-seq-unsaved` and raised
+in `show errors`, and so is a session whose authentication closes with its
+last write refused: after a restart such a session starts from an older
+number, and a meticulous peer drops its packets until the number passes the
+one it last accepted. `ze doctor` reports why the store cannot be written.
+<!-- source: internal/component/bfd/auth/persist.go -- flushIfChanged, Close -->
+<!-- source: internal/component/bfd/engine/problems.go -- closeAuth, reportSeqUnsaved -->
+<!-- test: internal/component/bfd/auth/persist_test.go TestSeqPersistWriteFailure -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestSeqUnsavedIsReportedWhenASessionIsRemovedAndWhenTheLoopStops -->
 
 ### Enabling BFD on a BGP peer
 
@@ -788,6 +814,35 @@ operator@router> show bfd profile fast-link
 {"name":"fast-link","detect-multiplier":3,"desired-min-tx-us":50000,"required-min-rx-us":50000,"passive":false}
 ```
 
+### Refused sends
+
+When the transport refuses a packet of a session (a Control packet, an Echo
+packet, or the return of an Echo packet the peer sent), every refusal is
+counted in `ze_bfd_send_failures_total{mode,packet}`. The first refusal of
+each packet kind, and the first after each minute, is also logged at Warn
+under the doctor code `doctor-bfd-send-failed` and raised in `show warnings`
+(source `bfd`), naming the peer, the packet kind, the transport's reason and
+what the refusal does to the session:
+
+| Packet | What happens next |
+|--------|-------------------|
+| `control` | The peer hears nothing and takes the session Down when its Detection Time passes |
+| `echo` | No Echo packet returns, and this router takes the session Down with Echo Function Failed |
+| `echo-reflect` | The peer's echo function fails, and the peer takes the session Down with Echo Function Failed |
+
+The transport refuses a single-hop packet whose interface no longer resolves
+or whose peer is on none of that interface's subnets (RFC 5881 §6). The fix of
+a session bound to an interface is therefore
+`ze show interface name <interface> detail`, which shows the addresses the
+peer must share a subnet with; the fix of any other session is
+`ze show bfd session address <peer>`. Each packet kind is raised on its own,
+and its warning clears when a packet of that kind is sent again, when the
+session is removed, or when no packet of that kind has been refused for two
+minutes.
+<!-- source: internal/component/bfd/engine/problems.go -- warnSendFailedLocked, clearSendWarning, expireQuietWarnings, sendFailedFix -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestControlSendFailureIsRaisedWithItsFixAndClearedWhenASendLands -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestEchoReflectWarningIsWithdrawnOnceTheFailuresStop -->
+
 ### Prometheus metrics
 
 The plugin registers five metric families via
@@ -803,6 +858,11 @@ is set.
 | `ze_bfd_detection_expired_total` | counter | mode | Detection-timer expirations (RFC 5880 §6.8.4) |
 | `ze_bfd_tx_packets_total` | counter | mode | Control packets transmitted |
 | `ze_bfd_rx_packets_total` | counter | mode | Control packets received (after the TTL gate) |
+| `ze_bfd_auth_failures_total` | counter | mode | Received Control packets dropped because they failed authentication |
+| `ze_bfd_send_failures_total` | counter | mode, packet | Packets the transport refused to send; `packet` is `control`, `echo` or `echo-reflect` (an echo of the peer's that Ze could not send back) |
+| `ze_bfd_echo_tx_packets_total` | counter | mode | Echo packets transmitted |
+| `ze_bfd_echo_rx_packets_total` | counter | mode | Echo packets received |
+| `ze_bfd_echo_rtt_us` | histogram | mode | Echo round-trip time in microseconds |
 
 
 ## Operational guidance

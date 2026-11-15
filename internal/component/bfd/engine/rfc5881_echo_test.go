@@ -50,6 +50,7 @@ func (h *echoHook) OnStateChange(_, _ packet.State, _ packet.Diag, _, _ string) 
 func (h *echoHook) OnTxPacket(_ string)                                         {}
 func (h *echoHook) OnRxPacket(_ string)                                         {}
 func (h *echoHook) OnAuthFailure(_ string)                                      {}
+func (h *echoHook) OnSendFailure(_, _ string)                                   {}
 func (h *echoHook) OnEchoTx(_ string)                                           { h.txs.Add(1) }
 func (h *echoHook) OnEchoRx(_ string)                                           { h.rxs.Add(1) }
 func (h *echoHook) OnEchoRTT(_ string, rtt time.Duration) {

@@ -8,14 +8,20 @@
 package ospf
 
 import (
+	"bytes"
+	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // fakeDP records what the installer asks of the kernel. Safe for concurrent use: the
@@ -28,6 +34,18 @@ type fakeDP struct {
 	removedSAs  []uint32
 	removedDsts []netip.Addr
 	removedPols []dataplane.SPParams
+	// removeSAErr and removePolErr are what every RemoveSA and RemovePolicyParams call
+	// answers after recording it; nil is a delete the kernel accepted.
+	removeSAErr  error
+	removePolErr error
+}
+
+// failRemovals makes every later delete answer the given errors.
+func (f *fakeDP) failRemovals(saErr, policyErr error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.removeSAErr = saErr
+	f.removePolErr = policyErr
 }
 
 func (f *fakeDP) RequiresForwardPolicy() bool { return false }
@@ -48,7 +66,7 @@ func (f *fakeDP) RemoveSA(spi uint32, dst net.IP, _ uint8) error {
 		panic("BUG: fakeDP.RemoveSA: dst is not an IP address")
 	}
 	f.removedDsts = append(f.removedDsts, addr)
-	return nil
+	return f.removeSAErr
 }
 
 func (f *fakeDP) InstallPolicy(p dataplane.SPParams) error {
@@ -62,7 +80,7 @@ func (f *fakeDP) RemovePolicyParams(p dataplane.SPParams) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.removedPols = append(f.removedPols, p)
-	return nil
+	return f.removePolErr
 }
 
 // installedTo reports the direction of the installed SA keyed on dst, and whether one is.
@@ -453,5 +471,185 @@ func TestIPsecSAReplayWindow(t *testing.T) {
 				"a manually keyed SA SHOULD NOT carry anti-replay unless the operator asks for it",
 				proto, disabled.ReplayWin)
 		}
+	}
+}
+
+// warnLines answers the lines of a text log written at WARN.
+func warnLines(log string) []string {
+	var found []string
+	for line := range strings.SplitSeq(log, "\n") {
+		if strings.Contains(line, "level=WARN") {
+			found = append(found, line)
+		}
+	}
+	return found
+}
+
+// warnSinkFor points the installer's log at a buffer that keeps WARN and above.
+func warnSinkFor(inst *ipsecInstaller) *bytes.Buffer {
+	sink := &bytes.Buffer{}
+	inst.log = slog.New(slog.NewTextHandler(sink, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	return sink
+}
+
+// assertRemovalWarnings checks that every WARN line names why the entry matters, the
+// entry-left doctor code and the interface, that each line has its error event raised
+// under the same code with the entry as subject and the delete of that entry as fix,
+// that the raises name every subject in subjects, and that no line or raise carries the
+// interface's key.
+func assertRemovalWarnings(t *testing.T, log string, lines []string, raised *recordedIssues, subjects []string) {
+	t.Helper()
+	for _, line := range lines {
+		for _, part := range []string{
+			`why="` + ipsecRemovalWhy + `"`, "code=" + codeOSPFv3IPsecEntryLeft, "interface=eth1", "report=queued",
+		} {
+			if !strings.Contains(line, part) {
+				t.Errorf("WARN line lacks %s:\n%s", part, line)
+			}
+		}
+	}
+	if strings.Contains(log, hexKey(32)) {
+		t.Fatalf("a removal WARN prints the interface's authentication key:\n%s", log)
+	}
+	issues := raised.withCode(codeOSPFv3IPsecEntryLeft)
+	if len(issues) != len(lines) {
+		t.Fatalf("entry-left raises = %d, want %d (one per WARN line): %+v", len(issues), len(lines), issues)
+	}
+	var seen []string
+	for _, issue := range issues {
+		seen = append(seen, issue.Subject)
+		if issue.Severity != rpc.ReportError {
+			t.Errorf("raise %q severity = %q, want %q", issue.Subject, issue.Severity, rpc.ReportError)
+		}
+		stateFix := "ip -6 xfrm state delete " + issue.Subject
+		policyFix := "ip -6 xfrm policy delete " + issue.Subject
+		if issue.Fix != stateFix && issue.Fix != policyFix {
+			t.Errorf("raise %q fix = %q, want the delete of that entry", issue.Subject, issue.Fix)
+		}
+		if !strings.Contains(log, `msg="`+issue.Message+`"`) {
+			t.Errorf("raise %q message %q is on no WARN line", issue.Subject, issue.Message)
+		}
+		if strings.Contains(issue.Subject+issue.Message+issue.Fix, hexKey(32)) {
+			t.Fatalf("a removal raise carries the interface's authentication key: %+v", issue)
+		}
+	}
+	for _, subject := range subjects {
+		if !slices.Contains(seen, subject) {
+			t.Errorf("no raise names entry %q; raised %q", subject, seen)
+		}
+	}
+}
+
+// VALIDATES: spec-dropped-error-6 AC-3 -- a kernel delete the installer cannot complete
+// reaches the operator at WARN, one line per entry left in the kernel, naming the entry,
+// why it matters and the command that deletes it, under the entry-left doctor code, and
+// raises one error event per entry through the SDK publisher, subject the entry.
+// Method: protect an interface and one neighbor, make every delete fail with EPERM, take
+// the interface down, and read the WARN lines and the raises a recording publisher kept.
+// PREVENTS: Ze-installed XFRM state staying in the kernel with only a debug line, which
+// the default level hides; a leftover entry ze doctor never lists, because the line
+// named the XFRM-availability code and nothing raised it; a policy fix naming the
+// device, which stops resolving once the interface is deleted; and a removal WARN that
+// prints the key.
+func TestOSPFIPsecRemovalFailureIsReported(t *testing.T) {
+	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
+	sink := warnSinkFor(inst)
+	raised := recordIssues(t)
+	inst.setConfig([]interfaceConfig{espIface(256)})
+	inst.onInterfaceUp(testIfIndex, "eth1")
+	inst.onNeighborSeen("eth1", ridMust(t, "10.0.0.2"), netip.MustParseAddr("fe80::2"))
+	fake.failRemovals(fmt.Errorf("xfrm: state del spi=256: %w", syscall.EPERM),
+		fmt.Errorf("xfrm: policy del: %w", syscall.EPERM))
+
+	inst.onInterfaceDown(testIfIndex, "eth1")
+
+	log := sink.String()
+	lines := warnLines(log)
+	// Three policies, the three interface states and the neighbor's state.
+	if len(lines) != 7 {
+		t.Fatalf("WARN lines = %d, want 7 (3 policies, 3 interface states, 1 neighbor state):\n%s", len(lines), log)
+	}
+	for _, want := range []string{
+		`msg="OSPF IPsec could not remove the out security policy of interface eth1"`,
+		`fix="ip -6 xfrm policy delete dir out src ::/0 dst ::/0 proto 89 dev if3"`,
+		`fix="ip -6 xfrm policy delete dir fwd src ::/0 dst ::/0 proto 89 dev if3"`,
+		`msg="OSPF IPsec could not remove the kernel security association of interface eth1"`,
+		`fix="ip -6 xfrm state delete dst ff02::5 proto esp spi 256"`,
+		`msg="OSPF IPsec could not remove the kernel security association of neighbor 10.0.0.2 on interface eth1"`,
+		`fix="ip -6 xfrm state delete dst fe80::2 proto esp spi 256"`,
+	} {
+		if !strings.Contains(log, want) {
+			t.Errorf("log lacks %s:\n%s", want, log)
+		}
+	}
+	assertRemovalWarnings(t, log, lines, raised, []string{
+		"dir out src ::/0 dst ::/0 proto 89 dev if3",
+		"dir in src ::/0 dst ::/0 proto 89 dev if3",
+		"dir fwd src ::/0 dst ::/0 proto 89 dev if3",
+		"dst ff02::5 proto esp spi 256",
+		"dst ff02::6 proto esp spi 256",
+		"dst fe80::1 proto esp spi 256",
+		"dst fe80::2 proto esp spi 256",
+	})
+}
+
+// VALIDATES: spec-dropped-error-6 AC-3 -- a neighbor's state that the kernel refuses to
+// delete when the adjacency drops is reported at WARN with the neighbor and the command.
+// Method: protect a neighbor, make its delete fail, report the neighbor lost.
+// PREVENTS: removeNeighborSALocked hiding the failure that the interface path reports.
+func TestOSPFIPsecNeighborRemovalFailureIsReported(t *testing.T) {
+	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
+	sink := warnSinkFor(inst)
+	raised := recordIssues(t)
+	inst.setConfig([]interfaceConfig{espIface(256)})
+	inst.onInterfaceUp(testIfIndex, "eth1")
+	neighbor := ridMust(t, "10.0.0.2")
+	inst.onNeighborSeen("eth1", neighbor, netip.MustParseAddr("fe80::2"))
+	fake.failRemovals(fmt.Errorf("xfrm: state del spi=256: %w", syscall.EPERM), nil)
+
+	inst.onNeighborLost("eth1", neighbor)
+
+	log := sink.String()
+	lines := warnLines(log)
+	if len(lines) != 1 {
+		t.Fatalf("WARN lines = %d, want 1 for the neighbor's state:\n%s", len(lines), log)
+	}
+	for _, want := range []string{
+		`msg="OSPF IPsec could not remove the kernel security association of neighbor 10.0.0.2 on interface eth1"`,
+		`fix="ip -6 xfrm state delete dst fe80::2 proto esp spi 256"`,
+	} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("WARN line lacks %s:\n%s", want, lines[0])
+		}
+	}
+	assertRemovalWarnings(t, log, lines, raised, []string{"dst fe80::2 proto esp spi 256"})
+}
+
+// VALIDATES: spec-dropped-error-6 A-2 -- a delete the kernel answers with "no such
+// entry" (ESRCH for a state, ENOENT for a policy) is the outcome the delete asked for,
+// so it writes nothing at WARN and raises nothing, while the record is still forgotten.
+// Method: make every delete answer the absent-entry errno, take the interface down.
+// PREVENTS: a WARN or a doctor event on every second teardown whose fix names state
+// that is already gone.
+func TestOSPFIPsecRemovalOfAbsentEntryIsQuiet(t *testing.T) {
+	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
+	sink := warnSinkFor(inst)
+	raised := recordIssues(t)
+	inst.setConfig([]interfaceConfig{espIface(256)})
+	inst.onInterfaceUp(testIfIndex, "eth1")
+	inst.onNeighborSeen("eth1", ridMust(t, "10.0.0.2"), netip.MustParseAddr("fe80::2"))
+	fake.failRemovals(fmt.Errorf("xfrm: state del spi=256: %w", syscall.ESRCH),
+		fmt.Errorf("xfrm: policy del: %w", syscall.ENOENT))
+
+	inst.onInterfaceDown(testIfIndex, "eth1")
+
+	if lines := warnLines(sink.String()); len(lines) != 0 {
+		t.Fatalf("WARN lines = %d for entries the kernel no longer held, want 0:\n%s", len(lines), sink.String())
+	}
+	if issues := raised.withCode(codeOSPFv3IPsecEntryLeft); len(issues) != 0 {
+		t.Fatalf("entry-left raises = %d for entries the kernel no longer held, want 0: %+v", len(issues), issues)
+	}
+	if _, ok := inst.status("eth1"); ok {
+		t.Error("status still reports IPsec after a teardown the kernel answered with absent entries")
 	}
 }

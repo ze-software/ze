@@ -21,12 +21,15 @@
 // The persister is a small coalescing background writer. Each call
 // to Store publishes the new sequence into an atomic and nudges the
 // writer goroutine; the writer writes the latest value to the store
-// at most once every flushInterval or on Close. Write failures are
-// latched once and do not block the hot path.
+// at most once every flushInterval or on Close. A failed write never
+// blocks the hot path: the first failure of each run of failed writes is
+// handed to the owner's onWriteFailure callback, the failure stays latched
+// until a write lands, and Close answers it when the last write failed.
 package auth
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -57,17 +60,26 @@ type SeqPersister struct {
 	stopped atomic.Bool
 	stopCh  chan struct{}
 	doneCh  chan struct{}
-	logged  atomic.Bool
+	// failure is the error of the last write, nil while the last write
+	// landed or none was attempted. The writer goroutine sets and clears it;
+	// Close reads it after the writer exits.
+	failure atomic.Pointer[error]
 	writeFn func(key string, value uint32) error
-	startAt uint32
+	// onWriteFailure is called on the writer goroutine with the first failed
+	// write of each run of failed writes, nil when only Close reports one.
+	onWriteFailure func(err error)
+	startAt        uint32
 }
 
 // NewSeqPersister builds a persister for sessionKey backed by the
 // process-wide shared zefs store (internal/core/statestore). The
 // last-written value (if any) is loaded and returned as the starting
-// sequence via Start().
-func NewSeqPersister(sessionKey string) (*SeqPersister, error) {
-	return newSeqPersisterAt(sessionKey, DefaultFlushInterval, writeSeq)
+// sequence via Start(). onWriteFailure, when not nil, is called on the
+// writer goroutine with the first failed write after a landed one (or the
+// first ever), so a store that keeps refusing is reported once per run; it
+// MUST NOT block and MUST NOT take a lock the caller of Close holds.
+func NewSeqPersister(sessionKey string, onWriteFailure func(err error)) (*SeqPersister, error) {
+	return newSeqPersisterAt(sessionKey, DefaultFlushInterval, writeSeq, onWriteFailure)
 }
 
 // Start returns the sequence number loaded from the store at construction
@@ -81,18 +93,21 @@ func (p *SeqPersister) Start() uint32 { return p.startAt }
 // store via statestore.SetStore to round-trip through it,
 // or inject a stub writeFn to simulate I/O failures without a shared-field
 // race between the test goroutine and the writer goroutine.
-func newSeqPersisterAt(sessionKey string, flush time.Duration, writeFn func(key string, value uint32) error) (*SeqPersister, error) {
+func newSeqPersisterAt(sessionKey string, flush time.Duration, writeFn func(key string, value uint32) error,
+	onWriteFailure func(err error),
+) (*SeqPersister, error) {
 	seg := sanitizeSessionKey(sessionKey)
 	if !safeSegment(seg) {
 		return nil, ErrSessionKeyInvalid
 	}
 	key := zefs.KeyBFDAuthSeq.Key(seg)
 	p := &SeqPersister{
-		key:     key,
-		flush:   flush,
-		stopCh:  make(chan struct{}),
-		doneCh:  make(chan struct{}),
-		writeFn: writeFn,
+		key:            key,
+		flush:          flush,
+		stopCh:         make(chan struct{}),
+		doneCh:         make(chan struct{}),
+		writeFn:        writeFn,
+		onWriteFailure: onWriteFailure,
 	}
 	if loaded, ok := readSeq(key); ok {
 		p.current.Store(loaded)
@@ -111,13 +126,19 @@ func (p *SeqPersister) Store(seq uint32) {
 }
 
 // Close stops the writer goroutine, flushes any pending value to the
-// store, and returns after the goroutine exits. Idempotent.
+// store, and returns after the goroutine exits. It answers the failure of
+// the last write when that write failed, so the stored sequence number is
+// older than the last one sent; nil when the last write landed, when
+// nothing was written, or on a second call. Idempotent.
 func (p *SeqPersister) Close() error {
 	if p.stopped.Swap(true) {
 		return nil
 	}
 	close(p.stopCh)
 	<-p.doneCh
+	if failure := p.failure.Load(); failure != nil {
+		return fmt.Errorf("bfd auth: the last TX sequence number %d is not saved: %w", p.current.Load(), *failure)
+	}
 	return nil
 }
 
@@ -139,9 +160,11 @@ func (p *SeqPersister) run() {
 }
 
 // flushIfChanged writes the current sequence only when Store has
-// been called since the last write. On write failure the first-time
-// flag latches so operators see one log and not a stream. A best-effort
-// no-op write (absent store) reports no error and is treated as flushed.
+// been called since the last write. A failed write is latched in failure
+// until a write lands, and the first failure of each run is handed to
+// onWriteFailure, so a store that keeps refusing is reported once and not on
+// every tick. A best-effort no-op write (absent store) reports no error and
+// is treated as flushed.
 func (p *SeqPersister) flushIfChanged(lastFlushed *uint32) {
 	if !p.pending.Swap(false) {
 		return
@@ -151,13 +174,12 @@ func (p *SeqPersister) flushIfChanged(lastFlushed *uint32) {
 		return
 	}
 	if err := p.writeFn(p.key, seq); err != nil {
-		// Best-effort: record the first failure via the latch.
-		// A real log line would couple this file to the plugin
-		// logger; the caller (bfd.go) can observe p.logged.Load
-		// to surface the condition if needed.
-		p.logged.Store(true)
+		if p.failure.Swap(&err) == nil && p.onWriteFailure != nil {
+			p.onWriteFailure(err)
+		}
 		return
 	}
+	p.failure.Store(nil)
 	*lastFlushed = seq
 }
 
@@ -197,7 +219,7 @@ func safeSegment(seg string) bool {
 // writeSeq persists value as a decimal string under key in the process-wide
 // shared zefs store. Best-effort: statestore.Put is a no-op (returns
 // false, nil) when no store is registered, and surfaces real write failures
-// as a non-nil error for the caller's latch.
+// as a non-nil error, which flushIfChanged latches and reports.
 func writeSeq(key string, value uint32) error {
 	_, err := statestore.Put(key, []byte(textbuf.StringUint(uint64(value))))
 	return err

@@ -7,7 +7,7 @@
 | Release reason | Required release artifacts, safe installation or appliance/runtime-kernel delivery and their outstanding boot evidence. |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-16 |
+| Updated | 2026-11-15 |
 
 ## Post-Compaction Recovery
 
@@ -305,3 +305,16 @@ privileged CAP_NET_RAW/QEMU batch-shape proof deferred to CI
 Deferred by spec-iface-absent-link-graceful AC-3.
 
 Full gokrazy L2TP appliance run proving graceful-skip end to end
+
+### From `spec-dropped-error-6-routing-protocols` closure, 2026-11-15
+
+QEMU cannot run on the server (`claude`): the runtime-kernel cache key moved to
+kernel 7.3, so the cached guest kernel no longer matches, and rebuilding it
+needs about 40 GB of disk where 23 GB are free. The host runs of that spec's
+functional suites therefore skipped every `.ci` that needs the guest: 2 in
+`test/bfd` and 2 in `test/ldp` (capabilities), 3 in `test/ospfv3` and 10 in
+`test/ospf` (network namespaces). Those runs are owed in QEMU, on a machine with
+the 7.3 runtime kernel cached or the disk to build it; until then GitHub CI's
+`verify` run of the pushed commit is their evidence, the default Thomas was
+asked to confirm. This spec owns fixing the server's cache key and disk, and
+the QEMU run of those suites.

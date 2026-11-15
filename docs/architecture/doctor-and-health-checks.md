@@ -1035,6 +1035,27 @@ raise only a code this check declares (`docs/architecture/api/process-protocol.m
 "Plugin problems").
 <!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue -->
 <!-- source: pkg/plugin/sdk/report.go -- RaiseIssue, ClearIssue -->
+
+`RaiseIssue` waits for the daemon's answer, and a plugin meets its problems on
+goroutines that must not wait: the BFD express loop, a Hello sender, code that
+holds a lock every received packet takes. So a plugin raises and clears through
+one report queue, `internal/component/plugin/issuequeue`, which its SDK entry
+starts over the SDK plugin and stops on exit, after its engines have stopped so
+their final clears are sent. A raise or a clear only enqueues: a full queue
+(256 reports) or a stopped one refuses it at once, and the problem's WARN line
+carries `report=queued` or the `report-error`. One worker per plugin sends each
+report, bounded to one second, and hands a report the daemon refused to the
+caller's callback, which logs it at WARN under the problem's own code. The stop
+drains what is queued under one deadline of three seconds in all, so a plugin
+stopping against a daemon that does not answer stops in seconds, and each
+report the drain had no time for still reaches its callback. A condition that
+raises once per run (an LDP or IS-IS Hello that cannot be sent) keeps a
+`RunRaises` record of the run, so a raise the daemon refused is raised again at
+a later failure, at most once per the plugin's warn window. BFD, OSPF, IS-IS
+and LDP report this way.
+<!-- source: internal/component/plugin/issuequeue/queue.go -- Queue, Start, Stop, Outcome -->
+<!-- source: internal/component/plugin/issuequeue/raises.go -- RunRaises -->
+<!-- test: internal/component/plugin/issuequeue/queue_test.go TestQueueStopBoundsTheDrainAgainstAHungDaemon -->
 <!-- source: internal/core/diagnostic/event_codes.go -- EventCode, RegisterEventCode, EventCodes, describedCode -->
 <!-- source: internal/core/diagnostic/doctor_registry.go -- DoctorCheck, listedDoctorCheckReg -->
 <!-- source: internal/component/doctor/checks_recent_events.go -- recentEventsCheck, checkRecentEvents, groupRecentEvents, recentEventsDiagnostic -->

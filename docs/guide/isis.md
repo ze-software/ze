@@ -644,6 +644,20 @@ with labels is listed in `docs/plugin-development/metrics.md`.
 <!-- source: internal/plugins/isis/doctor.go -- checkISISConfigSanity -->
 <!-- source: internal/plugins/isis/transport/doctor.go -- raw-socket readiness check -->
 
+While IS-IS runs, one more problem is reported as it happens rather than before
+the start:
+
+- `doctor-isis-hello-send-failed`: IS-IS could not send a Hello on an interface
+  at one level (the link is down, the kernel refused the frame, or the Hello is
+  larger than the MTU), so its neighbors drop the adjacency when the hold time
+  expires. The first failure is logged at WARN with the interface, the level
+  and the error; the next ones are quiet until a Hello goes out again.
+  `ze show warnings` lists the problem until a Hello goes out again at that
+  level or the interface is removed. Check the interface with
+  `ze show isis interface`.
+
+<!-- source: internal/plugins/isis/circuits.go -- helloSendWarn -->
+
 Each code is explainable with `ze show diagnostic <code>`.
 
 <!-- source: internal/plugins/isis/codes.go -- isisDiagnosticCodes -->

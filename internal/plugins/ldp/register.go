@@ -28,6 +28,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
@@ -79,6 +80,10 @@ type ldpMetrics struct {
 	sessionsTotal  metrics.Counter
 	bindingsActive metrics.Gauge
 	bindingsTotal  metrics.Counter
+	// helloSendErrors and helloDiscards count the two per-packet discovery
+	// problems, per interface, which problems.go logs once per condition.
+	helloSendErrors metrics.CounterVec
+	helloDiscards   metrics.CounterVec
 }
 
 var ldpMetricsPtr atomic.Pointer[ldpMetrics]
@@ -89,6 +94,10 @@ func setMetricsRegistry(reg metrics.Registry) {
 		sessionsTotal:  reg.Counter("ze_ldp_sessions_total", "Total LDP sessions established."),
 		bindingsActive: reg.Gauge("ze_ldp_bindings_active", "Current number of label bindings in LIB."),
 		bindingsTotal:  reg.Counter("ze_ldp_bindings_total", "Total label bindings received."),
+		helloSendErrors: reg.CounterVec("ze_ldp_hello_send_errors_total",
+			"Hello messages LDP failed to send, per interface.", []string{"interface"}),
+		helloDiscards: reg.CounterVec("ze_ldp_hello_discards_total",
+			"Malformed Hello datagrams LDP discarded, per interface.", []string{"interface"}),
 	}
 	ldpMetricsPtr.Store(m)
 	ldpPanics().guard.SetMetricsRegistry(reg)
@@ -192,6 +201,7 @@ const (
 
 func registerLDP() {
 	_ = events.RegisterNamespace(Namespace, EventSessionUp, EventSessionDown, EventLabelBind)
+	registerLDPDiagnosticCodes()
 
 	reg := registry.Registration{
 		Name:         pluginName,
@@ -247,6 +257,14 @@ func runLDPEngine(conn net.Conn) int {
 
 	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
+	// LDP's problems reach the daemon's report bus through p behind the plugin
+	// report queue (problems.go), so no discovery or session goroutine waits
+	// for the daemon. Started before discovery, so the first problem already
+	// reaches the daemon; deferred after p.Close, so it stops after the
+	// sessions and the withdrawals below and before p closes.
+	issues := issuequeue.Start(p)
+	issueQueue.Store(issues)
+	defer issues.Stop()
 
 	lib := newLIB()
 	adjTable := newAdjacencyTable()
@@ -783,12 +801,20 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 	var closeOnce sync.Once
 	closeConn := func() {
 		closeOnce.Do(func() {
+			// refuse-by-default: guards readDiscovery -- discovery is stopping, so nobody can act on a failed close, and readDiscovery's one-second read deadline still ends the reader on the canceled ctx
 			if err := udpConn.Close(); err != nil {
-				log.Debug("ldp: UDP close error", "error", err)
+				log.Debug("ldp: UDP close error", "interface", ifName, "error", err)
 			}
 		})
 	}
 	defer closeConn()
+
+	// helloSend is this interface's Hello send record. Its warning is cleared
+	// when discovery here ends, and so is the interface's discard record, which
+	// keeps both bounded by the configured interfaces.
+	helloSend := newHelloSendHealth(ifName)
+	defer helloSend.stop(log)
+	defer adjTable.discards.forget(ifName)
 
 	// Pin multicast egress to this link and use TTL 1 (RFC 5036 Section 2.4.1:
 	// Basic Discovery Hellos are link-scoped), so Hellos leave on the LDP
@@ -798,6 +824,7 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 		if err := pc.SetMulticastInterface(ifi); err != nil {
 			log.Warn("ldp: cannot set multicast egress interface", "interface", ifName, "error", err)
 		}
+		// refuse-by-default: guards multicastAddr -- 224.0.0.2 is link-local and no router forwards it (RFC 5771), and the kernel's default multicast TTL is already 1, so a failed set leaves the Hellos link-scoped and gives nobody anything to act on
 		if err := pc.SetMulticastTTL(1); err != nil {
 			log.Debug("ldp: cannot set multicast TTL", "interface", ifName, "error", err)
 		}
@@ -806,7 +833,7 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 	helloTicker := time.NewTicker(cfg.HelloInterval)
 	defer helloTicker.Stop()
 
-	sendHello(udpConn, multicastAddr, lsrID, cfg, log)
+	helloSend.observe(log, sendHello(udpConn, multicastAddr, lsrID, cfg))
 
 	// Drain inbound Hellos in a dedicated reader goroutine, decoupled from the
 	// send tick. Previously ReadFromUDP was gated behind the helloTicker select,
@@ -832,7 +859,7 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 			<-readerDone
 			return
 		case <-helloTicker.C:
-			sendHello(udpConn, multicastAddr, lsrID, cfg, log)
+			helloSend.observe(log, sendHello(udpConn, multicastAddr, lsrID, cfg))
 		}
 	}
 }
@@ -890,14 +917,20 @@ func readDiscovery(ctx context.Context, udpConn *net.UDPConn, recvBuf []byte, ls
 // emitted SessionEvent carries the discovering interface for LDP-IGP sync
 // consumers (RFC 5443 / RFC 6138). ifName is set inside AdjacencyTable.Update
 // under the table lock, so a concurrent All()/Get() snapshot never sees a torn write.
+//
+// RFC 5036 Section 3.5.1.2.1: "Malformed LDP PDUs or messages that are part of
+// the LDP Discovery mechanism are handled by silently discarding them." Every
+// malformed datagram is discarded through noteHelloDiscard, which counts it
+// and logs once per condition.
 func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjTable *AdjacencyTable, onAdjHello func(*Adjacency), log *slog.Logger) {
 	if len(data) < ldpHeaderLen+ldpMsgHdrLen {
+		noteHelloDiscard(log, adjTable, ifName, errDiscoveryTruncated)
 		return
 	}
 
 	pdu, err := decodePDUHeader(data)
 	if err != nil {
-		log.Debug("ldp: invalid PDU header", "error", err)
+		noteHelloDiscard(log, adjTable, ifName, err)
 		return
 	}
 
@@ -906,12 +939,9 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjT
 	}
 
 	bodyStart := ldpHeaderLen
-	if bodyStart >= len(data) {
-		return
-	}
-
 	msgHdr, err := decodeMessageHeader(data[bodyStart:])
 	if err != nil {
+		noteHelloDiscard(log, adjTable, ifName, err)
 		return
 	}
 
@@ -921,13 +951,22 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjT
 
 	msgBodyStart := bodyStart + ldpMsgHdrLen
 	msgBodyEnd := bodyStart + ldpTLVHdrLen + int(msgHdr.Length)
+	// RFC 5036 Section 3.5, Message Length: "Specifies the cumulative length in
+	// octets of the Message ID, Mandatory Parameters, and Optional Parameters."
+	// A length below the 4-octet Message ID ends the body before it starts, and
+	// slicing it would panic on a datagram any host on the link can send.
+	if msgBodyEnd < msgBodyStart {
+		noteHelloDiscard(log, adjTable, ifName, errHelloShorterThanMessageID)
+		return
+	}
 	if msgBodyEnd > len(data) {
+		noteHelloDiscard(log, adjTable, ifName, errHelloBeyondDatagram)
 		return
 	}
 
 	hello, err := DecodeHello(msgHdr.MessageID, data[msgBodyStart:msgBodyEnd])
 	if err != nil {
-		log.Debug("ldp: invalid Hello", "error", err)
+		noteHelloDiscard(log, adjTable, ifName, err)
 		return
 	}
 
@@ -940,7 +979,11 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjT
 	}
 }
 
-func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfig, log *slog.Logger) {
+// sendHello sends one Basic Discovery Hello to dest and answers the write
+// error. discoverOnInterface hands that answer to its helloSendHealth, which
+// counts every failure and logs one per condition, since Hellos go out every
+// Hello interval.
+func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfig) error {
 	var buf [128]byte
 	bodyLen := EncodeHello(buf[ldpHeaderLen:], HelloMessage{
 		MessageID:     1,
@@ -954,9 +997,8 @@ func sendHello(conn *net.UDPConn, dest *net.UDPAddr, lsrID [4]byte, cfg ldpConfi
 		LSRID:      lsrID,
 		LabelSpace: 0,
 	})
-	if _, err := conn.WriteToUDP(buf[:ldpHeaderLen+bodyLen], dest); err != nil {
-		log.Debug("ldp: hello send failed", "error", err)
-	}
+	_, err := conn.WriteToUDP(buf[:ldpHeaderLen+bodyLen], dest)
+	return err
 }
 
 // runSession plays the active role on the connection ze dialed for one adjacency
@@ -1126,7 +1168,7 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 		},
 	)
 	if err != nil {
-		log.Info("ldp: session ended", "peer", sess.PeerAddr(), "reason", err)
+		reportSessionEnd(log, sess, err)
 	}
 }
 

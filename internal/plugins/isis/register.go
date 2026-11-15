@@ -23,6 +23,7 @@ import (
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -224,6 +225,12 @@ func registerISISDiagnosticCodes() {
 	for _, m := range isisDiagnosticCodes {
 		_ = diagnostic.Register(m)
 	}
+	// The Hello sender raises codeHelloSendFailed on the report bus (circuits.go,
+	// helloSendWarn), so the recent-events doctor check reports it. Its metadata is
+	// registered just above, which RegisterEventCode requires.
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeHelloSendFailed}); err != nil {
+		panic("BUG: register IS-IS hello send event code: " + err.Error())
+	}
 }
 
 // registerISISDoctor registers the IS-IS config-sanity doctor check
@@ -290,6 +297,15 @@ func runISISPlugin(p *sdk.Plugin, eng *engine) int {
 	log := logger()
 	log.Debug("isis engine starting")
 	defer func() { _ = p.Close() }()
+	// Raise and clear IS-IS's operating problems on the daemon's report bus
+	// through p, which reaches the daemon whether IS-IS runs in it or forked,
+	// behind the plugin report queue (issues.go). Started before the engine
+	// starts, so the first problem already reaches the daemon; deferred after
+	// p.Close, so it stops after eng.shutdown and before p closes: the clears
+	// the circuits' teardown queued are still sent.
+	issues := issuequeue.Start(p)
+	issueQueue.Store(issues)
+	defer issues.Stop()
 
 	// Forward the metrics registry to the transport, which OWNS and registers the
 	// ze_isis_frames_* / ze_isis_sockets_open series (umbrella Metrics table,

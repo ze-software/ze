@@ -34,6 +34,7 @@ type bfdMetrics struct {
 	txPackets        metrics.CounterVec   // labels: mode
 	rxPackets        metrics.CounterVec   // labels: mode
 	authFailures     metrics.CounterVec   // labels: mode
+	sendFailures     metrics.CounterVec   // labels: mode, packet
 	echoTxPackets    metrics.CounterVec   // labels: mode (single-hop only)
 	echoRxPackets    metrics.CounterVec   // labels: mode
 	echoRTTUs        metrics.HistogramVec // labels: mode; RTT microseconds
@@ -71,9 +72,12 @@ func bindMetricsRegistry(reg metrics.Registry) {
 		transitions: reg.CounterVec("ze_bfd_transitions_total", "BFD session state transitions.", []string{"from", "to", "diag", labelMode}),
 		detectionExpired: reg.CounterVec("ze_bfd_detection_expired_total",
 			"Detection-timer expirations (RFC 5880 Section 6.8.4).", []string{labelMode}),
-		txPackets:     reg.CounterVec("ze_bfd_tx_packets_total", "BFD Control packets transmitted.", []string{labelMode}),
-		rxPackets:     reg.CounterVec("ze_bfd_rx_packets_total", "BFD Control packets received (after TTL gate).", []string{labelMode}),
-		authFailures:  reg.CounterVec("ze_bfd_auth_failures_total", "BFD authentication verify failures.", []string{labelMode}),
+		txPackets:    reg.CounterVec("ze_bfd_tx_packets_total", "BFD Control packets transmitted.", []string{labelMode}),
+		rxPackets:    reg.CounterVec("ze_bfd_rx_packets_total", "BFD Control packets received (after TTL gate).", []string{labelMode}),
+		authFailures: reg.CounterVec("ze_bfd_auth_failures_total", "BFD authentication verify failures.", []string{labelMode}),
+		sendFailures: reg.CounterVec("ze_bfd_send_failures_total",
+			"BFD packets the transport refused to send, by packet (control, echo, echo-reflect).",
+			[]string{labelMode, "packet"}),
 		echoTxPackets: reg.CounterVec("ze_bfd_echo_tx_packets_total", "BFD Echo packets transmitted (RFC 5880 Section 6.4).", []string{labelMode}),
 		echoRxPackets: reg.CounterVec("ze_bfd_echo_rx_packets_total", "BFD Echo packets received on UDP port 3785.", []string{labelMode}),
 		echoRTTUs: reg.HistogramVec("ze_bfd_echo_rtt_us",
@@ -133,6 +137,17 @@ func (metricsHook) OnAuthFailure(mode string) {
 		return
 	}
 	m.authFailures.With(mode).Inc()
+}
+
+// OnSendFailure increments the send-failures counter for mode and
+// packetKind. Called from engine.warnSendFailedLocked for every packet the
+// transport refused, whether or not that failure was logged at Warn.
+func (metricsHook) OnSendFailure(mode, packetKind string) {
+	m := bfdMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.sendFailures.With(mode, packetKind).Inc()
 }
 
 // OnEchoTx increments the echo TX counter. Single-hop only.

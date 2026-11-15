@@ -132,6 +132,47 @@ the circuit-wide leaf, else the YANG default. The circuit stores a
 <!-- source: internal/plugins/isis/circuit/runtime.go -- HelloSchedules, helloPeriod, SendHello -->
 <!-- source: internal/plugins/isis/circuits.go -- levelHelloTimers, the per-schedule tickers -->
 
+## Decision: a failed Hello send warns once per failure run
+
+A Hello that does not go out (the link is down, the kernel refuses the frame,
+the Hello is larger than the MTU) costs every neighbor on the interface its
+adjacency once the hold time expires, so the operator must see it at the
+default log level. A Hello goes out every `hello-interval` at each level, so a
+line per failure would fill the log while the link stays broken. The circuit's
+`helloSendWarn` therefore logs the first failure of a run at WARN, per level,
+under `doctor-isis-hello-send-failed`, naming the interface, the level and the
+error, with `ze show isis interface` as the fix, and raises the same code as a
+warning whose subject is the interface and the level. The raise goes through
+the SDK (`sdk.Plugin.RaiseIssue`), behind the plugin report queue
+`runISISPlugin` starts (`docs/architecture/doctor-and-health-checks.md`,
+"Recent events"), never `internal/core/report`, so it reaches the daemon's
+report bus when IS-IS runs forked too, and the Hello goroutine never waits for
+the daemon. Later failures at that level are counted for the line that ends
+the run. While the daemon has refused the run's latest raise (a busy daemon, a
+rate limit, a timeout), a failure at least `authFailWarnInterval` (10 seconds)
+after that raise raises again, with no new WARN line, so a link broken for
+hours still reaches `show warnings`; each refused raise is logged at WARN under
+the same code. The first Hello that goes out again ends the run with an Info line
+giving the count, clears the warning and arms the WARN again. Removing the
+circuit clears the warning of every level still failing, so a removed
+interface leaves no warning behind.
+
+`ze_isis_frames_dropped_total{reason="send-error"}` counts only the frames the
+kernel refused. A Hello larger than the MTU is refused by the transport before
+the send (`ErrPDUExceedsMTU`), so it reaches the WARN line and the warning but
+not that counter.
+
+A send that answers `ErrCircuitNotOpen` reports nothing: the transport closes a
+circuit before `onCircuitDown` stops its Hello goroutine, and a send in that
+gap meets a circuit that is being removed.
+
+<!-- source: internal/plugins/isis/circuits.go -- helloSendWarn, observe, raiseWarning, recovered, stop -->
+<!-- source: internal/plugins/isis/issues.go -- issueQueue -->
+<!-- source: internal/component/plugin/issuequeue/raises.go -- RunRaises -->
+<!-- test: internal/plugins/isis/hello_send_warn_test.go TestISISHelloSendRetriesARefusedRaiseOncePerWindow -->
+<!-- source: internal/plugins/isis/transport/transport.go -- sendTo -->
+<!-- source: internal/plugins/isis/codes.go -- codeHelloSendFailed -->
+
 ## Decision: keying and the reap grace period
 
 The table keys per `(system ID, level)`: one adjacency per point-to-point

@@ -173,14 +173,10 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 	// fall through to Receive, which enforces the A-bit match.
 	if c.Auth && entry.machine.HasAuth() {
 		if err := entry.machine.Verify(in.Bytes, c); err != nil {
-			if hook := l.metricsHook.Load(); hook != nil {
-				(*hook).OnAuthFailure(in.Mode.String())
-			}
-			engineLog().Debug("auth verify failed",
-				"peer", in.From,
-				"err", err)
+			l.warnAuthFailedLocked(entry, in, err)
 			return
 		}
+		clearAuthWarning(entry)
 	}
 
 	if err := entry.machine.Receive(c); err != nil {
@@ -246,6 +242,7 @@ func (l *Loop) tick() {
 			}
 		}
 		entry.machine.CheckDetection(now)
+		expireQuietWarnings(entry, now)
 
 		if entry.machine.State() == packet.StateAdminDown {
 			// RFC 5880 Section 6.8.16: "BFD Control packets SHOULD be
@@ -313,42 +310,27 @@ func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 	}
 	l.captureTx(out.Bytes)
 	if err := l.transport.Send(out); err != nil {
-		l.warnSendFailedLocked(entry, "control", err)
+		l.warnSendFailedLocked(entry, sendKindControl, err)
 		return
 	}
+	clearSendWarning(entry, sendKindControl)
 	entry.txPackets++
 	if hook := l.metricsHook.Load(); hook != nil {
 		(*hook).OnTxPacket(key.Mode.String())
 	}
 }
 
-// sendWarnInterval bounds how often one session's failed transmissions are
-// logged at Warn. A failure that does not clear repeats on every transmit
-// interval, up to 300 times a second; one line a minute names the cause
-// without burying the log.
+// sendWarnInterval bounds how often one session's failed transmissions, and
+// its packets that fail authentication, are logged at Warn and raised. A
+// failure that does not clear repeats on every transmit interval, up to 300
+// times a second; one line a minute names the cause without burying the log.
 const sendWarnInterval = time.Minute
 
-// warnSendFailedLocked reports a packet the transport refused to send for
-// entry. The transport refuses a single-hop packet whose interface no longer
-// resolves or whose peer is on none of that interface's subnets (RFC 5881
-// Section 6), and the session then falls Down on Control Detection Time
-// Expired: without this line the operator sees the Down and not its cause.
-// The first failure, and the first after each sendWarnInterval, is logged at
-// Warn; the rest at Debug. packetKind is "control" or "echo". Caller MUST hold
-// l.mu.
-func (l *Loop) warnSendFailedLocked(entry *sessionEntry, packetKind string, err error) {
-	key := entry.machine.Key()
-	now := l.clk.Now()
-	if !entry.sendWarnAt.IsZero() && now.Sub(entry.sendWarnAt) < sendWarnInterval {
-		engineLog().Debug("bfd send failed", "packet", packetKind, "peer", key.Peer,
-			"interface", key.Interface, "vrf", key.VRF, "mode", key.Mode.String(), "err", err)
-		return
-	}
-	entry.sendWarnAt = now
-	engineLog().Warn("bfd send failed, the session cannot reach its peer", "packet", packetKind,
-		"peer", key.Peer, "interface", key.Interface, "vrf", key.VRF, "mode", key.Mode.String(),
-		"local-discriminator", entry.machine.LocalDiscriminator(), "err", err)
-}
+// warningQuiet is how long a session's raised send or authentication warning
+// outlives its last failed packet when nothing clears it sooner: two Warn
+// windows, so a failure that goes on is still refreshed by its next Warn
+// before tick withdraws it (expireQuietWarnings).
+const warningQuiet = 2 * sendWarnInterval
 
 // handle is the engine's implementation of api.SessionHandle. key names the
 // session; client is the hold EnsureSession gave this caller, which

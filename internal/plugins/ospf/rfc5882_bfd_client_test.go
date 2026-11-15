@@ -55,6 +55,9 @@ type fakeBFDService struct {
 	release  atomic.Int32
 	requests []api.SessionRequest
 	handles  map[api.Key]*fakeBFDHandle
+	// releaseErr is what ReleaseSession answers; a non-nil one releases nothing, as the
+	// engine's refusal of a foreign handle does.
+	releaseErr error
 }
 
 func newFakeBFDService() *fakeBFDService {
@@ -78,6 +81,9 @@ func (s *fakeBFDService) ReleaseSession(h api.SessionHandle) error {
 	s.release.Add(1)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.releaseErr != nil {
+		return s.releaseErr
+	}
 	if fh, ok := s.handles[h.Key()]; ok {
 		close(fh.ch)
 		delete(s.handles, h.Key())

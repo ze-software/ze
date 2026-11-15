@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/engine"
 	"github.com/ze-software/ze/internal/component/bfd/transport"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -85,7 +86,16 @@ type runtimeState struct {
 	// undo is what a rollback of the open config transaction restores, nil
 	// when no rollback is owed (commitConfig, rollbackConfig).
 	undo *configUndo
+	// issues is the report-bus reporter loopFor installs on every loop: the
+	// plugin report queue (issuequeue.Queue) runBFDPlugin starts; nil in a
+	// test that builds the state alone, whose loops then log each problem
+	// with the reason it reached no bus.
+	issues engine.IssueReporter
 }
+
+// The plugin report queue is the engine's IssueReporter as it stands: the
+// method sets match, so no adapter sits between them.
+var _ engine.IssueReporter = (*issuequeue.Queue)(nil)
 
 func newRuntimeState() *runtimeState {
 	return &runtimeState{
@@ -136,16 +146,13 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 	}
 	loop := engine.NewLoopWithEcho(tr, echoTr, clock.RealClock{})
 	attachMetricsHook(loop)
+	loop.SetIssueReporter(r.issues)
 	loop.SetProfileAuth(r.profileAuthFor(key.mode))
+	// A failed Start leaves no socket open: a transport whose own Start fails
+	// opens none, and Loop.Start stops the control transport it started when
+	// the echo transport fails, joining that stop's failure to the error it
+	// returns. A second stop here would only repeat that rollback.
 	if startErr := loop.Start(); startErr != nil {
-		if stopErr := tr.Stop(); stopErr != nil {
-			logger().Debug("bfd udp stop after failed start", "err", stopErr)
-		}
-		if echoTr != nil {
-			if stopErr := echoTr.Stop(); stopErr != nil {
-				logger().Debug("bfd echo udp stop after failed start", "err", stopErr)
-			}
-		}
 		return nil, fmt.Errorf("bfd: start engine loop for %s (vrf=%s device=%s): %w", key.mode, key.vrf, device, startErr)
 	}
 	if r.captureEnabled {
@@ -844,7 +851,16 @@ func runBFDPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bfd", conn)
 	defer func() { _ = p.Close() }()
 
+	// The engine's problems reach the daemon's report bus through p, in the
+	// daemon and forked alike, behind the plugin report queue, so the express
+	// loop never waits for the daemon (issuequeue). Deferred before stopAll,
+	// so it stops after every loop: the clears a loop's Stop queues are still
+	// sent.
+	issues := issuequeue.Start(p)
+	defer issues.Stop()
+
 	state := newRuntimeState()
+	state.issues = issues
 	defer func() {
 		// Clear the in-process Service publication FIRST so new
 		// clients see nil and skip BFD wiring instead of receiving a

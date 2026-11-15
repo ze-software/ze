@@ -75,35 +75,44 @@ func TestLDPNeighborReestablishedWithin(t *testing.T) {
 }
 
 // The zeLog lines are composed in the form ze's slog text handler writes; the
-// messages are the literals of Session.ReadLoop, runSession and
+// messages and the code are the literals of processMessages (the fatal
+// Notification and the operational session), reportSessionEnd and
 // recordSetupFailure.
 const (
-	zeLogFatal  = `time=2026-11-12T00:00:01Z level=WARN msg="ldp: fatal notification received, closing the session" subsystem=ldp status=2147483658 refers-to=0` + "\n"
-	zeLogEnded  = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: session ended" subsystem=ldp peer=172.30.0.3 reason="ldp: peer sent a fatal notification: status 0x8000000a"` + "\n"
-	zeLogFailed = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: session setup failed, next attempt delayed" subsystem=ldp peer=172.30.0.3:0 delay=15s` + "\n"
+	zeLogFatal       = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: fatal notification received, closing the session" subsystem=ldp status=2147483658 refers-to=0` + "\n"
+	zeLogEnded       = `time=2026-11-12T00:00:01Z level=WARN msg="LDP session with 172.30.0.3 ended" subsystem=ldp why="Ze withdrew the labels this neighbor advertised, and dials it again while its Hellos arrive" fix="ze show ldp neighbor" error="ldp: peer sent a fatal notification: status 0x8000000a, refers to message type 0x0000" code=doctor-ldp-session-ended peer=172.30.0.3 report=queued` + "\n"
+	zeLogOperational = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: session operational" subsystem=ldp peer=172.30.0.3` + "\n"
+	zeLogFailed      = `time=2026-11-12T00:00:01Z level=INFO msg="ldp: session setup failed, next attempt delayed" subsystem=ldp peer=172.30.0.3:0 delay=15s` + "\n"
 )
 
 // VALIDATES: ze's log across the clear passes only with FRR's Shutdown
-// received, the session end logged at info, and no setup backoff recorded.
-// PREVENTS: a run where the clear never reached ze, or where info lines are not
-// logged, passing on the absence of a setup failure; and the unfixed session
-// end, which records a backoff, passing.
+// received, the session end logged, an info line logged, and no setup backoff
+// recorded.
+// PREVENTS: a run where the clear never reached ze or ended no session, or
+// where info lines are not logged, passing on the absence of a setup failure;
+// and the unfixed session end, which records a backoff, passing.
 func TestRequireLDPBackoffReleased(t *testing.T) {
-	startup := zeLogFailed // a failed attempt before the first session is not judged
-	before := countZeLDPLog(startup)
+	// A failed attempt before the first session is not judged, and the first
+	// session became operational before the clear.
+	startup := zeLogFailed + zeLogOperational
 	cases := []struct {
 		name     string
+		startup  string
 		after    string
 		refusal  string
 		accepted bool
 	}{
-		{"backoff released", startup + zeLogFatal + zeLogEnded, "", true},
-		{"backoff recorded", startup + zeLogFatal + zeLogEnded + zeLogFailed, "recorded a setup backoff", false},
-		{"clear never reached ze", startup + zeLogEnded, "never reached ze", false},
-		{"info not logged", startup + zeLogFatal, "proves nothing", false},
+		{"backoff released", startup, zeLogFatal + zeLogEnded, "", true},
+		{"backoff recorded", startup, zeLogFatal + zeLogEnded + zeLogFailed, "recorded a setup backoff", false},
+		{"clear never reached ze", startup, zeLogEnded, "never reached ze", false},
+		{"session never ended", startup, zeLogFatal, "did not end in ze", false},
+		{"no operational session logged", "", zeLogFatal + zeLogEnded, "proves nothing", false},
+		// With no info line read, the WARN session end is all the log holds.
+		{"info not logged", "", zeLogEnded, "does not log LDP at info", false},
 	}
 	for _, c := range cases {
-		err := requireLDPBackoffReleased(before, countZeLDPLog(c.after))
+		before := countZeLDPLog(c.startup)
+		err := requireLDPBackoffReleased(before, countZeLDPLog(c.startup+c.after))
 		if c.accepted {
 			if err != nil {
 				t.Errorf("%s: refused: %v", c.name, err)

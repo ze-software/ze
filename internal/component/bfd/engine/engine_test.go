@@ -310,7 +310,7 @@ func TestLoopStopFlushesPinnedPersister(t *testing.T) {
 	// The 500 ms ticker cannot have fired within the 250 ms window above,
 	// so a non-zero Start() proves Stop performed the flush.
 	keyStr := netip.MustParseAddr(addrB).String() + "--" + api.SingleHop.String()
-	p, err := auth.NewSeqPersister(keyStr)
+	p, err := auth.NewSeqPersister(keyStr, nil)
 	if err != nil {
 		t.Fatalf("reopen NewSeqPersister: %v", err)
 	}

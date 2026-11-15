@@ -25,6 +25,7 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -255,6 +256,13 @@ type engine struct {
 	// by isis-11: incremented per level when a redistribution inject/withdraw
 	// drives a re-origination of the own LSP set. no-op until setMetrics wires it.
 	lspReorigs metrics.CounterVec
+	// lspChangesRefused is ze_isis_lsp_change_events_refused_total, the lsp-change
+	// events the bus refused to publish (noteLSPChangeRefused, events.go). no-op
+	// until setMetrics wires it; setMetrics rebinds it, so it is read under e.mu.
+	lspChangesRefused metrics.Counter
+	// lspChangeRefusalLogged is set by the first refused lsp-change event, the
+	// one noteLSPChangeRefused logs; every later refusal is only counted.
+	lspChangeRefusalLogged atomic.Bool
 
 	// flooder (isis-7): the reliable-flooding + CSNP/PSNP synchronization engine.
 	// It drives the LSDB SRM/SSN flags over the wire and owns the per-circuit
@@ -363,25 +371,26 @@ type engine struct {
 func newEngine(t *transport.Transport) *engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	e := &engine{
-		transport:     t,
-		dispatch:      newDispatcher(),
-		log:           logger(),
-		running:       make(map[string]InterfaceConfig),
-		circuits:      make(map[int]circuitBinding),
-		circuitByName: make(map[string]*circuit.Circuit),
-		circuitStop:   make(map[string]chan struct{}),
-		circuitDone:   make(map[string]chan struct{}),
-		circuitReload: make(map[string]chan struct{}),
-		adjUp:         metrics.NopRegistry{}.GaugeVec("", "", nil),
-		adjTotal:      metrics.NopRegistry{}.GaugeVec("", "", nil),
-		disPseudonode: make(map[disKey]types.SourceID),
-		disElections:  metrics.NopRegistry{}.CounterVec("", "", nil),
-		pseudonodeG:   metrics.NopRegistry{}.GaugeVec("", "", nil),
-		authFailures:  metrics.NopRegistry{}.CounterVec("", "", nil),
-		authWarn:      newAuthWarnLimiter(time.Now),
-		lspReorigs:    metrics.NopRegistry{}.CounterVec("", "", nil),
-		ctx:           ctx,
-		cancel:        cancel,
+		transport:         t,
+		dispatch:          newDispatcher(),
+		log:               logger(),
+		running:           make(map[string]InterfaceConfig),
+		circuits:          make(map[int]circuitBinding),
+		circuitByName:     make(map[string]*circuit.Circuit),
+		circuitStop:       make(map[string]chan struct{}),
+		circuitDone:       make(map[string]chan struct{}),
+		circuitReload:     make(map[string]chan struct{}),
+		adjUp:             metrics.NopRegistry{}.GaugeVec("", "", nil),
+		adjTotal:          metrics.NopRegistry{}.GaugeVec("", "", nil),
+		disPseudonode:     make(map[disKey]types.SourceID),
+		disElections:      metrics.NopRegistry{}.CounterVec("", "", nil),
+		pseudonodeG:       metrics.NopRegistry{}.GaugeVec("", "", nil),
+		authFailures:      metrics.NopRegistry{}.CounterVec("", "", nil),
+		authWarn:          newAuthWarnLimiter(time.Now),
+		lspReorigs:        metrics.NopRegistry{}.CounterVec("", "", nil),
+		lspChangesRefused: metrics.NopRegistry{}.Counter("", ""),
+		ctx:               ctx,
+		cancel:            cancel,
 	}
 	e.initLSDB()
 	e.initFlooding()
@@ -394,8 +403,9 @@ func newEngine(t *transport.Transport) *engine {
 
 // setMetrics registers the adjacency-owned Prometheus series on reg. This spec
 // OWNS and registers ze_isis_adjacencies_up{level,interface} and
-// ze_isis_adjacencies_total{level} (umbrella Metrics table, owner isis-5). Other
-// ze_isis_* series are registered by their owning specs.
+// ze_isis_adjacencies_total{level} (umbrella Metrics table, owner isis-5), and the
+// event sink's ze_isis_lsp_change_events_refused_total. Other ze_isis_* series are
+// registered by their owning layers.
 func (e *engine) setMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
@@ -410,6 +420,12 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 		"ze_isis_adjacencies_total",
 		"Current number of IS-IS adjacencies (any state) by level.",
 		[]string{labelLevel},
+	)
+	// The event sink's lsp-change refusal counter (events.go,
+	// noteLSPChangeRefused): only a defect in Ze makes the bus refuse the event.
+	e.lspChangesRefused = reg.Counter(
+		"ze_isis_lsp_change_events_refused_total",
+		"Total IS-IS lsp-change events the event bus refused to publish; only a defect in Ze causes one.",
 	)
 	e.mu.Unlock()
 	// The DIS subsystem (isis-8) OWNS and registers exactly these umbrella-canonical

@@ -42,16 +42,17 @@ func (l *Loop) SetProfileAuth(lookup ProfileAuth) {
 func replaceAuth(entry *sessionEntry, req api.SessionRequest, key api.Key) error {
 	var pair *session.AuthPair
 	if req.Auth != nil {
-		built, err := buildAuthPair(req, key)
+		built, err := buildAuthPair(req, key, entry.issues)
 		if err != nil {
 			return err
 		}
 		pair = built
 	}
-	if closeErr := entry.machine.CloseAuth(); closeErr != nil {
-		engineLog().Debug("bfd auth persister close failed", "key", key, "err", closeErr)
-	}
+	closeAuth(entry)
 	entry.machine.SetAuth(pair)
+	// A failure the old authentication met says nothing of the new one, so
+	// the new one's first failure is warned at once.
+	resetAuthWarning(entry)
 	entry.auth = cloneAuth(req.Auth)
 	entry.authFrom = req.Profile
 	return nil

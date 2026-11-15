@@ -49,6 +49,7 @@ func (h *upPanicHook) OnStateChange(_, to packet.State, _ packet.Diag, _, vrf st
 func (*upPanicHook) OnTxPacket(string)               {}
 func (*upPanicHook) OnRxPacket(string)               {}
 func (*upPanicHook) OnAuthFailure(string)            {}
+func (*upPanicHook) OnSendFailure(string, string)    {}
 func (*upPanicHook) OnEchoTx(string)                 {}
 func (*upPanicHook) OnEchoRx(string)                 {}
 func (*upPanicHook) OnEchoRTT(string, time.Duration) {}

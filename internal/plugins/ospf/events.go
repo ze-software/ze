@@ -4,7 +4,13 @@
 package ospf
 
 import (
+	"context"
+	"log/slog"
+
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
 	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
 	"github.com/ze-software/ze/pkg/ze"
@@ -109,8 +115,38 @@ func (s *eventSink) emitNeighbor(handle *events.Event[*neighborEvent], label str
 		return
 	}
 	if _, err := handle.Emit(s.bus, &neighborEvent{Interface: snap.Interface, NeighborID: snap.RouterID, State: snap.State}); err != nil {
-		logger().Debug("ospf: event emit", "event", label, "interface", snap.Interface, "neighbor", snap.RouterID, "err", err)
+		warnEmitRefused(label, "neighbor "+snap.RouterID+" on interface "+snap.Interface, showNeighborFix, err)
 	}
+}
+
+// emitRefusedWhy is why a refused event matters. The bus refuses only an event pair
+// its registry does not hold or a payload it cannot encode (the plugin server's
+// deliverEvent), and every OSPF event pair and payload is Ze's own, so only a defect in
+// Ze gets here. The state machine that called the sink is unaffected.
+const emitRefusedWhy = "Plugins that follow OSPF state missed this change, and only a defect in Ze refuses the event; " +
+	"OSPF itself is unaffected"
+
+// showNeighborFix and showInterfaceFix show the state a consumer that missed a
+// neighbor or interface event can read instead.
+const (
+	showNeighborFix  = "ze " + cmdShowNeighbor
+	showInterfaceFix = "ze " + cmdShowInterface
+)
+
+// warnEmitRefused reports an event the bus refused: a WARN under the internal-defect
+// doctor code, and the error event queued under it for the daemon's report bus
+// (issueQueue), as that code's other sites do. The emit has no caller that could act
+// on an error: the state machine has already changed state, which is right whatever
+// the bus says. A neighbor or interface changes state at most once per protocol
+// exchange, so a line and a raise for each refusal flood neither the log nor the bus.
+func warnEmitRefused(event, subject, fix string, err error) {
+	issue := opererr.Wrap(err, "OSPF did not publish the "+event+" event of "+subject, emitRefusedWhy, fix)
+	busSubject := event + " " + subject
+	reportErr := issueQueue.Load().RaiseError(diagnostic.CodeDoctorInternalDefect, busSubject,
+		issue.Problem(), issue.Fix(), internalDefectRaiseFailed(logger(), busSubject, issue.Fix()))
+	logger().LogAttrs(context.Background(), slog.LevelWarn, issue.Problem(),
+		issue.LogAttrs(slog.String("code", diagnostic.CodeDoctorInternalDefect), slog.String("event", event),
+			issuequeue.Outcome(reportErr))...)
 }
 
 // lastKeyExpired emits RFC 5709 Section 3.2's "last Authentication Key expiration"
@@ -123,7 +159,7 @@ func (s *eventSink) lastKeyExpired(notice *lastKeyExpirationEvent) {
 		return
 	}
 	if _, err := LastKeyExpiration.Emit(s.bus, notice); err != nil {
-		logger().Debug("ospf: event emit", "event", EventLastKeyExpiration, "interface", notice.Interface, "err", err)
+		warnEmitRefused(EventLastKeyExpiration, "interface "+notice.Interface, showInterfaceFix, err)
 	}
 }
 
@@ -132,7 +168,7 @@ func (s *eventSink) emit(handle *events.Event[*interfaceEvent], label string, sn
 		return
 	}
 	if _, err := handle.Emit(s.bus, interfaceEventOf(snap)); err != nil {
-		logger().Debug("ospf: event emit", "event", label, "interface", snap.Name, "err", err)
+		warnEmitRefused(label, "interface "+snap.Name, showInterfaceFix, err)
 	}
 }
 

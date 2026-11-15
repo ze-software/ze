@@ -98,9 +98,76 @@ type MetricsHook interface {
 	OnTxPacket(mode string)
 	OnRxPacket(mode string)
 	OnAuthFailure(mode string)
+	// OnSendFailure counts one packet the transport refused to send.
+	// packetKind is the label of its sendKind: "control", "echo" or
+	// "echo-reflect" (warnSendFailedLocked).
+	OnSendFailure(mode, packetKind string)
 	OnEchoTx(mode string)
 	OnEchoRx(mode string)
 	OnEchoRTT(mode string, rtt time.Duration)
+}
+
+// IssueReporter carries the warnings and error events the engine raises to
+// the daemon's report bus. The bfd plugin installs one per loop
+// (SetIssueReporter) that forwards through the plugin SDK, because the plugin
+// may run forked, and a forked process's own internal/core/report bus is a
+// copy the daemon never reads. The engine calls it from the express loop while
+// l.mu is held, and from an authentication persister's writer goroutine, so an
+// implementation MUST NOT block: each method queues the report and answers
+// why it could not, and calls failed later, from its own goroutine, with the
+// reason the daemon did not take a queued report. Implementations MUST be
+// safe for concurrent use.
+type IssueReporter interface {
+	RaiseWarning(code, subject, message, fix string, failed func(error)) error
+	RaiseError(code, subject, message, fix string, failed func(error)) error
+	ClearWarning(code, subject string, failed func(error)) error
+}
+
+// errNoIssueReporter answers a raise or a clear on a loop with no
+// IssueReporter installed: only a test drives a loop without the plugin.
+var errNoIssueReporter = errors.New("bfd: no report-bus reporter is installed on the loop")
+
+// issueSink holds a loop's IssueReporter. Every session entry of the loop
+// points at it, so code that holds only an entry (replaceAuth, closeAuth)
+// and a persister's writer goroutine reach the reporter installed now. A nil
+// sink answers errNoIssueReporter. Safe for concurrent use.
+type issueSink struct {
+	reporter atomic.Pointer[IssueReporter]
+}
+
+func (s *issueSink) load() (IssueReporter, error) {
+	if s == nil {
+		return nil, errNoIssueReporter
+	}
+	r := s.reporter.Load()
+	if r == nil {
+		return nil, errNoIssueReporter
+	}
+	return *r, nil
+}
+
+func (s *issueSink) raiseWarning(code, subject, message, fix string, failed func(error)) error {
+	r, err := s.load()
+	if err != nil {
+		return err
+	}
+	return r.RaiseWarning(code, subject, message, fix, failed)
+}
+
+func (s *issueSink) raiseError(code, subject, message, fix string, failed func(error)) error {
+	r, err := s.load()
+	if err != nil {
+		return err
+	}
+	return r.RaiseError(code, subject, message, fix, failed)
+}
+
+func (s *issueSink) clearWarning(code, subject string, failed func(error)) error {
+	r, err := s.load()
+	if err != nil {
+		return err
+	}
+	return r.ClearWarning(code, subject, failed)
 }
 
 // Loop is the BFD express-loop runtime. Caller MUST call Start exactly
@@ -131,6 +198,10 @@ type Loop struct {
 
 	metricsHook atomic.Pointer[MetricsHook]
 
+	// issues is the loop's report-bus reporter (SetIssueReporter), shared by
+	// pointer with every session entry of the loop.
+	issues issueSink
+
 	rawCapture atomic.Pointer[RawCaptureRing]
 
 	// serving is the session the express loop is changing now, nil while no
@@ -155,6 +226,18 @@ func (l *Loop) SetMetricsHook(h MetricsHook) {
 		return
 	}
 	l.metricsHook.Store(&h)
+}
+
+// SetIssueReporter installs the reporter the loop raises its warnings and
+// error events through. Passing nil clears it, and a loop with none logs each
+// problem with the reason it reached no report bus. Safe for concurrent use;
+// installed atomically.
+func (l *Loop) SetIssueReporter(r IssueReporter) {
+	if r == nil {
+		l.issues.reporter.Store(nil)
+		return
+	}
+	l.issues.reporter.Store(&r)
 }
 
 // sessionEntry wraps a session.Machine with engine-side bookkeeping
@@ -216,10 +299,32 @@ type sessionEntry struct {
 	// (ReleaseSession). tick removes it once that time has passed, and a
 	// client that asks for it again first revives it (reviveLocked).
 	released bool
-	// sendWarnAt is when a failed transmission of this session was last
-	// logged at Warn, the zero time when none has been. It rate-limits
-	// warnSendFailedLocked to one line per sendWarnInterval per session.
-	sendWarnAt time.Time
+	// sends is what the session keeps about its refused sends, one record
+	// per sendKind: it rate-limits warnSendFailedLocked to one Warn line and
+	// one raise per sendWarnInterval per kind, and says which kinds hold a
+	// raised SendFailedCode warning.
+	sends [len(sendKinds)]sendRecord
+	// authWarnAt is when a received packet of this session that failed
+	// authentication was last logged at Warn, the zero time when none has
+	// been since the session's authentication was installed. It rate-limits
+	// warnAuthFailedLocked to one line, and one raise, per sendWarnInterval
+	// per session. A packet that verifies does NOT reset it: a sender
+	// interleaving bad packets with the peer's good ones would otherwise
+	// earn a Warn, a raise and a clear per packet.
+	authWarnAt time.Time
+	// authRaisedAt is when the session's AuthFailedCode warning was raised
+	// on the report bus, the zero time while none is raised. A packet that
+	// verifies clears the raise and this, and leaves authWarnAt.
+	authRaisedAt time.Time
+	// authFailedAt is when the session's last received packet failed
+	// authentication, the zero time when none has since the authentication
+	// was installed. tick clears a raised warning once no packet has failed
+	// for warningQuiet (expireQuietWarnings): a peer that stopped sending
+	// sends no packet that could verify and clear it.
+	authFailedAt time.Time
+	// issues is the loop's report-bus reporter, nil for an entry built
+	// outside createSessionLocked.
+	issues *issueSink
 }
 
 // recordTransition appends a new TransitionRecord to the ring buffer.
@@ -500,13 +605,12 @@ func (l *Loop) Start() error {
 		if err := l.echoTransport.Start(); err != nil {
 			// Control started successfully; roll it back so the
 			// kernel sees a clean shutdown before reporting the
-			// echo-bind failure upstream.
-			if stopErr := l.transport.Stop(); stopErr != nil {
-				engineLog().Debug("bfd control stop after echo start failure",
-					"err", stopErr)
-			}
+			// echo-bind failure upstream. A control socket that fails
+			// to close is reported with the bind failure: the caller
+			// (runtimeState.loopFor) holds no other record of it.
+			stopErr := l.transport.Stop()
 			l.started.Store(false)
-			return err
+			return errors.Join(err, stopErr)
 		}
 	}
 	go l.run()
@@ -531,10 +635,10 @@ func (l *Loop) Stop() error {
 	}
 
 	l.mu.Lock()
-	for key, entry := range l.sessions {
-		if err := entry.machine.CloseAuth(); err != nil {
-			engineLog().Debug("bfd auth persister close failed", "key", key, "err", err)
-		}
+	for _, entry := range l.sessions {
+		closeAuth(entry)
+		resetAuthWarning(entry)
+		clearSendWarnings(entry)
 	}
 	l.mu.Unlock()
 
@@ -640,6 +744,7 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 		createdAt: l.clk.Now(),
 		lastState: packet.StateDown,
 		joined:    key,
+		issues:    &l.issues,
 	}
 	notify := l.makeNotify(key, entry)
 	m.Init(req, discr, l.clk, notify)
@@ -650,7 +755,7 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 	// into persistence (PersistDir non-empty; see buildAuthPair),
 	// attach a SeqPersister so the TX sequence survives a restart.
 	if req.Auth != nil {
-		pair, pairErr := buildAuthPair(req, key)
+		pair, pairErr := buildAuthPair(req, key, entry.issues)
 		if pairErr != nil {
 			return nil, pairErr
 		}
@@ -666,9 +771,10 @@ func (l *Loop) createSessionLocked(req api.SessionRequest, key api.Key, discr ui
 
 // buildAuthPair converts api.AuthSettings into a session.AuthPair,
 // including an optional SeqPersister for Meticulous variants. The
-// caller owns the pair and must call Close via Machine.CloseAuth on
-// session teardown.
-func buildAuthPair(req api.SessionRequest, key api.Key) (*session.AuthPair, error) {
+// caller owns the pair and MUST close it through closeAuth on session
+// teardown. The persister reports a failed write of the sequence number
+// through issues (reportSeqUnsaved).
+func buildAuthPair(req api.SessionRequest, key api.Key, issues *issueSink) (*session.AuthPair, error) {
 	cfg := auth.Settings{
 		Type:       req.Auth.Type,
 		KeyID:      req.Auth.KeyID,
@@ -693,7 +799,9 @@ func buildAuthPair(req api.SessionRequest, key api.Key) (*session.AuthPair, erro
 	if req.Auth.Meticulous && req.PersistDir != "" {
 		var tb textbuf.Buffer
 		keyStr := tb.Addr(key.Peer).Byte('-').Str(key.VRF).Byte('-').Str(key.Mode.String()).String()
-		p, perr := auth.NewSeqPersister(keyStr)
+		p, perr := auth.NewSeqPersister(keyStr, func(err error) {
+			reportSeqUnsaved(issues, key, seqWriteFailedProblem, err)
+		})
 		if perr != nil {
 			return nil, perr
 		}
@@ -803,11 +911,12 @@ func (l *Loop) retireReleasedLocked(key api.Key, entry *sessionEntry, now time.T
 
 // removeEntryLocked drops entry from the session map and both lookup indexes,
 // closes its authentication persister and closes any subscriber still
-// registered. The caller MUST hold l.mu.
+// registered, and withdraws the warnings it raised. The caller MUST hold
+// l.mu.
 func (l *Loop) removeEntryLocked(key api.Key, entry *sessionEntry) {
-	if err := entry.machine.CloseAuth(); err != nil {
-		engineLog().Debug("bfd auth persister close failed", "key", key, "err", err)
-	}
+	closeAuth(entry)
+	resetAuthWarning(entry)
+	clearSendWarnings(entry)
 	delete(l.sessions, key)
 	delete(l.byDiscr, entry.machine.LocalDiscriminator())
 	delete(l.byKey, firstPacketIndex(key))

@@ -144,10 +144,23 @@ Rejected/No Hello.
 
 With the LDP log at info (`environment { log { ldp info } }`), ze logs
 `ldp: session operational` with the peer address when a session reaches
-OPERATIONAL, and `ldp: session ended` with the peer and the cause when a session
-ends on an error, so the log shows when each session came up and went down.
+OPERATIONAL, so the log shows when each session came up.
+
+A session that ends without Ze stopping it (the neighbor closed the connection
+or sent a fatal Notification, its KeepAlives stopped arriving, or it sent a
+message Ze could not accept) is logged at WARN, which the default log level shows, as
+`LDP session with <peer> ended`, with the cause, why it matters and the fix
+(`ze show ldp neighbor`), under the code `doctor-ldp-session-ended`. The same
+end is raised as an error event, so `ze show errors` and `ze doctor` list it.
+A fatal Notification from the neighbor is also logged at info, as
+`ldp: fatal notification received, closing the session` with its status and
+the message type it refers to; the WARN's cause carries both. A session Ze
+stopped itself (an expired adjacency, a reload, a KeepAlive it could not send,
+the engine stopping) is logged at info as `ldp: session closed`, with the peer
+and the reason.
 
 <!-- source: internal/plugins/ldp/session.go -- processMessages -->
+<!-- source: internal/plugins/ldp/problems.go -- reportSessionEnd -->
 <!-- source: internal/plugins/ldp/register.go -- runSession -->
 
 Inspect LDP state with `show ldp neighbor` (session state, transport address)

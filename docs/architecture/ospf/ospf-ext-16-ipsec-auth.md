@@ -80,6 +80,24 @@ This path is Linux-only.
 - **The shared IKE dataplane gained additive, zero-valued fields** for the
   selector, the upper protocol, the ifindex, policy removal and the algorithm
   plan. IKE is byte-identical with them at their zero values.
+- **An entry the installer could not delete is reported once, as an event of
+  its own.** The installer forgets an interface's or a neighbor's entries
+  whatever the dataplane answered, so nothing in Ze deletes a leftover later.
+  Each failed delete is a WARN and an error event raised through the SDK under
+  `doctor-ospfv3-ipsec-entry-left`, which `recent-events` in `ze doctor`
+  lists; the `ospfv3-ipsec` check's `doctor-ospfv3-ipsec` answers whether XFRM
+  is available, which is another question. The subject is the entry: `dst <addr>
+  proto <esp|ah> spi <spi>` for a state, the policy's selector for a policy. The
+  fix is the `ip -6 xfrm` delete of that entry, and never names the key. A
+  policy's selector holds the interface's ifindex, and its name no longer
+  resolves once the interface is deleted, so the fix names the index as
+  `dev if<N>`, which iproute2 reads as index N. The fix is written for the
+  kernel's XFRM backend; with another IPsec backend the message names
+  `ze show vpn ipsec dataplane sa` and `... policy`. A delete the kernel answers
+  with "no such entry" (ESRCH, ENOENT) is what it asked for, and reports
+  nothing.
+  <!-- source: internal/plugins/ospf/ipsec_install.go -- reportSARemoval, reportPolicyRemoval, warnRemoval, ipsecEntryAbsent -->
+  <!-- source: internal/plugins/ospf/register.go -- registerOSPFDiagnosticCodes -->
 
 ## Constraints on callers
 

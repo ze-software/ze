@@ -153,6 +153,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_filter_community_blackhole_guard_added_total` | CounterVec | community | bgp-filter-community |
 | `ze_isis_adjacencies_up` | GaugeVec | level, interface | isis |
 | `ze_isis_adjacencies_total` | GaugeVec | level | isis |
+| `ze_isis_lsp_change_events_refused_total` | Counter | | isis (events) |
 | `ze_isis_lsps` | GaugeVec | level | isis (lsdb) |
 | `ze_isis_lsp_fragments` | GaugeVec | level | isis (lsdb) |
 | `ze_isis_lsp_originations_total` | CounterVec | level | isis (lsdb) |
@@ -181,6 +182,12 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_isis_frames_received_total` | CounterVec | interface | isis (transport) |
 | `ze_isis_frames_dropped_total` | CounterVec | interface, reason | isis (transport) |
 | `ze_isis_sockets_open` | Gauge | | isis (transport) |
+| `ze_ldp_sessions_active` | Gauge | | ldp |
+| `ze_ldp_sessions_total` | Counter | | ldp |
+| `ze_ldp_bindings_active` | Gauge | | ldp (LIB) |
+| `ze_ldp_bindings_total` | Counter | | ldp (LIB) |
+| `ze_ldp_hello_send_errors_total` | CounterVec | interface | ldp (discovery): one per Hello that failed to send; the first after a success is logged and raised as `doctor-ldp-hello-send-failed` |
+| `ze_ldp_hello_discards_total` | CounterVec | interface | ldp (discovery): one per malformed datagram discarded on the discovery port; the first after a quiet minute is logged and raised as `doctor-ldp-hello-discarded` |
 | `ze_ospf_packets_sent_total` | CounterVec | interface, type | ospf, ospfv3 (transport) |
 | `ze_ospf_packets_received_total` | CounterVec | interface, type | ospf, ospfv3 (transport) |
 | `ze_ospf_packets_dropped_total` | CounterVec | interface, reason | ospf, ospfv3 (transport) |
@@ -383,6 +390,13 @@ The two `isis (dis)` series are the Designated IS / pseudo-node metrics (broadca
 LANs): `ze_isis_dis_elections_total` counts DIS elections that changed the elected
 DIS per level, and `ze_isis_pseudonode_lsps` gauges the pseudo-node LSPs this node
 currently originates as the elected DIS per level.
+
+The `isis (events)` series `ze_isis_lsp_change_events_refused_total` counts the
+`lsp-change` events the event bus refused to publish. The bus refuses only an
+event it does not know, so any sample above zero is a defect in Ze: the first
+refusal is also logged at WARN under `doctor-internal-defect` and raised as an
+error event, and the later ones are only counted here.
+<!-- source: internal/plugins/isis/events.go -- noteLSPChangeRefused -->
 
 The `isis (auth)` series `ze_isis_auth_failures_total` counts IS-IS PDUs rejected
 because authentication verification failed, by level and receiving interface. It

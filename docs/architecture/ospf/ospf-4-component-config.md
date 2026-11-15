@@ -144,6 +144,26 @@ lifecycle callbacks, transport enrollment and config validation.
   per plugin, so its registry is set by `setMetricsRegistry`, not per engine.
   <!-- source: internal/plugins/ospf/panic_guard.go -- receivePackets, endReceivePanic, describeReceivePanic -->
   <!-- source: internal/plugins/ospf/register.go -- setMetricsRegistry -->
+- **A transient problem is raised through the SDK, never through
+  `internal/core/report`.** `runOSPFEngine` starts the plugin report queue
+  (`issuequeue.Start`) over its `sdk.Plugin` before it builds an engine, and
+  stops it after every engine has shut down; each raise only enqueues, and the
+  queue's worker sends `report-issue` to the daemon
+  (`docs/architecture/doctor-and-health-checks.md`, "Recent events"). No raise
+  waits for the daemon: the IPsec installer raises with its lock held, and every
+  received Hello takes that lock. A forked OSPF has its own copy of the
+  process-local bus, which no doctor check reads. Each site WARNs with what, why
+  and the fix under the code it raises, and the line says whether the queue took
+  the raise (`report=queued`, or `report-error`); a raise the daemon refuses
+  later is logged at WARN under the same code with the same fix.
+  Three sites raise an error event: an event the bus refused to publish and a
+  BFD session the BFD engine refused to release, both under
+  `doctor-internal-defect`, because only a Ze defect reaches them; and an IPsec
+  entry the installer could not delete, under
+  `doctor-ospfv3-ipsec-entry-left` (`ospf-ext-16-ipsec-auth.md`).
+  <!-- source: internal/plugins/ospf/issues.go -- issueQueue, internalDefectRaiseFailed, ipsecEntryLeftRaiseFailed -->
+  <!-- source: internal/plugins/ospf/events.go -- warnEmitRefused -->
+  <!-- source: internal/plugins/ospf/bfd_client.go -- warnBFDReleaseRefused -->
 
 ## Constraints on callers
 

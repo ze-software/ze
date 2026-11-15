@@ -67,13 +67,16 @@ const (
 // sessions, attached to a failed wait beside FRR's.
 const zeShowLDPNeighbor = "show ldp neighbor"
 
-// The messages ze's LDP plugin logs, counted in ze's log before and after the
-// clear. Each is the msg of one call: Session.ReadLoop (Warn) on FRR's fatal
-// Shutdown Notification, runSession (Info) when the session ends, and
-// recordSetupFailure (Info) when it records a setup backoff.
+// What ze's LDP plugin logs, counted in ze's log before and after the clear:
+// the msg of processMessages (Info) on FRR's fatal Shutdown Notification; the
+// doctor code reportSessionEnd's Warn line carries when a session ze did not
+// stop ends, its msg naming the peer; the msg of processMessages (Info) when a
+// session becomes operational; and the msg of recordSetupFailure (Info) when it
+// records a setup backoff.
 const (
 	ldpZeFatalNotification = "ldp: fatal notification received, closing the session"
-	ldpZeSessionEnded      = "ldp: session ended"
+	ldpZeSessionEnded      = "code=doctor-ldp-session-ended"
+	ldpZeOperational       = "ldp: session operational"
 	ldpZeSetupFailed       = "ldp: session setup failed, next attempt delayed"
 )
 
@@ -184,31 +187,39 @@ func readZeLDPLog(ctx context.Context, lab interoplab.CheckerLab) (string, error
 // zeLDPLogCounts is how many times ze's log carries each LDP message the
 // scenario judges.
 type zeLDPLogCounts struct {
-	fatalNotifications int
-	sessionsEnded      int
-	setupFailures      int
+	fatalNotifications  int
+	sessionsEnded       int
+	sessionsOperational int
+	setupFailures       int
 }
 
 // countZeLDPLog counts the judged messages in a read of ze's log.
 func countZeLDPLog(zeLog string) zeLDPLogCounts {
 	return zeLDPLogCounts{
-		fatalNotifications: strings.Count(zeLog, ldpZeFatalNotification),
-		sessionsEnded:      strings.Count(zeLog, ldpZeSessionEnded),
-		setupFailures:      strings.Count(zeLog, ldpZeSetupFailed),
+		fatalNotifications:  strings.Count(zeLog, ldpZeFatalNotification),
+		sessionsEnded:       strings.Count(zeLog, ldpZeSessionEnded),
+		sessionsOperational: strings.Count(zeLog, ldpZeOperational),
+		setupFailures:       strings.Count(zeLog, ldpZeSetupFailed),
 	}
 }
 
 // requireLDPBackoffReleased judges ze's log across the clear. ze must log a
-// new fatal Notification, the Shutdown FRR sent, so the clear reached ze; a
-// new session end at info, so the info lines are read and the next count's
-// absence means something; and no new setup failure, because the session that
-// ended had reached OPERATIONAL.
+// new fatal Notification, the Shutdown FRR sent, at info, so the clear reached
+// ze; a new session end, so ze ended the session on it; an operational session
+// at info, which the session cleared was before the clear, so the info lines
+// are read and the next count's absence means something; and no new setup
+// failure, because the session that ended had reached OPERATIONAL. The
+// Notification line is an info line too, so its absence also follows from a
+// ze.conf that lost the ldp info level, and its refusal names both causes.
 func requireLDPBackoffReleased(before, after zeLDPLogCounts) error {
 	if after.fatalNotifications <= before.fatalNotifications {
-		return fmt.Errorf("ze logged no %q after FRR's clear, so FRR's Shutdown Notification never reached ze", ldpZeFatalNotification)
+		return fmt.Errorf("ze logged no %q at info after FRR's clear, so FRR's Shutdown Notification never reached ze, or ze does not log LDP at info: the scenario's ze.conf must keep `environment { log { ldp info } }`", ldpZeFatalNotification)
 	}
 	if after.sessionsEnded <= before.sessionsEnded {
-		return fmt.Errorf("ze logged no %q at info after FRR's clear, so the absence of a setup backoff in its log proves nothing: the scenario's ze.conf must keep `environment { log { ldp info } }`", ldpZeSessionEnded)
+		return fmt.Errorf("ze logged no session end (%q) after FRR's clear, so the session FRR cleared did not end in ze", ldpZeSessionEnded)
+	}
+	if after.sessionsOperational == 0 {
+		return fmt.Errorf("ze logged no %q at info, so the absence of a setup backoff in its log proves nothing: the scenario's ze.conf must keep `environment { log { ldp info } }`", ldpZeOperational)
 	}
 	if after.setupFailures > before.setupFailures {
 		return fmt.Errorf("ze logged %q %d time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more", ldpZeSetupFailed, after.setupFailures-before.setupFailures)

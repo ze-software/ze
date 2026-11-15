@@ -52,15 +52,21 @@
 package ospf
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"net/netip"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
@@ -498,7 +504,7 @@ func (i *ipsecInstaller) removeNeighborSALocked(name string, rec installedIPsec,
 		return
 	}
 	if err := dp.RemoveSA(rec.spec.SPI, addr.AsSlice(), ipsecProtoNumber(rec.spec.Protocol)); err != nil {
-		i.log.Debug("ospf ipsec: remove neighbor SA", "interface", name, "neighbor", id.String(), "err", err)
+		i.reportSARemoval(name, neighborOwner(name, id), rec.spec.SPI, addr.AsSlice(), rec.spec.Protocol, err)
 	}
 }
 
@@ -510,25 +516,143 @@ func (i *ipsecInstaller) removeLocked(name string) {
 	if dp, err := i.dpSource(); err == nil && dp != nil {
 		for idx := range cur.policies {
 			if err := dp.RemovePolicyParams(cur.policies[idx]); err != nil {
-				i.log.Debug("ospf ipsec: remove policy", "interface", name, "err", err)
+				i.reportPolicyRemoval(name, cur.policies[idx], err)
 			}
 		}
+		owner := "interface " + name
 		for idx := range cur.sas {
 			sa := &cur.sas[idx]
 			if err := dp.RemoveSA(sa.SPI, sa.Dst, sa.Proto); err != nil {
-				i.log.Debug("ospf ipsec: remove SA", "interface", name, "spi", sa.SPI, "err", err)
+				i.reportSARemoval(name, owner, sa.SPI, sa.Dst, cur.spec.Protocol, err)
 			}
 		}
 		proto := ipsecProtoNumber(cur.spec.Protocol)
 		for id, addr := range cur.neighbors {
 			if err := dp.RemoveSA(cur.spec.SPI, addr.AsSlice(), proto); err != nil {
-				i.log.Debug("ospf ipsec: remove neighbor SA", "interface", name, "neighbor", id.String(), "err", err)
+				i.reportSARemoval(name, neighborOwner(name, id), cur.spec.SPI, addr.AsSlice(), cur.spec.Protocol, err)
 			}
 		}
 	}
 	delete(i.installed, name)
 	i.clearGauges(name, cur.spec)
 	i.log.Info("ospf ipsec: removed", "interface", name)
+}
+
+// codeOSPFv3IPsecEntryLeft is the event an IPsec entry the installer could not delete
+// raises. It is OSPF's own code, registered in registerOSPFDiagnosticCodes: the
+// ospfv3-ipsec doctor check's codeOSPFv3IPsec reports whether the XFRM dataplane is
+// available, not an entry left in it, and no check can probe for an entry Ze forgot.
+const codeOSPFv3IPsecEntryLeft = "doctor-ospfv3-ipsec-entry-left"
+
+// ipsecRemovalWhy is why a failed delete matters: the installer forgets the entry
+// whatever the dataplane answered, so nothing in Ze removes it later. The fix each
+// report builds is the iproute2 command for the kernel's XFRM backend, which is the
+// one OSPF loads itself (defaultDataplaneSource); IKE may have loaded another.
+const ipsecRemovalWhy = "Ze no longer tracks this entry, so it stays in the IPsec dataplane until it is deleted by hand; " +
+	"the fix is for the kernel's XFRM backend, and with another backend ze show vpn ipsec dataplane sa " +
+	"and ze show vpn ipsec dataplane policy list what that backend holds"
+
+// neighborOwner names a neighbor's outbound state in the operator's words.
+func neighborOwner(name string, id types.RouterID) string {
+	return "neighbor " + id.String() + " on interface " + name
+}
+
+// ipsecEntryAbsent reports whether a failed XFRM delete says the kernel holds no such
+// entry. A state delete answers ESRCH (dataplane xfrmBackend.RemoveSA), and a policy
+// delete passes ENOENT on (dataplane policyOwners.deleteThenRelease). Both are the
+// outcome the delete asked for: a second teardown of one interface, or the kernel
+// flushing the state when the link went away. Nothing Ze installed is left, so there is
+// nothing to report.
+func ipsecEntryAbsent(err error) bool {
+	if errors.Is(err, syscall.ESRCH) {
+		return true
+	}
+	return errors.Is(err, syscall.ENOENT)
+}
+
+// reportSARemoval reports one kernel state the installer could not delete. owner names
+// whose state it is: the interface, or a neighbor on it. The message carries the SPI and
+// the destination, never the key.
+func (i *ipsecInstaller) reportSARemoval(name, owner string, spi uint32, dst net.IP, protocol string, err error) {
+	if ipsecEntryAbsent(err) {
+		return
+	}
+	problem := textbuf.New()
+	defer problem.Release()
+	problem.Str("OSPF IPsec could not remove the kernel security association of ").Str(owner)
+	// The subject is the state's identity in the kernel, the destination, the protocol
+	// and the SPI, which is also what the delete names.
+	subject := textbuf.New()
+	defer subject.Release()
+	subject.Str("dst ").Str(dst.String()).Str(" proto ").Str(protocol).Str(" spi ").Uint32(spi)
+	// String empties the buffer, so the entry is read once and named twice.
+	entry := subject.String()
+	fix := textbuf.New()
+	defer fix.Release()
+	fix.Str("ip -6 xfrm state delete ").Str(entry)
+	i.warnRemoval(name, entry, opererr.Wrap(err, problem.String(), ipsecRemovalWhy, fix.String()))
+}
+
+// reportPolicyRemoval reports one interface policy the installer could not delete. A
+// policy left behind still requires IPsec on the interface's OSPF packets, so the
+// adjacency fails once the interface's states are gone.
+func (i *ipsecInstaller) reportPolicyRemoval(name string, policy dataplane.SPParams, err error) {
+	if ipsecEntryAbsent(err) {
+		return
+	}
+	direction := xfrmDirName(policy.Dir)
+	problem := textbuf.New()
+	defer problem.Release()
+	problem.Str("OSPF IPsec could not remove the ").Str(direction).Str(" security policy of interface ").Str(name)
+	// The kernel deletes a policy whose whole selector matches, and buildIPsecPolicies
+	// scopes the selector to the interface's ifindex. The command names that index as
+	// if<N>, which iproute2 reads as interface index N (ll_name_to_index) and prints
+	// for an index with no device: the interface's name stops resolving once the
+	// interface is deleted, and its policy stays.
+	subject := textbuf.New()
+	defer subject.Release()
+	subject.Str("dir ").Str(direction)
+	subject.Str(" src ").Str(policy.Src.String()).Str(" dst ").Str(policy.Dst.String())
+	subject.Str(" proto ").Uint8(policy.UpperProto)
+	if policy.IfIndex > 0 {
+		subject.Str(" dev if").Int(int64(policy.IfIndex))
+	}
+	// String empties the buffer, so the entry is read once and named twice.
+	entry := subject.String()
+	fix := textbuf.New()
+	defer fix.Release()
+	fix.Str("ip -6 xfrm policy delete ").Str(entry)
+	i.warnRemoval(name, entry, opererr.Wrap(err, problem.String(), ipsecRemovalWhy, fix.String()))
+}
+
+// warnRemoval logs a failed delete at WARN under codeOSPFv3IPsecEntryLeft and queues
+// the error event under it for the daemon's report bus (issueQueue), subject the entry,
+// so ze doctor lists the entry Ze left in the dataplane. One teardown reports at most
+// one line per entry it installed: three policies and a state per destination. Its
+// callers hold i.mu, which every received Hello takes (nsmAdapter.NeighborHello), so
+// the raise only enqueues: it never waits for the daemon.
+func (i *ipsecInstaller) warnRemoval(name, subject string, issue *opererr.Error) {
+	reportErr := issueQueue.Load().RaiseError(codeOSPFv3IPsecEntryLeft, subject,
+		issue.Problem(), issue.Fix(), ipsecEntryLeftRaiseFailed(i.log, subject, issue.Fix()))
+	i.log.LogAttrs(context.Background(), slog.LevelWarn, issue.Problem(),
+		issue.LogAttrs(slog.String("code", codeOSPFv3IPsecEntryLeft), slog.String("interface", name),
+			issuequeue.Outcome(reportErr))...)
+}
+
+// xfrmDirName answers the direction word `ip xfrm policy` takes. Only Ze builds a
+// policy direction (buildIPsecPolicies sets out, in and fwd), so any other value is a
+// Ze defect.
+func xfrmDirName(dir dataplane.SADir) string {
+	switch dir {
+	case dataplane.SADirIn:
+		return "in"
+	case dataplane.SADirOut:
+		return "out"
+	case dataplane.SADirFwd:
+		return "fwd"
+	default:
+		panic("BUG: an OSPF IPsec policy carries no direction buildIPsecPolicies sets")
+	}
 }
 
 // rollback undoes a partially-installed interface after an install error.

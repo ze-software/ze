@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,7 +38,7 @@ func TestSeqPersistWriteLoad(t *testing.T) {
 	newStore(t)
 	const sessionKey = "203.0.113.9-default-single-hop"
 
-	p, err := newSeqPersisterAt(sessionKey, DefaultFlushInterval, writeSeq)
+	p, err := newSeqPersisterAt(sessionKey, DefaultFlushInterval, writeSeq, nil)
 	if err != nil {
 		t.Fatalf("newSeqPersisterAt: %v", err)
 	}
@@ -61,7 +62,7 @@ func TestSeqPersistWriteLoad(t *testing.T) {
 	}
 
 	// A fresh persister on the same store + key sees the stored value.
-	p2, err := newSeqPersisterAt(sessionKey, DefaultFlushInterval, writeSeq)
+	p2, err := newSeqPersisterAt(sessionKey, DefaultFlushInterval, writeSeq, nil)
 	if err != nil {
 		t.Fatalf("second newSeqPersisterAt: %v", err)
 	}
@@ -78,7 +79,8 @@ func TestSeqPersistNoStore(t *testing.T) {
 	// No store registered (filesystem-fallback mode): writes no-op,
 	// reads return not-found, construction still succeeds.
 	statestore.SetStore(nil)
-	p, err := newSeqPersisterAt("sessionA", 5*time.Millisecond, writeSeq)
+	var reported atomic.Int32
+	p, err := newSeqPersisterAt("sessionA", 5*time.Millisecond, writeSeq, func(error) { reported.Add(1) })
 	if err != nil {
 		t.Fatalf("newSeqPersisterAt (absent store): %v", err)
 	}
@@ -91,30 +93,90 @@ func TestSeqPersistNoStore(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 	// A best-effort no-op write is not a failure.
-	if p.logged.Load() {
-		t.Fatal("logged latch set for an absent store (should be a silent no-op)")
+	if got := reported.Load(); got != 0 {
+		t.Fatalf("write failure reported %d times for an absent store (should be a silent no-op)", got)
 	}
 }
 
-// VALIDATES: SeqPersister records a write failure via the logged latch and
-// does not block the express loop when the store write fails.
-// PREVENTS: a disk-full or read-only store wedging the hot path.
+// errForcedWrite is the store failure the write-failure tests inject.
+var errForcedWrite = errors.New("forced write failure")
+
+// VALIDATES: a failed store write does not block the express loop, is
+// reported once per run of failed writes (onWriteFailure), and Close answers
+// it when the last write failed.
+// PREVENTS: a disk-full or read-only store wedging the hot path, a failure
+// that reaches nobody, and a report on every tick of a store that keeps
+// refusing.
+// Method: a writeFn that always fails; two Stores a tick apart, so two failed
+// writes in one run; Close's answer and the report count.
 func TestSeqPersistWriteFailure(t *testing.T) {
 	newStore(t)
+	var reported atomic.Int32
 	p, err := newSeqPersisterAt("sessionRO", 5*time.Millisecond, func(_ string, _ uint32) error {
-		return errors.New("forced write failure")
-	})
+		return errForcedWrite
+	}, func(error) { reported.Add(1) })
 	if err != nil {
 		t.Fatalf("newSeqPersisterAt: %v", err)
 	}
 	p.Store(1)
-	// Give the ticker at least one cycle to process.
-	time.Sleep(25 * time.Millisecond)
-	if err := p.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
+	waitForSeq(t, "the first failed write reported", func() bool { return reported.Load() == 1 })
+	// Close flushes 2, a second failed write of the same run.
+	p.Store(2)
+	if err := p.Close(); !errors.Is(err, errForcedWrite) {
+		t.Fatalf("Close = %v, want the forced write failure", err)
 	}
-	if !p.logged.Load() {
-		t.Fatal("logged latch not set after forced write failure")
+	if got := reported.Load(); got != 1 {
+		t.Fatalf("write failure reported %d times for one run of failed writes, want 1", got)
+	}
+}
+
+// VALIDATES: a write that lands ends a run of failed writes: Close answers
+// nil, and the next failure is reported again as a new run.
+// PREVENTS: a recovered store still reported as failing at Close, and a
+// second outage reaching nobody because the first one latched for good.
+// Method: a writeFn failing while fail holds, then landing, then failing.
+func TestSeqPersistFailureRunEndsWhenAWriteLands(t *testing.T) {
+	newStore(t)
+	var fail atomic.Int32
+	var reported atomic.Int32
+	p, err := newSeqPersisterAt("sessionRun", 5*time.Millisecond, func(_ string, _ uint32) error {
+		if fail.Load() != 0 {
+			return errForcedWrite
+		}
+		return nil
+	}, func(error) { reported.Add(1) })
+	if err != nil {
+		t.Fatalf("newSeqPersisterAt: %v", err)
+	}
+	fail.Store(1)
+	p.Store(1)
+	waitForSeq(t, "the first run reported", func() bool { return reported.Load() == 1 })
+	fail.Store(0)
+	p.Store(2)
+	waitForSeq(t, "the landed write ending the run", func() bool { return p.failure.Load() == nil })
+	fail.Store(1)
+	p.Store(3)
+	waitForSeq(t, "the second run reported", func() bool { return reported.Load() == 2 })
+	fail.Store(0)
+	p.Store(4)
+	if err := p.Close(); err != nil {
+		t.Fatalf("Close = %v after a write that landed, want nil", err)
+	}
+	if got := reported.Load(); got != 2 {
+		t.Fatalf("write failure reported %d times for two runs of failed writes, want 2", got)
+	}
+}
+
+// waitForSeq waits until cond holds, which the persister's writer goroutine
+// makes true on a later tick, and fails the test naming what after 5s.
+func waitForSeq(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 

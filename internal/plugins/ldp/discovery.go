@@ -76,6 +76,10 @@ func AdjacencyKey(lsrID [4]byte, labelSpace uint16) string {
 type AdjacencyTable struct {
 	mu    sync.RWMutex
 	peers map[string]*Adjacency
+	// discards is the per-interface record of malformed Hellos, read by
+	// noteHelloDiscard. It holds its own lock, so a discard never waits on
+	// the adjacency lock.
+	discards helloDiscardLog
 }
 
 // newAdjacencyTable creates an empty adjacency table.

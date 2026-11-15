@@ -15,11 +15,16 @@
 package isis
 
 import (
+	"context"
+	"errors"
+	"log/slog"
 	"net/netip"
 	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/circuit"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
@@ -96,10 +101,11 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	// Level-1 and the Level-2 IIH at periods of their own, and a point-to-point
 	// circuit runs one because its IIH serves both levels (circuit.HelloSchedules).
 	schedules := c.HelloSchedules()
+	// Only the goroutine below sends Hellos for this circuit, so it alone owns
+	// the warner (helloSendWarn is not safe for concurrent use).
+	helloWarn := newHelloSendWarn(e.log, name)
 	sendHello := func(level adjacency.Level, when string) {
-		if err := c.SendHello(level); err != nil {
-			e.log.Debug("isis: "+when, "interface", name, "level", level.String(), "err", err)
-		}
+		helloWarn.observe(level, when, c.SendHello(level))
 	}
 
 	e.wg.Go(func() {
@@ -131,7 +137,11 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 			case <-stop:
 				// The circuit was removed (link-down/disable/reconcile-remove); exit
 				// so the worker does not keep sending Hellos and sweeping an empty
-				// table on a gone circuit.
+				// table on a gone circuit. A Hello send warning still raised goes
+				// with it, so a removed interface leaves no warning behind. On
+				// engine shutdown (e.ctx above) the plugin itself is going, and the
+				// daemon clears every warning a stopped plugin raised.
+				helloWarn.stop()
 				return
 			case <-reload:
 				// A commit changed this circuit's Hello timers. The level SET is not
@@ -160,6 +170,176 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 			}
 		}
 	})
+}
+
+// showInterfacesCommand shows each IS-IS circuit and its state, where an operator
+// checks the interface whose Hellos do not go out.
+const showInterfacesCommand = "ze show isis interface"
+
+// helloSendWarn reports the failed Hello sends of one circuit once per failure
+// run. A Hello goes out every hello-interval at each level the circuit forms, so
+// a line for each failure would fill the log for as long as the link stays
+// broken. The first failure at a level logs at WARN and raises codeHelloSendFailed
+// as a warning on the daemon's report bus, through the report queue (issues.go),
+// so the raise reaches the daemon whether IS-IS runs in it or forked, and the
+// Hello goroutine never waits for the daemon. The next failures at that level
+// are only counted here, for the line that ends the run, except that while the
+// daemon has refused the run's latest raise, a failure at least
+// authFailWarnInterval after it raises again, so a link broken for hours still
+// reaches show warnings. The first success after a run logs at Info with the
+// count, clears the warning and arms the WARN again; removing the circuit clears
+// it too (stop).
+//
+// Not safe for concurrent use: the circuit's one Hello goroutine
+// (launchCircuitGoroutine) owns it, and the report queue's worker touches only
+// the refusal each run's raises record. The map holds at most one entry per
+// level, so two.
+type helloSendWarn struct {
+	log     *slog.Logger
+	circuit string
+	// now is the clock the raise retry window reads: time.Now, which a test
+	// replaces.
+	now func() time.Time
+	// runs holds the open failure run at each level; a level with no entry is
+	// sending.
+	runs map[adjacency.Level]*helloSendRun
+}
+
+// helloSendRun is one level's run of failed Hello sends.
+type helloSendRun struct {
+	// failures is the length of the run.
+	failures uint64
+	// raises records the run's warning raises, so one the daemon refused is
+	// raised again.
+	raises issuequeue.RunRaises
+}
+
+// newHelloSendWarn constructs the warner of the circuit on interface circuit.
+func newHelloSendWarn(log *slog.Logger, circuit string) *helloSendWarn {
+	return &helloSendWarn{log: log, circuit: circuit, now: time.Now, runs: make(map[adjacency.Level]*helloSendRun, 2)}
+}
+
+// subject is the report bus subject of the warning at level: one per interface
+// and level, so a recovery at one level clears only its own warning.
+func (w *helloSendWarn) subject(level adjacency.Level) string {
+	return w.circuit + " " + level.String()
+}
+
+// observe records the outcome of one Hello send at level; when names the send
+// (the initial one, a periodic one, one after a parameter change).
+func (w *helloSendWarn) observe(level adjacency.Level, when string, err error) {
+	if err == nil {
+		w.recovered(level)
+		return
+	}
+	// The transport closes a circuit before onCircuitDown closes this sender's
+	// stop channel, so a send in that gap finds the circuit gone. The circuit is
+	// being removed and the stop channel ends the loop: nothing is wrong to report.
+	if errors.Is(err, transport.ErrCircuitNotOpen) {
+		return
+	}
+	run, failing := w.runs[level]
+	if !failing {
+		run = &helloSendRun{}
+		w.runs[level] = run
+	}
+	run.failures++
+	if run.failures == 1 {
+		issue := w.problem(level, err)
+		reportErr := w.raiseWarning(level, run, issue)
+		w.log.LogAttrs(context.Background(), slog.LevelWarn, issue.Problem(),
+			issue.LogAttrs(slog.String("code", codeHelloSendFailed),
+				slog.String("interface", w.circuit),
+				slog.String("level", level.String()),
+				slog.String("send", when),
+				issuequeue.Outcome(reportErr))...)
+		return
+	}
+	// The run's WARN line is written; only the raise is repeated, and only while
+	// the daemon has refused the latest one, at most once per window.
+	if !run.raises.RetryDue(w.now(), authFailWarnInterval) {
+		return
+	}
+	if reportErr := w.raiseWarning(level, run, w.problem(level, err)); reportErr != nil {
+		w.warnUnlisted(level, reportErr)
+	}
+}
+
+// problem is the operator error of a failed Hello send at level.
+func (w *helloSendWarn) problem(level adjacency.Level, err error) *opererr.Error {
+	return opererr.Wrap(err,
+		"IS-IS cannot send the "+level.String()+" Hello on interface "+w.circuit,
+		"Without Hellos the neighbors on this interface drop their adjacency when the hold time expires; "+
+			"the later failures are counted and not logged, and the next Hello that goes out clears this warning",
+		showInterfacesCommand)
+}
+
+// raiseWarning queues the run's warning at level and records the raise in the
+// run, so a refusal, by the queue now or by the daemon later, arms the retry.
+// It answers why the queue did not take the raise.
+func (w *helloSendWarn) raiseWarning(level adjacency.Level, run *helloSendRun, issue *opererr.Error) error {
+	refused := run.raises.Offer(w.now())
+	err := issueQueue.Load().RaiseWarning(codeHelloSendFailed, w.subject(level), issue.Problem(), issue.Fix(),
+		func(err error) {
+			refused(err)
+			w.warnUnlisted(level, err)
+		})
+	if err != nil {
+		refused(err)
+	}
+	return err
+}
+
+// warnUnlisted logs a raise of the Hello send warning that reached no report
+// bus. It runs on the report queue's worker as well as on the Hello goroutine,
+// and reads only fields that never change.
+func (w *helloSendWarn) warnUnlisted(level adjacency.Level, err error) {
+	w.log.Warn("isis: the Hello send warning could not be raised, so show warnings does not list it; "+
+		"it is raised again while the Hellos keep failing",
+		"code", codeHelloSendFailed, "interface", w.circuit, "level", level.String(),
+		"error", err, "fix", showInterfacesCommand)
+}
+
+// recovered ends the failure run at level, if one is open, with an Info line
+// naming how many Hellos it lost, and clears the run's warning.
+func (w *helloSendWarn) recovered(level adjacency.Level) {
+	run, failing := w.runs[level]
+	if !failing {
+		return
+	}
+	delete(w.runs, level)
+	w.log.Info("isis: Hellos go out again on the interface",
+		"interface", w.circuit, "level", level.String(), "failed-sends", run.failures)
+	w.clearWarning(level)
+}
+
+// stop clears the warning of every level still in a failure run, so a removed
+// circuit leaves no warning behind. The circuit's Hello goroutine MUST call it
+// when the circuit is removed, and MUST send no Hello after it.
+func (w *helloSendWarn) stop() {
+	for level := range w.runs {
+		delete(w.runs, level)
+		w.clearWarning(level)
+	}
+}
+
+// clearWarning queues the clear of the warning observe raised at level. A
+// clear the queue or the daemon refuses leaves the warning listed, so it is
+// logged at WARN under the same code.
+func (w *helloSendWarn) clearWarning(level adjacency.Level) {
+	if err := issueQueue.Load().ClearWarning(codeHelloSendFailed, w.subject(level), func(err error) {
+		w.warnUncleared(level, err)
+	}); err != nil {
+		w.warnUncleared(level, err)
+	}
+}
+
+// warnUncleared logs a clear of the Hello send warning that reached no report
+// bus. Like warnUnlisted it runs on either goroutine.
+func (w *helloSendWarn) warnUncleared(level adjacency.Level, err error) {
+	w.log.Warn("isis: the Hello send warning could not be cleared, so show warnings may still list it",
+		"code", codeHelloSendFailed, "interface", w.circuit, "level", level.String(),
+		"error", err, "fix", "ze show warnings")
 }
 
 // applyCircuitParams writes a committed parameter change into the circuit that is

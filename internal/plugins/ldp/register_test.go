@@ -4,7 +4,9 @@ package ldp
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -12,7 +14,99 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// VALIDATES: AC-3 -- a Hello that fails to send is counted on every failure
+// and is one condition: the first failure WARNs once, naming the interface,
+// why (the adjacencies there expire) and the fix, under
+// doctor-ldp-hello-send-failed, and raises one warning; the next Hello that
+// sends clears it, and a later failure WARNs and raises again. Method: drive
+// helloSendHealth.observe with what sendHello answers on a closed socket (a
+// real write error) and on an open one, as discoverOnInterface does each tick.
+// PREVENTS: the failure logged at debug only, invisible at the default level;
+// a WARN on every Hello interval while the cause lasts; and a latch that never
+// resets, which would hide the next outage.
+func TestLDPHelloSendFailureIsWarned(t *testing.T) {
+	publisher, sendErrors, _ := useProblemFakes(t)
+	handler := &recordingHandler{}
+	log := slog.New(handler)
+	cfg := ldpConfig{HelloHoldTime: 15 * time.Second}
+	lsrID := [4]byte{10, 0, 0, 1}
+
+	receiver, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen receiver: %v", err)
+	}
+	t.Cleanup(func() { _ = receiver.Close() })
+	dest, isUDP := receiver.LocalAddr().(*net.UDPAddr)
+	if !isUDP {
+		t.Fatalf("receiver.LocalAddr() = %T, want *net.UDPAddr", receiver.LocalAddr())
+	}
+	open, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen sender: %v", err)
+	}
+	t.Cleanup(func() { _ = open.Close() })
+	closed, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen closed sender: %v", err)
+	}
+	if err := closed.Close(); err != nil {
+		t.Fatalf("close sender: %v", err)
+	}
+
+	health := newHelloSendHealth("eth0")
+	for range 3 {
+		health.observe(log, sendHello(closed, dest, lsrID, cfg))
+	}
+
+	if got := sendErrors.value("eth0"); got != 3 {
+		t.Errorf("ze_ldp_hello_send_errors_total{interface=eth0} = %v, want 3", got)
+	}
+	warns := handler.levelRecords(slog.LevelWarn)
+	if len(warns) != 1 {
+		t.Fatalf("WARN lines after three failed Hellos = %d, want 1", len(warns))
+	}
+	warn := warns[0]
+	if !strings.Contains(warn.Message, "interface eth0") {
+		t.Errorf("WARN message %q does not name interface eth0", warn.Message)
+	}
+	if got := recordAttr(warn, "code"); got != codeLDPHelloSendFailed {
+		t.Errorf("code = %q, want %q", got, codeLDPHelloSendFailed)
+	}
+	if got := recordAttr(warn, "why"); !strings.Contains(got, "adjacency") {
+		t.Errorf("why = %q, want it to say the adjacencies expire", got)
+	}
+	if got := recordAttr(warn, "fix"); got != "ze show interface name eth0 detail" {
+		t.Errorf("fix = %q, want the interface's show command", got)
+	}
+	if recordAttr(warn, "error") == "" {
+		t.Error("WARN carries no error attribute: the write error is lost")
+	}
+	if raised, cleared := publisher.counts(); raised != 1 || cleared != 0 {
+		t.Fatalf("raises, clears = %d, %d, want 1, 0", raised, cleared)
+	}
+	if issue := publisher.raised[0]; issue.Severity != rpc.ReportWarning || issue.Subject != "eth0" {
+		t.Errorf("raised %+v, want a warning for subject eth0", issue)
+	}
+
+	health.observe(log, sendHello(open, dest, lsrID, cfg))
+	if raised, cleared := publisher.counts(); raised != 1 || cleared != 1 {
+		t.Fatalf("raises, clears after a Hello sent = %d, %d, want 1, 1", raised, cleared)
+	}
+
+	health.observe(log, sendHello(closed, dest, lsrID, cfg))
+	if got := len(handler.levelRecords(slog.LevelWarn)); got != 2 {
+		t.Errorf("WARN lines after the failure returned = %d, want 2", got)
+	}
+	if raised, _ := publisher.counts(); raised != 2 {
+		t.Errorf("raises after the failure returned = %d, want 2", raised)
+	}
+	if got := sendErrors.value("eth0"); got != 4 {
+		t.Errorf("ze_ldp_hello_send_errors_total{interface=eth0} = %v, want 4", got)
+	}
+}
 
 // TestLDPRegistrationNeedsDataPlane proves LDP reaches forwarding through a
 // declaration rather than a writer's name: it declares NeedsDataPlane, so the

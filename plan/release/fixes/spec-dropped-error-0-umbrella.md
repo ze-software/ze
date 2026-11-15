@@ -44,7 +44,7 @@ child owns the instances under its door's base paths and the zero for them:
 | `plan/release/fixes/spec-dropped-error-3-access-security.md` | `access-security.md` | 60 | release fixes |
 | `plan/release/fixes/spec-dropped-error-4-system-plugins.md` | `system-plugins.md` | 45 | release fixes |
 | `plan/release/fixes/spec-dropped-error-5-forwarding.md` | `forwarding.md` | 35 | release fixes |
-| `plan/release/fixes/spec-dropped-error-6-routing-protocols.md` | `routing-protocols.md` | 28 | release fixes |
+| `spec-dropped-error-6-routing-protocols` (closed 2026-11-15: zero under its paths) | `routing-protocols.md` | 28 | release fixes |
 | `plan/release/fixes/spec-dropped-error-7-plugin-infra.md` | `plugin-infra.md` | 20 | release fixes |
 | `plan/release/fixes/spec-dropped-error-8-core-hub-appliance.md` | `core.md`, `hub-engine.md`, `appliance.md` | 9 | release fixes |
 | `plan/release/fixes/spec-dropped-error-9-api-cli-config.md` | `api-surfaces.md`, `commands-cli.md`, `config-yang.md` | 8 | release fixes |

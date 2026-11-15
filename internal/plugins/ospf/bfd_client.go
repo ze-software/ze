@@ -20,11 +20,16 @@
 package ospf
 
 import (
+	"context"
+	"log/slog"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
+	"github.com/ze-software/ze/internal/component/plugin/issuequeue"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
@@ -345,10 +350,33 @@ func (e *engine) detachBFDClient(c *bfdClient, svc api.Service) {
 	c.handle.Unsubscribe(c.sub)
 	if svc != nil {
 		if err := svc.ReleaseSession(c.handle); err != nil {
-			e.log.Debug("bfd ReleaseSession failed", "interface", c.key.iface, "err", err)
+			e.warnBFDReleaseRefused(c.key, err)
 		}
 	}
 	e.bfdMetrics.Sessions.With(c.key.iface, c.area).Dec()
+}
+
+// showBFDSessionsFix lists the sessions the BFD engine holds, a refused release among them.
+const showBFDSessionsFix = "ze show bfd sessions"
+
+// bfdReleaseRefusedWhy is why a refused release matters. ReleaseSession refuses only a
+// handle that another implementation issued (the BFD engine's ErrForeignHandle), and
+// OSPF holds only the handles EnsureSession gave it, so only a Ze defect reaches it.
+const bfdReleaseRefusedWhy = "the BFD engine keeps this session for a neighbor OSPF no longer tracks, and only a defect in Ze makes it refuse the release"
+
+// warnBFDReleaseRefused reports a BFD session OSPF could not hand back, at WARN under
+// the internal-defect doctor code, and queues the error event under it for the
+// daemon's report bus (issueQueue). The neighbor has already left OSPF's BFD clients,
+// which is right whatever BFD answers, so no caller acts on the error.
+func (e *engine) warnBFDReleaseRefused(key bfdClientKey, err error) {
+	problem := "OSPF could not release the BFD session of neighbor " + key.router.String() + " on interface " + key.iface
+	issue := opererr.Wrap(err, problem, bfdReleaseRefusedWhy, showBFDSessionsFix)
+	subject := key.iface + " " + key.router.String()
+	reportErr := issueQueue.Load().RaiseError(diagnostic.CodeDoctorInternalDefect, subject,
+		issue.Problem(), issue.Fix(), internalDefectRaiseFailed(e.log, subject, issue.Fix()))
+	e.log.LogAttrs(context.Background(), slog.LevelWarn, issue.Problem(),
+		issue.LogAttrs(slog.String("code", diagnostic.CodeDoctorInternalDefect), slog.String("interface", key.iface),
+			issuequeue.Outcome(reportErr))...)
 }
 
 // stopBFDSession releases the BFD session for a neighbor and waits for its subscriber to
@@ -372,7 +400,7 @@ func (e *engine) stopBFDSession(key bfdClientKey) {
 	// loop is a documented no-op. The subscriber still exits on the closed stop channel.
 	if svc := api.GetService(); svc != nil {
 		if err := svc.ReleaseSession(c.handle); err != nil {
-			e.log.Debug("bfd ReleaseSession failed", "interface", key.iface, "err", err)
+			e.warnBFDReleaseRefused(key, err)
 		}
 	}
 	<-c.done

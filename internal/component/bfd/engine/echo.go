@@ -100,9 +100,10 @@ func (l *Loop) sendEchoLocked(entry *sessionEntry, now time.Time) {
 		Bytes:     buf[:],
 	}
 	if err := l.echoTransport.Send(out); err != nil {
-		l.warnSendFailedLocked(entry, "echo", err)
+		l.warnSendFailedLocked(entry, sendKindEcho, err)
 		return
 	}
+	clearSendWarning(entry, sendKindEcho)
 	entry.machine.RegisterEchoTx(seq, now)
 	if hook := l.metricsHook.Load(); hook != nil {
 		(*hook).OnEchoTx(key.Mode.String())
@@ -199,7 +200,11 @@ func (l *Loop) recordEchoRTTLocked(entry *sessionEntry, e packet.Echo, now time.
 // source address via the echo transport. Used on the remote-receiver
 // side of an echo round trip. The original buffer is freed by the
 // deferred Release in handleEchoInbound, so the reflect copies into
-// a short-lived stack buffer before the send.
+// a short-lived stack buffer before the send. A reflection the transport
+// refuses is counted, logged and raised under SendFailedCode like any other
+// refused send (warnSendFailedLocked): the peer's echo function then fails
+// and its session goes Down with Echo Function Failed, and that report is
+// the only trace on our side. A reflection that lands withdraws it.
 //
 // Caller MUST hold l.mu.
 func (l *Loop) reflectEchoLocked(in transport.Inbound, entry *sessionEntry) {
@@ -214,11 +219,10 @@ func (l *Loop) reflectEchoLocked(in transport.Inbound, entry *sessionEntry) {
 		Bytes:     buf[:],
 	}
 	if err := l.echoTransport.Send(out); err != nil {
-		engineLog().Debug("bfd echo reflect failed",
-			"peer", out.To.String(),
-			"err", err)
+		l.warnSendFailedLocked(entry, sendKindEchoReflect, err)
 		return
 	}
+	clearSendWarning(entry, sendKindEchoReflect)
 	if hook := l.metricsHook.Load(); hook != nil {
 		(*hook).OnEchoRx(api.SingleHop.String())
 	}

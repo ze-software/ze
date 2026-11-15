@@ -21,8 +21,6 @@ import (
 	"net/netip"
 	"testing"
 	"time"
-
-	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // encodeInitPDURaw builds a complete Initialization PDU whose Common Session
@@ -458,7 +456,9 @@ func helloTransportAddr(t *testing.T, src, dst *net.UDPConn, cfg ldpConfig) neti
 	if !isUDP {
 		t.Fatalf("dst.LocalAddr() = %T, want *net.UDPAddr", dst.LocalAddr())
 	}
-	sendHello(src, dstAddr, [4]byte{10, 0, 0, 1}, cfg, slogutil.DiscardLogger())
+	if err := sendHello(src, dstAddr, [4]byte{10, 0, 0, 1}, cfg); err != nil {
+		t.Fatalf("sendHello: %v", err)
+	}
 	if err := dst.SetReadDeadline(time.Now().Add(ldpReadTimeout)); err != nil {
 		t.Fatalf("SetReadDeadline: %v", err)
 	}

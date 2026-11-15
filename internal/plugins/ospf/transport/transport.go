@@ -357,6 +357,10 @@ func (t *Transport) addrWorker(queue <-chan addrEvent, stop <-chan struct{}) {
 				logger().Warn("ospf/transport: close after address removal", "interface", ev.name, "err", err)
 			}
 		}
+		// A failed open is how a link with no IPv4 address left leaves OSPF, so going on is
+		// right. The rescan this worker starts with retries the open every rescanInterval
+		// and logs each failure at WARN, which is where the operator reads it.
+		// refuse-by-default: guards RescanInterfaces -- the periodic rescan retries this open and reports its failure at WARN
 		if err := t.HandleLinkUp(ev.name); err != nil {
 			logger().Info("ospf/transport: interface stays out of OSPF until it holds an IPv4 address", "interface", ev.name, "err", err)
 		}
