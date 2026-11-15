@@ -3,6 +3,7 @@
 package ssh
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -104,8 +105,19 @@ func testSSHHistoryDrain(t *testing.T, pty bool) {
 	defer initial.Close() //nolint:errcheck // Rescue, after releasing the gate below.
 	defer release.Do(func() { close(store.release) })
 	<-store.entered
-	if err := session.Close(); err != nil {
-		t.Error(err)
+	if pty {
+		if err := session.Close(); err != nil {
+			t.Error(err)
+		}
+	} else {
+		err := session.Wait()
+		var exit *gossh.ExitError
+		if !errors.As(err, &exit) {
+			t.Fatalf("no-PTY refusal = %v, want exit status 1", err)
+		}
+		if got := exit.ExitStatus(); got != 1 {
+			t.Fatalf("no-PTY exit status = %d, want 1", got)
+		}
 	}
 	if err := client.Close(); err != nil {
 		t.Error(err)
