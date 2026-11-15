@@ -30,6 +30,7 @@ var testWireLocalPref200 = []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0xC8}
 // or silently falls back to the default JSON terminal.
 func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	fam := family.IPv4Unicast
 	nlriBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
@@ -87,6 +88,7 @@ func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 // PREVENTS: Empty JSON or missing entries when no comparisons were needed.
 func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	fam := family.IPv4Unicast
 	nlriBytes := []byte{24, 10, 0, 0}
@@ -119,6 +121,7 @@ func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 // PREVENTS: Filter stages being silently ignored in the reason path.
 func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	fam := family.IPv4Unicast
 
 	// Insert two prefixes; we'll filter for only one.
@@ -172,6 +175,7 @@ func TestBestPipelineReason_UnknownKeyword(t *testing.T) {
 // when the algorithm is correct.
 func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	r.maximumPaths.Store(4)
 
 	// Same prefix advertised by two peers with identical attribute bytes.
@@ -216,6 +220,7 @@ func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
 // has no bgp/multipath block.
 func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	// maximumPaths defaults to 1 via the RIBManager constructor, but set
 	// explicitly here to document the assumption.
 	r.maximumPaths.Store(1)
@@ -250,6 +255,7 @@ func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 // PREVENTS: Lock-scope change altering best-path selection or JSON output.
 func TestBestPipelineLockReduced(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	fam := family.IPv4Unicast
 

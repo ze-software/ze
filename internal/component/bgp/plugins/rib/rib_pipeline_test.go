@@ -845,6 +845,7 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 // PREVENTS: Filters being ignored on best-path output.
 func TestBestPipeline_WithFilter(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	// Two peers with routes to same prefix, different communities
 	fam := family.IPv4Unicast
@@ -883,6 +884,7 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 // PREVENTS: Count terminal not working with best-path source.
 func TestBestPipeline_CountTerminal(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	fam := family.IPv4Unicast
 	nlri1 := []byte{24, 10, 0, 0}   // 10.0.0.0/24
