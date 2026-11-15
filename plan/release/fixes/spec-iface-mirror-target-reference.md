@@ -49,7 +49,7 @@ The scope is widened to two parts:
 
 | Part | Leaves | State |
 |------|--------|-------|
-| 1 | `mirror ingress`, `mirror egress` (AC-1 to AC-5) | AC-1 and AC-2 implemented, awaiting the owed runs. AC-3 open. AC-4 and AC-5 unchanged behavior |
+| 1 | `mirror ingress`, `mirror egress` (AC-1 to AC-5) | AC-1, AC-2 and AC-3 implemented, awaiting the owed runs. AC-4 and AC-5 unchanged behavior, with AC-4 extended to a VLAN-unit target |
 | 2 | Every other leaf that names an interface (AC-6 to AC-9) | Design below. Blocked on one owner question: what "exists" means for an interface the `interface` tree does not declare |
 
 ## Required Reading
@@ -79,7 +79,8 @@ The scope is widened to two parts:
 **Behavior to change:**
 - An undeclared target is refused at verify, with the YANG path and the fix (done)
 - Deleting a referenced target is refused at verify, naming the referencing interface and unit (done: the same whole-tree check, and the refused path names both)
-- A unit target resolves through its parent's binding (open, AC-3)
+- A unit target resolves through its parent's binding (implemented, AC-3: `mirrorDestination` looks the name up in `newMirrorTargets`' index of declared VLAN units, binds the parent through `deviceFor` and builds the device with `unitOSName`; an unbound parent defers the mirror with the existing warning)
+- The mirrors are installed after the Phase 2 loop has created every VLAN (implemented with AC-3). Inside the loop, a mirror toward a VLAN of an entry the loop reached later was set up before that VLAN existed, the netlink backend's `SetupMirror` failed to find the destination, and the apply rolled back. `test/parse/iface-mirror-target-undeclared.ci`'s "later" config, which validate accepts, had this shape
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -131,6 +132,8 @@ No wire changes. The config grammar is unchanged: the same leaves take the same 
 |-------------|---|--------------|------|
 | `ze config validate` with an undeclared mirror target | → | `configuredInterfaceReference` through `ValidateReferences` | `test/parse/iface-mirror-target-undeclared.ci` |
 | SIGHUP reload adding a mirror toward an undeclared target | → | the same check on the daemon's reload | `test/reload/iface-mirror-target-undeclared-refused.ci` |
+| SIGHUP reload deleting a live mirror target, then removing mirror and target together | → | the same check, then `removeStaleMirrors` on the netlink backend | `test/reload/tx-iface-mirror-target-delete-refused.ci` (written, not yet run) |
+| Boot apply of a mirror toward a VLAN unit of a `mac match` entry | → | `mirrorDestination` through `newMirrorTargets`, after the Phase 2 VLAN loop | `test/plugin/iface-mirror-vlan-target-selector.ci` (written, not yet run) |
 
 ## 🧪 TDD Test Plan
 
@@ -140,7 +143,10 @@ No wire changes. The config grammar is unchanged: the same leaves take the same 
 | `TestConfiguredInterfaceReferenceNames` | `internal/component/iface/interface_reference_test.go` | the declared-name set: entries, veth peer, VLAN unit; nothing for a plain unit or the loopback | written |
 | `TestConfiguredInterfaceReferenceCheck` | `internal/component/iface/interface_reference_test.go` | AC-1: offered names accepted, undeclared name and VLAN unit refused with the fix | written |
 | `TestConfiguredInterfaceKindsAreTheSchemaLists` | `internal/component/iface/interface_reference_test.go` | the kind list equals the lists under the schema's `interface` container | written |
-| `TestMirrorDestination` | `internal/component/iface/config_mirror_test.go` | AC-3 to AC-5 | |
+| `TestMirrorToAVLANUnitFollowsItsParentsSelector` | `internal/component/iface/config_mirror_test.go` | AC-3: the filter points at `<bound device>.<vlan-id>`, not at the decoy carrying the unit's logical name | written, not yet run |
+| `TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound` | `internal/component/iface/config_mirror_test.go` | AC-4 for a VLAN-unit target: nothing installed, the apply succeeds | written, not yet run |
+| `TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN` | `internal/component/iface/config_mirror_test.go` | the mirror installs after the VLAN it names exists, whatever the entry order (fake `mirrorNeedsDestination`) | written, not yet run |
+| `TestMirrorDestinationFollowsItsSelector`, `TestMirrorDefersWhenItsDestinationIsAbsent` | `internal/component/iface/config_mirror_test.go` | AC-5 and AC-4 for an entry target (existing) | existing |
 
 ## Part 2: every leaf that names an interface (design, awaiting the owner)
 
@@ -198,20 +204,25 @@ first.
 | AC-1 | `test/parse/iface-mirror-target-undeclared.ci` (undeclared name, undeclared VLAN unit, declared-later positive with a veth peer and a VLAN unit) | `ze config validate` |
 | AC-1, AC-2 | `test/reload/iface-mirror-target-undeclared-refused.ci` (a reload adding a mirror toward an undeclared name is refused) | config reload through the daemon |
 | AC-1, AC-2 | `TestConfiguredInterfaceReferenceNames`, `TestConfiguredInterfaceReferenceCheck`, `TestConfiguredInterfaceKindsAreTheSchemaLists` in `internal/component/iface/interface_reference_test.go` | the reference source |
-| AC-2 | the deletion of a live target, owed as `test/reload/tx-iface-mirror-target-delete-refused.ci` with `option=needs-linux:caps=net-admin`, because the boot config must create the target first | config reload through the daemon |
-| AC-3 | new `test/plugin/iface-mirror-vlan-target-selector.ci`, `option=needs-linux`, reads the tc filter on the source device | config commit through the daemon |
-| AC-4, AC-5 | `TestMirrorDestination` table rows in `internal/component/iface/config_mirror_test.go`, plus AC-3's `.ci` | `mirrorSpecFor` |
+| AC-2 | `test/reload/tx-iface-mirror-target-delete-refused.ci`, `option=needs-linux:caps=net-admin` (implemented, not yet run): a veth pair, a refused reload deleting the live target with the tc mirred filter still copying to it, then the reload removing mirror and target with no tc filter left on the source. Driver `reload/tx-iface-mirror-target-delete-refused` in `internal/test/fixture/iface_mirror_fixture_linux.go` | config reload through the daemon |
+| AC-3 | `test/plugin/iface-mirror-vlan-target-selector.ci`, `option=needs-linux:caps=net-admin` (implemented, not yet run): reads the egress mirred action of the source over netlink, against a decoy device carrying the unit's logical name; the source entry precedes the target, so it also proves the post-loop install. Unit: `TestMirrorToAVLANUnitFollowsItsParentsSelector` | config commit through the daemon |
+| AC-4, AC-5 | `TestMirrorDefersWhenItsDestinationIsAbsent`, `TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound`, `TestMirrorDestinationFollowsItsSelector` in `internal/component/iface/config_mirror_test.go`, plus AC-3's `.ci` | `mirrorSpecFor` |
 
 ## Files to Modify
 - `internal/component/iface/yang/ze-iface-conf.yang` - the reference declarations and leaf descriptions (done)
-- `internal/component/iface/config_mirror.go` - bind a unit target through its parent (AC-3); comment on `mirrorDestination` (done)
-- `docs/architecture/iface/logical-name-resolution.md` - the mirror destination paragraph (done)
+- `internal/component/iface/config_mirror.go` - bind a unit target through its parent (`mirrorTargets`, `newMirrorTargets`, AC-3, done); comment on `mirrorDestination` (done)
+- `internal/component/iface/config_apply.go` - the mirrors installed after the Phase 2 VLAN loop (done)
+- `internal/component/iface/config_mirror_test.go`, `config_test.go` - the AC-3 and ordering tests, the fake's `mirrorNeedsDestination` (done)
+- `docs/architecture/iface/logical-name-resolution.md` - the mirror destination paragraph, and the VLAN-unit and ordering paragraph (done)
 - `docs/features/interfaces.md` - the second-interface paragraph (done)
+- `ai/digests/iface.md` - Phase 2 mirror placement (done)
 - `internal/test/fixture/misc_fixture_shellports.go` - the reload trigger (done)
 
 ## Files to Create
 - `internal/component/iface/interface_reference.go`, `register_interface_reference.go`, `interface_reference_test.go` (done)
 - `test/parse/iface-mirror-target-undeclared.ci`, `test/reload/iface-mirror-target-undeclared-refused.ci` (done)
+- `test/reload/tx-iface-mirror-target-delete-refused.ci`, `test/plugin/iface-mirror-vlan-target-selector.ci` (done, not yet run or stress-proven)
+- `internal/test/fixture/register_iface_mirror_linux.go`, `iface_mirror_fixture_linux.go` (done)
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -222,7 +233,7 @@ first.
 ## Implementation Steps
 1. **Phase: Wiring** -- the failing `.ci` tests (done for AC-1, AC-2)
 2. **Phase: Verify check** -- AC-1, AC-2 (done)
-3. **Phase: Unit target binding** -- AC-3
+3. **Phase: Unit target binding** -- AC-3 (done, awaiting the owed runs)
 4. **Phase: Part 2** -- after the owner answers the question above
 
 ## Implementation Summary
@@ -233,10 +244,16 @@ first.
 - No dead path removed: the "mirror deferred" warning serves a declared ethernet whose selector has no device, which the refusal cannot see
 - Repository users converted: `test/parse/iface-vpp-accepts-mirror.ci` and `TestBackendGateVppMirror` mirrored toward an undeclared `eth1` and `xe1`, now declared. `internal/le/test/deployment/vppifacescenarios.go` already declares its target
 
+### What Was Implemented (2026-11-15, second pass, uncommitted, awaiting the owed runs)
+- AC-3: a VLAN-unit target binds through its parent entry. `newMirrorTargets` indexes every declared VLAN unit by its `<entry>.<vlan-id>` name (`unitOSName` of the logical name, the text the reference source offers); `mirrorDestination` binds the parent with `deviceFor` and returns `unitOSName` of the parent's device, or empty (deferred, with the existing warning) when the parent is unbound. An ethernet entry named like a unit stays an entry
+- Found while proving AC-3, fixed in this work: the mirrors were installed inside the Phase 2 loop, so a mirror toward a VLAN of a later entry failed at `SetupMirror` and rolled the apply back. `applyConfigPass` now installs them after the loop
+- The AC-2 privileged reload test, and the AC-3 privileged boot test, with their netlink drivers. Neither `.ci` has run: the main thread owes the run and the ze-test stress proof
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] `./le test bgp parse` and `./le test bgp reload` for the new `.ci` files; the iface unit package through `./le test unit pkg path`
+- [ ] The two privileged `.ci` files (`tx-iface-mirror-target-delete-refused`, `iface-mirror-vlan-target-selector`) run on Linux with CAP_NET_ADMIN, and each passes the ze-test stress run
 
 ### TDD
 - [x] Tests written

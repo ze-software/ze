@@ -1522,7 +1522,28 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			applySysctl(osName, *u)
 			applySysctlProfiles(osName, u.SysctlProfiles)
 			ipv6Forwarding = ipv6Forwarding || u.forwardsIPv6()
-			if mirrorErrs := applyMirror(b, osName, *u, devices, journal); len(mirrorErrs) > 0 {
+		}
+	}
+
+	// Phase 2 mirrors: install each mirror once the loop above has created
+	// every VLAN. A destination may be a VLAN unit of an entry the loop reaches
+	// after the mirroring one, and tc resolves the destination device when the
+	// filter is installed, so a mirror installed inside the loop was refused
+	// toward a VLAN that was about to be made. The filters match the loop's:
+	// a disabled entry or unit asks for no mirror.
+	targets := newMirrorTargets(cfg, devices)
+	for _, e := range allEntries {
+		if e.Disable {
+			continue
+		}
+		device, _ := deviceFor(devices, e.Name)
+		for i := range e.Units {
+			u := &e.Units[i]
+			if u.Disable {
+				continue
+			}
+			osName := unitOSName(device, u)
+			if mirrorErrs := applyMirror(b, osName, *u, targets, journal); len(mirrorErrs) > 0 {
 				return recordAll(osName+" mirror", mirrorErrs)
 			}
 		}

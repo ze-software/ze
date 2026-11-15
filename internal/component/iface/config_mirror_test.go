@@ -452,6 +452,91 @@ func TestMirrorDefersWhenItsDestinationIsAbsent(t *testing.T) {
 	requireOps(t, b, nil)
 }
 
+// vlanTargetConfig is the config the VLAN-unit mirror tests start from: "wan",
+// selected by MAC, mirrors its egress to VLAN 100 of "capture", an entry
+// aliased to the kernel device enp9s0. The unit's logical name is
+// capture.100; its kernel device is enp9s0.100.
+func vlanTargetConfig() *ifaceConfig {
+	return &ifaceConfig{
+		Backend: "netlink",
+		Ethernet: []ifaceEntry{
+			{Name: "wan", MatchMAC: selectedPermMAC, Units: []unitEntry{{Label: "0", MirrorEgress: "capture.100"}}},
+			{Name: "capture", OSName: "enp9s0", Units: []unitEntry{{Label: "100", VLANID: 100}}},
+		},
+	}
+}
+
+// TestMirrorToAVLANUnitFollowsItsParentsSelector verifies that a mirror toward
+// a VLAN unit installs toward the VLAN on the device the unit's PARENT entry
+// resolved to.
+//
+// VALIDATES: AC-3 -- a destination written <entry>.<vlan-id> is bound through
+// the entry's selector, so the tc filter points at <bound device>.<vlan-id>.
+// PREVENTS: the measured defect. deviceFor found no "capture.100" in the
+// selector map and returned it unchanged, so the filter mirrored toward the
+// decoy device carrying that logical name, a copy leaving on the wrong port.
+// The decoys are what make the defect visible as a wrong destination.
+func TestMirrorToAVLANUnitFollowsItsParentsSelector(t *testing.T) {
+	b := selectorBackend()
+	b.ifaces["enp9s0"] = fakeIface{name: "enp9s0", linkType: "device", index: 9}
+	b.ifaces["capture"] = fakeIface{name: "capture", linkType: "device", index: 10}
+	b.ifaces["capture.100"] = fakeIface{name: "capture.100", linkType: "device", index: 11}
+
+	errs := applyConfig(vlanTargetConfig(), nil, b)
+
+	if len(errs) > 0 {
+		t.Fatalf("applyConfig: %v", errs)
+	}
+	requireOps(t, b, []string{"setup enp1s0 -> enp9s0.100 (e)"})
+}
+
+// TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound verifies that a mirror
+// toward a VLAN unit whose parent's selector has no device installs nothing,
+// and the apply still succeeds.
+//
+// VALIDATES: AC-4 for a VLAN-unit destination -- the unit is unbound when its
+// parent is, and the mirror defers as every unbound setting does.
+// PREVENTS: a tc filter toward the decoy carrying the unit's logical name,
+// which is what passing the unbound unit name through unchanged installed.
+func TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound(t *testing.T) {
+	b := selectorBackend() // enp9s0, the parent's device, has not appeared
+	b.ifaces["capture.100"] = fakeIface{name: "capture.100", linkType: "device", index: 11}
+
+	errs := applyConfig(vlanTargetConfig(), nil, b)
+
+	if len(errs) > 0 {
+		t.Fatalf("applyConfig: %v", errs)
+	}
+	requireOps(t, b, nil)
+}
+
+// TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN verifies that a mirror toward
+// a VLAN unit of an entry the apply reaches after the mirroring one is
+// installed, on the first apply.
+//
+// VALIDATES: applyMirror runs once Phase 2 has created every VLAN, so the order
+// of the entries in the config does not decide whether the mirror installs.
+// PREVENTS: the apply failing, and rolling back, because the mirror was set up
+// inside the per-entry loop toward mir1.100 before the loop reached mir1 and
+// created it. The fake refuses an absent destination as the kernel does.
+func TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN(t *testing.T) {
+	b := &fakeBackend{mirrorNeedsDestination: true}
+	cfg := &ifaceConfig{
+		Backend: "netlink",
+		Dummy: []ifaceEntry{
+			{Name: "mir0", Units: []unitEntry{{MirrorEgress: "mir1.100"}}},
+			{Name: "mir1", Units: []unitEntry{{Label: "100", VLANID: 100}}},
+		},
+	}
+
+	errs := applyConfig(cfg, nil, b)
+
+	if len(errs) > 0 {
+		t.Fatalf("applyConfig: %v", errs)
+	}
+	requireOps(t, b, []string{"setup mir0 -> mir1.100 (e)"})
+}
+
 // TestReconcileRetiresTheMirrorOnADisabledInterfacesDevice verifies two things
 // about a disabled entry. Its mirror is retired on the device its selector
 // names. No mirror is touched on a kernel device that merely shares the entry's

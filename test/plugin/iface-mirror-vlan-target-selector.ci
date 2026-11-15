@@ -1,0 +1,61 @@
+# Test: a mirror toward a VLAN unit of a MAC-selected entry copies to that VLAN on the selected device
+#
+# VALIDATES: AC-3 on a real kernel. The capture port is declared as ethernet
+#            zvmcap, bound by mac match to the veth end zvmt0, with VLAN unit
+#            100. The mirror on zvms0 names its egress target zvmcap.100. The
+#            boot apply creates zvmt0.100, and the tc mirred filter on the
+#            egress hook of zvms0 copies to zvmt0.100, the VLAN on the device
+#            the parent's selector bound.
+#            The source entry is written before the capture entry, so the
+#            mirror is also proven to install after the VLAN it names exists,
+#            whatever the order of the entries.
+# PREVENTS: the VLAN unit name passing through unchanged and the mirror
+#           copying to the decoy zvmcap.100, a dummy literally named zvmcap
+#           with its own VLAN 100, which is a traffic copy leaving on the
+#           wrong port. It also prevents the apply failing because the mirror
+#           was set up before the loop created the VLAN.
+#
+# Question: does the kernel mirror point at <bound device>.<vlan-id>? A unit
+# test with the fake backend decides the name (TestMirrorToAVLANUnitFollowsItsParentsSelector);
+# only the kernel decides that the VLAN exists when tc resolves the destination.
+#
+# Method: the setup fixture builds the veth pair, with the selected MAC on
+# zvmt0, and the decoy before the daemon starts. The driver polls the egress
+# hook of zvms0 over netlink until the boot apply's filter is there, then
+# reads the destination ifindex of its mirred action.
+
+# needs-linux: tc, veth and VLAN devices exist only on Linux. caps=net-admin:
+# the fixtures and the daemon create links and program tc filters.
+option=needs-linux:caps=net-admin
+
+stdin=ze-bgp:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet zvms0 {
+		unit 0 {
+			mirror {
+				egress zvmcap.100
+			}
+		}
+	}
+	# The capture port: no kernel device is called zvmcap except the decoy,
+	# which carries another MAC and must never be the destination.
+	ethernet zvmcap {
+		mac {
+			match 02:5a:45:00:4d:01;
+		}
+		unit 100 {
+			vlan-id 100
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/iface-mirror-vlan-target-selector-setup
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=le test fixture plugin/iface-mirror-vlan-target-selector-driver:timeout=60s
+
+expect=exit:code=0
+expect=stdout:contains=MIRROR-VLAN-SETUP
+expect=stdout:contains=MIRROR-TO zvmt0.100
+expect=stdout:contains=DECOY-UNTOUCHED zvmcap.100

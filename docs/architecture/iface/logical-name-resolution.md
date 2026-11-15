@@ -65,6 +65,17 @@ at the capture port's kernel device. Either one, when its selector has no answer
 yet, is left undone with a warning and the commit still succeeds, exactly as
 every other unbound setting defers.
 
+A mirror destination that is a VLAN unit, written `<interface>.<vlan-id>`, is
+not in the map, because only entries are. It is bound through its parent entry:
+the VLAN's kernel device is named after the device the parent resolved to, so
+`ethernet capture { mac { match ... } unit 100 { vlan-id 100 } }` makes
+`capture.100` the device `<selected device>.100`, and the unit is unbound, and
+the mirror deferred, when the parent is. Passing the unit name through
+unchanged pointed tc at whatever device carried the logical name, or at none.
+The mirrors are installed after the loop that creates every VLAN, because tc
+resolves the destination when it installs the filter, and the destination may
+be a VLAN of an entry the loop reaches after the mirroring one.
+
 A mirror destination must be an interface the config declares, and the commit
 refuses any other name. The `ingress` and `egress` leaves are references
 (`ze:reference "configured-interface"`), so the whole-tree reference check
@@ -77,7 +88,7 @@ with the set command that declares them, while a declared target whose
 selector has no device still defers as above.
 
 <!-- source: internal/component/iface/config_apply.go -- the Phase 2a bridge member loop -->
-<!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination -->
+<!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination, newMirrorTargets, applyMirror -->
 <!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, configuredInterfaceNames, checkConfiguredInterface -->
 
 An entry whose selector names no present device is UNBOUND, and every phase

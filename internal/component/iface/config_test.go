@@ -2178,6 +2178,11 @@ type fakeBackend struct {
 	mirrorCalls      []mirrorCall           // ordered log of SetupMirror + RemoveMirror calls
 	setupMirrorErr   map[string]error       // per-source-interface SetupMirror error injection
 	removeMirrorErr  map[string]error       // per-source-interface RemoveMirror error injection
+	// mirrorNeedsDestination makes SetupMirror refuse a destination the fake
+	// holds no device for, as the kernel does: the netlink backend resolves
+	// the destination by name when it installs the filter. Off by default,
+	// because most mirror tests name a capture port they never create.
+	mirrorNeedsDestination bool
 	// mirrors is the fake dataplane's LIVE mirror state, keyed by source
 	// device. SetupMirror and RemoveMirror maintain it, and ListMirrors reports
 	// it. A test can therefore seed a mirror no config asks for, which is what a
@@ -2693,6 +2698,11 @@ func (b *fakeBackend) SetupMirror(srcIface, dstIface string, ingress, egress boo
 	})
 	if err := b.setupMirrorErr[srcIface]; err != nil {
 		return err
+	}
+	if b.mirrorNeedsDestination {
+		if _, present := b.ifaces[dstIface]; !present {
+			return fmt.Errorf("iface: mirror: dst %q not found", dstIface)
+		}
 	}
 	// One direction at a time, as the kernel does. A second call for the other
 	// hook leaves the first hook alone. A dropped direction therefore has to be

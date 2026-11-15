@@ -366,7 +366,9 @@ member is enslaved by the kernel device its entry selects, and a mirror sends it
 to the capture port's kernel device. A mirror's `ingress` or `egress` must name an
 interface the config declares (an entry, a veth peer, or a VLAN unit written
 `<interface>.<vlan-id>`): the commit refuses any other name, and names the set command
-that declares it.
+that declares it. A VLAN unit target is the VLAN on the device its parent entry
+selects, so a mirror toward `capture.100` of a `mac match` entry copies to
+`<selected device>.100`, and waits, with a warning, while the parent selects no device.
 
 Created kinds need no resolution, because Ze makes the device under its configured
 name: dummy, veth, bridge, tunnel, WireGuard, XFRM, and the `pppoe-client` session

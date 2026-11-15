@@ -1,0 +1,38 @@
+# Test: a reload deleting a live mirror target is refused and the kernel mirror stays
+#
+# VALIDATES: AC-2 on a real kernel. The running config mirrors the ingress of
+#            zmtsrc0 to zmtdst0, a veth pair the driver creates. A SIGHUP whose
+#            config deletes the zmtdst0 entry while the mirror still names it is
+#            refused, naming the mirror leaf and the deleted name, and the tc
+#            mirred filter on zmtsrc0 still copies to zmtdst0 afterwards. A
+#            second SIGHUP that removes the mirror and the target together
+#            completes, and zmtsrc0 then holds no tc filter on either clsact
+#            hook.
+# PREVENTS: a reload deleting a mirror target committing with the mirror left
+#           pointing at nothing, a refused reload that still disturbed the live
+#           mirror, and an ordered removal that left the tc filter behind.
+#
+# Question: is the deletion of a target the live kernel mirror uses refused
+# while that mirror survives, and does removing both retire it? A unit test
+# cannot decide it: the refusal is the daemon's reload validation, and the
+# evidence is the tc state the netlink backend installed.
+#
+# Method: one foreground driver (internal/test/fixture/iface_mirror_fixture_linux.go)
+# creates the veth pair and starts its own daemon, because it must read each
+# reload's outcome line before it sends the next one. It reads the source's
+# clsact hooks over netlink after each outcome line, so no step waits on a
+# timer, and it deletes the pair at the end.
+
+# needs-linux: tc and veth exist only on Linux. caps=net-admin: the driver and
+# the daemon create links and program tc filters.
+option=needs-linux:caps=net-admin
+
+cmd=foreground:seq=1:exec=le test fixture reload/tx-iface-mirror-target-delete-refused:timeout=90s
+
+expect=exit:code=0
+expect=stdout:contains=MIRROR-INSTALLED zmtsrc0 zmtdst0
+expect=stderr:contains=interface/ethernet[zmtsrc0]/unit[0]/mirror/ingress
+expect=stderr:contains=interface "zmtdst0" is not configured
+expect=stdout:contains=MIRROR-KEPT-AFTER-REFUSAL zmtsrc0 zmtdst0
+expect=stderr:contains=sighup reload complete
+expect=stdout:contains=MIRROR-RETIRED zmtsrc0

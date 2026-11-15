@@ -50,8 +50,10 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    `sdk.Journal.Record(apply, undo)` via `applyBackendStep` (`913`), so a later phase's failure
    unwinds Phase 1's mutations.
 5. **Properties + VLANs (Phase 2).** MTU (`633`), MAC (`650`), ethtool offload (`663`,
-   `applyOffloads`), then per-unit VLAN creation (`CreateVLAN`, `670-696`), sysctl (`698`) and
-   mirror (`700`) application. Phase 2c (`721-742`) brings every non-disabled interface
+   `applyOffloads`), then per-unit VLAN creation (`CreateVLAN`, `670-696`) and sysctl (`698`)
+   application. The mirrors (`applyMirror`) are installed after that loop, once every VLAN a
+   destination may name exists; a VLAN-unit destination binds through its parent entry
+   (`newMirrorTargets`). Phase 2c (`721-742`) brings every non-disabled interface
    administratively up via `SetAdminUp` -- required before DHCP or PPP can send packets.
 6. **Address reconcile + prune (Phase 3+4).** `reconcileOnReadyWithJournal` (`814`) computes
    `cfg.desiredState()` (`24`) -- OS-name → desired CIDR list in configured order (the first is installed first and is the primary), plus the set of Ze-managed names --
