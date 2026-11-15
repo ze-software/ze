@@ -1,0 +1,13 @@
+{
+  "note": "Read the complete RFC 7607 and every tagged occurrence of this row. Section 2 says: A router MUST NOT initiate a connection claiming to be AS 0. TestSendOpenRefusesLocalASZero reaches connectionEstablished and sendOpen through Session.Accept on an installed net.Pipe; it is not an unconnected helper invocation that could fail with ErrNotConnected. The AS-zero case requires ErrLocalASZero and searches the captured socket writes for an OPEN, which must be absent. Its real-AS twin requires successful Accept, OpenSent and an actual OPEN carrying My AS 65001, so unconditional OPEN suppression or guard rejection fails. Both tags reside in this one table unit. The source connects the outgoing Connect rail and incoming Accept rail through the same connectionEstablished/sendOpen producer; sendOpen rejects LocalAS zero before preparing or writing any OPEN. The YANG ASN range also excludes zero, but the tagged proof rests on the runtime sender boundary, not on claiming a schema test was run. The two native records must verify zero-guard removal and overbroad refusal of a real local AS before stamping. No separate outbound-dial integration run or full RFC 7607 coverage is claimed.",
+  "requirement_sha": "79e906e51ce252f1",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestSendOpenRefusesLocalASZero": "1e75d12d13fe01f7",
+    "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestSendOpenRefusesLocalASZero#2": "1e75d12d13fe01f7"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestSendOpenRefusesLocalASZero": "9b841b01bcf57536",
+    "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestSendOpenRefusesLocalASZero#2": "9b841b01bcf57536"
+  },
+  "verdict": "enforced"
+}

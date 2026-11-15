@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7607-2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go::TestRFC7607RealASOpenRetainsTCP",
+    "unit-sha": "91361a1084828188",
+    "claim-sha": "4805ccec5412bf1f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "6c664479e5135c43",
+    "break": "line 57: \"if advertised == 0 {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC7607-2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go::TestRFC7607ZeroASOpenAbortsTCP",
+    "unit-sha": "cbfe15453b49a2fc",
+    "claim-sha": "f1fca9a9b876c301",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::rejectOpenPeerAS",
+    "producer-sha": "1cf2b7bb59e19cd4",
+    "break": "line 176: \"s.closeConn()\" -\u003e \"return\""
+  },
+  {
+    "rid": "RFC7607-2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestHandleOpenRejectsPeerASZero",
+    "unit-sha": "fa8c7da9489d7a2d",
+    "claim-sha": "82c655c6a4d10e11",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "6c664479e5135c43",
+    "break": "line 58: \"s.rejectOpenPeerAS()\" -\u003e \"s.closeConn()\""
+  },
+  {
+    "rid": "RFC7607-2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestHandleOpenRejectsPeerASZero",
+    "unit-sha": "fa8c7da9489d7a2d",
+    "claim-sha": "6e2cdd20e4e91a98",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "6c664479e5135c43",
+    "break": "line 57: \"if advertised == 0 {\" -\u003e \"if true {\""
+  },
+  {
+    "rid": "RFC7607-2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestProcessOpenRejectsPeerASZero",
+    "unit-sha": "c0bb1aafcf81ec40",
+    "claim-sha": "23a7e13e96d634ed",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "6c664479e5135c43",
+    "break": "line 58: \"s.rejectOpenPeerAS()\" -\u003e \"s.closeConn()\""
+  },
+  {
+    "rid": "RFC7607-2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestProcessOpenRejectsPeerASZero",
+    "unit-sha": "c0bb1aafcf81ec40",
+    "claim-sha": "a1e12dfa32270b12",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "6c664479e5135c43",
+    "break": "line 57: \"if advertised == 0 {\" -\u003e \"if true {\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7607-2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestSendOpenRefusesLocalASZero",
+    "unit-sha": "503bab1f75672538",
+    "claim-sha": "f1fbfecbaf78e624",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::sendOpen",
+    "producer-sha": "64a767e694ba71a5",
+    "break": "line 176: \"if s.settings.LocalAS == 0 {\" -\u003e \"if false {\""
+  },
+  {
+    "rid": "RFC7607-2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7607_session_open_as_test.go::TestSendOpenRefusesLocalASZero",
+    "unit-sha": "503bab1f75672538",
+    "claim-sha": "ce5fa01d3643ac5d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::sendOpen",
+    "producer-sha": "64a767e694ba71a5",
+    "break": "line 176: \"if s.settings.LocalAS == 0 {\" -\u003e \"if true {\""
+  }
+]
