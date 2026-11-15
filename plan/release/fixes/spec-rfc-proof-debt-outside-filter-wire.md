@@ -42,6 +42,14 @@ needs a separate design review before implementation; the existing ready work
 does not approve a change to the exclusion rules. Runtime decoder tests do not
 prove an obligation on a defining document.
 
+This spec also owns the 2026-11-15 source finding for
+`RFC4659-3.4-1`: explicit raw UPDATE origination bypasses family admission.
+Its existing scope includes product defects exposed by these audits. The
+managed six-unit evidence stays bounded to its tested entry points; it does
+not prove the raw API. The investigation and any confirmed repair belong
+here, outside the active next-hop spec. Recording this finding does not
+approve a product design or a diagnostic exception to the RFC.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -101,6 +109,7 @@ prove an obligation on a defining document.
 | `/ze-test-judge` skill | `.claude/skills/ze-test-judge/` | An independent agent judges a test change that could lower what a test proves | Required only if a tooling test or a re-proved test is changed rather than the producer |
 | Interop harness | `internal/le/interoplab`, `docs/architecture/testing/interop.md` | Runs one scenario against FRR in Docker | Drives the three RFC 2545 records; run only on a quiet host |
 | Job admission | `./le job run`, `docs/contributing/running-commands.md` | Admits and logs one CPU-intensive run at a time | Every scoped package run and every record goes through it |
+| Final UPDATE family admission | `internal/component/bgp/reactor/session_ownership.go`, `adjOutWrite.section`; `session_write.go`, `writeUpdateBody` | Checks `SupportsFamily` for non-raw output; explicit raw output observes ownership without applying the projection | Researches both raw forms using existing final admission and useful controls; no replacement or separate writer is approved |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -142,6 +151,7 @@ prove an obligation on a defining document.
 | A-2 | The RFC 2545 interop records failed only from load (Docker start timed out at load about 21), not from a defect | records agent handoff | a real defect blocks the record and is fixed here | the record on a quiet host either observes the red or shows a real failure | unvalidated |
 | A-3 | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures` timed out only from load | it hit its 10-minute limit with no failing assertion printed | a real failure is fixed here | AC-25 | unvalidated |
 | A-4 | Each STALE unit still proves its requirement after the change that staled it | the cause commits are renames, lint fixes, naming, a panic guard and a declaration pass | an auditor's `weak` or `wrong` verdict makes the test or producer owed work in this spec | AC-8 to AC-22 | unvalidated |
+| A-5 | The diagnostic contract's intended malformed-input freedom settles valid raw VPNv6 admission | Raw Passthrough Commands documents raw injection; RFC 4659 §3.4 states no diagnostic exception | A design could wrongly treat a sender capability defect as an exclusion; the boundary remains open and no waiver is approved | Read the exact contract and full RFC sentence in design review, preserving level and applicability | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -149,6 +159,7 @@ prove an obligation on a defining document.
 | R-1 | An interop record is run on a loaded host and times out again | Docker container start timeout | run only when the owner says the host is quiet; never retry the same run hoping it passes |
 | R-2 | An auditor re-judges a unit it changed | the auditor's session authored the cause commit | the main thread assigns each STALE row to an agent with no part in its cause commit |
 | R-3 | A re-take is written against a unit another session is still changing | `./le rfc check` names the row again after the record | take the record after that session's commit, and re-take it once |
+| R-4 | AS width, next-hop refusal or blanket dropping hides the VPNv6 family subject | No useful VPNv6 or same-session IPv4 output even in the negotiated control | Use actual capability sets, matching nonzero AS_PATH width, a healthy third-party next hop and accepting policy; require exact useful controls before interpreting refusal |
 
 ## Blast Radius
 
@@ -200,6 +211,7 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 | AC-24 | SHIFTED audit RFC1997-Well-1, cause c782411791 (`checkNoExportBoundary` moved, byte-identical) | `./le rfc reseal stem rfc1997` re-stamps it; `./le rfc check` no longer names it |
 | AC-25 | `TestRFCSelftestRealTreeRowReportsOwnedCheckFailures`, which hit its 10-minute limit under load | Run alone on a quiet host through `./le job run label rfc-selftest command go test -count=1 -run TestRFCSelftestRealTreeRowReportsOwnedCheckFailures -timeout 30m ./internal/le/rfc/`. A pass in time records the earlier red as load; a failing assertion is a defect fixed at its producer; a run that still exceeds 10 minutes alone is a defect in the test's cost, fixed so it completes inside its limit without dropping what it asserts |
 | AC-26 | `TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog`, failing deterministically | `./le job run label rfc-prior command go test -count=1 -run TestPriorEvidenceReadsTheNewestCommitHoldingTheBacklog ./internal/le/rfc/` passes after the prior-evidence reader is fixed, and the run is red with the fix reverted |
+| AC-27 (research amendment; design pending) | Explicit raw UPDATE body/full forms carrying valid labeled VPNv6 NLRI, with and without negotiated AFI 2 / SAFI 128 | The source finding below is decided by final emitted bytes with actual family capabilities and matching AS_PATH width. A useful negotiated VPNv6 route and same-session IPv4 control prevent blanket refusal from passing. Any confirmed capability-admission defect is fixed here after design review; mandatory level and applicability remain unchanged, and independent rejudgment follows observed results. |
 
 ## 🧪 TDD Test Plan
 
@@ -321,6 +333,39 @@ are re-made by an independent `/ze-rfc-audit` agent and stamped with
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `guard-demands-what-the-model-cannot-supply.md` | 2026-11-15 | RFC document-author evidence cannot pass the role-binding model |
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-15 | Explicit raw UPDATE VPNv6 family admission |
+
+## Raw VPNv6 family-admission finding (source only, 2026-11-15)
+
+The authoritative sentence read in `rfc/full/rfc4659.txt`, Section 3.4:
+"In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP
+Capabilities Negotiation to ensure that they both are capable of properly
+processing such NLRIs." Its next sentence specifies capability code 1 and
+the AFI/SAFI from Section 3.2. Diagnostic intent supplies no exception in
+that sentence. An unsettled raw-operation boundary is a research question,
+not a waiver or a reason to exclude this implemented sender capability.
+
+| Producer read | Current source evidence | Scope of the finding |
+|---------------|-------------------------|----------------------|
+| `internal/component/bgp/reactor/session_write.go`, `Session.SendRawMessage`; `session_aigp.go`, `writeOriginatedRawUpdate` | Recognized UPDATE body and full-packet forms reach `writeUpdateBody` with `raw=true`. A healthy third-party next hop with no AIGP reaches it directly. | Both explicit raw forms need the probe below. Use valid framing, negotiated-width AS_PATH and an accepting policy so another guard cannot decide the result. |
+| `internal/component/bgp/reactor/session_ownership.go`, `adjOutWrite.section` | `SupportsFamily` admission is conditional on `!w.raw`; a registered VPNv6 splitter can account for its NLRI without adding a capability check. | Source evidence permits a valid raw VPNv6 announcement toward a recipient that negotiated only IPv4. No wire counterexample has been observed in this amendment. |
+| `internal/component/bgp/reactor/session_write.go`, `writeUpdateBody` | Managed output applies `ownership.filter` results. Raw output only observes them and retains its body. | Generic `writeMessageHeld` passes `raw=false` and therefore has family admission; it is a useful control, not another claimed family bypass. |
+
+### Minimal TDD probe owed before a design is accepted
+
+| Working test name | File / entry point | Input, discriminator and useful controls |
+|-------------------|--------------------|-----------------------------------------|
+| `TestRawVPNv6RequiresNegotiatedFamily` | New descriptive test in `internal/component/bgp/reactor/`; actual `Session.SendRawMessage`, both body and full-packet forms | Use valid registered labeled VPNv6 NLRI, a healthy third-party next hop, accepting final policy and nonzero AS_PATH matching the session width. Compare a real AFI 2 / SAFI 128 negotiation with actual IPv4-only negotiation. Read final frames: negotiated VPNv6 emits the exact useful route; the IPv4-only peer emits no VPNv6 route. A successful useful IPv4 announcement on that same session proves ordinary output remains available. Preserve the six existing OPEN/negotiation/configured-send/receive subjects. |
+| `TestGenericVPNv6FamilyAdmissionControl` | The same test carrier; generic `writeMessage` with `raw=false` | With the same valid route and capability sets, confirm the existing final family gate is reached and the useful IPv4 control survives. This distinguishes raw bypass from a broken fixture or unsupported splitter. |
+
+These are research probes, not an approved implementation approach. No
+probe, build, proof, audit stamp or ledger update ran for this amendment.
+The main thread must observe the discriminating result, complete the
+design review for the correction, repair any confirmed defect and obtain
+an independent whole-row judgment. `docs/architecture/api/update-syntax.md`,
+Raw Passthrough Commands, is the existing operator contract to reconcile in
+that implementation. The pending rejudge JSON is retained in the active
+next-hop session scratch until canonical disposition supersedes it.
 
 ## Document-author evidence finding
 

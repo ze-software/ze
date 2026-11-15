@@ -4,29 +4,37 @@
 |-------|-------|
 | Status | ready |
 | Priority | P2 |
-| Release reason | RFC 7606 Section 5.1 is met and recorded at unit level; the proof through the daemon and against another implementation is still owed. |
+| Release reason | Managed builders and forwarding have recorded unit evidence for RFC 7606 Section 5.1. The 2026-11-15 source audit found raw and generic origination outside that enforcement; investigation, any required product repair, and daemon/interop proof remain owed. |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
 Split out of spec-bgp-unowned-rfc-rows on 2026-11-14 (owner: "split
-bgp-unowned-rfc-rows"). Its row 10, `RFC7606-5.1-1`, is implemented: every
-builder writes MP_REACH_NLRI or MP_UNREACH_NLRI as the first path attribute.
-The row in `rfc/short/rfc7606.md` carries no annotation, nine tagged units
-prove it in both polarities, and
-`rfc/discrimination/rfc7606/RFC7606-5.1-1.json` records their breaks.
+bgp-unowned-rfc-rows"). Its row 10, `RFC7606-5.1-1`, has unit evidence for
+managed builders and forwarding. The nine tagged units and
+`rfc/discrimination/rfc7606/RFC7606-5.1-1.json` record those subjects and
+their breaks; they do not establish every reachable sender. The row carried
+no annotation when this spec was split. The source finding below qualifies
+that historical whole-row claim without discarding the managed evidence.
 
 What that spec promised for the row and never built is the proof outside unit
 tests. A wire-visible protocol change owes an interop test
 (`ai/rules/interop-and-goal-validation.md`), and work is done only when a test
 reaches the behavior through the real entry point (`ai/rules/principles.md`).
 This spec owns those proofs. It changes no product code unless a proof goes red.
+
+The 2026-11-15 research amendment also owns the healthy raw/generic sender
+finding for both `RFC7606-5.1-1` and `RFC7606-5.1-2`. This is a separate
+mechanism investigation from the active next-hop spec. No implementation
+design or raw diagnostic exception is approved by recording it here. Observe
+the minimal probes below, review the resulting design, and fix any confirmed
+product defect in this owning spec before claiming whole-sender enforcement.
 
 | Owed | Why it is owed |
 |------|----------------|
@@ -40,6 +48,8 @@ This spec owns those proofs. It changes no product code unless a proof goes red.
 | Quote | Read at |
 |-------|---------|
 | "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message." | `rfc/full/rfc7606.txt` §5.1 |
+| "An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute." | `rfc/full/rfc7606.txt` §5.1 |
+| "Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination." | `rfc/full/rfc7606.txt` §5.1; receiver tolerance does not waive the two sender obligations |
 
 ### How FRR and BIRD handle it
 
@@ -65,7 +75,7 @@ lab runs before a check is written.
   → Constraint: an interop checker that carries an `RFC requirement: RFC7606-5.1-1` tag is a tagged unit and owes a discrimination record in the same change
 
 **Key insights:**
-- The code is in place and proven at unit level. This spec adds the daemon and interop proofs.
+- Managed builders and forwarding have unit evidence. Raw/generic origination has the source-only gap below; this spec also owes its investigation and any confirmed repair before whole-row credit.
 - The interop assertion is on a capture of what Ze sent, never on the peer's table.
 
 ## Current Behavior (MANDATORY)
@@ -76,9 +86,34 @@ lab runs before a check is written.
 - [ ] `internal/le/interoplab/bgp/check_packet_capture.go` - `packetCapture` runs a bounded tcpdump inside the lab-owned Ze container, started before Ze through `prestart`
 
 **Behavior to preserve:**
-- Everything: this spec adds tests.
+- Existing managed and forwarding proof subjects, exact useful routes and compliant zero-copy controls. The research amendment does not authorize dropping otherwise permitted raw routes to make a shape assertion pass.
 
-**Behavior to change:** None - preserve all existing behavior.
+**Behavior to change:** The original work adds proofs. The research amendment identifies source behavior requiring probes and design review before a product change; its repair is owed here if confirmed.
+
+### Healthy raw/generic origination finding (source only, 2026-11-15)
+
+| Producer read | Current source evidence | Limit and next action |
+|---------------|-------------------------|-----------------------|
+| `internal/component/bgp/reactor/session_write.go`, `Session.SendRawMessage` and `writeMessageHeld`; `session_aigp.go`, `writeOriginatedRawUpdate` | Both recognized raw UPDATE forms and generic UPDATE messages reach `writeOriginatedRawUpdate`. For useful input with a healthy third-party next hop and no AIGP, it calls `writeUpdateBody` directly. | The peer-own guard partitions only when a next hop names the recipient; its new tests do not cover healthy trailing-MP or mixed input. Probe both raw forms and the generic caller. |
+| `internal/component/bgp/reactor/session_write.go`, `writeOrdinaryUpdateBody` and `writeUpdateBody`; `session_egress_normalize.go`, `normalizeTransmittedUpdate` | The ordinary override path reorders MP attributes and splits mixed fields. The final writer normalizes attribute values but does neither operation. The fitting non-override ordinary path also assumes compliant builder input. | A source-reachable bypass, not an observed wire counterexample. Include direct fitting `SendUpdate` in the sender census and establish its input contract before a whole-row verdict. |
+| `docs/architecture/api/update-syntax.md`, Raw Passthrough Commands | Raw is an explicit diagnostic operation; the documented peer-own, policy and other guards still apply. | RFC 7606 §5.1 states no raw exception. Any unsettled diagnostic intent is an open research boundary, not permission to change applicability or count defective output as conformant. |
+
+The existing architecture page `docs/architecture/wire/mp-nlri-ordering.md`
+describes managed construction and forwarding. Its universal sender wording
+must be reconciled with the observed result in this spec's implementation;
+it is not evidence that the raw path enforces the rule.
+
+| Minimal TDD probe (working name; design pending) | Input and observable discriminator |
+|------------------------------------------------|------------------------------------|
+| `TestHealthyOriginatedRawMPFirst` | In `internal/component/bgp/reactor/`, use both actual `SendRawMessage` forms and generic `writeMessage` with valid session-width AS_PATH, negotiated families, accepting policy, healthy third-party next hop and no AIGP. Supply trailing MP_REACH; require the exact useful route with MP first. A compliant-leading control retains the same route and unrelated bytes. |
+| `TestHealthyOriginatedRawOneNLRIField` | The same three entry forms send a fitting mixed body. First successfully advertise every prefix later withdrawn on that same session, so generic ownership admission cannot erase the subject. Observe final frames with at most one NLRI-bearing field each, exact original withdrawals and exact useful surviving announcements. Neither zero output nor unowned withdrawals settles the finding. |
+| `TestFittingTypedUpdateShape` | Through actual `SendUpdate`, probe fitting non-override trailing-MP and mixed bodies with the same negotiated-width and prior-advertisement controls. Establish whether its reachable input contract permits these bodies; preserve the source-supported disposition in the writer census. |
+
+No probe, runtime result, fresh discrimination record or audit stamp was
+produced for this amendment. Pending audit input is retained in the active
+next-hop session scratch until the main thread records its canonical
+disposition. Existing managed test assertions and records remain bounded to
+their actual subjects.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -88,11 +123,13 @@ lab runs before a check is written.
 | Scenario-to-checker binding | `internal/le/interoplab/bgp/check_special.go`, `specialCheckers` | Maps a scenario directory name to the Go checker that judges it | Extends: two entries, no second map |
 | Exact-hex functional test | `test/plugin/*.ci` with a ze-peer expectation (`ai/patterns/functional-test.md`) | Asserts the bytes Ze sends to a test peer through the real daemon | Extends by use: `rfc7606-mp-reach-first.ci` is one more such test |
 | Tagged units and their discrimination record | `rfc/discrimination/rfc7606/RFC7606-5.1-1.json` | Records the break under which each tagged unit goes red | Extends: a tagged interop checker joins the record through `./le rfc record` |
+| Raw/generic origination and ordinary shaping | `internal/component/bgp/reactor/session_aigp.go`, `writeOriginatedRawUpdate`; `session_write.go`, `writeOrdinaryUpdateBody` and `writeUpdateBody` | Healthy raw/generic input reaches the final writer without ordinary override shaping | Investigates the existing boundaries through the minimal probes; extension or replacement awaits design review, with no parallel writer approved |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Config: an IPv6 unicast route announced by Ze to a peer.
+- Research amendment: recognized raw body/full UPDATEs through `Session.SendRawMessage`, generic UPDATEs through `writeMessage`, and the fitting typed `SendUpdate` input contract, all observed at the final buffered/socket write.
 
 ### Transformation Path
 1. Config route to the UPDATE builders, `attribute.OrderAttributes` and `WriteAttributesOrdered`.
@@ -123,14 +160,17 @@ lab runs before a check is written.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-3 | Ze never emits MP_REACH and MP_UNREACH in one UPDATE | RFC 7606 §5.1 second bullet forbids it | "Very first" has two candidates and a second §5.1 defect exists, which gets a journal row | grep the builders, a unit test over a mixed batch | holds by source reading (2026-10-11): each send path emits at most one MP attribute per UPDATE |
+| A-3 | Ze never emits MP_REACH and MP_UNREACH in one UPDATE | RFC 7606 §5.1 second bullet forbids it | "Very first" has two candidates and a second §5.1 defect exists | grep the builders and the raw/generic minimal probes above | Historical managed-builder reading held on 2026-10-11; whole-sender assumption is not established. The 2026-11-15 raw/generic source bypass requires a probe and disposition here. |
 | A-8 | The lab's Ze container can capture its own BGP traffic with `packetCapture` in an FRR and a BIRD scenario | `check_gobgp_reload_wire.go` and `check_delayopen.go` use it with filter "ip and tcp port 179" | The checker reads the peer's debug log of the received UPDATE instead, after its print function is read in the peer's source | Run the scenario once | unvalidated |
+| A-9 | The diagnostic contract's intended malformed-input freedom determines how recognized valid raw UPDATEs should be admitted | Raw Passthrough Commands documents diagnostic injection and several compulsory guards; RFC 7606 §5.1 states no exception | A design could preserve an RFC violation by inventing a role exclusion; the boundary remains open and no waiver is approved | Read the exact operator contract and RFC in design review; keep requirement applicability and level unless source authority supports a change | unvalidated |
+| A-10 | Every fitting non-override `SendUpdate` input is compliant by construction | `writeOrdinaryUpdateBody` fast-path comment | A direct typed caller can bypass the same shape/order enforcement | Source-derived caller census and `TestFittingTypedUpdateShape` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-2 | The builders desynchronise again | two builders emitting different bytes for one route | One test feeds the same route through every builder and compares bytes |
 | R-9 | A proof goes red because a writer still places the MP attribute late | the `.ci` or the capture shows ORIGIN first | It is a product defect in the row this spec proves: fix the writer here, with its unit test and record |
+| R-10 | An unrelated guard hides the raw/generic subject | Zero output, AS-zero refusal, unsupported family, or removal of an unowned withdrawal | Match real negotiated width/families, use a healthy next hop and accepting policy, seed actual prior advertisements, and require exact useful routes and withdrawals |
 
 ## Blast Radius
 
@@ -152,8 +192,9 @@ AC-7 is the number this criterion had in spec-bgp-unowned-rfc-rows.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-7 (row 10) | Ze sends any UPDATE carrying MP_REACH_NLRI or MP_UNREACH_NLRI, from any writer: `OrderAttributes`, `packAttributesOrderedInto` and the family builders on it, `buildRIBRouteUpdate`, `buildWireModeUpdate`, the splitter, the forward merge-insert, and a forward of a received UPDATE whose MP attribute was not first | That attribute is the first path attribute on the wire; the same route through every builder yields identical bytes; `OrderAttributes` given a list holding both MP attributes still puts one first; a forward of a source that already complies stays byte-identical. Landed and recorded at unit level; owed here: the `.ci` through the daemon, the two interop scenarios, and the every-builder byte comparison |
+| AC-7 (row 10) | Ze sends any UPDATE carrying MP_REACH_NLRI or MP_UNREACH_NLRI, from any writer: `OrderAttributes`, `packAttributesOrderedInto` and the family builders on it, `buildRIBRouteUpdate`, `buildWireModeUpdate`, the splitter, the forward merge-insert, forwarding of a received UPDATE whose MP attribute was not first, both recognized raw forms, generic UPDATE messages, and direct typed `SendUpdate` | That attribute is first on the wire; the same route through every builder yields identical bytes; `OrderAttributes` given both MP attributes still puts one first; a compliant forwarded source stays byte-identical. Existing recorded unit evidence is bounded to its managed/forwarding subjects. The every-builder comparison, daemon and interop proofs remain owed; raw/generic and direct fitting typed paths require AC-11 research and any confirmed repair before this unchanged whole-sender obligation can be claimed met. |
 | AC-10 | The two interop scenarios, with the ordering fix reverted and the image rebuilt | Each goes red on the capture assertion, and the red is recorded; restored, each is green |
+| AC-11 (research amendment; design pending) | Healthy valid raw body/full UPDATEs, generic UPDATE messages and the direct fitting typed input contract | The probes above establish the final wire behavior with actual negotiated width/families and useful-route controls. Confirmed MP-order/shape defects are repaired here after design review. Original valid withdrawals and useful announcements survive as separate compliant frames; existing managed/forwarding subjects keep their evidence. Independent whole-row judgment follows actual observed results, with both mandatory levels and applicability unchanged. |
 
 ## End-to-End User Stories
 
@@ -242,6 +283,10 @@ Every scenario owes the revert, rebuild, red, restore, green walk with the red r
 
 ## Implementation Steps
 
+The 2026-11-15 raw/generic amendment first owes its source-discriminating
+probes and design review. The existing steps below describe the original
+managed proof work; they do not approve a raw admission/normalization design.
+
 1. **Phase: Wiring** -- `rfc7606-mp-reach-first.ci` written; it is expected green, so its red is forced by reverting the order in `OrderAttributes` and recorded.
 2. **Phase: audit** -- name the landed test that proves the every-builder byte comparison, or write it.
 3. **Phase: interop** -- the two scenarios and their checker, each with the revert, rebuild, red, restore, green walk; the tag and its record.
@@ -283,6 +328,7 @@ Every scenario owes the revert, rebuild, red, restore, green walk with the red r
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `guard-added-to-one-half-of-a-pair.md` | 2026-11-15 | Healthy raw/generic UPDATE MP order and shape |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
