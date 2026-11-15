@@ -555,6 +555,43 @@ establish that the defect is optional.
 Retain the shared log until all owning specs that cite it have superseding
 evidence. No duplicate report is created.
 
+### Pending failure preserves useful established traffic
+
+The test-first campaign adds the untagged
+`TestPendingFailurePreservesEstablishedSession` in
+`internal/component/bgp/reactor/pending_established_survival_test.go`.
+The older `TestSessionRFC4271EstablishedCollisionWaitsForOpen` proves route
+delivery while a pending OPEN is incomplete, followed by collision rejection
+and an Established state. This addition requires a fresh, distinct route to
+reach the original session's semantic UPDATE callback after pending cleanup.
+It also requires the original Session and connection to remain installed.
+
+The four inputs are a complete frame with a truncated optional-parameter
+envelope (exact OPEN Error 2/0), a partial OPEN followed by transport EOF,
+an expired pending read deadline, and a valid OPEN control (exact collision
+Cease 6/7). EOF and expiry require silent cleanup. The deadline case uses
+the existing offset fake-clock technique from
+`TestDelayOpenPendingDeadlineOnlyDropsPending`: production still sets and
+enforces the actual socket deadline. A delegating socket observer records
+that deadline, write attempts and the producer's close; it supplies no read
+result and leaves all socket operations real.
+
+RFC 4271 Sections 6.2, 6.8 and the Established arm of 8.2.2 govern the
+distinction between malformed OPEN refusal, valid collision resolution and
+the established connection. Every subcase first requires a useful accepted
+route, then pending cleanup, then another useful announcement with no
+synthesized withdrawal. The valid control prevents wholesale rejection of
+pending input from satisfying the malformed-OPEN expectation. The test is
+additive and does not change the earlier tagged proof or the spec's approval
+and closure gates. Independent source review found no remaining issue. The
+main-thread race-enabled run passed all four named subcases in
+`tmp/session/2026-11-14-210034/scratch/job-pending-established-survival-ac5b4f3e.log`.
+Each observed the expected pending cleanup and useful traffic afterward.
+This direct admission and session probe does not prove the listener accept
+loop or every Established-state event, and earns no new RFC-row credit.
+Retain the log through the campaign's final evidence audit; the committed
+test and this result then supersede the temporary console output.
+
 ## Owned journal rows
 
 | Class file | Date | Surface (short) |
