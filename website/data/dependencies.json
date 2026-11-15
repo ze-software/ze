@@ -235,6 +235,10 @@
                     "why": "Assertion and require helpers used across the Go unit test suite."
                 },
                 {
+                    "module": "github.com/gokrazy/gokapi",
+                    "why": "Exercises the gokrazy on-device API's remote connection setup in appliance updater tests, proving reserved password bytes survive URL construction and invalid-port errors omit credentials."
+                },
+                {
                     "module": "github.com/gokrazy/tools",
                     "why": "Drives gokrazy appliance image builds from Ze's appliance build tooling."
                 },
