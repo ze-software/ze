@@ -1,0 +1,56 @@
+# Test: a reload whose mirror target the config does not declare is refused
+#
+# VALIDATES: a SIGHUP whose new config mirrors toward an interface no entry
+#            declares is refused by the daemon at validation, naming the
+#            mirror leaf and the undeclared name, and the reload never
+#            completes. The mirror ingress leaf is a reference to a declared
+#            interface (ze:reference "configured-interface"), checked over the
+#            whole candidate by Validator.ValidateReferences, the same check
+#            `ze config validate` runs (test/parse/iface-mirror-target-undeclared.ci).
+# PREVENTS: the daemon accepting a mistyped mirror target that the offline
+#           validator refuses, and the commit succeeding with no mirror.
+#
+# Method: ze starts on a config with no interface section, the trigger fixture
+# copies the second config over it and sends SIGHUP once the daemon is ready,
+# and the daemon's own reload outcome line is asserted. The refusal happens at
+# validation, before any interface is created, so the test needs no privilege.
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+  router-id 203.0.113.253
+  session {
+    asn {
+      local 65000
+    }
+  }
+}
+EOF_CONF
+
+tmpfs=config2.conf:refused=config-yang-reference:terminator=EOF_CONF2
+bgp {
+  router-id 203.0.113.253
+  session {
+    asn {
+      local 65000
+    }
+  }
+}
+
+interface {
+	dummy msrc0 {
+		unit u0 {
+			mirror {
+				ingress mdst0
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le test fixture reload/iface-mirror-target-undeclared-refused-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+# Stop once the refused reload has reported, never after a timer.
+await=stderr:contains=reload error:then=stop
+expect=stderr:contains=interface/dummy[msrc0]/unit[u0]/mirror/ingress
+expect=stderr:contains=interface "mdst0" is not configured
+reject=stderr:contains=sighup reload complete

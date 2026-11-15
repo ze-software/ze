@@ -1,0 +1,94 @@
+# Test: a mirror target the config does not declare is refused at commit
+#
+# VALIDATES: the mirror ingress and egress leaves are references to an
+#            interface the config declares (ze:reference "configured-interface",
+#            internal/component/iface/interface_reference.go), so
+#            `ze config validate` refuses a name no interface entry declares,
+#            and a VLAN unit no entry declares, naming the leaf, the value, the
+#            set command that declares it and the interfaces that exist. The
+#            same check refuses a commit that deletes a target still mirrored
+#            to, because the candidate then names an undeclared interface.
+#            A target declared LATER in the file is accepted: the reference
+#            check reads the whole tree, so the order of entries does not
+#            matter. A veth peer end and a VLAN unit written
+#            <interface>.<vlan-id> are declared names too.
+# PREVENTS: a mistyped or deleted mirror target committing and the mirror
+#           silently never being installed, or being pointed at whatever
+#           device happens to carry that name.
+# PLATFORM: the mirror container carries ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+
+stdin=undeclared:terminator=EOF_UNDECLARED
+interface {
+	ethernet eth0 {
+		unit u0 {
+			mirror {
+				ingress eth9
+			}
+		}
+	}
+	ethernet eth1 {
+	}
+}
+EOF_UNDECLARED
+
+stdin=vlan:terminator=EOF_VLAN
+interface {
+	ethernet eth0 {
+		unit u0 {
+			mirror {
+				egress eth1.200
+			}
+		}
+	}
+	ethernet eth1 {
+		unit 100 {
+			vlan-id 100
+		}
+	}
+}
+EOF_VLAN
+
+stdin=later:terminator=EOF_LATER
+interface {
+	ethernet eth0 {
+		unit u0 {
+			mirror {
+				ingress v0p
+				egress eth1.100
+			}
+		}
+	}
+	veth v0 {
+		peer v0p
+		unit u0 {
+			mirror {
+				ingress capture0
+			}
+		}
+	}
+	dummy capture0 {
+	}
+	ethernet eth1 {
+		unit 100 {
+			vlan-id 100
+		}
+	}
+}
+EOF_LATER
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=undeclared
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=interface/ethernet[eth0]/unit[u0]/mirror/ingress
+expect=stdout:contains=interface "eth9" is not configured
+expect=stdout:contains=set interface ethernet eth9
+expect=stdout:contains=name one of "eth0 eth1"
+cmd=foreground:seq=2:exec=ze config validate -:stdin=vlan
+expect=exit:code=1
+expect=stdout:contains=interface/ethernet[eth0]/unit[u0]/mirror/egress
+expect=stdout:contains=interface "eth1.200" is not configured
+expect=stdout:contains=set interface ethernet eth1 unit 200 vlan-id 200
+cmd=foreground:seq=3:exec=ze config validate -:stdin=later
+expect=exit:code=0
+expect=stdout:contains=configuration valid

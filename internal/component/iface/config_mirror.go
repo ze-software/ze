@@ -34,7 +34,9 @@ func mirrorSpecFor(u *unitEntry, devices map[string]string) mirrorSpec {
 // empty name asks for no mirror in that direction and stays empty. A name whose
 // selector answers with nothing is UNBOUND and also returns empty: the capture
 // port is not present, and a mirror toward a device that is not there is a
-// mirror the next apply installs, not one to point at a stranger.
+// mirror the next apply installs, not one to point at a stranger. A name the
+// config does not declare never reaches here: the commit refuses it
+// (configuredInterfaceReference).
 func mirrorDestination(devices map[string]string, name string) string {
 	if name == "" {
 		return ""

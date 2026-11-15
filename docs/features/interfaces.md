@@ -363,7 +363,10 @@ selector that fails to resolve returns an error rather than the name.
 
 The two settings that name a SECOND interface resolve through the same map: a bridge
 member is enslaved by the kernel device its entry selects, and a mirror sends its copy
-to the capture port's kernel device.
+to the capture port's kernel device. A mirror's `ingress` or `egress` must name an
+interface the config declares (an entry, a veth peer, or a VLAN unit written
+`<interface>.<vlan-id>`): the commit refuses any other name, and names the set command
+that declares it.
 
 Created kinds need no resolution, because Ze makes the device under its configured
 name: dummy, veth, bridge, tunnel, WireGuard, XFRM, and the `pppoe-client` session

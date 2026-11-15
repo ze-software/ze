@@ -8,10 +8,14 @@
 # PLATFORM: the mirror container carries ze:os "linux" so the schema walker
 #           prunes it on other platforms (yang_schema.go getOSExtension); this
 #           test is linux-only, matching sibling iface-vpp-rejects-dhcp.
+# The capture port eth1 is declared, because a mirror target is a reference to
+# an interface the config declares (test/parse/iface-mirror-target-undeclared.ci).
 option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;
+	ethernet eth1 {
+	}
 	ethernet eth0 {
 		unit u0 {
 			mirror {

@@ -55,6 +55,7 @@ func init() {
 		"reload/tx-protocol-external-plugin-trigger":             {source: "updated.conf", destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-protocol-rollback-trigger":                    {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-protocol-sighup-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/iface-mirror-target-undeclared-refused-trigger":  {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/pki-reference-reload-trigger":                    {source: "addref.conf", destination: "hub.conf", hups: 1},
 		"reload/pki-reference-reload-broken-trigger":             {source: "broken.conf", destination: "hub.conf", hups: 1},
 		"reload/bgp-bfd-profile-reload-accepted-trigger":         {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},

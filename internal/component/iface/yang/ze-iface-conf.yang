@@ -869,19 +869,27 @@ Ze sends a priority with no entry as PCP 0.";
 
                 leaf ingress {
                     type string;
+                    ze:reference "configured-interface";
                     description "Ze installs a tc mirred filter that copies each received frame toward
-                                 the named interface. Ze resolves the name through the same selector
+                                 the named interface. The name must be an interface this config
+                                 declares, or a VLAN unit written <interface>.<vlan-id>, and the commit
+                                 refuses any other name. Ze resolves the name through the same selector
                                  map as the source, so a capture port bound by mac/match or aliased by
-                                 os-name works. An unbound name installs no mirror.";
+                                 os-name works. A declared name whose selector finds no device installs
+                                 no mirror.";
                     ze:help "Mirror ingress traffic to this interface";
                 }
 
                 leaf egress {
                     type string;
+                    ze:reference "configured-interface";
                     description "Ze installs a tc mirred filter that copies each transmitted frame
-                                 toward the named interface. Ze resolves the name through the same
-                                 selector map as the source, so a capture port bound by mac/match or
-                                 aliased by os-name works. An unbound name installs no mirror.";
+                                 toward the named interface. The name must be an interface this config
+                                 declares, or a VLAN unit written <interface>.<vlan-id>, and the commit
+                                 refuses any other name. Ze resolves the name through the same selector
+                                 map as the source, so a capture port bound by mac/match or aliased by
+                                 os-name works. A declared name whose selector finds no device installs
+                                 no mirror.";
                     ze:help "Mirror egress traffic to this interface";
                 }
             }

@@ -71,7 +71,8 @@ func TestBackendGateVppTunnelKinds(t *testing.T) {
 // PREVENTS: a mirror-under-vpp config being rejected at commit after SPAN wiring.
 func TestBackendGateVppMirror(t *testing.T) {
 	mirrorData := func(backend string) string {
-		return `{"interface":{"backend":"` + backend + `","ethernet":{"xe0":{"name":"xe0","unit":{"u0":{"name":"u0","mirror":{"ingress":"xe1"}}}}}}}`
+		// xe1 is declared: a mirror target names an interface the config declares.
+		return `{"interface":{"backend":"` + backend + `","ethernet":{"xe1":{"name":"xe1"},"xe0":{"name":"xe0","unit":{"u0":{"name":"u0","mirror":{"ingress":"xe1"}}}}}}}`
 	}
 	t.Run("vpp_accepts_mirror", func(t *testing.T) {
 		if err := validateBackendGate(gateSection(mirrorData("vpp")), "vpp"); err != nil {

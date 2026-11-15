@@ -65,8 +65,20 @@ at the capture port's kernel device. Either one, when its selector has no answer
 yet, is left undone with a warning and the commit still succeeds, exactly as
 every other unbound setting defers.
 
+A mirror destination must be an interface the config declares, and the commit
+refuses any other name. The `ingress` and `egress` leaves are references
+(`ze:reference "configured-interface"`), so the whole-tree reference check
+(`Validator.ValidateReferences`) judges them at `ze config validate`, at boot
+and at every commit, whatever order the entries are written in. A declared name
+is an entry of any interface kind, the peer end of a veth, or a VLAN unit
+written `<interface>.<vlan-id>`. The check reads the config alone and never the
+kernel, so a mistyped target, and a target the same commit deletes, are refused
+with the set command that declares them, while a declared target whose
+selector has no device still defers as above.
+
 <!-- source: internal/component/iface/config_apply.go -- the Phase 2a bridge member loop -->
 <!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination -->
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, configuredInterfaceNames, checkConfiguredInterface -->
 
 An entry whose selector names no present device is UNBOUND, and every phase
 skips it. No phase falls back to the logical name: that fallback is what let an
