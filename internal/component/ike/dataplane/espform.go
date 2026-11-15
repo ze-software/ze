@@ -185,7 +185,7 @@ func newESPFormLimiter(now time.Time) espFormLimiter {
 
 // allow reports whether one more datagram may be re-presented.
 func (l *espFormLimiter) allow(now time.Time) bool {
-	if elapsed := now.Sub(l.lastFill); elapsed >= time.Second {
+	if elapsed := now.Sub(l.lastFill); elapsed >= time.Duration(espFormBurst)*time.Second/espFormRate {
 		l.tokens = espFormBurst
 		l.lastFill = now
 	} else if fill := int(elapsed.Seconds() * float64(espFormRate)); fill > 0 {

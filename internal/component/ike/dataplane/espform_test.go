@@ -214,7 +214,7 @@ func TestESPFormLimiter(t *testing.T) {
 		t.Fatal("handed out a token past the burst with no time elapsed")
 	}
 
-	// A full second refills the whole burst.
+	// A full second makes more tokens available.
 	if !lim.allow(start.Add(time.Second)) {
 		t.Error("a full second did not refill the bound")
 	}
