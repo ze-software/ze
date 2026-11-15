@@ -8,7 +8,7 @@
 | Scope | protocol |
 | Depends | - |
 | Phase | 1/10 |
-| Updated | 2026-10-09 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -80,6 +80,8 @@ Found during research for this spec.
 | D-10 | `StoreSessionMetadata` (`l2tp/session_metadata.go`) | one package-level `sessionMeta` map keyed on a pair of uint16s, shared by both transports. L2TP stores under (tunnel id, session id); PPPoE stores under (ifindex, PPPoE session id). The namespaces collide, so whichever session authenticates second overwrites the other's Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id rate and CoS profile. Found while landing D-1 (2026-08-29): the same collision reaches operator output through `lookupSessionUsername` (`l2tp/plugins/pool/register.go`), which `showPool` calls with each allocation's pair. For a PPPoE allocation that pair is (ifindex, PPPoE session id), so `show l2tp pool` reports an empty username, or another subscriber's, whenever an L2TP session holds the same numbers |
 | D-11 | `l2tpReactor.startSessionTimeouts` (`l2tp/session_timeout.go`) | its only caller is the L2TP kernel reactor (`reactor_kernel.go`), so a PPPoE subscriber's Session-Timeout and Idle-Timeout are stored from the Access-Accept and never enforced. RFC 2865 Section 5.27: "This Attribute sets the maximum number of seconds of service to be provided to the user before termination of the session or prompt." Section 5.28: "This Attribute sets the maximum number of consecutive seconds of idle connection allowed to the user before termination of the session or prompt." Found 2026-10-28 comparing accel-ppp PRs with Ze |
 | D-12 | `readIfaceRXBytes` (`l2tp/iface_stats_linux.go`), read by `runIdleTimeout` | a failed sysfs read or parse returns 0, so the idle check sees no growth and ends the session with cause Idle-Timeout; the comment above `runIdleTimeout` states this as designed and says netlink where the code reads `/sys/class/net/<iface>/statistics/rx_bytes`. The same shape in accel-ppp-ng (PR #42, https://github.com/accel-ppp/accel-ppp-ng/pull/42) ended every VPP session with NAS-Error each minute |
+| D-13 | the PPPoE PPP driver key, `uint16(s.ifIndex)` (`pppoe/server.go` `handlePADR` and `handlePADT`, `pppoe/panic_guard.go` `endAdmissionAfterPanic`, `pppoe/subsystem_reload.go` `closeInterface`), and `subscriber.Session.PPPKey` (`subscriber/session.go`) | the access interface's ifindex, an `int`, is cut to 16 bits to fill the shared PPP driver's tunnel-id slot and the pool and metadata pair `PPPKey` returns. Two access interfaces whose ifindex differ by 65536 map to one pair, so a second session with the same PPPoE session id is refused by the driver or reaches the other's pool allocation and RADIUS profile. `pppoeSessionID` (`pppoe/subsystem.go`) already builds the subscriber ID from the full ifindex, so D-10's re-key by session ID removes the pool and metadata half; the driver key is the other half. Root cause 4. Found 2026-11-15; read, not run |
+| D-14 | `RouteObserver.OnSessionIPUp` and `OnSessionDown` (`l2tp/route_observer.go`), called only from the L2TP reactor (`reactor_kernel.go` `handleSessionIPAssigned` and `notifyNetworkLifetimeDown`, `teardown.go`); `registerL2TPSources` (`l2tp/redistribute.go`), which registers `l2tp` as the only subscriber redistribute source | nothing under `pppoe/` calls the observer or registers a source, so a PPPoE subscriber's assigned-address route and its RADIUS Framed-Routes never reach `l2tpevents.RouteChange`, and a `redistribute` statement cannot announce them into BGP or OSPF. The observer's methods take the uint16 pair and its `records` map is keyed on the session id, so driving it from PPPoE as it stands would collide with L2TP records (D-10, D-13). Root cause 1. Found 2026-11-15; read, not run |
 
 ## Why the gates are green
 
@@ -120,6 +122,8 @@ those two rows true rather than changing them.
 | D-10 metadata keyspace collision | open |
 | D-11 PPPoE Session-Timeout and Idle-Timeout | open |
 | D-12 failed counter read treated as idle | open |
+| D-13 PPPoE ifindex truncated to 16 bits in the driver and pool keys | open |
+| D-14 PPPoE subscriber routes never reach redistribute | open |
 | I-1 emit-without-subscribe guard | open |
 | I-2 vacuity-trap and sibling-audit rows | open |
 | I-3 poll-sleep, VPP evidence image, checkVPPVersion | open |
@@ -260,6 +264,23 @@ map key today, which is why the keyspace phase precedes the migration phase.
 | `Subsystem.wireObserverSubscriptions` | Up, Down, IPAssigned, EchoRTT | `ReleaseSession` is typed on a uint16 session id, and `EchoRTT` has no subscriber-namespace equivalent | keyspace phase re-types the release; EchoRTT stays on `l2tpevents` because it is transport-level, not lifecycle |
 | `subscriberBridge.subscribe` | Up, Down, IPAssigned | none; it is the producer | unchanged |
 
+## Existing Mechanisms (MANDATORY)
+
+Every fix here extends a mechanism Ze already has; none adds a second one beside
+it.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Subscriber event namespace | `subscriber/events/events.go` (`SessionUp`, `SessionDown`, `SessionIPAssigned`, `SessionRateChange`, `SessionAuthResult`); `docs/architecture/l2tp/subscriber-session-model.md` | the transport-generic topics PPPoE emits and the bridge re-emits for L2TP; only `SessionAuthResult` and, since D-1, `SessionDown` have a subscriber | extends: the lifecycle consumers migrate onto it (D-1 to D-4), and the wiring phase adds the params-changed and CoS-change topics |
+| L2TP to subscriber bridge | `subscriber_bridge.go` `subscriberBridge.subscribe` | re-emits `l2tpevents` session topics as `subevents` for L2TP only, one direction | extends: it carries the assigned address and stops rebuilding the session (D-5); it stays the L2TP producer until the reactor emits the subscriber topics itself (Known Limitations) |
+| Transport-generic handler registries | `subscriber/handler_registry.go` (`AuthHandler`, `PoolHandler`, `ShaperHandler`), delegated from `l2tp.Register*` | the auth, pool and shaper handlers both transports call | extends: a transport-generic disconnect handler joins them for I-4 |
+| Subscriber keyspace | `subscriber.Session.ID`, built by `l2tpSessionID` (`subscriber_bridge.go`) and `pppoeSessionID` (`pppoe/subsystem.go`); `subscriber.Session.PPPKey` (`subscriber/session.go`); the PPP driver's (tunnel id, session id) start key (`pppoe/server.go` `handlePADR`) | the ID string is unique per transport and carries the full ifindex; `PPPKey` and the driver key are uint16 pairs that overlap across transports (D-10) and truncate the PPPoE ifindex to 16 bits (D-13) | extends: the keyspace phase makes the session ID the key of every per-session consumer; D-13 also stops the driver key truncating the ifindex, so the pair no longer names two PPPoE sessions |
+| RADIUS session metadata store | `session_metadata.go` `StoreSessionMetadata`, `LoadSessionMetadata` | one package-level map keyed on the uint16 pair, read by pool, reactor, shaper, accounting and the route observer | replaces the key, keeps the store: re-keyed by the subscriber session ID (D-10, D-13) |
+| Subscriber route observer | `route_observer.go` `RouteObserver`, `subscriberRouteObserver`; `docs/guide/l2tp.md` | records each session's assigned addresses and RADIUS Framed-Routes and emits `l2tpevents.RouteChange` adds and removes; the L2TP reactor alone drives it, and its `records` map is keyed on the session id | extends: driven for PPPoE subscribers too (D-14, I-4, AC-16, AC-23), keyed on the subscriber session so a PPPoE record cannot collide with an L2TP one. Whether the PPPoE subsystem calls it, or it subscribes to `subevents.SessionIPAssigned` and `SessionDown` as the other migrated consumers do, is put to Thomas with the phase 7 design |
+| Redistribute source registry | `config/redistribute/registry.go` `RegisterSource`; `l2tp/redistribute.go` `registerL2TPSources`; `docs/architecture/core-design.md` | each producing component registers the sources an operator can name in `redistribute`; `l2tp` is the only subscriber source | extends: the PPPoE subscriber routes reach `redistribute` through a registered source (D-14), registered from the producing package, never added to a list elsewhere |
+| RADIUS session timers | `session_timeout.go` `startSessionTimeouts`, `runSessionTimeout`, `runIdleTimeout` | enforce Session-Timeout and Idle-Timeout for L2TP sessions only, one goroutine pair per start | extends: cancelled before a restart (D-7), started for PPPoE (D-11), keyed on the subscriber session; a counter read failure is not idle (D-12) |
+| Added-symbol wiring check | `internal/le/doc/wiring/wiring.go`, run by `./le repo check` | refuses an added exported symbol with no non-test reference, with a reviewed allowlist | extends: I-1 adds the emit-versus-subscribe predicate |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -344,6 +365,7 @@ tests instead.
 | PPPoE subscriber authenticates and comes up | → | `radiusAcct.onSessionUp` via `subevents` | `test/pppoe/accounting-lifecycle.ci` |
 | RADIUS sends a CoA rate-change for a PPPoE session | → | `shaper.onSessionRateChange` via `subevents.SessionRateChange` | `test/pppoe/coa-rate-change.ci` |
 | RADIUS sends a Disconnect-Request for a PPPoE session | → | the transport-generic disconnect handler | `test/pppoe/coa-disconnect.ci` |
+| PPPoE subscriber gets an address under a `redistribute` config | → | the subscriber route observer driven for PPPoE, through a registered redistribute source | `test/pppoe/redistribute-subscriber-route.ci` |
 | Peer sends a Configure-Request on an established session | → | `afterLCPOpen` params-changed branch | `test/l2tp/renegotiation-preserves-session.ci` |
 | Operator reloads config with flow export enabled | → | `configure` closure preserving the exporter epoch | `test/plugin/flowexport-reload-epoch.ci` |
 | Locally-initiated IKE SA rekey | → | `applyIKERekeyResponse` | `test/interop-ipsec/` rekey-uptime scenario |
@@ -375,6 +397,8 @@ tests instead.
 | AC-18 | A PPPoE session's CoS profile is torn down | the configured static profile is restored, not an empty map |
 | AC-20 | A PPPoE subscriber's Access-Accept carries Session-Timeout, Idle-Timeout, or both (D-11) | each is enforced on that subscriber session exactly as for L2TP: the session ends at the Session-Timeout deadline with Acct-Terminate-Cause Session-Timeout, and after Idle-Timeout seconds with no received traffic with cause Idle-Timeout. The timers are keyed on the subscriber session, not on an L2TP tunnel and session id pair, so the PPPoE and L2TP keyspaces cannot collide (D-10) and renegotiation does not restart them (AC-8) |
 | AC-21 | The idle check cannot read the session interface's received-byte counter (D-12) | the failure is logged naming the session and interface, the session is not torn down as idle, and the next tick reads again; a session whose interface is gone is ended by the teardown path that removed it, not by the idle timer |
+| AC-22 | Two PPPoE access interfaces whose ifindex differ by 65536 each bring up a session with the same PPPoE session id (D-13) | both sessions come up and stay distinct: each holds its own subscriber entry, pool allocation and RADIUS profile, and tearing one down releases only its own address and leaves the other session running |
+| AC-23 | A PPPoE subscriber comes up with an assigned address under a config that redistributes subscriber routes (D-14) | the assigned address, and any RADIUS Framed-Route (AC-16), is announced through `redistribute` while the session is up and withdrawn when it goes down |
 
 ## End-to-End User Stories
 
@@ -414,6 +438,9 @@ tests instead.
 | `TestPPPoESessionTimeoutEnforced` | `internal/component/l2tp/pppoe/` | AC-20: Session-Timeout ends a PPPoE session at the deadline with cause Session-Timeout; Idle-Timeout ends it after a quiet interval with cause Idle-Timeout | |
 | `TestSessionTimeoutsKeyedOnSubscriberSession` | `internal/component/l2tp/` | AC-20: an L2TP and a PPPoE session with equal number pairs each keep their own timers | |
 | `TestIdleTimeoutReadFailureIsNotIdle` | `internal/component/l2tp/session_timeout_test.go` | AC-21: a counter read error is logged and does not tear the session down | |
+| `TestPPPoEIfIndexAbove16BitsKeepsDistinctSessions` | `internal/component/l2tp/pppoe/` | AC-22: access interfaces with ifindex 2 and 65538 and one PPPoE session id keep two driver sessions, two pool allocations and two metadata entries, and a teardown of one leaves the other's intact | |
+| `TestPPPoESessionDrivesSubscriberRoutes` | `internal/component/l2tp/pppoe/` | AC-23: a PPPoE IP assignment produces a route-change add for the address and each Framed-Route, and session down produces the matching removes | |
+| `TestPPPoESubscriberRoutesCannotCollideWithL2TP` | `internal/component/l2tp/` | AC-23 with AC-22: a PPPoE and an L2TP session holding equal number pairs each keep their own route record, and one's teardown withdraws only its own routes | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -432,6 +459,7 @@ tests instead.
 | `coa-disconnect` | `test/pppoe/coa-disconnect.ci` | a Disconnect-Request tears down a PPPoE session | |
 | `renegotiation-preserves-session` | `test/l2tp/renegotiation-preserves-session.ci` | a mid-session Configure-Request leaves accounting and timeouts intact | |
 | `flowexport-reload-epoch` | `test/plugin/flowexport-reload-epoch.ci` | sysUpTime does not regress across a reload | |
+| `redistribute-subscriber-route` | `test/pppoe/redistribute-subscriber-route.ci` | a PPPoE subscriber's assigned address is announced through `redistribute` and withdrawn when the subscriber disconnects (AC-23) | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -450,7 +478,10 @@ tests instead.
 - `internal/component/l2tp/session_timeout.go` - cancel before restarting; timers keyed on the subscriber session and started for PPPoE as well (D-11); a counter read failure is not idle (D-12)
 - `internal/component/l2tp/iface_stats_linux.go`, `iface_stats_other.go` - the RX counter read returns an error instead of 0 (D-12); the stale "netlink" comment corrected
 - `internal/component/l2tp/reactor_kernel.go` - drive timeouts from first activation only
-- `internal/component/l2tp/route_observer.go` - reach framed routes from both transports
+- `internal/component/l2tp/route_observer.go` - reach framed routes and the assigned-address route from both transports, keyed on the subscriber session (D-14)
+- `internal/component/l2tp/redistribute.go` - the subscriber redistribute source covers PPPoE routes (D-14)
+- `internal/component/l2tp/pppoe/server.go`, `internal/component/l2tp/pppoe/panic_guard.go`, `internal/component/l2tp/pppoe/subsystem_reload.go` - the PPP driver key carries the full ifindex (D-13)
+- `internal/component/l2tp/subscriber/session.go` - `PPPKey` no longer truncates the ifindex, or is retired by the re-key (D-13)
 - `internal/component/l2tp/plugins/authradius/acct.go` - migrate to the subscriber namespace, dedupe by session
 - `internal/component/l2tp/plugins/authradius/coa.go` - NAK what cannot be applied; route disconnect through a transport-generic handler
 - `internal/component/l2tp/plugins/authradius/handler.go` - store metadata under the subscriber session ID
@@ -476,6 +507,7 @@ tests instead.
 - `test/pppoe/pool-release-cycle.ci`, `test/pppoe/accounting-lifecycle.ci`, `test/pppoe/coa-rate-change.ci`, `test/pppoe/coa-disconnect.ci` - PPPoE lifecycle functional tests
 - `test/l2tp/renegotiation-preserves-session.ci` - the renegotiation functional test, using an extended scripted peer
 - `test/plugin/flowexport-reload-epoch.ci` - reload epoch continuity
+- `test/pppoe/redistribute-subscriber-route.ci` - a PPPoE subscriber route announced and withdrawn through `redistribute` (AC-23)
 - the retired deferral shard "lifecycle-invariants" - the deferral shard named in the metadata table
 
 ### Integration Checklist
@@ -526,9 +558,9 @@ tests instead.
    - Files: the scripted peer in `test/l2tp/`, `docs/functional-tests.md`
    - Verify: the harness reproduces D-6 before any fix exists. If it cannot be built, STOP and report: the topic-split and idempotent-consumer phases then have no functional proof, and the spec's scope must be renegotiated with the operator rather than quietly dropped to unit level
 3. **Phase: Keyspace** - re-key session metadata by subscriber session ID
-   - Tests: `TestSessionMetadataNoCrossTransportCollision`, `TestSubscriberIDBuildersNeverCollide`
-   - Files: `session_metadata.go`, `authradius/handler.go`, and every reader
-   - Verify: make the accessor take a session rather than loose identifiers so a missed call site fails to compile (R-1)
+   - Tests: `TestSessionMetadataNoCrossTransportCollision`, `TestSubscriberIDBuildersNeverCollide`, `TestPPPoEIfIndexAbove16BitsKeepsDistinctSessions` (D-13, AC-22)
+   - Files: `session_metadata.go`, `authradius/handler.go`, and every reader; for D-13 the PPP driver key in `pppoe/server.go`, `pppoe/panic_guard.go`, `pppoe/subsystem_reload.go`, and `subscriber.Session.PPPKey` in `subscriber/session.go`
+   - Verify: make the accessor take a session rather than loose identifiers so a missed call site fails to compile (R-1); no `uint16(` conversion of an ifindex remains under `pppoe/`
 4. **Phase: Topic split** - `SessionUp` once per session, params-changed on renegotiation, dataplane programming unchanged
    - Tests: the three `renegotiate_test.go` tests, plus `TestRegistryAddPreservesActivatedAt`
    - Files: `ppp/session_run.go`, `ppp/ncp.go`, `subscriber_bridge.go`, `pppoe/subsystem.go`
@@ -541,10 +573,10 @@ tests instead.
    - Tests: `TestPoolReleaseOnSubscriberSessionDown`, `TestShaperRecordsPPPoESession`, `TestCoSSessionDownRestoresStaticProfile`
    - Files: `pool/register.go`, `authradius/acct.go`, `shaper/shaper.go`, `cos/handler.go`, `cos/register.go`, `observer.go`
    - Verify: run the full L2TP suite after each consumer, per A-1
-7. **Phase: PPPoE parity** - disconnect teardown and framed routes
-   - Tests: `TestCoAUnappliedAnswersNAK`, plus the disconnect and framed-route functional tests
-   - Files: `authradius/coa.go`, `pppoe/subsystem.go`, `route_observer.go`, `subscriber/handler_registry.go`
-   - Verify: AC-15 and AC-16 end to end
+7. **Phase: PPPoE parity** - disconnect teardown, framed routes, and the PPPoE subscriber routes reaching `redistribute` (D-14)
+   - Tests: `TestCoAUnappliedAnswersNAK`, `TestPPPoESessionDrivesSubscriberRoutes`, `TestPPPoESubscriberRoutesCannotCollideWithL2TP`, plus the disconnect, framed-route and `test/pppoe/redistribute-subscriber-route.ci` functional tests
+   - Files: `authradius/coa.go`, `pppoe/subsystem.go`, `route_observer.go`, `redistribute.go`, `subscriber/handler_registry.go`
+   - Verify: AC-15, AC-16 and AC-23 end to end; the route observer is keyed on the subscriber session before PPPoE drives it, so the keyspace phase precedes this one
 8. **Phase: Standalone defects** - IKE rekey continuity and flow-export epoch
    - Tests: `TestIKERekeyPreservesEstablishedAt`, `TestFlowExportReloadPreservesSysUpTime`
    - Files: `ike/engine/rekey.go`, `flowexport/register.go`
@@ -613,6 +645,8 @@ tests instead.
 |------------|------|-----------------|
 | `invariant-enforced-by-an-absent-call-site.md` | 2026-10-28 | `startSessionTimeouts` never reached for PPPoE (D-11, AC-20) |
 | `zero-value-as-valid-answer.md` | 2026-10-28 | `readIfaceRXBytes` failure read as idle (D-12, AC-21) |
+| `key-omits-a-fact-the-builder-uses.md` | 2026-11-15 | PPPoE ifindex cut to 16 bits in the PPP driver key and `PPPKey` (D-13, AC-22) |
+| `invariant-enforced-by-an-absent-call-site.md` | 2026-11-15 | `RouteObserver` never driven for PPPoE, no PPPoE redistribute source (D-14, AC-23) |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -647,7 +681,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-19 all demonstrated
+- [ ] AC-1..AC-23 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
