@@ -219,6 +219,7 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | `unwired-feature` | 2026-08-15 | mcp `tools/list` first line fails |
 | `unwired-feature` | 2026-08-15 | mcp `tools/list` readiness, rerun from `git archive HEAD` |
 | `unwired-feature` | 2026-11-11 | plugin `Completable` commands get no Tab completion: `WireArgCompletion` and `commandRows` cover builtins only |
+| `field-carries-two-meanings` | 2026-11-15 | plugin `Completable` completion request is an `ExecuteCommand`, indistinguishable from running the command |
 | `production-function-only-tests-call` | 2026-11-11 | `ipc.Authenticate`, `authenticateWithName` test-only, still accept an empty expected token |
 
 ## Rows found already fixed
