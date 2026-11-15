@@ -1,0 +1,124 @@
+# Test: update irr as-set stores a dataset, and a firewall commit naming it then programs its table
+# VALIDATES: spec-fetched-data-survives-restart AC-15 (update irr as-set fetches, stores and answers the counts),
+#            AC-23 (after that update, the commit naming the AS-SET succeeds and the set is programmed)
+# PREVENTS: the firewall commit reading a cache the owner's command never filled
+# WIRING: update irr as-set then firewall commit -> owner command, pointer, verify read
+#
+# Method: the observer (internal/test/fixture/irr_owner_fixture.go) runs
+# update irr as-set AS-TEST and writes observer.updated; the reload fixture
+# then writes config2.conf over the config, which adds table wan with a
+# source-as-set AS-TEST term, and sends SIGHUP; the observer requires wan to be
+# programmed.
+#
+# Red until the irr plugin stores datasets: update irr answers "not available yet".
+
+option=storage:value=disk
+# This test programs nftables, so it needs CAP_NET_ADMIN, and it shares the
+# node-wide ruleset with every other firewall-irr test (firewall-irr-update.ci).
+option=needs-linux:caps=net-admin
+option=exclusive:group=firewall-irr-nft
+option=env:var=ze.log.irr:value=debug
+option=timeout:value=40s
+
+stdin=ze-irr:terminator=EOF_CONF
+plugin {
+	external irr-update-then-firewall-commit-test {
+		run "le test fixture plugin/irr-update-then-firewall-commit"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+firewall {
+	backend nft;
+	table lan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 1;
+			policy accept;
+			term from-lan {
+				from { source-address 192.0.2.0/24; }
+				then { accept; }
+			}
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external irr-update-then-firewall-commit-test {
+		run "le test fixture plugin/irr-update-then-firewall-commit"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+firewall {
+	backend nft;
+	table lan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 1;
+			policy accept;
+			term from-lan {
+				from { source-address 192.0.2.0/24; }
+				then { accept; }
+			}
+		}
+	}
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term from-as-test {
+				from { source-as-set AS-TEST; }
+				then { accept; }
+			}
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+cmd=background:seq=2:exec=le test fixture plugin/irr-update-then-firewall-commit/reload
+cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-irr:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: update irr then the firewall commit programmed wan
+reject=stderr:pattern=references unknown set
+reject=stderr:pattern=panic

@@ -24,9 +24,9 @@ module ze-plugin-engine {
     }
     grouping state-data {
         leaf data {
-            type binary { length "0..1048576"; }
+            type binary { length "0..12000000"; }
             ze:help "State value encoded as base64";
-            description "Raw state bytes bounded to one MiB. An empty value is valid.";
+            description "Raw state bytes bounded by the key's registration: one MiB unless the registration declares its own bound. The length is the largest declared bound (the IRR dataset key, 12,000,000 bytes); both transports refuse a value over its own key's bound. An empty value is valid.";
         }
     }
     grouping state-result {

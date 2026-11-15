@@ -23,6 +23,14 @@ func stateRPCClient(t *testing.T, direct bool) *sdk.Plugin {
 	t.Helper()
 	const owner = "state-rpc-test"
 	statestore.RegisterPluginKeys(owner, zefs.KeyOSPFAuthBootCount, zefs.KeyOSPFGRFact)
+	return stateRPCClientAs(t, direct, owner)
+}
+
+// stateRPCClientAs connects an SDK plugin named owner to a state dispatcher,
+// over the socket (direct false) or DirectBridge (direct true). The caller
+// registers the grants owner holds.
+func stateRPCClientAs(t *testing.T, direct bool, owner string) *sdk.Plugin {
+	t.Helper()
 	s := &Server{}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	t.Cleanup(s.cancel)

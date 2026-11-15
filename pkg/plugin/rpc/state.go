@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const (
@@ -14,9 +16,11 @@ const (
 	MethodStateList      = "ze-plugin-engine:state-list"
 	MethodStateIncrement = "ze-plugin-engine:state-increment"
 	StateKeyMax          = 512
-	StateDataMax         = 1024 * 1024
-	StateListMax         = 4096
-	StateMessageMax      = 4096
+	// StateDataMax is the value bound of a key whose registration declares
+	// none (zefs.KeyEntry.ValueMax zero); StateDataMaxFor gives one key's bound.
+	StateDataMax    = 1024 * 1024
+	StateListMax    = 4096
+	StateMessageMax = 4096
 )
 
 // StateStatus is the wire outcome. Empty is invalid and never means success.
@@ -78,8 +82,31 @@ func ValidateStateInput(in StateInput) error {
 			return fmt.Errorf("invalid character in state key %q", in.Key)
 		}
 	}
-	if len(in.Data) > StateDataMax {
-		return fmt.Errorf("state data exceeds %d bytes", StateDataMax)
+	if limit := StateDataMaxFor(in.Key); len(in.Data) > limit {
+		return fmt.Errorf("state data for %s is %d bytes, over its %d-byte bound", in.Key, len(in.Data), limit)
 	}
 	return nil
+}
+
+// StateDataMaxFor returns the value bound of one concrete key: the ValueMax its
+// zefs registration declares, or StateDataMax when it declares none or no
+// registration matches. The SDK and the daemon both bound a value with it, so
+// a key's bound is declared once, on its registration.
+func StateDataMaxFor(key string) int {
+	entry, found := zefs.Lookup(key)
+	if !found {
+		return StateDataMax
+	}
+	if entry.ValueMax == 0 {
+		return StateDataMax
+	}
+	return entry.ValueMax
+}
+
+// StateDataLargest returns the largest value bound any registered key carries,
+// never less than StateDataMax. The daemon sizes its guard on an undecoded
+// request with it, and ze-plugin-engine.yang models it as the state-data
+// length (TestStateDataYANGLengthIsTheLargestBound compares the two).
+func StateDataLargest() int {
+	return max(StateDataMax, zefs.ValueMaxLargest())
 }

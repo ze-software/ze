@@ -1,0 +1,165 @@
+# Test: a BGP commit naming an AS-SET with nothing stored makes the irr plugin fetch and store it
+# Initial config: peer1 has no IRR as-set and no import filter.
+# After SIGHUP:   peer1 gains `irr { as-set AS-TEST }`, an IRR import filter
+#                 with final accept, and a sentinel route.
+# Expected: the commit succeeds; the irr plugin fetches AS-TEST right after it
+#           and logs the stored dataset; 10.0.0.0/24, sent by the peer after the
+#           reload, is accepted against AS-TEST.
+#
+# VALIDATES: spec-fetched-data-survives-restart AC-5 (not stored: the commit
+#            succeeds, the owner fetches right after, stores it, the consumer
+#            publishes on the notice)
+# PREVENTS: a commit-time AS-SET that only the BGP filter's memory ever holds
+# WIRING: BGP commit adding an unstored AS-SET -> interest notice, owner fetch, readmit
+#
+# Red until the irr plugin stores datasets: it never logs "irr dataset stored".
+#
+# ORDERING: as in bgp-filter-irr-first-add-live.ci, the sentinel route announced
+# by the reload orders the peer's UPDATE after it.
+
+option=env:var=ze.log.bgp.filter.irr:value=info
+option=env:var=ze.log.irr:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+
+# Connection 1: ze has nothing to announce at boot, so it sends End-of-RIB alone.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Rewrite the config with the IRR filter and the sentinel route, then SIGHUP.
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+
+# The sentinel: 192.168.1.0/24 from AS 65000, next-hop 10.0.0.1.
+#   ORIGIN 40010100, AS_PATH 40020602010000FDE8 (AS_SEQ [65000]),
+#   NEXT_HOP 4003040A000001, NLRI 18C0A801
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE84003040A00000118C0A801
+
+# UPDATE from AS 65001 carrying 10.0.0.0/24, in AS-TEST.
+#   ORIGIN 40010100, AS_PATH 40020602010000FDE9 (AS_SEQ [65001]),
+#   NEXT_HOP 40030401010101, NLRI 180A0000
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# policy irr server keeps the BGP filter's own fetch on the mock while the
+# filter still fetches for itself; the leaf and this block go when it stops.
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+policy {
+	irr { server 127.0.0.1:$PORT2; }
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config: the IRR as-set, the import filter and the sentinel route are
+# the only differences.
+tmpfs=config2.conf:terminator=EOF_CONF2
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+policy {
+	irr { server 127.0.0.1:$PORT2; }
+}
+
+bgp {
+	# RFC 8212: an EBGP direction with no policy is refused; this test exchanges routes.
+	filter {
+		import { final accept; }
+		export { final accept; }
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+			irr {
+				as-set AS-TEST
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		filter {
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+# Wait for the filter's decision on the peer's UPDATE before the runner stops the
+# daemon. Either decision ends the wait; the assertions below say which it was.
+await=stderr:contains=msg="irr filter
+expect=stderr:pattern=msg="irr dataset stored".*as-set=AS-TEST
+expect=stderr:pattern=irr filter accept
+expect=stderr:pattern=filter=65001
+reject=stderr:pattern=irr filter reject
+reject=stderr:pattern=peer restart required
+reject=stderr:pattern=panic

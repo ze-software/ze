@@ -50,6 +50,7 @@ flow-export
 geodns
 imageserver
 interface
+irr
 isis
 kernel
 l2tp-auth-local

@@ -8,18 +8,31 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/policy"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func init() {
+	// The filter tells the irr plugin what it enforces through its own interest
+	// key, meta/irr-interest/bgp-filter-irr, and no other consumer's; it reads
+	// the datasets, pointers, bindings and generation the irr plugin writes
+	// (docs/architecture/irr-owner.md).
+	statestore.RegisterPluginKeyInstance(pluginName, zefs.KeyIRRInterest, pluginName)
+	statestore.RegisterPluginReadKeys(pluginName,
+		zefs.KeyIRRDataset, zefs.KeyIRRSet, zefs.KeyIRRASN, zefs.KeyIRRGeneration)
+
 	reg := registry.Registration{
-		Name:         pluginName,
-		Description:  "IRR-based prefix-list filter for eBGP peers",
-		Features:     "yang",
-		YANG:         firryang.ZeFilterIrrYANG,
-		ConfigRoots:  []string{configRootBGP},
-		ConfigReads:  []string{policy.RootName},
-		Dependencies: []string{configRootBGP, policy.PluginName},
+		Name:        pluginName,
+		Description: "IRR-based prefix-list filter for eBGP peers",
+		Features:    "yang",
+		YANG:        firryang.ZeFilterIrrYANG,
+		ConfigRoots: []string{configRootBGP},
+		ConfigReads: []string{policy.RootName},
+		// The irr plugin fetches and stores the lists this filter enforces, so it
+		// starts whenever the filter runs, and before it.
+		Dependencies: []string{configRootBGP, policy.PluginName, store.OwnerPlugin},
 		RunEngine:    runFilterIRR,
 		Commands:     commandDecls(),
 		Filters:      filterDecls(), // the Stage 1 declaration: config load knows irr serves filters

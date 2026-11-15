@@ -1938,23 +1938,43 @@ subscribing to interface events or opening a packet transport.
 The daemon routes all five operations through `engineOps` on both the JSON
 connection and `DirectBridge`. It uses the lifetime-owned `storage.Storage`
 registered in `statestore`; a plugin never obtains that handle over the wire.
-The owning compiled plugin grants its registered key patterns with
-`statestore.RegisterPluginKeys`. Requests use the daemon's configured process
-name as identity. A request cannot choose another owner or grant itself access
-to credentials. Template parameters match one path segment, and a list returns
-only keys that the caller can read. The daemon's key commands `delete data key`
-and `update data key` read the same grants by the same process name
-(`statestore.PluginKeyOwners`) and refuse a key while a plugin granted it runs,
-so a plugin run under another name neither holds the grant nor trips that
-refusal.
+Grants come from compiled registration and come in three kinds:
 
-`StateInput.key` is bounded to 512 bytes. Values carry at most one MiB and use
-base64 in JSON. That is more than an operator can write back through the
-daemon: `update data key` carries at most 195,840 bytes, because the command
-and its content travel in one SSH packet. A larger value a plugin wrote is
-rewritten with `ze data write <key> <file>` while ze is stopped, which the
-refusal names. Lists return at most 4096 keys; excess fails rather than
-returning a partial result. `ze-plugin-engine.yang` models the same bounds.
+| Grant | Registered with | Admits |
+|-------|-----------------|--------|
+| Write | `statestore.RegisterPluginKeys(owner, keys...)` | get, list, put, remove and increment on every instance of each pattern |
+| Read | `statestore.RegisterPluginReadKeys(reader, keys...)` | get and list only: put, remove and increment are refused. A plugin reads another plugin's keys this way (the IRR consumers read what the `irr` plugin stores) |
+| One instance | `statestore.RegisterPluginKeyInstance(owner, key, params...)` | write access to the one key `key.Key(params...)` and no other instance of the pattern. A plugin whose key names the plugin itself takes it, so it cannot write the key of another plugin sharing the template (`meta/irr-interest/{consumer}`) |
+
+The dispatcher picks the grant by the operation: `state-get` and `state-list`
+need a read or a write grant (`statestore.PluginKeyReadable`), and
+`state-put`, `state-remove` and `state-increment` need a write grant
+(`statestore.PluginKeyWritable`). Requests use the daemon's configured process
+to credentials. Template parameters match one path segment
+(`zefs.KeyEntry.Matches`), and a list returns only keys that the caller can
+read. The daemon's key commands `delete data key` and `update data key` read
+the same grants by the same process name (`statestore.PluginKeyOwners`, which
+names write grants only) and refuse a key while a plugin granted it runs, so a
+plugin run under another name neither holds the grant nor trips that refusal,
+and a plugin that only reads a key does not block it.
+
+`StateInput.key` is bounded to 512 bytes. A value is bounded by its key's
+registration: one MiB (`rpc.StateDataMax`) unless the key's `zefs.KeyEntry`
+declares its own `ValueMax`. The IRR dataset key
+`meta/irr-data/{server}/{as-set}` declares 12,000,000 bytes, which travel as
+16,000,000 bytes of base64 inside the 16 MiB message. The SDK
+(`rpc.ValidateStateInput` before sending, the result check after) and the
+daemon (`stateInput` on every request, `opStateGet` on the stored value) apply
+the same bound, read by `rpc.StateDataMaxFor`; one byte over refuses the
+request on either side. Values use base64 in JSON. A default-bound value is
+more than an operator can write back through the daemon: `update data key`
+carries at most 195,840 bytes, because the command and its content travel in
+one SSH packet. A larger value a plugin wrote is rewritten with
+`ze data write <key> <file>` while ze is stopped, which the refusal names.
+Lists return at most 4096 keys; excess fails rather than returning a partial
+result. `ze-plugin-engine.yang` models the key and list bounds, and its
+state-data length is the largest declared value bound (`rpc.StateDataLargest`,
+compared by `TestStateDataYANGLengthIsTheLargestBound`).
 `StateOutput.status` explicitly names `ok`, `absent`, `unavailable`, `corrupt`,
 `read-failed`, or `persist-failed`. Only a successful mutation returns `ok`.
 `StateGet` turns `absent` into `found=false` with no error; failed outcomes
@@ -1984,9 +2004,9 @@ A disk mutation already in progress is completed by the daemon. Cancellation or
 a lost reply leaves the caller without an acknowledgement, even if the mutation
 committed; callers cannot infer that an increment is safe to retry.
 
-<!-- source: pkg/plugin/rpc/state.go -- StateInput, StateOutput, StateError -->
-<!-- source: pkg/plugin/sdk/sdk_state.go -- stateCall, StateIncrement -->
-<!-- source: internal/component/plugin/server/dispatch_state.go -- stateInput, opStateGet, opStatePut -->
+<!-- source: pkg/plugin/rpc/state.go -- StateInput, StateOutput, StateError, StateDataMaxFor, StateDataLargest -->
+<!-- source: internal/component/plugin/server/dispatch_state.go -- stateInput, stateAccess, opStateGet, opStatePut -->
+<!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, RegisterPluginReadKeys, RegisterPluginKeyInstance, PluginKeyReadable, PluginKeyWritable, PluginKeyOwners -->
 <!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, PluginList, PluginKeyOwners -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- runningOwnerError -->
 <!-- source: internal/core/statestore/statestore.go -- Increment, Read, Write, shared -->

@@ -1,0 +1,77 @@
+# Test: BGP and the firewall naming one AS-SET cost one fetch and one stored dataset
+# VALIDATES: spec-fetched-data-survives-restart AC-8 (one fetch, one dataset key, both consumers enforce it)
+# PREVENTS: two fetchers on two schedules writing one key
+# WIRING: BGP and firewall naming one AS-SET -> one owner fetch, notice to both
+#
+# Method: le mock irr logs every whois query; the observer
+# (internal/test/fixture/irr_owner_fixture.go) waits for the stored AS-TEST,
+# requires show irr to name both consumers and each consumer's show to name
+# the set, then requires exactly one !a4AS-TEST query.
+#
+# Red until the irr plugin stores datasets: show irr answers "not available yet".
+
+option=storage:value=disk
+# This test programs nftables, so it needs CAP_NET_ADMIN, and it shares the
+# node-wide ruleset with every other firewall-irr test (firewall-irr-update.ci).
+option=needs-linux:caps=net-admin
+option=exclusive:group=firewall-irr-nft
+option=env:var=ze.log.irr:value=debug
+option=timeout:value=40s
+
+# The policy irr and firewall irr server leaves keep the consumers' own fetches
+# on the mock while they still fetch for themselves; they go when they stop.
+stdin=ze-irr:terminator=EOF_CONF
+plugin {
+	external irr-shared-dataset-test {
+		run "le test fixture plugin/irr-shared-dataset"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+policy {
+	irr { server 127.0.0.1:$PORT2; }
+}
+firewall {
+	backend nft;
+	irr { server 127.0.0.1:$PORT2; }
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term from-as-test {
+				from { source-as-set AS-TEST; }
+				then { accept; }
+			}
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			irr { as-set AS-TEST; }
+		}
+		filter {
+			export { final accept; }
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr --plugin ze.bgp-filter-irr -:stdin=ze-irr:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: one fetch of AS-TEST serves both consumers
+reject=stderr:pattern=panic

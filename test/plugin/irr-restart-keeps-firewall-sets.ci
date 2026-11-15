@@ -1,0 +1,83 @@
+# Test: a restart programs the firewall IRR set from the stored dataset with no whois query
+# VALIDATES: spec-fetched-data-survives-restart AC-2 (same prefixes before any query, zero queries, no uncached WARN)
+# PREVENTS: a reboot changing a firewall set because the list was fetched again
+# WIRING: daemon restart with a stored dataset -> consumer OnStarted read, applyTables
+#
+# Method: the same daemon block runs twice, so both starts share its directory
+# and its store (ci-format.md, "Where the block goes"). A foreground ze does
+# not block the next step, so `le test fixture daemon/await-exit` holds the
+# restart until the first daemon has exited and released the store
+# (docs/functional-tests.md, the daemon/await-exit barrier). Each OK line sits
+# under the start that prints it. le mock irr logs every whois query
+# to irr-queries.log; the observer (internal/test/fixture/irr_owner_fixture.go)
+# waits for the stored dataset in the first run and records the query count
+# and refreshed-at, and the second run requires both unchanged while show
+# firewall irr names AS-TEST.
+#
+# Red until the irr plugin stores datasets: show irr answers "not available yet".
+
+option=storage:value=disk
+# This test programs nftables, so it needs CAP_NET_ADMIN, and it shares the
+# node-wide ruleset with every other firewall-irr test (firewall-irr-update.ci).
+option=needs-linux:caps=net-admin
+option=exclusive:group=firewall-irr-nft
+option=env:var=ze.log.irr:value=debug
+option=env:var=ze.log.firewall.irr:value=debug
+option=timeout:value=60s
+
+# firewall irr server keeps the firewall's own fetch on the mock while it
+# still fetches for itself; the leaf goes when it stops.
+stdin=ze-irr:terminator=EOF_CONF
+plugin {
+	external irr-restart-keeps-firewall-sets-test {
+		run "le test fixture plugin/irr-restart-keeps-firewall-sets"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+firewall {
+	backend nft;
+	irr { server 127.0.0.1:$PORT2; }
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term from-as-test {
+				from { source-as-set AS-TEST; }
+				then { accept; }
+			}
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+# The steps carry no timeout=: a foreground timeout= replaces the whole test
+# budget, and both starts and the barrier share the 60s above.
+cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-irr
+expect=stderr:pattern=OK: first run stored AS-TEST
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit
+cmd=foreground:seq=4:exec=ze --plugin ze.firewall-irr -:stdin=ze-irr
+expect=exit:code=0
+expect=stderr:pattern=OK: restart enforced the stored AS-TEST with no IRR query
+reject=stderr:pattern=no cached prefix data
+reject=stderr:pattern=references unknown set
+reject=stderr:pattern=panic

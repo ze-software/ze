@@ -294,8 +294,29 @@ cannot tell then whether the owner runs.
 
 ## Key Registry
 
-All known key patterns are registered in `pkg/zefs/keys.go` via `MustRegister()`, following the same pattern as `env.MustRegister()` for environment variables. Each `KeyEntry` has a Pattern, Description, and Private flag.
+All known key patterns are registered in `pkg/zefs/keys.go` via `MustRegister()`, following the same pattern as `env.MustRegister()` for environment variables. Each `KeyEntry` has a Pattern, Description, Private flag, and ValueMax.
 <!-- source: pkg/zefs/registry.go -- MustRegister, KeyEntry -->
+
+ValueMax is the bound, in bytes, of a value a plugin reads or writes under the
+key through the plugin state RPCs. Zero takes those RPCs' default of one MiB
+(`rpc.StateDataMax`). One key declares more: `meta/irr-data/{server}/{as-set}`
+holds a whole IRR prefix list and declares `IRRDatasetValueMax`, 12,000,000
+bytes, which is 500,000 IPv4 and 500,000 IPv6 prefixes at their widest plus
+the header. Its base64 form, 16,000,000 bytes, still fits one RPC message
+(`rpc.MaxMessageSize`, 16 MiB) with its envelope. The bound is declared once,
+on the registration: `rpc.StateDataMaxFor` reads it for the SDK and the
+daemon, and `ze-plugin-engine.yang` models the largest one
+([process protocol](api/process-protocol.md), "Persistent runtime state"). The
+store itself bounds no value by key.
+<!-- source: pkg/zefs/keys.go -- IRRDatasetValueMax, KeyIRRDataset -->
+<!-- source: pkg/plugin/rpc/state.go -- StateDataMaxFor, StateDataLargest -->
+
+`KeyEntry.Matches` is the one rule that says whether a concrete key is an
+instance of a pattern: literal parts match exactly and each `{param}` matches
+one or more bytes of a single path segment. `zefs.Lookup` uses it to find the
+entry a concrete key instantiates (a fixed pattern equal to the key first),
+and the plugin state grants in `statestore` judge a key with the same method.
+<!-- source: pkg/zefs/registry.go -- KeyEntry.Matches, Lookup, ValueMaxLargest -->
 <!-- source: pkg/zefs/keys.go -- registered key definitions -->
 
 Local bootstrap credentials use `meta/auth/local/username`, `password` and

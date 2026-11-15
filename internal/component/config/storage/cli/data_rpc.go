@@ -433,8 +433,9 @@ func configurationKeyError(commandPath, key string) *opererr.Error {
 		usageUpdateDataConfig)
 }
 
-// keyOwners answers the plugin process names granted a store key, and
-// pluginStates answers the running plugin server's state. They are variables
+// keyOwners answers the plugin process names granted write access to a store
+// key (a plugin that only reads it is no owner, so it never blocks an operator
+// write), and pluginStates answers the running plugin server's state. They are variables
 // only so a test can stand in for the grants and the server; the daemon reads
 // the real registries. Both answer value types, so the guard below holds no
 // handle on a plugin and works the same for a plugin that runs in another

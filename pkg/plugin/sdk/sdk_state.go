@@ -72,8 +72,10 @@ func (p *Plugin) stateCall(ctx context.Context, method string, in rpc.StateInput
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return rpc.StateOutput{}, fmt.Errorf("decode state result: %w", err)
 	}
-	if len(out.Data) > rpc.StateDataMax {
-		return rpc.StateOutput{}, fmt.Errorf("state result exceeds %d bytes", rpc.StateDataMax)
+	// The key's declared bound, the same one ValidateStateInput applied to the
+	// request: a value read back is held to what could have been written.
+	if limit := rpc.StateDataMaxFor(in.Key); len(out.Data) > limit {
+		return rpc.StateOutput{}, fmt.Errorf("state result for %s is %d bytes, over its %d-byte bound", in.Key, len(out.Data), limit)
 	}
 	if len(out.Keys) > rpc.StateListMax {
 		return rpc.StateOutput{}, fmt.Errorf("state result exceeds %d keys", rpc.StateListMax)

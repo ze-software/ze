@@ -152,6 +152,16 @@ func runFirewallIRR(conn net.Conn) int {
 	// store, so the store answers clear irr cache and clear peeringdb cache.
 	p.OnResolverCacheClear(store.ResolverCaches(), plug.clearResolverCache)
 
+	// The irr plugin's notice of a stored dataset. Subscribed at stage 5,
+	// before any event flows, so a notice sent between the subscription and
+	// the OnStarted read is delivered. The handler only acknowledges it: this
+	// plugin does not read the stored dataset yet and still fetches for itself.
+	p.AddStartupSubscriptionsIn(store.NoticeNamespace, []string{store.EventDatasetStored})
+	p.OnEvent(func(event string) error {
+		logger().Debug("irr dataset notice received, not read yet", "event", event)
+		return nil
+	})
+
 	if err := p.Run(ctx, &sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRoot},

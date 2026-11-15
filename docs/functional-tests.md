@@ -4012,7 +4012,12 @@ normally. It models an IRR server that is slow when ze starts, which is how
 `test/plugin/filter-wire-irr-unresolved.ci` gets an UPDATE judged before the
 first resolution completes.
 
-Usage: `le mock irr --port 4343 [--empty-after-first] [--fail-first N] [--delay-first D]`
+`--query-log FILE` appends every query the mock receives to FILE, one line
+each, before it answers. A relative FILE lands in the test's work directory,
+where an observer counts the lines: it is how `test/plugin/irr-restart-keeps-bgp-list.ci`
+proves a restart sent no whois query (`internal/test/fixture/irr_owner_fixture.go`).
+
+Usage: `le mock irr --port 4343 [--empty-after-first] [--fail-first N] [--delay-first D] [--query-log FILE]`
 
 <!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 

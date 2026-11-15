@@ -1,0 +1,64 @@
+module ze-irr-conf {
+    namespace "urn:ze:irr:conf";
+    prefix irr;
+
+    import ze-system-conf { prefix sys; }
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "Where and when the irr plugin fetches IRR data. The plugin fetches,
+                 schedules and stores the prefix list of every AS-SET a consumer
+                 (bgp-filter-irr, firewall-irr) enforces, and the consumers read
+                 what it stored. The PeeringDB endpoint it asks for the AS-SET of a
+                 bare ASN is system peeringdb url.";
+
+    revision 2026-11-15 {
+        description "Initial revision";
+    }
+
+    augment "/sys:system" {
+        container irr {
+            description "One server, one source address and one refresh period serve every
+                         consumer, so an AS-SET that BGP and the firewall both name is
+                         fetched once and stored once. A stored list is loaded at start
+                         and is not fetched again until its refresh is due.";
+            ze:help "IRR server and refresh settings for every IRR consumer.";
+
+            leaf server {
+                type string {
+                    length "1..255";
+                    pattern '[A-Za-z0-9._:\[\]\-]+';
+                }
+                default "whois.radb.net";
+                description "Ze speaks whois to the server and adds port 43 when the value
+                             carries no port. A dataset is stored per server, so changing
+                             the server fetches every referenced AS-SET from the new one,
+                             and the old server's list stays enforced until the new one is
+                             stored.";
+                ze:help "IRR whois server hostname or host:port.";
+            }
+
+            leaf source-address {
+                type zt:ip-address;
+                description "Ze binds the address on the whois connection only. When the
+                             leaf is absent, the kernel picks the source address of the
+                             route to the server.";
+                ze:help "Source IP address for outbound IRR whois connections.";
+            }
+
+            leaf refresh-interval {
+                type uint32 {
+                    range "0 | 60..86400";
+                }
+                default "3600";
+                units "seconds";
+                description "Each stored dataset is fetched again this long after the server
+                             last answered for it. 0 means manual only: no automatic
+                             refresh, while an AS-SET with nothing stored is still fetched
+                             once at once, and update irr fetches on demand. A failed
+                             fetch keeps the stored list and is retried every minute.";
+                ze:help "Seconds between automatic IRR refreshes (0 = manual only).";
+            }
+        }
+    }
+}

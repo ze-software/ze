@@ -411,19 +411,24 @@ parses to one 32-bit value. A spelling that parses to no AS number is refused.";
 
         container irr {
             config false;
-            description "Each owner of an IRR client clears the client it uses now: the hub
-clears the one resolve irr uses, and every plugin that declared the IRR cache, such as
-bgp-filter-irr and firewall-irr, clears its own, whether it runs inside the daemon or as its
-own process. A client an owner replaced on a reload is not cleared or counted. The stored
-prefix lists those filters apply are not a cache and stay. Nothing here reaches the
-network.";
-            ze:help "IRR client cache clearing operations.";
+            // Shared with ze-irr-cmd.yang (internal/plugins/irr), which hangs
+            // clear irr asn and clear irr as-set under the same node. The
+            // command-tree merge warns on a mismatch, so the text is repeated
+            // verbatim in both modules.
+            description "clear irr cache empties the IRR client caches, and stored datasets
+stay. clear irr asn and clear irr as-set remove a stored dataset the irr plugin
+keeps. Nothing here reaches the network.";
+            ze:help "Clear IRR client caches or stored IRR datasets.";
 
             container cache {
                 config false;
-                description "The cache holds the members and the prefix list of each AS-SET for
-one hour. Name what to clear: all, or as-set followed by a name. The bare form clears
-nothing.";
+                description "Each owner of an IRR client clears the client it uses now: the hub
+clears the one resolve irr uses, and every plugin that declared the IRR cache, such as
+bgp-filter-irr and firewall-irr, clears its own, whether it runs inside the daemon or as its
+own process. A client an owner replaced on a reload is not cleared or counted. The stored
+prefix lists are not a cache and stay. The cache holds the members and the prefix list of
+each AS-SET for one hour. Name what to clear: all, or as-set followed by a name. The bare
+form clears nothing.";
                 ze:help "Clear the IRR cache: give all, or as-set <name>.";
 
                 container all {

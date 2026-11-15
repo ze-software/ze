@@ -32,7 +32,7 @@ func isolateGrants(t *testing.T) {
 // a templated grant, a template parameter that would span two segments, a key
 // two names are granted (registered out of order, answered sorted), and a key
 // no grant admits, whose answer is empty. Each case also checks that
-// PluginKeyAllowed agrees with the answer for every registered name, since the
+// PluginKeyWritable agrees with the answer for every registered name, since the
 // two readers must judge a grant by the same rule.
 func TestPluginKeyOwners(t *testing.T) {
 	type grant struct {
@@ -91,9 +91,9 @@ func TestPluginKeyOwners(t *testing.T) {
 				t.Fatalf("PluginKeyOwners(%q) = %q, want %q", tc.key, got, tc.want)
 			}
 			for _, g := range tc.grants {
-				allowed := PluginKeyAllowed(g.owner, tc.key)
+				allowed := PluginKeyWritable(g.owner, tc.key)
 				if allowed != slices.Contains(tc.want, g.owner) {
-					t.Fatalf("PluginKeyAllowed(%q, %q) = %v, disagrees with owners %q", g.owner, tc.key, allowed, got)
+					t.Fatalf("PluginKeyWritable(%q, %q) = %v, disagrees with owners %q", g.owner, tc.key, allowed, got)
 				}
 			}
 		})

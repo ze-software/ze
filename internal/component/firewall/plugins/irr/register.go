@@ -7,6 +7,7 @@ import (
 	irryang "github.com/ze-software/ze/internal/component/firewall/plugins/irr/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -22,16 +23,25 @@ const (
 )
 
 func init() {
+	// meta/irr-interest/firewall-irr tells the irr plugin what this plugin
+	// enforces, and it writes no other consumer's interest key; it reads the
+	// datasets, pointers, bindings and generation the irr plugin writes
+	// (docs/architecture/irr-owner.md).
 	statestore.RegisterPluginKeys("firewall-irr", zefs.KeyIRRPrefixCache, zefs.KeyIRRCache)
+	statestore.RegisterPluginKeyInstance("firewall-irr", zefs.KeyIRRInterest, "firewall-irr")
+	statestore.RegisterPluginReadKeys("firewall-irr",
+		zefs.KeyIRRDataset, zefs.KeyIRRSet, zefs.KeyIRRASN, zefs.KeyIRRGeneration)
 	registerIRRDoctor()
 
 	reg := registry.Registration{
-		Name:         "firewall-irr",
-		Description:  "IRR-based prefix-list filtering for firewall rules",
-		Features:     "yang",
-		YANG:         irryang.ZeFirewallIrrYANG,
-		ConfigRoots:  []string{configRoot},
-		Dependencies: []string{dependencyFirewall},
+		Name:        "firewall-irr",
+		Description: "IRR-based prefix-list filtering for firewall rules",
+		Features:    "yang",
+		YANG:        irryang.ZeFirewallIrrYANG,
+		ConfigRoots: []string{configRoot},
+		// The irr plugin fetches and stores the lists this plugin enforces, so
+		// it starts whenever this plugin runs, and before it.
+		Dependencies: []string{dependencyFirewall, store.OwnerPlugin},
 		RunEngine:    runFirewallIRR,
 		Commands:     commandDecls(),
 		ConfigureMetrics: func(reg metrics.Registry) {

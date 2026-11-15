@@ -202,6 +202,12 @@ ze-ike:show-vpn-ipsec-dataplane-sa
 ze-ike:show-vpn-ipsec-peer
 ze-ike:show-vpn-ipsec-sa
 ze-ike:show-vpn-ipsec-status
+ze-irr:clear-irr-as-set
+ze-irr:clear-irr-asn
+ze-irr:show-irr
+ze-irr:update-irr-all
+ze-irr:update-irr-as-set
+ze-irr:update-irr-asn
 ze-isis:clear-adjacency
 ze-isis:clear-counters
 ze-isis:show-database

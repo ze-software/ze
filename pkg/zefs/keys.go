@@ -69,6 +69,29 @@ var (
 	KeyCAKey  = MustRegister(KeyEntry{Pattern: "meta/ca/key", Description: "Local CA root private key (PEM)", Private: true})
 )
 
+// The IRR data the irr plugin (internal/plugins/irr) fetches, schedules and
+// stores, so a restart enforces the lists it enforced before. The plugin is
+// the only writer of the dataset, pointer, binding and generation keys;
+// bgp-filter-irr and firewall-irr read them, and each consumer writes its own
+// interest key, which tells the owner what to fetch
+// (docs/architecture/irr-owner.md). A pointer is written only after the
+// dataset it names, so a consumer never reads a pointer to nothing.
+//
+// IRRDatasetValueMax bounds one dataset value: 500,000 IPv4 prefixes at five
+// bytes and 500,000 IPv6 prefixes at seventeen bytes are 11,000,000 bytes, and
+// the header and digest fit in what is left. Its base64 form is 16,000,000
+// bytes, which leaves room for the JSON envelope inside the 16 MiB RPC message
+// (rpc.MaxMessageSize).
+const IRRDatasetValueMax = 12_000_000
+
+var (
+	KeyIRRDataset    = MustRegister(KeyEntry{Pattern: "meta/irr-data/{server}/{as-set}", Description: "IRR prefix dataset of one AS-SET from one server (binary, digest-checked)", ValueMax: IRRDatasetValueMax})
+	KeyIRRSet        = MustRegister(KeyEntry{Pattern: "meta/irr-set/{as-set}", Description: "The IRR dataset currently enforced for one AS-SET (JSON pointer)"})
+	KeyIRRASN        = MustRegister(KeyEntry{Pattern: "meta/irr-asn/{asn}", Description: "The AS-SET PeeringDB named for a bare ASN (JSON)"})
+	KeyIRRGeneration = MustRegister(KeyEntry{Pattern: "meta/irr-generation", Description: "IRR dataset generation, raised on every pointer write or removal (4-byte counter)"})
+	KeyIRRInterest   = MustRegister(KeyEntry{Pattern: "meta/irr-interest/{consumer}", Description: "The AS-SETs and ASNs one IRR consumer enforces (JSON)"})
+)
+
 // A support archive the daemon collected for a caller in another process,
 // which `show data cat <key>` reads back (internal/component/support
 // storeAnswer). The archive redacts secrets, as every archive does, so the

@@ -32,6 +32,10 @@ func Run(args []string) int {
 	fs.DurationVar(&delayFirst, "delay-first", 0,
 		"hold the answer to the first query for this long, then answer it normally")
 
+	var queryLogPath string
+	fs.StringVar(&queryLogPath, "query-log", "",
+		"append every query received to this file, one line each, so a test can count them")
+
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: le mock irr [flags]
 
@@ -65,6 +69,10 @@ as usual. It models an IRR server that is slow when ze starts, which is the
 case where an UPDATE arrives before the first resolution and must be judged
 without waiting for it.
 
+With -query-log FILE, every query is appended to FILE, one line each, before
+it is answered. It is how a test proves a restart sent no query: the file
+does not grow while the daemon starts again over its stored lists.
+
 Flags:
 `)
 		fs.PrintDefaults()
@@ -73,6 +81,18 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
+
+	// A nil queryLog records nothing: -query-log was not given.
+	var queries *queryLog
+	if queryLogPath != "" {
+		opened, err := openQueryLog(queryLogPath)
+		if err != nil {
+			_, _ = os.Stderr.WriteString("error: query log: " + err.Error() + "\n")
+			return 1
+		}
+		queries = opened
+	}
+	defer queries.close()
 
 	lc := &net.ListenConfig{}
 	ln, err := lc.Listen(context.Background(), "tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
@@ -99,8 +119,46 @@ Flags:
 		if acceptErr != nil {
 			return 0
 		}
-		go handleIRRConn(conn, answered, failing, slow)
+		go handleIRRConn(conn, answered, failing, slow, queries)
 	}
+}
+
+// queryLog appends each query the mock receives to a file (-query-log). A nil
+// queryLog records nothing: the flag was not given. Safe for concurrent use:
+// each connection is served on its own goroutine.
+type queryLog struct {
+	mu   sync.Mutex
+	file *os.File
+}
+
+// openQueryLog opens path for appending. The caller passes a non-empty path.
+func openQueryLog(path string) (*queryLog, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // the path is the test's own -query-log argument
+	if err != nil {
+		return nil, err
+	}
+	return &queryLog{file: file}, nil
+}
+
+// record appends one query line. A failed write is reported on stderr and the
+// query is still answered: the test that reads the file fails on the count.
+func (l *queryLog) record(query string) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if _, err := l.file.WriteString(query + "\n"); err != nil {
+		_, _ = os.Stderr.WriteString("le mock irr: query log write: " + err.Error() + "\n")
+	}
+}
+
+// close releases the file. Safe on a nil queryLog.
+func (l *queryLog) close() {
+	if l == nil {
+		return
+	}
+	_ = l.file.Close()
 }
 
 // irrResponses maps an RPSL query to its answer. A query absent from the map
@@ -164,7 +222,7 @@ func (s *slowFirst) wait() {
 	time.Sleep(s.delay)
 }
 
-func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget, slow *slowFirst) {
+func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget, slow *slowFirst, queries *queryLog) {
 	defer func() { _ = conn.Close() }()
 
 	buf := make([]byte, 4096)
@@ -174,6 +232,7 @@ func handleIRRConn(conn net.Conn, answered *servedQueries, failing *failBudget, 
 	}
 
 	query := strings.TrimSpace(string(buf[:n]))
+	queries.record(query)
 
 	response, ok := irrResponses[query]
 	if !ok || (answered != nil && !answered.firstTime(query)) {

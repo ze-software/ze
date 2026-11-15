@@ -1,0 +1,67 @@
+# Test: a first start with nothing stored fetches each referenced AS-SET once and stores it
+# VALIDATES: spec-fetched-data-survives-restart AC-6 (one cold fetch, stored), AC-1 (the restart sends no query)
+# PREVENTS: a start that fetches again what it already stored
+# WIRING: first start, nothing stored -> interest key, owner cold fetch, notice
+#
+# Method: the same daemon block runs twice, so both starts share its directory
+# and its store (ci-format.md, "Where the block goes"). A foreground ze does
+# not block the next step, so `le test fixture daemon/await-exit` holds the
+# restart until the first daemon has exited and released the store
+# (docs/functional-tests.md, the daemon/await-exit barrier). Each OK line sits
+# under the start that prints it. le mock irr logs every whois query
+# to irr-queries.log; the observer (internal/test/fixture/irr_owner_fixture.go)
+# waits for the stored dataset in the first run, requires exactly one
+# !a4AS-TEST query, and records the query count and refreshed-at; the second
+# run requires both unchanged.
+#
+# Red until the irr plugin stores datasets: show irr answers "not available yet".
+
+option=storage:value=disk
+option=env:var=ze.log.irr:value=debug
+option=timeout:value=60s
+
+# policy irr server keeps the BGP filter's own fetch on the mock while the
+# filter still fetches for itself; the leaf and this block go when it stops.
+stdin=ze-irr:terminator=EOF_CONF
+plugin {
+	external irr-cold-start-stores-test {
+		run "le test fixture plugin/irr-cold-start-stores"
+		encoder json
+	}
+}
+system {
+	irr { server 127.0.0.1:$PORT2; }
+}
+policy {
+	irr { server 127.0.0.1:$PORT2; }
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65001; }
+			router-id 1.2.3.4;
+			family { ipv4/unicast { prefix { maximum 10000; } } }
+			irr { as-set AS-TEST; }
+		}
+		filter {
+			export { final accept; }
+			import { filters [ bgp-filter-irr:65001 ]; final accept; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le mock irr --port $PORT2 --query-log irr-queries.log
+# The steps carry no timeout=: a foreground timeout= replaces the whole test
+# budget, and both starts and the barrier share the 60s above.
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-irr
+expect=stderr:pattern=OK: first run stored AS-TEST
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-irr -:stdin=ze-irr
+expect=exit:code=0
+expect=stderr:pattern=OK: restart enforced the stored AS-TEST with no IRR query
+reject=stderr:pattern=panic

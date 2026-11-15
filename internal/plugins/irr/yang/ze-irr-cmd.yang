@@ -1,0 +1,128 @@
+module ze-irr-cmd {
+    namespace "urn:ze:irr:cmd";
+    prefix irrcmd;
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+    // The handlers fetch, store and remove IRR datasets, so the irr plugin owns
+    // these command nodes: removing the plugin removes them with their handlers
+    // and its config schema. See ai/rules/plugins.md.
+    description "The show irr, update irr and clear irr asn|as-set command trees, owned by the irr plugin.";
+    revision 2026-11-15 { description "Initial revision."; }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+
+        container irr {
+            config false;
+            ze:command "ze-irr:show-irr";
+            description "One row per stored AS-SET: the server it came from, the prefix
+counts, when the server last answered, when the next refresh is due, and the
+consumers that enforce it. With refresh-interval 0 the schedule reads manual.";
+            ze:help "Show the stored IRR datasets and their refresh schedule.";
+        }
+    }
+
+    container update {
+        config false;
+
+        container irr {
+            config false;
+            description "The fetch reaches the IRR server over the network, stores the
+answer, and tells every consumer that enforces the AS-SET. A failed fetch keeps the
+stored list in place rather than emptying it.";
+            ze:help "Fetch IRR datasets now.";
+
+            container all {
+                config false;
+                ze:command "ze-irr:update-irr-all";
+                description "Fetches every AS-SET a consumer enforces, and answers the counts
+of each one.";
+                ze:help "Fetch every referenced IRR dataset now.";
+            }
+
+            container asn {
+                config false;
+                ze:command "ze-irr:update-irr-asn";
+                description "Asks PeeringDB for the AS-SET of the AS number, stores that
+binding, then fetches and stores the AS-SET's prefixes.";
+                ze:help "Fetch the IRR dataset of an AS number now.";
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The AS number in plain decimal or in asdot notation, which Ze parses to
+one 32-bit value. A spelling that parses to no AS number is refused.";
+                    ze:help "AS number.";
+                }
+            }
+
+            container as-set {
+                config false;
+                ze:command "ze-irr:update-irr-as-set";
+                description "Fetches and stores the prefixes of one AS-SET. A firewall commit
+naming an AS-SET with nothing stored is refused until this has run.";
+                ze:help "Fetch the IRR dataset of an AS-SET now.";
+                leaf as-set {
+                    type string {
+                        length "1..255";
+                        pattern '[A-Za-z0-9_.:\-]+';
+                    }
+                    mandatory true;
+                    description "The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE.
+Letters, digits, hyphen, underscore, colon and period are accepted.";
+                    ze:help "AS-SET name.";
+                }
+            }
+        }
+    }
+
+    container clear {
+        config false;
+
+        container irr {
+            config false;
+            // Shared with ze-resolve-cmd.yang, which hangs clear irr cache under
+            // the same node. The command-tree merge warns on a mismatch, so the
+            // text is repeated verbatim in both modules.
+            description "clear irr cache empties the IRR client caches, and stored datasets
+stay. clear irr asn and clear irr as-set remove a stored dataset the irr plugin
+keeps. Nothing here reaches the network.";
+            ze:help "Clear IRR client caches or stored IRR datasets.";
+
+            container asn {
+                config false;
+                ze:command "ze-irr:clear-irr-asn";
+                description "Removes the stored binding of the AS number and the dataset of the
+AS-SET it names. The answer names every consumer still referencing it; those
+consumers stop enforcing it, and it is not fetched again until update irr or a
+commit that newly names it.";
+                ze:help "Remove the stored IRR dataset of an AS number.";
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The AS number in plain decimal or in asdot notation, which Ze parses to
+one 32-bit value. A spelling that parses to no AS number is refused.";
+                    ze:help "AS number.";
+                }
+            }
+
+            container as-set {
+                config false;
+                ze:command "ze-irr:clear-irr-as-set";
+                description "Removes the stored dataset and pointer of one AS-SET. The answer
+names every consumer still referencing it; those consumers stop enforcing it, and
+it is not fetched again until update irr or a commit that newly names it.";
+                ze:help "Remove the stored IRR dataset of an AS-SET.";
+                leaf as-set {
+                    type string {
+                        length "1..255";
+                        pattern '[A-Za-z0-9_.:\-]+';
+                    }
+                    mandatory true;
+                    description "The RPSL set name the update stored, for example AS-EXAMPLE.";
+                    ze:help "AS-SET name.";
+                }
+            }
+        }
+    }
+}
