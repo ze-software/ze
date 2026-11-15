@@ -112,12 +112,9 @@ func claimedSpec(root, id, agent string) string {
 	if err != nil {
 		return ""
 	}
-	content, err := os.ReadFile(marker) //nolint:gosec // the path is a session state file under the checkout root
+	// An unreadable marker shows no claim in the summary, as before.
+	spec, err := readClaimMarker(marker)
 	if err != nil {
-		return ""
-	}
-	spec, _, _ := strings.Cut(string(content), "\n")
-	if spec == "unassigned" {
 		return ""
 	}
 	return spec

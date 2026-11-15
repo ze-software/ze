@@ -112,7 +112,43 @@ func SpecClaimMarker(root, session, agent string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, "tmp", sessionRoot, ".session-"+fingerprint), nil
+	name := specClaimPrefix + fingerprint
+	// The session id "id" would name the session directory's owner file, which
+	// ParseSpecClaimMarker refuses, so the claim would be invisible to the
+	// claim list and the reaper.
+	if name == sessiondir.IDFile {
+		return "", fmt.Errorf("spec claim marker: session id %q would name %s, the file that records a session directory's owner", session, sessiondir.IDFile)
+	}
+	return filepath.Join(root, "tmp", sessionRoot, name), nil
+}
+
+// specClaimPrefix starts the file name of every spec claim marker under
+// tmp/session. SpecClaimMarker writes it and ParseSpecClaimMarker reads it, so
+// the name has one shape.
+const specClaimPrefix = ".session-"
+
+// ParseSpecClaimMarker reads the holder back out of a claim marker's file name,
+// the inverse of SpecClaimMarker: the harness session, and the agent, or ""
+// for the session's main thread. ok is false for any name SpecClaimMarker
+// never produces: another prefix, an unsafe session or agent id, or the
+// session directory's own owner file (sessiondir.IDFile), which shares the
+// prefix and holds no claim.
+func ParseSpecClaimMarker(name string) (session, agent string, ok bool) {
+	if name == sessiondir.IDFile {
+		return "", "", false
+	}
+	fingerprint, found := strings.CutPrefix(name, specClaimPrefix)
+	if !found {
+		return "", "", false
+	}
+	session, agent, joined := strings.Cut(fingerprint, agentSeparator)
+	if !safeSessionID(session) {
+		return "", "", false
+	}
+	if joined && !ValidAgentID(agent) {
+		return "", "", false
+	}
+	return session, agent, true
 }
 
 // MarkerOwnedBy reports whether a flat marker file name under tmp/session

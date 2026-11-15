@@ -27,9 +27,6 @@ const (
 	// under that name, so a day without a rewrite is a day nobody used it, and
 	// a reclaimed name costs one warm rebuild.
 	launcherIdleAge = 24 * time.Hour
-	// sessionIdleAge: on top of Reap's rules, which judge a session dead from
-	// the process table and the transcripts alone.
-	sessionIdleAge = 24 * time.Hour
 	// testbinIdleAge: a functional run builds its testbin and removes it when
 	// it ends; one older than this outlived its run.
 	testbinIdleAge = 6 * time.Hour
@@ -173,7 +170,7 @@ func trimLaunchers(ctx context.Context, row *StoreTrim, pass *livenessPass) {
 			row.Kept++
 			continue
 		}
-		idle, idleErr := treeIdle(dir, pass.now, launcherIdleAge)
+		idle, idleErr := session.TreeIdle(dir, pass.now, launcherIdleAge)
 		if idleErr != nil {
 			row.Error = idleErr.Error()
 			row.Kept++
@@ -295,7 +292,7 @@ func buildEntryRemovable(path string, entry fs.DirEntry, published map[string][]
 		return len(published[""]) > 0, nil
 	}
 	if strings.HasPrefix(name, gotoolchain.BuildStagingPrefix) {
-		return treeIdle(path, now, buildStagingIdleAge)
+		return session.TreeIdle(path, now, buildStagingIdleAge)
 	}
 	if rest, found := strings.CutPrefix(name, gotoolchain.BuildFailedPrefix); found {
 		return failedSuperseded(rest, entry, published)
@@ -388,7 +385,7 @@ func trimAgentFiles(ctx context.Context, row *StoreTrim, pass *livenessPass) {
 		}
 		path := filepath.Join(row.Path, entry.Name())
 		size := measureEntry(row, path)
-		idle, idleErr := treeIdle(path, pass.now, agentFileIdleAge)
+		idle, idleErr := session.TreeIdle(path, pass.now, agentFileIdleAge)
 		if idleErr != nil {
 			row.Error = idleErr.Error()
 			row.Kept++
@@ -424,55 +421,6 @@ func leOwnedBinEntry(name string) bool {
 		return true
 	}
 	return name == filepath.Base(gotoolchain.BuildsDir(""))
-}
-
-// treeIdle answers whether nothing in a bin/ entry was written for age: a
-// regular file by its own mtime, a directory by the newest mtime anywhere in
-// its tree. The walk stops at the first young entry. A named launcher's build
-// writes its .new.<pid> file inside, and an agent's tool rewrites what it
-// keeps, so either use refreshes the tree. A symbolic link, or anything else
-// that is neither a file nor a directory, is never idle: the trim removes only
-// what a build or an agent made. An entry a peer already removed is not idle,
-// and not an error.
-func treeIdle(path string, now time.Time, age time.Duration) (bool, error) {
-	info, err := os.Lstat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if info.Mode().IsRegular() {
-		return olderThan(info.ModTime(), now, age), nil
-	}
-	if !info.IsDir() {
-		return false, nil
-	}
-	idle := true
-	walkErr := filepath.WalkDir(path, func(_ string, entry fs.DirEntry, walkErr error) error {
-		if errors.Is(walkErr, fs.ErrNotExist) {
-			return nil
-		}
-		if walkErr != nil {
-			return walkErr
-		}
-		entryInfo, infoErr := entry.Info()
-		if errors.Is(infoErr, fs.ErrNotExist) {
-			return nil
-		}
-		if infoErr != nil {
-			return infoErr
-		}
-		if olderThan(entryInfo.ModTime(), now, age) {
-			return nil
-		}
-		idle = false
-		return fs.SkipAll
-	})
-	if walkErr != nil {
-		return false, walkErr
-	}
-	return idle, nil
 }
 
 // pathNamedInArgv answers whether a running process names a path under the
@@ -541,11 +489,14 @@ func fileNameCharacter(character byte) bool {
 	return character == '-' || character == '_' || character == '.'
 }
 
-// trimSessions removes each session directory Reap's rules would remove and
-// whose whole tree is also older than sessionIdleAge (treeIdle), and answers the directories left
+// trimSessions removes each session directory Reap's rules would remove (their
+// judgement already requires the whole tree idle for session.IdleAge), and answers the directories left
 // standing, which the testbin pass walks. When no directory could be listed
 // it answers why instead, so the testbin row says so rather than reporting an
-// empty store it never looked at.
+// empty store it never looked at. Every directory whose tree cannot be walked
+// is kept and named in the row's error (unwalkableSummary), ahead of any
+// other error: its owner cannot be judged, and nothing else would say why the
+// store did not shrink.
 func trimSessions(ctx context.Context, row *StoreTrim, pass *livenessPass) ([]string, string) {
 	judgement, err := pass.judge(pass.processes)
 	if err != nil {
@@ -564,10 +515,24 @@ func trimSessions(ctx context.Context, row *StoreTrim, pass *livenessPass) ([]st
 	for _, dir := range judgement.Dead {
 		dead[dir] = true
 	}
+	unwalkable := map[string]string{}
+	for _, undecided := range judgement.Undecided {
+		if undecided.Cause == session.UndecidedUnwalkable {
+			unwalkable[undecided.Path] = undecided.Reason
+		}
+	}
 	kept := make([]string, 0, len(judgement.Dirs))
+	var unwalked []string
 	for _, dir := range judgement.Dirs {
+		errorBefore := row.Error
 		size := measureEntry(row, dir)
 		if !dead[dir] {
+			if reason, found := unwalkable[dir]; found {
+				// The measurement failed on the same tree the judgement could
+				// not walk, so the summary below says it once, with the reason.
+				row.Error = errorBefore
+				unwalked = append(unwalked, dir+": "+reason)
+			}
 			row.Kept++
 			kept = append(kept, dir)
 			continue
@@ -581,29 +546,43 @@ func trimSessions(ctx context.Context, row *StoreTrim, pass *livenessPass) ([]st
 			kept = append(kept, dir)
 			continue
 		}
-		// The age is the newest write anywhere in the tree, never the
-		// directory's own mtime: a session writes its state file under state/
-		// and its proofs under scratch/, which leaves the parent's mtime where
-		// the session's first file put it. Reap's rules see only a Claude CLI,
-		// a pid pin, an argv or a transcript, so a harness session that took
-		// its identity from the environment is judged dead while it runs, and
-		// its recent writes are the one sign of its owner the trim can read.
-		idle, idleErr := treeIdle(dir, pass.now, sessionIdleAge)
-		if idleErr != nil {
-			row.Error = idleErr.Error()
-			kept = append(kept, dir)
-			continue
-		}
-		if !idle {
-			row.Kept++
-			kept = append(kept, dir)
-			continue
-		}
+		// A dead directory is already idle: the judgement calls a session
+		// dead only when nothing in its tree was written for session.IdleAge,
+		// because its proof cannot see a harness session that took its
+		// identity from the environment.
 		if !removeLivenessEntry(ctx, row, pass, dir, size) {
 			kept = append(kept, dir)
 		}
 	}
+	if len(unwalked) > 0 {
+		summary := unwalkableSummary(unwalked)
+		if row.Error != "" {
+			summary += "; " + row.Error
+		}
+		row.Error = summary
+	}
 	return kept, ""
+}
+
+// unwalkableNamed is how many unwalkable directories the sessions row names
+// before it counts the rest, so a checkout full of them keeps the row short.
+const unwalkableNamed = 3
+
+// unwalkableSummary answers the sessions row's error for the directories it
+// kept because their tree cannot be walked: the first unwalkableNamed, each
+// with the judgement's reason, and a count of the rest.
+func unwalkableSummary(unwalked []string) string {
+	noun := "directories"
+	if len(unwalked) == 1 {
+		noun = "directory"
+	}
+	named := unwalked[:min(len(unwalked), unwalkableNamed)]
+	summary := "kept " + strconv.Itoa(len(unwalked)) + " session " + noun +
+		" whose owner cannot be judged: " + strings.Join(named, "; ")
+	if rest := len(unwalked) - len(named); rest > 0 {
+		summary += "; and " + strconv.Itoa(rest) + " more"
+	}
+	return summary
 }
 
 // trimTestbins removes each testbin-pid-<pid>-<label>/ in a kept session

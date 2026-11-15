@@ -472,7 +472,8 @@ before `bin/builds` (`bin/le-Linux-aarch64/`) is judged the same way as a named
 build and goes once idle: the launcher writes no such directory any more.
 
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- NamedLauncherDir, NamedLauncherName -->
-<!-- source: internal/le/scratch/livetrim.go -- trimLaunchers, treeIdle, pathNamedInArgv -->
+<!-- source: internal/le/scratch/livetrim.go -- trimLaunchers, pathNamedInArgv -->
+<!-- source: internal/le/session/idle.go -- TreeIdle -->
 
 ## A bare `go test` is not `./le test unit`
 
@@ -742,9 +743,10 @@ dir=$(./le session scratch ensure)          # <session-dir>/scratch/, created fo
 A session directory outlives its session, so a log written today is there
 tomorrow. Nothing removes it at session end or from a hook. `./le session clean`
 removes only session directories whose owners are provably gone, and the hourly
-store trim (see "When the disk is full") removes a directory only when those same
-rules call it dead AND nothing anywhere in its tree was written in the last day.
-The directory's own mtime is no measure: a session writes its state under
+store trim (see "When the disk is full") removes the same ones: both read one
+judgement, which calls a directory dead only when no proof of life names its
+owner AND nothing anywhere in its tree was written in the last day
+(`session.IdleAge`, `session.TreeIdle`). The directory's own mtime is no measure: a session writes its state under
 `state/` and its proofs under `scratch/`, which leaves the parent's mtime where
 its first file put it, and a harness session that took its identity from the
 environment shows the rules no process, pin or transcript, so its recent
@@ -928,6 +930,55 @@ A session id and an agent id hold only letters, digits, `.`, `_` and `-`, so the
 The session cleaner removes a dead session's agent markers with its own
 (`lepath.MarkerOwnedBy`).
 
+Every spec claim marker is listed, with its holder and a verdict on it, by
+`session.ListClaims` (`internal/le/session/claims.go`), which reads the marker
+name back with `lepath.ParseSpecClaimMarker`. The verdict is the cleaner's own
+judgement (`judge`), and takes one of three values:
+
+| Verdict | When |
+|---------|------|
+| live | A proof of life names the session: this process's own id, a live pid pin, a running process's arguments, or a transcript written since the oldest Claude CLI started |
+| dead | No proof names the session, the process table shows a Claude CLI (so the transcripts were read), none of the session's claim markers is unreadable, and nothing of it was written for `session.IdleAge` (a day): nothing in its directory tree, when it owns one, and none of its own flat markers, whether or not it owns a directory. An agent's claim whose parent session is dead is dead too |
+| cannot tell | The cleaner refuses to judge (no Claude CLI in the process table, or a Claude CLI runs and the projects directory is missing), the session wrote within `session.IdleAge`, its directory cannot be walked, one of its claim markers cannot be read (another account on the host most likely wrote it, and that account's transcripts were not read), or the claim is an agent's under a live parent: an agent's marker carries no signal of whether the agent still runs |
+
+The recent-write rule is there because the proof cannot see every session: a
+harness session that took its identity from the environment, a session under
+another `CLAUDE_CONFIG_DIR`, and a session on another machine sharing the
+checkout show it no process, pin or transcript while they run. Dead is still
+not certain: such a session that has written nothing here for a day while it
+runs is called dead, and so is a session that runs under another harness and
+has been quiet for a day.
+
+With no Claude CLI in the process table the cleaner refuses: it removes no
+directory, no marker and no stale pid pin, and says so with the command to run
+instead (`./le session clean` on the host while a Claude session runs there).
+A QEMU guest or a container sees the checkout and none of its sessions, the
+same reason the store trim skips (see "When the disk is full").
+
+A claim marker whose session owns no directory is judged by the same proof,
+and the cleaner removes it, with that session's other flat markers, once its
+holder is dead. The cleaner removes a marker only when its session is dead:
+every claim marker whose verdict is live or cannot tell stays, and the summary
+line counts the claim markers it kept for want of a verdict. The same line
+counts as running only the directories whose owner a proof of life names. The
+directories it keeps for want of a verdict are counted apart, by cause (written
+within the idle age, cannot be walked, a claim marker cannot be read, a flat
+marker written within the idle age, a flat marker cannot be read), because
+nothing shows that they run, and `Judge` lists each with its reason in
+`Undecided`. The store trim names every directory it cannot walk in its
+sessions row's error, the first three with the reason and a count of the
+rest. A marker that a
+session not proven dead owns is never removed, even when a dead session's id
+is the tail of that session's (`bar` and `foo-bar`); a marker of a session the
+cleaner knows nothing of (no directory, no claim marker, no proof) has no such
+protection. `ListClaims` costs one process table scan (a `/proc` walk on
+Linux, one `ps` elsewhere), one listing of `tmp/session`, one read per session
+directory owner file and per claim marker, one stat per transcript, and a walk
+of each unproven session's directory tree that stops at its first recent
+write, which for an old dead directory reads every file in it; a caller that
+already holds the process table reads `Judge`'s `Claims` instead and skips the
+scan.
+
 An agent that claimed no spec reads its parent's claim, and its `release`
 removes only its own claim. Nothing an agent writes for a commit has to be
 carried by its parent: the owner's approvals are keyed on the main thread's
@@ -939,9 +990,11 @@ that writes into it picks a per-run name (`cover-<pid>.out`, the discrimination
 `run-*/` directory in `overlay.Write`). A file you write there yourself carries
 a name of your own.
 <!-- source: internal/le/le/path/commitsession.go -- CommitSession, SessionCommitSession -->
-<!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy -->
+<!-- source: internal/le/le/path/session.go -- SpecClaimMarker, MarkerOwnedBy, ParseSpecClaimMarker -->
 <!-- source: internal/core/sessiondir/sessiondir.go -- Resolve, Find, Owner -->
-<!-- source: internal/le/session/reap.go -- candidateSID -->
+<!-- source: internal/le/session/reap.go -- candidateSID, judge, flatMarkers -->
+<!-- source: internal/le/session/claims.go -- ListClaims, holderLiveness -->
+<!-- source: internal/le/session/idle.go -- IdleAge, TreeIdle -->
 <!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, changesEnvironment -->
 <!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand, readReads -->
 <!-- source: internal/le/hookruntime/readerline.go -- judgeReaderLine, readerWalk, afterIdentityLine -->

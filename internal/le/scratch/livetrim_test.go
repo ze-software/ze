@@ -392,6 +392,80 @@ func TestTrimSessionsKeepsAnActiveHarnessOwnersPaths(t *testing.T) {
 	}
 }
 
+// TestTrimSessionsReportsAnUnwalkableDirectory proves the sessions row says
+// why it kept each directory whose owner it could not judge.
+//
+// VALIDATES: two session directories no proof of life names, idle for two
+// days, whose trees each hold a 0o000 subdirectory, are kept, counted as kept,
+// and both named in the sessions row's error, with the judgement's reason.
+// PREVENTS: an unwalkable directory, which the trim reported as its row's
+// error before the judgement took the age rule over, becoming a silent kept
+// count, and one unwalkable directory hiding another by overwriting the
+// row's error.
+func TestTrimSessionsReportsAnUnwalkableDirectory(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a 0o000 directory, so no EACCES can arise")
+	}
+	now := time.Now()
+	root := t.TempDir()
+	old := 48 * time.Hour
+	var dirs []string
+	for _, owner := range []string{"sealedowner", "sealedother"} {
+		dir := agedSessionDir(t, filepath.Join(root, "tmp", "session", "2026-01-01-"+owner), now, old)
+		sealed := agedDir(t, filepath.Join(dir, "sealed"), now, old)
+		agedDir(t, dir, now, old)
+		if err := os.Chmod(sealed, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.Chmod(sealed, 0o700); err != nil { //nolint:gosec // the test must open its own 0o000 directory to remove it
+				t.Error(err)
+			}
+		})
+		dirs = append(dirs, dir)
+	}
+
+	rows := trimLiveness(t.Context(), root, &livenessPass{
+		now: now, processes: []procscan.Process{claudeCLI(now)}, judge: judgeIn(t, root),
+		startedAt: func(int) time.Time { return time.Time{} }, remove: refusingRemove(t),
+	})
+	row := rowNamed(t, rows, sessionStore)
+	if row.EntriesRemoved != 0 || row.Kept != 2 {
+		t.Errorf("sessions row = %+v, want 0 removed, 2 kept", row)
+	}
+	if !strings.Contains(row.Error, "kept 2 session directories whose owner cannot be judged") ||
+		!strings.Contains(row.Error, "cannot be walked") {
+		t.Errorf("sessions row error = %q, want both directories counted with the judgement's reason", row.Error)
+	}
+	for _, dir := range dirs {
+		if !strings.Contains(row.Error, dir) {
+			t.Errorf("sessions row error = %q, want it to name %s", row.Error, dir)
+		}
+		if !exists(t, dir) {
+			t.Errorf("%s was removed although its owner could not be judged", dir)
+		}
+	}
+}
+
+// TestUnwalkableSummaryNamesTheFirstFewAndCountsTheRest proves the bound on
+// the sessions row's error.
+//
+// VALIDATES: the summary names every unwalkable directory up to
+// unwalkableNamed, in order, and past it names the first unwalkableNamed and
+// counts the rest.
+// PREVENTS: a checkout full of unwalkable directories growing the row without
+// bound, or the count of the unnamed ones going missing.
+func TestUnwalkableSummaryNamesTheFirstFewAndCountsTheRest(t *testing.T) {
+	if got, want := unwalkableSummary([]string{"a: r"}), "kept 1 session directory whose owner cannot be judged: a: r"; got != want {
+		t.Errorf("one: %q, want %q", got, want)
+	}
+	got := unwalkableSummary([]string{"a: r", "b: r", "c: r", "d: r", "e: r"})
+	want := "kept 5 session directories whose owner cannot be judged: a: r; b: r; c: r; and 2 more"
+	if got != want {
+		t.Errorf("five: %q, want %q", got, want)
+	}
+}
+
 // TestTrimSkipsLivenessWithoutSessions proves the no-Claude guard.
 //
 // VALIDATES: with no Claude CLI in the process table the launcher, session and
