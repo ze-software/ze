@@ -594,10 +594,16 @@ The whole-checkout command is race-instrumented. `Group.EnvOptions` explicitly
 enables cgo for each race command, so an inherited `CGO_ENABLED=0` on the launcher
 does not disable its child. Test children also request the toolchain's test
 environment boundary, which removes inherited checkout-root and launcher
-build-name aliases before a fixture supplies its own. `all` continues through
+build-name aliases before a fixture supplies its own. When the launching
+executable is native `le`, that boundary also prepends its directory to the
+child's PATH. Compiled tool fixtures then call that same binary by bare name,
+including in the CI race pass, without requiring a separately installed `le`.
+A test binary using the environment builder retains its own fixture PATH.
+`all` continues through
 its compile-out groups after a failure and returns the first non-zero code.
 
 <!-- source: internal/le/test/unit/groups.go -- Group.EnvOptions, allGroups -->
+<!-- source: internal/le/go/toolchain/gotoolchain.go -- EnvironmentContext, nativeTestEnvironment -->
 <!-- source: internal/le/test/unit/actions.go -- runner, allRunner -->
 <!-- source: internal/le/test/unit/pkg.go -- pkgAction, answerPkg, packageGroup, changedPackages, PkgReport -->
 <!-- source: internal/le/test/unit/groups.go -- place -->

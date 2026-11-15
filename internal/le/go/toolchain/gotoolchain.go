@@ -29,6 +29,8 @@
 //     first on PATH in this process (docs/contributing/patching-the-standard-library.md).
 //     Environment inherits the three with the rest of os.Environ(), so one
 //     declaration decides the toolchain and no override can disagree with it.
+//     Test children additionally prepend the launching native le's directory,
+//     which carries le rather than a Go toolchain, for compiled tool fixtures.
 //     The pin still matters: golangci-lint is a separate binary linked against
 //     one version of go/types and decodes export data the toolchain writes, so
 //     an ambient Go newer than the linter's build version fails every package
@@ -587,6 +589,8 @@ type EnvOptions struct {
 	// verify gate's change scope. Go tests discover their source checkout from
 	// cwd and own their fixture overrides.
 	// Every caller running Go tests MUST set this, including fuzz and benchmarks.
+	// A native le also puts its own executable directory on the child's PATH,
+	// so compiled tool fixtures exercise the same binary that launched the run.
 	Test bool
 	// CGO turns CGO_ENABLED on, which the race detector cannot run without.
 	CGO bool
@@ -690,6 +694,9 @@ func (t Toolchain) EnvironmentContext(ctx context.Context, opts EnvOptions) []st
 		// compares the two scope spellings with their declarations.
 		inherited = env.Without(inherited, "ze.repo.root", "ze.le.build.name",
 			"ze.verify.scope.packages", "ze.verify.scope.tags")
+		if executable, err := os.Executable(); err == nil {
+			inherited = nativeTestEnvironment(inherited, executable)
+		}
 	}
 	overrides := t.Overrides(opts)
 	full := make([]string, 0, len(inherited)+len(overrides)+1)
@@ -716,6 +723,29 @@ func (t Toolchain) EnvironmentContext(ctx context.Context, opts EnvOptions) []st
 		return full
 	}
 	return append(withoutKey(full, goFlagsKey), flags)
+}
+
+// nativeTestEnvironment exposes this run's native le to test fixtures without
+// routing through a checkout launcher or another build on the ambient PATH.
+// A test binary calling Environment is not le and keeps its own fixture PATH.
+func nativeTestEnvironment(inherited []string, executable string) []string {
+	if !filepath.IsAbs(executable) {
+		return inherited
+	}
+	if filepath.Base(executable) != "le" {
+		return inherited
+	}
+	inheritedPath := ""
+	for _, entry := range inherited {
+		if value, ok := strings.CutPrefix(entry, "PATH="); ok {
+			inheritedPath = value
+		}
+	}
+	path := filepath.Dir(executable)
+	if inheritedPath != "" {
+		path += string(os.PathListSeparator) + inheritedPath
+	}
+	return append(withoutKey(inherited, "PATH"), "PATH="+path)
 }
 
 // goFlagsWarning makes Environment say once per process that Go could not
