@@ -160,6 +160,16 @@ him what it is rather than losing routes in silence.
 - `show bgp rpki status` reports the resolved policy in place of the `actions` and
   `peer-actions` records.
 
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where | What it does today | This spec |
+|-----------|-------|--------------------|-----------|
+| Origin disposition configuration | `rpki/rpki_config.go`, `parseRPKIConfig` | Resolves global, group and peer actions but invents invalid=reject when absent | Replaces implicit rejection and the origin action container with explicit policy; preserves resolution precedence |
+| Origin validation and decision construction | `rpki/validate.go`, `ROACache.Validate`; `rpki/rpki.go`, `buildDecisions` | Calculates the origin state and converts the effective policy into acceptance and stored state | Extends the existing decision point for state policy rather than introducing an ingress evaluator without validation data |
+| Revalidation of retained routes | `adj_rib_in/rib_validation.go`, `applyToInstalled` | Applies changed validation decisions to installed routes | Extends the same path so cache and policy changes preserve consistent stored state and eligibility |
+| Filter registration | `filter_aspath_length/register.go`, `FilterTypes`; its YANG policy list | Registers named definitions through the existing plugin registry | Reuses registration and named policy syntax; does not add a central feature switch |
+| RTR response processing | `rpki/rtr_session.go`, `RTRSession.handlePDU`, `applyEndOfData` | Parses response PDUs and publishes the completed cache state | Extends session identity checks before publication; preserves reset and serial query distinctions and existing expiry/report machinery |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -532,6 +542,58 @@ can observe it. A-7 records the grep that must confirm this before the claim is 
 | A chain reference to `rpki-state` is refused | Accept it and evaluate it synchronously in the chain | An operator who writes it would get a filter that can never see a state after a VRP change. A guard that fails closed with the right spelling in its message costs one validation branch |
 | RFC6811-2-1 is NOT fixed here | Fix the JSON event rail's origin derivation in this spec | The dependency test decides it: this spec's goals hold whether or not that defect exists, and the flip reduces its cost. Its fix changes the plugin event payload to carry AS_PATH segment types and the local AS, which is a protocol contract with its own compatibility surface. It has a journal row at `plan/journal/guard-added-to-one-half-of-a-pair.md` and needs its own spec |
 
+## Current test campaign investigation
+
+The November 2026 RFC test campaign adds behavior tests before a production
+change. These tests have no `RFC requirement` tags: a compiled or observed red
+is not conformance evidence, and no recorded producer break is claimed here.
+The main thread owns formatting, compilation, scoped runs and native records.
+
+| Test | Entry point and controls | Investigated producer and expected baseline failure |
+|------|--------------------------|-----------------------------------------------------|
+| `rpki/rfc6811_default_invalid_policy_test.go::TestRPKIInvalidExclusionRequiresExplicitConfiguration` | Parse cache-only and explicit invalid=reject configurations, validate the same real VRP against authorized and unauthorized origin ASNs, then build the typed decisions | `parseRPKIConfig` sets implicit invalid=reject. Cache-only is expected to fail the accept/eligibility assertions; explicit reject and Valid controls should pass. This is Goal 1's existing defect, not a new policy choice. |
+| `rpki/rfc8210_rtr_identity_lifecycle_test.go::TestRTRTLSSerialResponseSessionIDMismatch` | Two authenticated TLS connections to one cache: a completed v1 Reset Query base, then a Serial Query; change only the Cache Response Session ID and matching End of Data ID in the second reply | `RTRSession.handlePDU` adopts every Cache Response ID without comparison. The changed-ID serial reply is expected to succeed and merge the delta incorrectly, omit Corrupt Data, and retain the old base instead of flushing it. The identical-ID control must succeed. |
+| `rpki/rfc8210_rtr_identity_lifecycle_test.go::TestRTRTLSEndOfDataSessionIDMismatch` | Keep the Cache Response ID fixed and change only End of Data's ID; the identical-ID control completes | `handlePDU`/`applyEndOfData` do not compare the End of Data Session ID with the response. The mismatch is expected to commit the staged payload, omit the mandatory report and omit the cache-data flush. |
+| `rpki/rfc8210_rtr_identity_lifecycle_test.go::TestRTRTLSSupportedVersionCannotChangeWithinResponse` | After a v1 Cache Response, change just a Prefix PDU or End of Data PDU to another supported version, keeping Session ID and serial base fixed; unchanged-version control completes | `handlePDU` checks the supported range but not equality with the negotiated version. Both mixed-version replies are expected to publish and advance the v1 serial incorrectly. This test asserts the MUST to drop; it does not turn Error Report 8's SHOULD into a MUST. |
+
+RFC 8210 Section 5.1 states: "If, at any time after the protocol version has
+been negotiated (Section 7), either the router or the cache finds that the value
+of the Session ID is not the same as the other's, the party which detects the
+mismatch MUST immediately terminate the session with an Error Report PDU with
+code 0 ("Corrupt Data"), and the router MUST flush all data learned from that
+cache." Section 7 states: "If either party receives a PDU for a different
+Protocol Version once the above negotiation completes, that party MUST drop
+the session; unless the PDU containing the unexpected Protocol Version was
+itself an Error Report PDU, the party dropping the session SHOULD send an Error
+Report with an error code of 8 ("Unexpected Protocol Version")."
+
+The bounded repair path is a separate RTR session-identity pass: retain the
+query kind and negotiated identity, distinguish legitimate replacement after a
+Reset Query from an ID change while answering a Serial Query, check End of
+Data before publishing, and route detected mismatches through the existing
+Error Report encoder and cache-data expiry/revalidation machinery. It requires
+independent design/review before production edits. This test campaign supplies
+the failing behavior without implementing that larger change.
+
+The existing `TestBuildDecisionsOriginInvalidAction` proves explicit action
+selection, but never tests the absence of that configuration (RFC6811-2-2) or
+sets a route's validation state through policy (RFC6811-3-1). Its tags must not
+be used to declare either whole requirement proven. `TestValidateFourOctetAS`
+does discriminate matching 32-bit ASNs from ASNs with the same low 16 bits.
+`TestHandleROAChangeReValidates` exercises cache-change dispatch; the paired
+Adj-RIB-In test separately checks application to installed routes. Neither
+test alone is an end-to-end cache-to-selection proof.
+
+The main thread ran the two existing controls and four hand-written semantic
+faults for four-octet origin lookup and origin-cache-change dispatch. All four
+native clean-green/named-red observations succeeded; commit `ce329adfcd` retains
+them in `rfc/discrimination/rfc6811/RFC6811-3-2.json` and
+`rfc/discrimination/rfc6811/RFC6811-4-1.json`. The superseded scratch proposals,
+command script and job output can now be removed. These records do not resolve
+the default-policy or RTR identity failures above, and do not prove policy
+state-setting or end-to-end cache-to-selection behavior. The new known-red
+tests receive no conformance credit while their clean baseline fails.
+
 ## Known Limitations
 
 - RFC 8097 stays unimplemented, so a validation state, set or derived, does not propagate
@@ -580,7 +642,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-20 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
+- [ ] Scoped package and relevant functional/interop tests pass; GitHub CI supplies whole-tree verification after an authorized push. Agents do not run any `./le verify` command or test a copy of the tree
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -599,9 +661,32 @@ constraints, message ordering, and every MUST/MUST NOT.
 ### Closure
 - [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
+- [ ] Any lesson is recorded in its governing surface; no separate lesson artifact is required merely for closure
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] **Commit B:** remove the spec through the generated `./le commit create` script (commit A preserves it in history)
+
+## Observed test-campaign results: 2026-11-15
+
+The four new probes compiled and ran in
+`tmp/session/2026-11-14-210034/scratch/job-rfc-campaign-new-batch-reds-37b87864.log`.
+These are observed behavior failures, not build failures or discrimination
+records. Their conforming controls passed.
+
+| Probe | Observed failure | Passing control |
+|-------|------------------|-----------------|
+| `TestRPKIInvalidExclusionRequiresExplicitConfiguration` | Configuring a cache alone rejects an Invalid route | Explicit invalid=reject still rejects it |
+| `TestRTRTLSSerialResponseSessionIDMismatch` | Changed Cache Response ID is accepted without the required error/flush | Matching ID completes normally |
+| `TestRTRTLSEndOfDataSessionIDMismatch` | Changed End of Data ID completes and publishes the response | Matching ID completes normally |
+| `TestRTRTLSSupportedVersionCannotChangeWithinResponse` | A supported version switch in a prefix or End of Data advances/publishes a mixed response | Unchanged version completes normally |
+
+The TLS cases use real mutual-TLS connections and a completed initial response
+before the serial query. They do not establish that every transport or every
+RPKI policy surface is correct. Complex repair remains in this spec for later
+review under the owner's test-first campaign instruction. No gap, audit
+verdict, support figure or approval gate was upgraded.
+
+Retain the shared log until all owning specs that cite it have superseding
+evidence. Do not remove it solely because this spec's cases later pass.
 
 ## Review Gate
 
