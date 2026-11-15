@@ -95,10 +95,64 @@ worker started at config time asks for it at once, and the startup coordinator
 reads that request where it expects the plugin's `ready`: the daemon then refuses
 to start with `stage 5: expected ready, got ze-plugin-engine:resolve-dns`.
 `OnStarted` is the callback the SDK names as the safe place for an engine call.
-Config time still arms the schedule, and a nudge that arrives before the worker
-exists is not lost, because the reset leaves every unit due and the worker reads
-the schedule as its first act.
-<!-- source: internal/component/firewall/plugins/domain/domain.go -- runFirewallDomain, configure, startRefreshWorker -->
+
+The handshake's `OnConfigure` only holds the config (`holdStartupConfig`).
+`OnStarted` binds the state RPCs, then configures: it reads the stored answers,
+programs the tables from them, and arms the schedule, and only then starts the
+worker. A configure during the handshake could not read the store, so it would
+arm every unit as unanswered and due at once, and the reset keeps a due time it
+already holds: the start would then ask upstream for names whose stored answer
+is still valid. A nudge that arrives before the worker exists is not lost,
+because the worker reads the schedule as its first act.
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- runFirewallDomain, holdStartupConfig, configure, startRefreshWorker -->
+
+## A start asks only for the answers that expired
+
+Each stored answer carries `expires-at`: the time it arrived plus
+`max(TTL, ttl-floor)`, capped at one day, which is the time the schedule asks
+again. `schedule.reset` arms a unit it does not hold yet at that stored expiry
+while it is still ahead, and due at once otherwise: when it has passed, when no
+answer is stored, and when the stored answer predates the field. A reboot
+therefore keeps enforcing the addresses it enforced before and asks upstream
+only for the names whose answer RFC 1035 Section 3.2.1 no longer lets it keep.
+A stored expiry further out than one day is armed at one day, the same ceiling
+a live answer has: only a clock that stepped back or an edited store writes one.
+
+The TTL bounds this determinism. A name whose stored expiry passed while the box
+was down is asked at start, and a short TTL makes that every name.
+<!-- source: internal/component/firewall/plugins/domain/schedule.go -- reset, startDue -->
+
+A stored answer that exists and cannot be read or decoded reads as unresolved:
+its name is asked at once, its WARN carries
+`doctor-firewall-domain-group-unreadable-data`, and `ze doctor` names it until
+the next answer rewrites it.
+<!-- source: internal/component/firewall/plugins/domain/cache.go -- open, expiry, unreadableFor -->
+
+## A write the store refuses
+
+`store.put` keeps memory and the store equal: when the write fails, the answer
+is not kept in memory either. So a changed answer the store refuses is not
+programmed, the change log records nothing, and the name goes on enforcing
+what it held. The schedule still asks again at the answer's expiry. The same
+holds for a confirming answer, whose renewed expiry is lost, and for the
+failing marker of an outage.
+
+`put` records each refused unit with its error and time, and the next write of
+that unit that succeeds clears it. A clear of the group drops it, and so does a
+configure that no longer names the unit. The WARN carries
+`doctor-firewall-domain-group-unsaved-answer`.
+
+This record lives only in the plugin's process, and the plugin can run forked,
+so the post-config check cannot see it: that check opens the store from the
+process that answers doctor. The plugin declares a `runtime` check,
+`firewall-domain-group-unsaved-answer`, in its Stage 1 registration, and
+answers it through its doctor callback. Each finding names the group, the name,
+the family and the store error, and its fix is
+`update firewall domain-group <name>`. Only `show doctor`, and `ze doctor`
+when the daemon answers, runs it.
+<!-- source: internal/component/firewall/plugins/domain/cache.go -- put, unsavedFor -->
+<!-- source: internal/component/firewall/plugins/domain/doctor.go -- unsavedAnswerCheckDecl, unsavedAnswerFindings, answerDoctorCheck -->
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- warnUnsavedAnswer -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- Plugin.OnStarted -->
 
 ## What the functional tests drive
@@ -125,11 +179,22 @@ serves the `le mock dns` stub in process on port 53, which `system name-server`
 reaches because that leaf is an address and carries no port.
 <!-- source: internal/test/fixture/netfilter_fixture_domain_group.go -- domainGroupUpdate, domainGroupClear, domainGroupShow -->
 
+A fourth file asks a question a daemon the runner starts once cannot answer:
+does a second start honour the stored expiry the first one wrote.
+`test/plugin/firewall-domain-group-restart-keeps-answers.ci` runs a fixture that
+starts the daemon itself, twice, over one config directory, in the same
+exclusive group. Between the starts it waits for the table to leave the kernel
+and changes both answers. It then checks, from the kernel and from the stub's
+query log, that the group whose stored answer had an hour left keeps its stored
+address and is not asked for, and that the group whose stored answer expired
+is.
+<!-- source: internal/test/fixture/netfilter_fixture_domain_group_restart.go -- domainGroupRestartKeepsAnswers -->
+
 ## Two stores, because they are two shapes
 
 | What | Where | Why |
 |------|-------|-----|
-| Last-good addresses | Managed store, `meta/firewall/domain-group/{group}/{name}/{family}` | Small, bounded, per-group state that must survive a restart |
+| Last-good addresses and their expiry | Managed store, `meta/firewall/domain-group/{group}/{name}/{family}` | Small, bounded, per-group state that must survive a restart |
 | Change log | `<config-dir>/firewall-domain-group.dns.jsonl` | Append-only and unbounded in shape |
 
 The cache sends state RPCs to the daemon's owned store after `OnStarted`.
@@ -145,10 +210,20 @@ file would evict commit history to record DNS churn.
 
 ## What earns a write
 
-The steady state writes nothing. Three things cause a store write, and each is
-bounded:
+Every authoritative answer writes its name and family's entry, because every
+answer renews `expires-at`, and a restart arms the unit at it. Thomas chose
+this over renewing at most hourly (spec-fetched-data-survives-restart, design
+gate): an expiry left at an older answer reads as passed, and the start would
+ask for a name whose answer is still valid. A name answering the same addresses
+every 60 seconds therefore writes up to 1,440 times a day per family, the 60
+second `ttl-floor` being the bound. Each such write replaces one value with
+another of the same size (`expires-at` is UTC whole seconds, and the other
+fields do not move), which `zefs-format.md` writes in place.
 
-- **The addresses changed.** Once per actual move.
+What a write carries besides the renewal is bounded per event:
+
+- **The addresses changed.** The entry is replaced, and `resolved-at` moves.
+  Once per actual move.
 - **The first answer for a name and family**, even when it carries no address.
   "Never asked" and "asked, and the name holds nothing" are different facts, and
   only a written entry tells them apart: an IPv4-only name answers NOERROR-empty
@@ -157,9 +232,12 @@ bounded:
 - **The failing state flipped.** `FailingSince` is written when a name stops
   answering and cleared when it recovers. The addresses alone cannot say it: a
   name whose server has been down for a week holds exactly what it held before.
-  Once per outage, at each end.
+  Once per outage, at each end. A failure is not an answer, so a continuing
+  outage writes nothing and the stored expiry stays the last good answer's.
 
-A name answering the same addresses every 60 seconds matches none of them.
+A confirming answer keeps `resolved-at`: it dates the addresses, which did not
+move, and `show firewall domain-group` and the data-age metric read it as that.
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- resolveAndRecord, recordSteadyAnswer, markFailing -->
 
 ## A group that never resolved is refused at commit
 

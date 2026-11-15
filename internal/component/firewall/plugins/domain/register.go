@@ -51,8 +51,8 @@ func init() {
 	}
 }
 
-// registerDomainDoctor registers the domain-group data check and the two
-// diagnostic codes it emits. It lives in register.go so the side effect, and
+// registerDomainDoctor registers the domain-group data check and the
+// diagnostic codes it emits (domainDiagnosticCodes). It lives in register.go so the side effect, and
 // the exit on a registration failure, stay in the plugin's registration file
 // (ai/patterns/registration.md).
 func registerDomainDoctor() {
@@ -68,8 +68,15 @@ func registerDomainDoctor() {
 		Component:    "firewall-domain",
 		Dependencies: []string{"config-tree"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{codeDomainGroupStaleData, codeDomainGroupNoData},
-		Check:        checkDomainGroupData,
+		// A literal, so `./le arch doctor-coverage check` reads the codes this
+		// check declares. The runtime check declares the unsaved-answer code
+		// (unsavedAnswerCheckDecl).
+		Codes: []string{
+			codeDomainGroupStaleData,
+			codeDomainGroupNoData,
+			codeDomainGroupUnreadableData,
+		},
+		Check: checkDomainGroupData,
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
 		slog.Error("firewall-domain: doctor check registration failed", "error", err)

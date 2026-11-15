@@ -130,12 +130,12 @@ func TestScheduleResetKeepsExistingDueTimes(t *testing.T) {
 	now := time.Now()
 	groups := []group{{Name: "g", Names: []string{"a.invalid"}, TTLFloor: 60}}
 
-	s.reset(groups, now)
+	s.reset(groups, noStoredExpiry, now)
 	key := nameKey{group: "g", name: "a.invalid", family: familyV4}
 	s.arm(key, 3600, 60, now)
 
 	later := now.Add(time.Minute)
-	s.reset(groups, later)
+	s.reset(groups, noStoredExpiry, later)
 
 	require.Len(t, s.keys(), 2, "one entry per family")
 	found := false
@@ -161,10 +161,10 @@ func TestScheduleResetDropsRemovedNames(t *testing.T) {
 	s := newSchedule()
 	now := time.Now()
 
-	s.reset([]group{{Name: "g", Names: []string{"a.invalid", "b.invalid"}}}, now)
+	s.reset([]group{{Name: "g", Names: []string{"a.invalid", "b.invalid"}}}, noStoredExpiry, now)
 	require.Len(t, s.keys(), 4)
 
-	s.reset([]group{{Name: "g", Names: []string{"a.invalid"}}}, now)
+	s.reset([]group{{Name: "g", Names: []string{"a.invalid"}}}, noStoredExpiry, now)
 	keys := s.keys()
 	require.Len(t, keys, 2)
 	for _, k := range keys {
@@ -203,10 +203,106 @@ func TestScheduleNextDueIsDeterministic(t *testing.T) {
 	}
 	for range 20 {
 		s := newSchedule()
-		s.reset(groups, now)
+		s.reset(groups, noStoredExpiry, now)
 		key, _, found := s.nextDue()
 		require.True(t, found)
 		assert.Equal(t, "a", key.group)
 		assert.Equal(t, "ipv4", key.family.label)
 	}
+}
+
+// noStoredExpiry is the lookup for a schedule test that holds no stored
+// answer: every unit it resets is new and unanswered, so it is due at once.
+func noStoredExpiry(nameKey) (time.Time, bool) { return time.Time{}, false }
+
+// dueOf reads one unit's due time straight from the schedule, so a test can
+// assert where reset armed a unit that nextDue would hide behind an earlier one.
+func dueOf(t *testing.T, s *schedule, key nameKey) time.Time {
+	t.Helper()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	due, ok := s.due[key]
+	require.True(t, ok, "the unit must be scheduled")
+	return due
+}
+
+// TestResetUsesStoredExpiry proves a start arms each unit at the expiry its
+// stored answer carries, and asks at once only for a unit whose stored answer
+// expired or that has none.
+//
+// VALIDATES: AC-13 -- a name whose stored answer has not expired is not
+// resolved at start, and is resolved at its stored expiry; a name past its
+// expiry, and a name never answered, are resolved at start.
+// PREVENTS: the reset that made every unit due at start, so a reboot asked
+// upstream for every name and could enforce different addresses than the
+// box enforced before it (Thomas, spec-fetched-data-survives-restart).
+func TestResetUsesStoredExpiry(t *testing.T) {
+	now := time.Date(2026, 11, 15, 10, 0, 0, 0, time.UTC)
+	unexpired := nameKey{group: "g", name: "a.invalid", family: familyV4}
+	expired := nameKey{group: "g", name: "a.invalid", family: familyV6}
+	neverAnswered := nameKey{group: "g", name: "b.invalid", family: familyV4}
+	stored := map[nameKey]time.Time{
+		unexpired: now.Add(50 * time.Minute),
+		expired:   now.Add(-time.Minute),
+	}
+	lookup := func(key nameKey) (time.Time, bool) {
+		when, ok := stored[key]
+		return when, ok
+	}
+
+	s := newSchedule()
+	s.reset([]group{{Name: "g", Names: []string{"a.invalid", "b.invalid"}, TTLFloor: 60}}, lookup, now)
+
+	assert.Equal(t, now.Add(50*time.Minute), dueOf(t, s, unexpired),
+		"an unexpired stored answer is asked again at its expiry, not at start")
+	assert.Equal(t, now, dueOf(t, s, expired), "an expired stored answer is asked at once")
+	assert.Equal(t, now, dueOf(t, s, neverAnswered), "a name with no stored answer is asked at once")
+}
+
+// TestResetCapsAStoredExpiryAtTheCeiling proves a stored expiry further out
+// than the one-day ceiling is armed at the ceiling.
+//
+// Every expiry this package writes is at most a day out, so a later one is a
+// clock that stepped back or a value edited in the store. Honoring it would
+// freeze the name past the bound refreshInterval keeps for a live answer.
+func TestResetCapsAStoredExpiryAtTheCeiling(t *testing.T) {
+	now := time.Date(2026, 11, 15, 10, 0, 0, 0, time.UTC)
+	key := nameKey{group: "g", name: "a.invalid", family: familyV4}
+	lookup := func(nameKey) (time.Time, bool) { return now.Add(48 * time.Hour), true }
+
+	s := newSchedule()
+	s.reset([]group{{Name: "g", Names: []string{"a.invalid"}, TTLFloor: 60}}, lookup, now)
+
+	assert.Equal(t, now.Add(maxRefreshInterval), dueOf(t, s, key))
+}
+
+// TestResetDueNowForAnswerStoredWithoutExpiry proves an answer written before
+// the stored expiry existed is loaded, still programs its addresses, and is
+// asked again at start.
+//
+// VALIDATES: AC-13 survivor -- a name stored before this change (no
+// expires-at) is resolved at start once; the answer then writes its expiry.
+// PREVENTS: an old value read as never expiring, or refused as unreadable and
+// its addresses dropped from the set at the upgrade boot.
+func TestResetDueNowForAnswerStoredWithoutExpiry(t *testing.T) {
+	dir := t.TempDir()
+	persistence := domainTestStorage(t, dir)
+	key := nameKey{group: "cdn", name: "a.invalid", family: familyV4}
+	legacy := `{"addresses":["192.0.2.1"],"resolved-at":"2026-01-01T00:00:00Z","status":"NOERROR"}`
+	require.NoError(t, persistence.WriteKey(storedAnswerKey(key), []byte(legacy)))
+
+	cache := newStore(persistence)
+	cfg := oneGroupConfig()
+	require.NoError(t, cache.open(cfg.groups))
+
+	entry, seen := cache.get(key)
+	require.True(t, seen, "an answer stored without an expiry is still loaded")
+	assert.Equal(t, []string{"192.0.2.1"}, entry.Addresses)
+	_, hasExpiry := cache.expiry(key)
+	assert.False(t, hasExpiry, "an answer stored without an expiry reports none")
+
+	now := time.Now()
+	s := newSchedule()
+	s.reset(cfg.groups, cache.expiry, now)
+	assert.Equal(t, now, dueOf(t, s, key), "an answer with no stored expiry is asked at once")
 }

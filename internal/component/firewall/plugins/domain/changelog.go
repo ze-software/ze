@@ -3,7 +3,7 @@
 // The log answers one operator question: what did this name point at last
 // week, and when did it move. That is a question about a name's history, so
 // only an actual CHANGE is recorded. A refresh that confirmed the same
-// addresses writes nothing (AC-2), which is what keeps a name refreshed every
+// addresses appends nothing here (AC-2), which is what keeps a name refreshed every
 // 60 seconds from filling the disk with a record of nothing happening.
 //
 // It is JSON-lines on the filesystem rather than a zefs blob, following the

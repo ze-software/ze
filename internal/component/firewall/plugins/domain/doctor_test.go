@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 // TestFirstAnswerIsRecordedEvenWhenEmpty proves an authoritative answer
@@ -38,14 +40,16 @@ func TestFirstAnswerIsRecordedEvenWhenEmpty(t *testing.T) {
 	assert.False(t, entry.failing())
 }
 
-// TestSteadyStateWritesNothingAfterTheFirstAnswer proves the store is written
-// once and then left alone.
+// TestSteadyStateWritesNothingAfterTheFirstAnswer proves an answer that
+// confirms the same addresses leaves the time they were recorded alone.
 //
-// VALIDATES: AC-2 -- no zefs write occurs when the re-resolution returns the
-// same addresses.
-// PREVENTS: a name with a 60-second TTL rewriting the store 1440 times a day.
-// The first-answer write above is bounded at one per name and family for the
-// life of the entry, which is what keeps it from becoming that.
+// Its name predates spec-fetched-data-survives-restart, which replaced AC-2's
+// "no zefs write occurs" with a write on every answer that renews the stored
+// expiry (TestEveryAnswerRenewsExpiry). ResolvedAt is not part of the renewal:
+// it dates the addresses, and `show firewall domain-group` and the data-age
+// metric read it as that.
+// PREVENTS: a confirming answer re-dating addresses that did not move, which
+// would make the oldest data the firewall enforces look one TTL old forever.
 func TestSteadyStateWritesNothingAfterTheFirstAnswer(t *testing.T) {
 	plug, _ := newTestPlugin(t, oneGroupConfig(), map[string]answer{
 		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
@@ -62,11 +66,12 @@ func TestSteadyStateWritesNothingAfterTheFirstAnswer(t *testing.T) {
 
 	after, _ := plug.cache.get(nameKey{group: "cdn", name: "a.invalid", family: familyV4})
 	assert.Equal(t, first.ResolvedAt, after.ResolvedAt,
-		"a confirming refresh must not touch the entry at all")
+		"a confirming refresh must not re-date the addresses")
 }
 
 // TestFailureIsMarkedOnceAndClearedOnRecovery proves an outage is recorded at
-// its start and cleared at its end, and that neither steady state writes.
+// its start and cleared at its end, and that a continuing outage does not move
+// the marker.
 //
 // The addresses stay exactly as they were throughout: keeping the last good
 // answer is the point. What the marker adds is that an operator can see the
@@ -236,4 +241,159 @@ func TestDoctorCodesAreRegistered(t *testing.T) {
 	}
 	assert.True(t, codes[codeDomainGroupStaleData])
 	assert.True(t, codes[codeDomainGroupNoData])
+}
+
+// TestDoctorReportsAnUnreadableStoredAnswer proves `ze doctor` names a stored
+// answer it cannot decode, and only that one.
+//
+// The name reads as unresolved, so a start asks for it at once and the next
+// answer rewrites it; until then the group enforces less than the box learned,
+// and the WARN at load is a line an operator may never read.
+// VALIDATES: spec-fetched-data-survives-restart, Integration Checklist row
+// "Doctor code per problem class" (unreadable DNS answer).
+// PREVENTS: a corrupt value that silently shrinks a permit list across a
+// restart.
+func TestDoctorReportsAnUnreadableStoredAnswer(t *testing.T) {
+	cfg := &domainConfig{
+		groups: []group{{Name: "cdn", Names: []string{"a.invalid", "b.invalid"}, TTLFloor: 60}},
+		refs:   []termRef{{Group: "cdn", TableName: "ze_filter"}},
+	}
+	dir := t.TempDir()
+	persistence := domainTestStorage(t, dir)
+	readable := nameKey{group: "cdn", name: "a.invalid", family: familyV4}
+	corrupt := nameKey{group: "cdn", name: "b.invalid", family: familyV4}
+
+	seed := newStore(persistence)
+	require.NoError(t, seed.put(readable, resolvedName{
+		Addresses: []string{"192.0.2.1"}, ResolvedAt: time.Now(), Status: "NOERROR",
+	}))
+	require.NoError(t, persistence.WriteKey(storedAnswerKey(corrupt), []byte("{not json")))
+
+	cache := newStore(persistence)
+	require.NoError(t, cache.open(cfg.groups))
+
+	diags := domainGroupDiagnostics(cfg, cache, time.Now())
+	require.Len(t, diags, 1, "the readable answer raises nothing, the group has addresses")
+	assert.Equal(t, codeDomainGroupUnreadableData, diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	assert.Contains(t, diags[0].Message, "b.invalid")
+	assert.Contains(t, diags[0].Message, "ipv4")
+	assert.Contains(t, diags[0].Help, "update firewall domain-group cdn")
+	assert.Equal(t, "update firewall domain-group cdn", diags[0].Fix, "the fix is the command alone")
+}
+
+// TestDoctorUnreadableCodeIsRegistered proves `ze show diagnostic` can describe
+// the unreadable-answer code, and that the check init() registered declares
+// every code the post-config check emits.
+//
+// It reads the registered check rather than a list built beside it, so a code
+// dropped from the registration's literal Codes goes red here.
+func TestDoctorUnreadableCodeIsRegistered(t *testing.T) {
+	found := false
+	for _, meta := range domainDiagnosticCodes {
+		if meta.Code != codeDomainGroupUnreadableData {
+			continue
+		}
+		found = true
+		assert.NotEmpty(t, meta.Title)
+		assert.NotEmpty(t, meta.Description)
+		assert.NotEmpty(t, meta.Examples)
+	}
+	assert.True(t, found)
+
+	var registered []string
+	checks := 0
+	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhasePostConfig) {
+		if check.Name != "firewall-domain-group-data" {
+			continue
+		}
+		checks++
+		registered = check.Codes
+	}
+	require.Equal(t, 1, checks, "init registers the domain-group data check once")
+	assert.Contains(t, registered, codeDomainGroupUnreadableData)
+	assert.Contains(t, registered, codeDomainGroupStaleData)
+	assert.Contains(t, registered, codeDomainGroupNoData)
+}
+
+// failingWrites wraps a store's persistence and refuses every write while
+// refuse is set, the way a full or read-only store does.
+type failingWrites struct {
+	cacheKeys
+	refuse bool
+}
+
+var errStoreRefused = errors.New("store refused the write")
+
+func (f *failingWrites) WriteKey(key string, data []byte) error {
+	if f.refuse {
+		return errStoreRefused
+	}
+	return f.cacheKeys.WriteKey(key, data)
+}
+
+// TestUnsavedAnswerIsReportedUntilAWriteSucceeds proves an answer the store
+// refuses is named by the runtime doctor check, with its cause and the command
+// that asks again, and that the next write of the unit clears it.
+//
+// A refused write leaves the name enforcing what it held, and a restart does
+// not have the answer; the WARN is a line an operator may never read.
+// VALIDATES: spec-fetched-data-survives-restart, Integration Checklist row
+// "Doctor code per problem class" (unsaved DNS answer).
+// PREVENTS: a store that stopped persisting answers with nothing in ze doctor.
+func TestUnsavedAnswerIsReportedUntilAWriteSucceeds(t *testing.T) {
+	plug, _ := newTestPlugin(t, oneGroupConfig(), map[string]answer{
+		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
+	})
+	keys := &failingWrites{cacheKeys: plug.cache.keys, refuse: true}
+	plug.cache.keys = keys
+
+	changed, err := plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.False(t, changed, "a change the store refused is not programmed")
+	_, seen := plug.cache.get(v4Key())
+	assert.False(t, seen, "memory stays equal to the store")
+
+	diags, err := plug.answerDoctorCheck(unsavedAnswerCheckName)
+	require.NoError(t, err)
+	require.Len(t, diags, 1)
+	assert.Equal(t, codeDomainGroupUnsavedAnswer, diags[0].Code)
+	assert.Equal(t, string(diagnostic.SeverityWarning), diags[0].Severity)
+	assert.Contains(t, diags[0].Message, "a.invalid")
+	assert.Contains(t, diags[0].Message, "ipv4")
+	assert.Contains(t, diags[0].Message, errStoreRefused.Error(), "the finding names the cause")
+	assert.Equal(t, "update firewall domain-group cdn", diags[0].Fix)
+
+	keys.refuse = false
+	changed, err = plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	assert.True(t, changed, "the saved answer is programmed")
+
+	diags, err = plug.answerDoctorCheck(unsavedAnswerCheckName)
+	require.NoError(t, err)
+	assert.Empty(t, diags, "a write that succeeds clears the finding")
+}
+
+// TestUnsavedAnswerCheckIsDeclaredWithItsCode proves the runtime check
+// declares the code it answers, that `ze show diagnostic` can describe it, and
+// that the callback refuses a check name it never declared.
+func TestUnsavedAnswerCheckIsDeclaredWithItsCode(t *testing.T) {
+	assert.Equal(t, sdk.DoctorPhaseRuntime, unsavedAnswerCheckDecl.Phase)
+	assert.Equal(t, []string{codeDomainGroupUnsavedAnswer}, unsavedAnswerCheckDecl.Codes)
+
+	found := false
+	for _, meta := range domainDiagnosticCodes {
+		if meta.Code != codeDomainGroupUnsavedAnswer {
+			continue
+		}
+		found = true
+		assert.NotEmpty(t, meta.Title)
+		assert.NotEmpty(t, meta.Description)
+		assert.NotEmpty(t, meta.Examples)
+	}
+	assert.True(t, found)
+
+	plug, _ := newTestPlugin(t, oneGroupConfig(), nil)
+	_, err := plug.answerDoctorCheck("firewall-domain-group-data")
+	assert.Error(t, err)
 }

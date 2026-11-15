@@ -127,10 +127,11 @@ func TestRefreshChangedAddressesReprogramsAndLogsOnce(t *testing.T) {
 }
 
 // TestRefreshSameAddressesSkipsReprogramAndLog proves a re-resolution that
-// returned the same addresses writes nothing at all.
+// returned the same addresses reprograms nothing and records nothing.
 //
-// VALIDATES: AC-2 -- no set is reprogrammed, no cache write happens, and no
-// change-log record is written.
+// VALIDATES: AC-2 -- no set is reprogrammed and no change-log record is
+// written. The store is still written, to renew the stored expiry
+// (TestEveryAnswerRenewsExpiry, spec-fetched-data-survives-restart).
 // PREVENTS: a name with a 60-second TTL rewriting the kernel's sets 1440 times
 // a day and filling the change log with a record of nothing happening.
 func TestRefreshSameAddressesSkipsReprogramAndLog(t *testing.T) {
@@ -936,4 +937,121 @@ func TestDomainGroupRefreshFiresAtTTL(t *testing.T) {
 		_, due, found := plug.sched.nextDue()
 		return found && due.After(time.Now())
 	}, 10*time.Second, 5*time.Millisecond, "a refreshed unit is rescheduled ahead, not at once")
+}
+
+// storedAnswer reads one unit's answer back from the persistence the plugin
+// writes, through a fresh store, so the assertion sees what the next start
+// would load and not the plugin's own memory.
+func storedAnswer(t *testing.T, plug *domainPlugin, key nameKey) resolvedName {
+	t.Helper()
+	fresh := newStore(plug.cache.keys)
+	require.NoError(t, fresh.open(plug.config.groups))
+	entry, seen := fresh.get(key)
+	require.True(t, seen, "the answer must be in the store")
+	return entry
+}
+
+// TestEveryAnswerRenewsExpiry proves an answer that confirms the same
+// addresses still rewrites the stored expiry, and writes it where the next
+// start reads it.
+//
+// VALIDATES: AC-13 -- every answer rewrites expires-at (Thomas, design gate:
+// renewed on every re-resolution, the hourly cap rejected).
+// PREVENTS: a stored expiry written only when the addresses moved, which a
+// restart would read as long expired and answer with a query for every name
+// whose addresses never change.
+func TestEveryAnswerRenewsExpiry(t *testing.T) {
+	plug, stub := newTestPlugin(t, oneGroupConfig(), map[string]answer{
+		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
+	})
+
+	_, err := plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	first := storedAnswer(t, plug, v4Key())
+	require.False(t, first.ExpiresAt.IsZero(), "the first answer writes an expiry")
+
+	// The same address, with a TTL an hour long: only the stored expiry can
+	// move, so a store that skipped this write keeps the first expiry.
+	stub.byName[stubKey("a.invalid", mdns.TypeA)] = answer{records: []string{"192.0.2.1"}, ttl: 3600, status: "NOERROR"}
+	changed, err := plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	require.False(t, changed, "the same addresses are not a change")
+
+	renewed := storedAnswer(t, plug, v4Key())
+	assert.Equal(t, []string{"192.0.2.1"}, renewed.Addresses)
+	assert.True(t, renewed.ExpiresAt.After(first.ExpiresAt.Add(3000*time.Second)),
+		"the confirming answer rewrote the stored expiry from its own TTL: first %s, renewed %s",
+		first.ExpiresAt, renewed.ExpiresAt)
+	assert.WithinDuration(t, dueOf(t, plug.sched, v4Key()), renewed.ExpiresAt, time.Second,
+		"the stored expiry is when the schedule asks again")
+}
+
+// TestStartDoesNotResolveAnUnexpiredName proves a start over stored answers
+// asks first for the unit whose stored answer expired, and leaves the
+// unexpired one armed at its stored expiry.
+//
+// VALIDATES: AC-13 and wiring row 7 -- configure, then the refresh worker,
+// with stored answers: the unexpired name is not resolved at start.
+// PREVENTS: a start that marked every unit due. The IPv4 unit sorts before the
+// IPv6 one (lessKey), so under that start the first resolve this test sees
+// would be the A query it asserts never happens.
+func TestStartDoesNotResolveAnUnexpiredName(t *testing.T) {
+	useRecordingBackend(t)
+	dir := t.TempDir()
+	cfg := oneGroupConfig()
+	persistence := domainTestStorage(t, dir)
+
+	now := time.Now()
+	unexpiredAt := now.Add(time.Hour).UTC().Truncate(time.Second)
+	v6Key := nameKey{group: "cdn", name: "a.invalid", family: familyV6}
+	seed := newStore(persistence)
+	require.NoError(t, seed.open(cfg.groups))
+	require.NoError(t, seed.put(v4Key(), resolvedName{
+		Addresses: []string{"192.0.2.1"}, ResolvedAt: now, Status: "NOERROR", ExpiresAt: unexpiredAt,
+	}))
+	require.NoError(t, seed.put(v6Key, resolvedName{
+		ResolvedAt: now.Add(-time.Hour), Status: "NOERROR", ExpiresAt: now.Add(-time.Minute).UTC().Truncate(time.Second),
+	}))
+	require.NoError(t, persistence.Close())
+	persistence = domainTestStorage(t, dir)
+
+	resolved := make(chan string, 8)
+	plug := &domainPlugin{
+		resolve: func(_ context.Context, name string, qtype uint16) ([]string, uint32, string, error) {
+			resolved <- stubKey(name, qtype)
+			if qtype == mdns.TypeA {
+				return []string{"192.0.2.1"}, 300, "NOERROR", nil
+			}
+			return nil, 300, "NOERROR", nil
+		},
+		cache:     newStore(persistence),
+		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
+		sched:     newSchedule(),
+		wake:      make(chan struct{}, 1),
+		stopCh:    make(chan struct{}),
+		done:      make(chan struct{}),
+		config:    cfg,
+	}
+	require.NoError(t, plug.configure(cfg))
+	assert.WithinDuration(t, unexpiredAt, dueOf(t, plug.sched, v4Key()), 0,
+		"the unexpired unit is armed at its stored expiry")
+
+	plug.startRefreshWorker()
+	t.Cleanup(plug.stop)
+
+	select {
+	case got := <-resolved:
+		assert.Equal(t, "a.invalid/AAAA", got, "the expired unit is resolved at start, and the unexpired one is not")
+	case <-time.After(10 * time.Second):
+		t.Fatal("the refresh worker never resolved the expired unit")
+	}
+
+	// Once the expired unit is rearmed ahead, nothing is due before the
+	// unexpired unit's stored expiry, so no A query can follow it.
+	require.Eventually(t, func() bool {
+		_, due, found := plug.sched.nextDue()
+		return found && due.After(time.Now())
+	}, 10*time.Second, 5*time.Millisecond, "the resolved unit is rescheduled ahead")
+	assert.Empty(t, resolved, "no query is sent for the unexpired name")
+	assert.WithinDuration(t, unexpiredAt, dueOf(t, plug.sched, v4Key()), 0)
 }

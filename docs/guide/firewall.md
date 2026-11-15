@@ -842,8 +842,9 @@ of 0 means "do not cache" rather than "expired now", so it waits the floor too
 and does not spin.
 
 The set is reprogrammed only when the addresses actually CHANGED. A name that
-keeps answering the same addresses costs one query and nothing else, so a
-60-second TTL does not rewrite the kernel's sets 1440 times a day.
+keeps answering the same addresses costs one query and one write of its stored
+expiry (Restart and Recovery, below), so a 60-second TTL does not rewrite the
+kernel's sets 1440 times a day.
 
 ### What a Failed Lookup Does
 
@@ -883,7 +884,18 @@ name is neither, and sharing the file would evict commit history.
 
 Resolved addresses are kept in zefs, so a box that reboots with its upstream DNS
 unreachable programs its domain-group sets from what it learned last time and
-resumes filtering without waiting for a query. The plugin runs as its own
+resumes filtering without waiting for a query.
+
+Each stored answer also keeps when it expires: the time it arrived plus its TTL,
+never less than `ttl-floor` and never more than a day. A restart asks again
+only for the names whose stored answer has expired, and asks for each of the
+others when its own expiry comes, so a reboot enforces the same addresses it
+enforced before. Every answer renews the stored expiry, including one that
+confirms the same addresses, so a name at the 60-second floor writes its entry
+up to 1,440 times a day per family. A name stored by a Ze that predates the
+expiry is asked for once at start.
+
+The plugin runs as its own
 process: a panic while handling an answer costs one refresh cycle rather than
 the process, and a crash starts the plugin again with the cache intact: the
 plugin declares `failure-policy: restart`, and the cache is in the shared zefs
@@ -892,17 +904,28 @@ store rather than in the process.
 ### Observability
 
 `show firewall domain-group [<name>]` reports each group with its names, the
-addresses being enforced per family, when each last resolved, and what the last
-answer said. A family reads `missing` until it has been asked for once, which is
-a different fact from a family that answered and holds nothing.
+addresses being enforced per family, when those addresses were recorded
+(`last-resolved`), and what the last answer said. A family reads `missing` until
+it has been asked for once, which is a different fact from a family that
+answered and holds nothing.
 
-`ze doctor` reports two codes:
+`ze doctor` reports four codes:
 
 - `doctor-firewall-domain-group-no-data`: a referenced group has no addresses,
   so the rules naming it filter nothing.
 - `doctor-firewall-domain-group-stale-data`: a name in a referenced group has
   not resolved for more than a day, and Ze is still enforcing the addresses it
   learned before.
+- `doctor-firewall-domain-group-unreadable-data`: a stored answer of a
+  referenced group cannot be read, so its name's addresses are missing from the
+  set until the next answer rewrites it. `update firewall domain-group <name>`
+  resolves it now.
+- `doctor-firewall-domain-group-unsaved-answer`: an answer could not be
+  written to the store. The name goes on enforcing the addresses it held
+  before, and a restart does not have the newer answer. The finding names the
+  store error. Fix that cause, then run `update firewall domain-group <name>`.
+  The next write that succeeds clears the finding. Only the running daemon
+  reports this one, because only the plugin's process knows the write failed.
 
 Run `ze show diagnostic <code>` for the full description. Four metrics carry the same
 state: `ze_firewall_domain_group_addresses_cached`,
@@ -914,6 +937,7 @@ refresh changed the addresses, and `ze_firewall_domain_group_data_age_seconds`.
 <!-- source: internal/component/firewall/plugins/domain/schedule.go -- per-name, per-family TTL schedule -->
 <!-- source: internal/component/firewall/plugins/domain/changelog.go -- the bounded JSON-lines change log -->
 <!-- source: internal/component/firewall/plugins/domain/doctor.go -- checkDomainGroupData -->
+<!-- source: internal/component/firewall/plugins/domain/doctor.go -- unsavedAnswerFindings -->
 
 ## CLI
 

@@ -140,8 +140,15 @@ func runFirewallDomain(conn net.Conn) int {
 	// same reason.
 	var pendingCfg *domainConfig
 
+	// The handshake only holds the config. The stored answers are not readable
+	// until OnStarted binds the state RPCs, and a configure here would arm
+	// every unit as unanswered, due at once, and warn for every group: the
+	// schedule keeps a due time across a reset, so the start would then ask
+	// upstream for names whose stored answer is still valid
+	// (spec-fetched-data-survives-restart, AC-13). OnStarted configures it.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		return plug.configure(parseDomainConfig(sections))
+		plug.holdStartupConfig(parseDomainConfig(sections))
+		return nil
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
@@ -170,6 +177,10 @@ func runFirewallDomain(conn net.Conn) int {
 
 	p.OnEnrichShow(plug.enrichShow)
 
+	// The unsaved-answer check reads the failed writes this process recorded,
+	// so it is answered here, internal and forked alike.
+	p.OnDoctorCheck(plug.answerDoctorCheck)
+
 	// The refresh worker starts here and not in configure. Its first act is a
 	// resolve, which is an engine call, and OnStarted is where the SDK says an
 	// engine call is safe: the five-stage handshake has completed, so the
@@ -194,9 +205,10 @@ func runFirewallDomain(conn net.Conn) int {
 	defer plug.stop()
 
 	if err := p.Run(ctx, &sdk.Registration{
-		Commands:    commandDecls(),
-		Enrichers:   []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
-		WantsConfig: []string{configRoot},
+		Commands:     commandDecls(),
+		Enrichers:    []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
+		WantsConfig:  []string{configRoot},
+		DoctorChecks: []sdk.DoctorCheckDecl{unsavedAnswerCheckDecl},
 		// The resolved addresses survive a restart in the owned store, so a
 		// crashed process comes back and programs its sets again from the cache.
 		// Without the restart the registry holds back every table naming a
@@ -280,8 +292,19 @@ func uncachedGroupMessage(groupName string) string {
 	return tb.String()
 }
 
+// holdStartupConfig keeps the config the handshake delivered for OnStarted to
+// configure. It reads nothing, programs nothing and arms nothing, because the
+// store is not reachable before OnStarted binds the state RPCs.
+func (plug *domainPlugin) holdStartupConfig(cfg *domainConfig) {
+	plug.mu.Lock()
+	plug.config = cfg
+	plug.mu.Unlock()
+}
+
 // configure installs cfg as the running configuration: it reads the cache,
-// programs the tables from it, and rearms the schedule.
+// programs the tables from it, and rearms the schedule. The caller MUST have
+// bound the cache's persistence first (OnStarted does), or the schedule arms
+// every unit as unanswered.
 //
 // The cache is read and the tables programmed BEFORE any name is resolved,
 // which is AC-7: a box rebooting with its upstream DNS down resumes filtering
@@ -309,16 +332,14 @@ func (plug *domainPlugin) configure(cfg *domainConfig) error {
 		logger().Warn("firewall-domain: apply failed", "error", err)
 	}
 
-	// The schedule is armed here and the worker is NOT started here. A name
-	// with no cached answer is due immediately, so a worker started at this
-	// point resolves at once, and resolving is an engine call: OnConfigure runs
-	// while the engine is waiting for its response, and the startup coordinator
-	// reads that request where it expects the plugin's `ready` (Plugin.OnStarted,
-	// pkg/plugin/sdk/sdk_callbacks.go). The daemon then refuses to start with
-	// "stage 5: expected ready, got ze-plugin-engine:resolve-dns". The worker is
-	// started from OnStarted instead (runFirewallDomain), and a nudge arriving
-	// before it exists is not lost: reset leaves every unit due, and the worker
-	// reads the schedule as its first act.
+	// The schedule is armed here and the worker is NOT started here. Each unit
+	// is armed at its stored expiry, or due at once with none, and the worker
+	// is started by OnStarted after this configure returns (runFirewallDomain):
+	// a resolve is an engine call, and one made during the handshake is read
+	// where the startup coordinator expects the plugin's `ready`, so the daemon
+	// refuses to start with "stage 5: expected ready, got
+	// ze-plugin-engine:resolve-dns". A nudge arriving before the worker exists
+	// is not lost, because the worker reads the schedule as its first act.
 	plug.rearmSchedule(cfg)
 
 	logger().Debug("configured", "groups", len(cfg.groups), "references", len(cfg.refs))
@@ -405,9 +426,11 @@ func (plug *domainPlugin) stop() {
 }
 
 // rearmSchedule replaces the schedule for the given config and wakes the
-// worker, which may be asleep until a due time the new config moved.
+// worker, which may be asleep until a due time the new config moved. A unit
+// new to the schedule is armed at the expiry of its stored answer, which the
+// cache has just loaded (configure).
 func (plug *domainPlugin) rearmSchedule(cfg *domainConfig) {
-	plug.sched.reset(cfg.groups, time.Now())
+	plug.sched.reset(cfg.groups, plug.cache.expiry, time.Now())
 	plug.nudge()
 }
 
@@ -570,15 +593,25 @@ func (plug *domainPlugin) resolveAndRecord(key nameKey) (changed bool, err error
 		}
 	}
 
-	plug.sched.arm(key, ttl, floor, now)
+	// The time the schedule asks again is the time the answer stops being
+	// valid, so it is stored with the answer and a restart arms the unit at it
+	// (schedule.reset). UTC whole seconds keep each rewrite the same size, and
+	// truncating can only make a restart ask up to a second early, never late.
+	due := plug.sched.arm(key, ttl, floor, now)
+	answered := resolvedName{
+		Addresses:  addresses,
+		ResolvedAt: now,
+		Status:     status.String(),
+		ExpiresAt:  due.UTC().Truncate(time.Second),
+	}
 
 	if sameAddresses(previous.Addresses, addresses) {
-		// AC-2: no set is reprogrammed, no cache write happens, and no record
-		// is logged. This is the common case for a name that does not move,
-		// and it is what keeps a 60-second TTL from rewriting the kernel 1440
-		// times a day.
+		// AC-2: no set is reprogrammed and no record is logged. This is the
+		// common case for a name that does not move, and it is what keeps a
+		// 60-second TTL from rewriting the kernel 1440 times a day. The store
+		// is still written, to renew the expiry (recordSteadyAnswer).
 		incRefreshOutcome(outcomeUnchanged)
-		plug.recordSteadyAnswer(key, previous, seen, addresses, status, now)
+		plug.recordSteadyAnswer(key, previous, seen, answered)
 		return false, nil
 	}
 
@@ -588,17 +621,15 @@ func (plug *domainPlugin) resolveAndRecord(key nameKey) (changed bool, err error
 		incRefreshOutcome(outcomeChanged)
 	}
 
-	writeErr := plug.cache.put(key, resolvedName{
-		Addresses:  addresses,
-		ResolvedAt: now,
-		Status:     status.String(),
-	})
-	if writeErr != nil {
-		// The addresses are in memory and will be programmed, but the next
-		// boot will not have them. Report it rather than swallow it: a cache
-		// that stopped persisting is exactly what makes AC-7 fail silently.
-		logger().Warn("firewall-domain: address cache write failed, the next restart will not have these addresses",
-			"group", key.group, "name", key.name, "error", writeErr)
+	if writeErr := plug.cache.put(key, answered); writeErr != nil {
+		// put keeps memory and the store equal, so the changed addresses are
+		// neither saved nor programmed: the name enforces what it held, and
+		// nothing records a change that did not happen. The schedule already
+		// asks again at this answer's expiry. Report it rather than swallow
+		// it: a cache that stopped persisting is what makes AC-7 fail
+		// silently, and the doctor names it until a write succeeds.
+		warnUnsavedAnswer(key, "the changed addresses are not enforced and a restart will not have them", writeErr)
+		return false, nil
 	}
 
 	markRefreshChanged()
@@ -623,33 +654,40 @@ func (plug *domainPlugin) resolveAndRecord(key nameKey) (changed bool, err error
 }
 
 // recordSteadyAnswer persists an authoritative answer that did NOT change the
-// addresses, but only when it says something the store does not already hold.
+// addresses. Every such answer is written, because it renews the stored
+// expiry: a restart arms the unit at that expiry, and an expiry left at the
+// first answer would read as long passed, so the start would ask upstream for
+// every name whose addresses never move (Thomas, spec-fetched-data-survives-
+// restart: renewed on every answer, an hourly cap rejected). At the 60-second
+// floor that is up to 1440 writes a day per name and family, each replacing a
+// value of the same size.
 //
-// Two cases earn a write and no others, because AC-2 requires the steady state
-// to write nothing:
+// A confirming answer keeps the ResolvedAt it found: that field dates the
+// addresses, and they did not move. Two cases write the answer's own time:
 //
 //   - The FIRST answer for this name and family, even when it carries no
 //     address. "Never asked" and "asked, and it holds nothing" are different
 //     facts, and only a written entry can tell them apart: an IPv4-only name
 //     answers NOERROR-empty for AAAA forever, and without this its IPv6 family
 //     would read as unqueried for the life of the box.
-//   - The answer that ENDS an outage. The failing marker was written when the
-//     outage started, so leaving it would report a healthy name as failing.
-//
-// A name that keeps answering the same addresses matches neither, so a
-// 60-second TTL writes to the store exactly once.
-func (plug *domainPlugin) recordSteadyAnswer(key nameKey, previous resolvedName, seen bool, addresses []string, status dns.Status, now time.Time) {
+//   - The answer that ENDS an outage. Writing the answer whole clears the
+//     failing marker, which would otherwise report a healthy name as failing.
+func (plug *domainPlugin) recordSteadyAnswer(key nameKey, previous resolvedName, seen bool, answered resolvedName) {
 	if seen && !previous.failing() {
-		return
+		answered.ResolvedAt = previous.ResolvedAt
 	}
-	if err := plug.cache.put(key, resolvedName{
-		Addresses:  addresses,
-		ResolvedAt: now,
-		Status:     status.String(),
-	}); err != nil {
-		logger().Warn("firewall-domain: address cache write failed",
-			"group", key.group, "name", key.name, "family", key.family.label, "error", err)
+	if err := plug.cache.put(key, answered); err != nil {
+		warnUnsavedAnswer(key, "the stored expiry was not renewed, so a restart asks for the name again", err)
 	}
+}
+
+// warnUnsavedAnswer logs an answer the store refused, with what the operator
+// loses. store.put has already recorded it for the unsaved-answer doctor check.
+func warnUnsavedAnswer(key nameKey, effect string, err error) {
+	logger().Warn("firewall-domain: answer could not be saved",
+		"group", key.group, "name", key.name, "family", key.family.label,
+		"effect", effect, "error", err,
+		"code", codeDomainGroupUnsavedAnswer, "fix", updateFix(key.group))
 }
 
 // markFailing records that this name and family has stopped resolving, once,
@@ -662,9 +700,12 @@ func (plug *domainPlugin) recordSteadyAnswer(key nameKey, previous resolvedName,
 // identical, because both hold the same addresses.
 //
 // A name that is already marked writes nothing, so an outage costs one write
-// however long it lasts. A name with no entry at all writes nothing either:
-// there are no addresses to describe, and the group is already reported as
-// having none.
+// however long it lasts. The stored expiry stays the last good answer's: a
+// failure is not an answer, and that expiry is still how long those addresses
+// were valid, so a restart during the outage asks again once it has passed.
+//
+// A name with no entry at all writes nothing either: there are no addresses
+// to describe, and the group is already reported as having none.
 func (plug *domainPlugin) markFailing(key nameKey, previous resolvedName, seen bool, status dns.Status, now time.Time) {
 	if !seen || previous.failing() {
 		return
@@ -672,8 +713,7 @@ func (plug *domainPlugin) markFailing(key nameKey, previous resolvedName, seen b
 	previous.Status = status.String()
 	previous.FailingSince = now
 	if err := plug.cache.put(key, previous); err != nil {
-		logger().Warn("firewall-domain: address cache write failed",
-			"group", key.group, "name", key.name, "family", key.family.label, "error", err)
+		warnUnsavedAnswer(key, "the failing marker was not saved, so show firewall domain-group and ze doctor do not see the outage", err)
 	}
 }
 

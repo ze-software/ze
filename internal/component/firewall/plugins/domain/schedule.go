@@ -78,10 +78,21 @@ func newSchedule() *schedule {
 	return &schedule{due: make(map[nameKey]time.Time)}
 }
 
-// reset replaces the schedule with one entry per unit of the given groups, all
-// due now. It is called on each configure: a name an operator removed must
-// stop being queried, and a name they added must be asked for at once.
-func (s *schedule) reset(groups []group, now time.Time) {
+// storedExpiry answers when the stored answer of one unit stops being valid,
+// and false when no stored answer carries an expiry. store.expiry is the
+// production lookup.
+type storedExpiry func(nameKey) (time.Time, bool)
+
+// reset replaces the schedule with one entry per unit of the given groups. It
+// is called on each configure: a name an operator removed must stop being
+// queried, and a name they added must be asked for at once unless the store
+// already holds a valid answer for it.
+//
+// A unit not yet scheduled is armed at its stored expiry, so a start over
+// stored answers asks upstream only for the names whose answer expired, and a
+// reboot keeps enforcing the addresses it enforced before
+// (spec-fetched-data-survives-restart, AC-13).
+func (s *schedule) reset(groups []group, stored storedExpiry, now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -97,15 +108,42 @@ func (s *schedule) reset(groups []group, now time.Time) {
 					fresh[key] = when
 					continue
 				}
-				fresh[key] = now
+				fresh[key] = startDue(stored, key, now)
 			}
 		}
 	}
 	s.due = fresh
 }
 
+// startDue is when a unit the schedule does not hold yet is first due: its
+// stored expiry while that is still ahead, and now otherwise.
+//
+// The one-day ceiling applies to a stored expiry as it does to a live answer.
+// Every expiry this package writes is at most maxRefreshInterval out, so a
+// later one is a clock that stepped back or a value edited in the store, and
+// honoring it would freeze the name past the bound.
+func startDue(stored storedExpiry, key nameKey, now time.Time) time.Time {
+	expiresAt, ok := stored(key)
+	if !ok {
+		return now
+	}
+	// RFC 1035 Section 3.2.1, TTL: "a 32 bit signed integer that specifies the
+	// time interval that the resource record may be cached before the source
+	// of the information should again be consulted."
+	// A stored answer whose interval has passed is consulted again at once.
+	if !expiresAt.After(now) {
+		return now
+	}
+	ceiling := now.Add(maxRefreshInterval)
+	if expiresAt.After(ceiling) {
+		return ceiling
+	}
+	return expiresAt
+}
+
 // arm sets when this unit is next due, from the TTL the answer carried and the
-// group's floor.
+// group's floor, and returns that time: it is the expiry the answer is stored
+// with.
 //
 // The floor is what makes AC-9 hold, and it covers two cases with one rule. A
 // TTL below the floor is a server asking to be polled faster than the operator
@@ -115,10 +153,12 @@ func (s *schedule) reset(groups []group, now time.Time) {
 // query every time round the loop. Waiting the floor answers both, and the
 // answer is never used past its life because the floor is measured from the
 // moment the answer arrived.
-func (s *schedule) arm(key nameKey, ttl, floor uint32, now time.Time) {
+func (s *schedule) arm(key nameKey, ttl, floor uint32, now time.Time) time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.due[key] = now.Add(refreshInterval(ttl, floor))
+	due := now.Add(refreshInterval(ttl, floor))
+	s.due[key] = due
+	return due
 }
 
 // refreshInterval is how long to wait before asking again.

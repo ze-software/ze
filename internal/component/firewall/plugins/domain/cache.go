@@ -18,6 +18,7 @@ import (
 	"io/fs"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,10 +40,21 @@ type resolvedName struct {
 	//
 	// It exists because the addresses alone cannot say it: a name whose server
 	// has been down for a week holds exactly the addresses it held before, and
-	// the firewall is enforcing them. It is written only when the failing state
-	// FLIPS, once at the start of an outage and once at its end, so a steady
-	// state writes nothing whichever side it is on.
+	// the firewall is enforcing them. It changes only when the failing state
+	// FLIPS, once at the start of an outage and once at its end, so an outage
+	// costs one write however long it lasts.
 	FailingSince time.Time `json:"failing-since,omitzero"`
+	// ExpiresAt is when this answer stops being valid: the answer's arrival
+	// plus max(TTL, ttl-floor), capped at one day (refreshInterval). It is the
+	// time the schedule asks again, and a start arms the unit at it (reset), so
+	// a reboot does not ask upstream for a name whose answer is still valid.
+	//
+	// Every authoritative answer rewrites it, the ones that confirm the same
+	// addresses included (Thomas, spec-fetched-data-survives-restart). It is
+	// written in UTC whole seconds, so a confirming answer writes a value the
+	// same size as the one it replaces. Zero is an answer stored before the
+	// field existed, and reads as expired.
+	ExpiresAt time.Time `json:"expires-at,omitzero"`
 }
 
 // failing reports whether this name and family is currently unable to resolve.
@@ -62,11 +74,36 @@ type cacheKeys interface {
 type store struct {
 	mu      sync.RWMutex
 	entries map[nameKey]resolvedName
+	// unreadable holds every unit whose stored answer exists and could not be
+	// read or decoded at the last open. Each reads as unresolved, and the
+	// doctor check names it (codeDomainGroupUnreadableData).
+	unreadable []nameKey
+	// unsaved holds every unit whose last answer could not be written (put).
+	// The answer is not in memory either, because put keeps memory and the
+	// store equal, so the unit enforces what it held before. A later write of
+	// the unit clears it. It lives in this process only, so the plugin's
+	// runtime doctor check names it (codeDomainGroupUnsavedAnswer).
+	unsaved map[nameKey]unsavedAnswer
 	keys    cacheKeys
 }
 
+// unsavedAnswer is one answer put could not write: why, and when.
+type unsavedAnswer struct {
+	err error
+	at  time.Time
+}
+
+// storedAnswerKey is the store key of one unit's answer.
+func storedAnswerKey(key nameKey) string {
+	return zefs.KeyFirewallDomainGroup.Key(key.group, key.name, key.family.label)
+}
+
 func newStore(keys cacheKeys) *store {
-	return &store{keys: keys, entries: make(map[nameKey]resolvedName)}
+	return &store{
+		keys:    keys,
+		entries: make(map[nameKey]resolvedName),
+		unsaved: make(map[nameKey]unsavedAnswer),
+	}
 }
 
 // open reads every cached answer for the named groups into memory. It is
@@ -85,11 +122,14 @@ func (s *store) open(groups []group) error {
 	}
 
 	entries := make(map[nameKey]resolvedName)
+	configured := make(map[nameKey]bool)
+	var unreadable []nameKey
 	for _, g := range groups {
 		for _, name := range g.Names {
 			for _, fam := range families {
-				key := zefs.KeyFirewallDomainGroup.Key(g.Name, name, fam.label)
-				data, readErr := s.keys.ReadKey(key)
+				unit := nameKey{group: g.Name, name: name, family: fam}
+				configured[unit] = true
+				data, readErr := s.keys.ReadKey(storedAnswerKey(unit))
 				if readErr != nil {
 					// A key this box never wrote is the normal state of a name
 					// that has not resolved yet, and it says nothing. Any other
@@ -98,8 +138,10 @@ func (s *store) open(groups []group) error {
 					// leave the group short of addresses the box did learn,
 					// which is the outcome this function is written to avoid.
 					if !errors.Is(readErr, fs.ErrNotExist) {
-						logger().Warn("firewall-domain: cached addresses could not be read, the name reads as unresolved",
-							"group", g.Name, "name", name, "family", fam.label, "error", readErr)
+						unreadable = append(unreadable, unit)
+						logger().Warn("firewall-domain: cached addresses could not be read, the name reads as unresolved and is asked for at once",
+							"group", g.Name, "name", name, "family", fam.label, "error", readErr,
+							"code", codeDomainGroupUnreadableData, "fix", updateFix(g.Name))
 					}
 					continue
 				}
@@ -108,19 +150,87 @@ func (s *store) open(groups []group) error {
 				}
 				var value resolvedName
 				if decodeErr := json.Unmarshal(data, &value); decodeErr != nil {
-					logger().Warn("firewall-domain: cached addresses could not be decoded, the name reads as unresolved",
-						"group", g.Name, "name", name, "family", fam.label, "error", decodeErr)
+					unreadable = append(unreadable, unit)
+					logger().Warn("firewall-domain: cached addresses could not be decoded, the name reads as unresolved and is asked for at once",
+						"group", g.Name, "name", name, "family", fam.label, "error", decodeErr,
+						"code", codeDomainGroupUnreadableData, "fix", updateFix(g.Name))
 					continue
 				}
-				entries[nameKey{group: g.Name, name: name, family: fam}] = value
+				entries[unit] = value
 			}
 		}
 	}
 
 	s.mu.Lock()
 	s.entries = entries
+	s.unreadable = unreadable
+	// A failed write stays reported across a reopen: the store still holds the
+	// older value, so the answer is still lost. A unit no longer configured
+	// enforces nothing, so its record goes.
+	for unit := range s.unsaved {
+		if !configured[unit] {
+			delete(s.unsaved, unit)
+		}
+	}
 	s.mu.Unlock()
 	return nil
+}
+
+// unsavedUnit is one answer unsavedFor reports: the unit and its failure.
+type unsavedUnit struct {
+	key     nameKey
+	failure unsavedAnswer
+}
+
+// unsavedFor returns every unit whose last answer could not be written, in
+// group, name and family order, for the runtime doctor check to name.
+func (s *store) unsavedFor() []unsavedUnit {
+	s.mu.RLock()
+	out := make([]unsavedUnit, 0, len(s.unsaved))
+	for key, failure := range s.unsaved {
+		out = append(out, unsavedUnit{key: key, failure: failure})
+	}
+	s.mu.RUnlock()
+	slices.SortFunc(out, func(a, b unsavedUnit) int {
+		if c := strings.Compare(a.key.group, b.key.group); c != 0 {
+			return c
+		}
+		if c := strings.Compare(a.key.name, b.key.name); c != 0 {
+			return c
+		}
+		return strings.Compare(a.key.family.label, b.key.family.label)
+	})
+	return out
+}
+
+// expiry returns when the stored answer for one unit stops being valid. The
+// bool is false when no answer is stored, and when the stored answer predates
+// the expiry field: neither says the unit may wait, so a caller asks at once.
+func (s *store) expiry(key nameKey) (time.Time, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	entry, ok := s.entries[key]
+	if !ok {
+		return time.Time{}, false
+	}
+	if entry.ExpiresAt.IsZero() {
+		return time.Time{}, false
+	}
+	return entry.ExpiresAt, true
+}
+
+// unreadableFor returns the units of one group whose stored answer could not
+// be read or decoded at the last open, for the doctor check to name.
+func (s *store) unreadableFor(groupName string) []nameKey {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []nameKey
+	for _, key := range s.unreadable {
+		if key.group == groupName {
+			out = append(out, key)
+		}
+	}
+	return out
 }
 
 // get returns the last good answer for one name and family.
@@ -134,22 +244,33 @@ func (s *store) get(key nameKey) (resolvedName, bool) {
 // put records a new last-good answer, in memory and on disk. The disk write is
 // what a restart reads, so a failure to write is returned rather than logged:
 // a caller that recorded a change in memory alone would report success for
-// state the next boot does not have.
+// state the next boot does not have. A failure leaves memory unchanged and is
+// recorded for the doctor (unsavedFor) until a later put of the unit succeeds.
 func (s *store) put(key nameKey, value resolvedName) error {
+	err := s.write(key, value)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err != nil {
+		s.unsaved[key] = unsavedAnswer{err: err, at: time.Now()}
+		return err
+	}
+	s.entries[key] = value
+	delete(s.unsaved, key)
+	return nil
+}
+
+// write encodes one answer and writes it to the store.
+func (s *store) write(key nameKey, value resolvedName) error {
 	data, err := json.Marshal(&value)
 	if err != nil {
 		return fmt.Errorf("firewall domain-group: encode cache entry: %w", err)
 	}
-
 	if s.keys == nil {
 		return errors.New("firewall domain-group: persistence unavailable")
 	}
-	if err := s.keys.WriteKey(zefs.KeyFirewallDomainGroup.Key(key.group, key.name, key.family.label), data); err != nil {
+	if err := s.keys.WriteKey(storedAnswerKey(key), data); err != nil {
 		return fmt.Errorf("firewall domain-group: write cache entry: %w", err)
 	}
-	s.mu.Lock()
-	s.entries[key] = value
-	s.mu.Unlock()
 	return nil
 }
 
@@ -251,10 +372,13 @@ func (s *store) purge(g group) (removed int, err error) {
 	for _, name := range g.Names {
 		for _, fam := range families {
 			key := nameKey{group: g.Name, name: name, family: fam}
+			// A cleared unit holds no answer to save, so a failed write of it
+			// is no longer a loss to report.
+			delete(s.unsaved, key)
 			if _, ok := s.entries[key]; !ok {
 				continue
 			}
-			if err := s.keys.RemoveKey(zefs.KeyFirewallDomainGroup.Key(g.Name, name, fam.label)); err != nil {
+			if err := s.keys.RemoveKey(storedAnswerKey(key)); err != nil {
 				return removed, err
 			}
 			delete(s.entries, key)
