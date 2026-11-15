@@ -235,7 +235,7 @@ func TestACodeSpanHoldingAPipeStaysInOneTableCell(t *testing.T) {
 		"<code>rpf-check strict|loose|disable</code>",
 		"<code>| log | resolve</code>",
 		"<code>| first N</code>",
-		"<code>clear firewall irr asn|as-set</code>",
+		"<code>clear irr asn|as-set</code>",
 	} {
 		if !strings.Contains(page, span) {
 			t.Errorf("the published page must carry %s whole", span)

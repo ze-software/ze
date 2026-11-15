@@ -334,7 +334,7 @@ func TestBrowserScreenshotPublicationRejectsVideo(t *testing.T) {
 	// Use a real captured WebP, measured here, without a capture-process mock.
 	poster := entry.Assets[demoTranscript]
 	poster.Path = "launcher.webp"
-	content, err := os.ReadFile(filepath.Join(repositoryRoot(t), "docs", "demos", "showcase.webp"))
+	content, err := os.ReadFile(filepath.Join(repositoryRoot(t), "website", "assets", "product-editor.webp"))
 	if err != nil {
 		t.Fatal(err)
 	}
