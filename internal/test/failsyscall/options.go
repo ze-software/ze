@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/qemu-integration.md -- failing one socket in the guest
+// Design: docs/architecture/testing/qemu-integration.md -- syscall failure injection in the guest
 // Related: failsyscall_linux.go -- the seccomp filter these options describe
 // Related: test/l2tp/subscriber-reader-failing-socket.ci -- the first caller
 
@@ -12,19 +12,18 @@ import (
 	"strconv"
 )
 
-// lengthUnset is the ReadLength of a run that names no length, so the filter
+// lengthUnset is the ByteLength of a run that names no length, so the filter
 // fails the syscall on every descriptor the command holds. It is negative
-// rather than zero because a read of zero bytes is a legitimate selector.
+// rather than zero because a zero-byte call is a legitimate selector.
 const lengthUnset = -1
 
-// readLengthMax bounds the `length` selector. Two things need the bound. The
+// byteLengthMax bounds the `length` selector. Two things need the bound. The
 // filter compares a 32-bit word, so a larger value would be truncated and arm a
 // filter for a length the caller never named; and proveArmed allocates a buffer
 // of exactly this many bytes to make its probe, so an unbounded keyword is an
 // unbounded allocation driven by one .ci line. One mebibyte is far above every
-// receive buffer a ze loop names: the l2tp listener's rxBufLen
-// (internal/component/l2tp/listener.go) is 1500.
-const readLengthMax = 1 << 20
+// receive buffer or individual message this helper currently needs to select.
+const byteLengthMax = 1 << 20
 
 // commandSeparator ends the options and begins the command to launch. The
 // command carries its own flags and keywords, so it needs a marker the parser
@@ -32,16 +31,16 @@ const readLengthMax = 1 << 20
 const commandSeparator = "--"
 
 // options is one run of the launcher: which syscall fails, what it answers,
-// which reads it selects, and what to launch under it.
+// which byte counts it selects, and what to launch under it.
 type options struct {
 	// SyscallName is the syscall to fail, by name. Its number differs between
 	// architectures, so the name is what a .ci file can carry.
 	SyscallName string
 	// ErrnoName is the errno the syscall answers, by name.
 	ErrnoName string
-	// ReadLength selects ONE socket by the byte count its reader asks for,
-	// which is a per-loop constant in a daemon. lengthUnset selects every read.
-	ReadLength int
+	// ByteLength selects the third syscall argument's byte count on every
+	// descriptor. lengthUnset selects every call of the named syscall.
+	ByteLength int
 	// Command is the argv to launch once the filter is installed.
 	Command []string
 }
@@ -64,7 +63,7 @@ func parseOptions(args []string) (options, error) {
 	if separator < 0 {
 		return options{}, errNoCommand
 	}
-	parsed := options{ReadLength: lengthUnset, Command: args[separator+1:]}
+	parsed := options{ByteLength: lengthUnset, Command: args[separator+1:]}
 	if len(parsed.Command) == 0 {
 		return options{}, errNoCommand
 	}
@@ -105,12 +104,12 @@ func (o *options) set(keyword, value string) error {
 			return fmt.Errorf("fail-syscall: length %s is not a number", value)
 		}
 		if length < 0 {
-			return fmt.Errorf("fail-syscall: length %s is negative; omit the keyword to select every read", value)
+			return fmt.Errorf("fail-syscall: length %s is negative; omit the keyword to select every call", value)
 		}
-		if length > readLengthMax {
-			return fmt.Errorf("fail-syscall: length %s is above %d, which no receive loop asks for and the filter's 32-bit comparison cannot carry", value, readLengthMax)
+		if length > byteLengthMax {
+			return fmt.Errorf("fail-syscall: length %s is above %d bytes, the probe limit; choose a smaller byte count", value, byteLengthMax)
 		}
-		o.ReadLength = length
+		o.ByteLength = length
 		return nil
 	default:
 		return fmt.Errorf("fail-syscall: unknown keyword %s; it takes syscall, errno and length", keyword)

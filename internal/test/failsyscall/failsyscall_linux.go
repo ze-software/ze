@@ -1,6 +1,6 @@
-// Design: docs/architecture/testing/qemu-integration.md -- failing one socket in the guest
+// Design: docs/architecture/testing/qemu-integration.md -- syscall failure injection in the guest
 // Related: options.go -- the keyword grammar this reads
-// Related: internal/test/cli/register.go -- registers the `fail-syscall` verb
+// Related: internal/le/test/failsyscall/register.go -- registers the `fail-syscall` verb
 // Related: test/l2tp/subscriber-reader-failing-socket.ci -- the first caller
 //
 // A daemon that meets a socket it cannot read is meant to pace its retries. To
@@ -47,6 +47,9 @@ const (
 	seccompOffsetNr   = 0
 	seccompOffsetArch = 4
 	seccompOffsetArg2 = 32
+	// Both supported ABIs are little-endian, so the high word follows the low
+	// word. Checking both prevents counts of 2^32+N from matching length N.
+	seccompOffsetArg2High = 36
 )
 
 // The three classic BPF opcodes the filter uses: load a 32-bit word at a fixed
@@ -67,11 +70,15 @@ type syscallSelector struct {
 	// number is the syscall number. It differs between architectures, so it is
 	// taken from the compile-time constant rather than written down.
 	number uint32
-	// arg2IsReadLength says whether the third argument of the call is the read
-	// length. recvfrom(fd, buf, len, flags, ...) carries the length there, so a
-	// length selects one socket. recvmsg(fd, msghdr, flags) carries the FLAGS
+	// arg2IsByteLength says whether the third argument is a byte count.
+	// recvfrom(fd, buf, len, flags, ...) and write(fd, buf, count) carry it
+	// there. recvmsg(fd, msghdr, flags) carries the FLAGS
 	// there, where a length selector would compare against a flag word.
-	arg2IsReadLength bool
+	arg2IsByteLength bool
+	// openProbe supplies a descriptor whose unselected probe can complete
+	// without the injected errno: a receive socket or a write sink.
+	// The caller MUST close a successfully opened descriptor after its probes.
+	openProbe func() (int, error)
 	// probe makes the call once, so arming can be proven before the exec.
 	probe func(fd int, buffer []byte) error
 }
@@ -82,7 +89,8 @@ type syscallSelector struct {
 var syscallsByName = map[string]syscallSelector{
 	"recvfrom": {
 		number:           unix.SYS_RECVFROM,
-		arg2IsReadLength: true,
+		arg2IsByteLength: true,
+		openProbe:        openProbeSocket,
 		probe: func(fd int, buffer []byte) error {
 			_, _, err := unix.Recvfrom(fd, buffer, unix.MSG_DONTWAIT)
 			return err
@@ -90,18 +98,44 @@ var syscallsByName = map[string]syscallSelector{
 	},
 	"recvmsg": {
 		number:           unix.SYS_RECVMSG,
-		arg2IsReadLength: false,
+		arg2IsByteLength: false,
+		openProbe:        openProbeSocket,
 		probe: func(fd int, buffer []byte) error {
 			_, _, _, _, err := unix.Recvmsg(fd, buffer, nil, unix.MSG_DONTWAIT)
 			return err
 		},
 	},
+	"write": {
+		number:           unix.SYS_WRITE,
+		arg2IsByteLength: true,
+		openProbe: func() (int, error) {
+			// An unconnected datagram socket returns EDESTADDRREQ on write,
+			// which would make that injected errno's negative control ambiguous.
+			return unix.Open("/dev/null", unix.O_WRONLY|unix.O_CLOEXEC, 0)
+		},
+		probe: func(fd int, buffer []byte) error {
+			_, err := unix.Write(fd, buffer)
+			return err
+		},
+	},
+}
+
+// openProbeSocket preserves the empty nonblocking receive probe used by both
+// receive syscalls. A write probe uses a sink rather than this receive socket.
+func openProbeSocket() (int, error) {
+	return unix.Socket(unix.AF_INET, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
 }
 
 // usageLine is printed when the options do not parse. It lives beside the only
 // verb that prints it rather than beside the grammar it describes (options.go),
 // because options.go carries no build tag and the launcher is Linux-only.
 const usageLine = "usage: le test fail-syscall syscall <name> errno <NAME> [length <bytes>] -- <command> [args...]"
+
+// ShortHelp exposes the accepted syscall names to le's help and agent catalog
+// from the same registry that arm uses.
+func ShortHelp() string {
+	return "fail a syscall: " + knownSyscallNames()
+}
 
 // Run installs the filter and replaces this process with the command after
 // `--`. It returns only when something refused, because a successful execve
@@ -111,6 +145,7 @@ func Run(args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err) //nolint:errcheck // diagnostic on the way out
 		fmt.Fprintln(os.Stderr, usageLine)
+		fmt.Fprintf(os.Stderr, "syscall values: %s\n", knownSyscallNames()) //nolint:errcheck // diagnostic on the way out
 		return 2
 	}
 	if err := arm(parsed); err != nil {
@@ -140,8 +175,8 @@ func arm(parsed options) error {
 		return fmt.Errorf("fail-syscall: syscall %s is not one this can fail; it knows %s",
 			parsed.SyscallName, knownSyscallNames())
 	}
-	if parsed.ReadLength != lengthUnset && !selector.arg2IsReadLength {
-		return fmt.Errorf("fail-syscall: %s carries its flags in the third argument rather than a read length, so `length` cannot select one socket on it",
+	if parsed.ByteLength != lengthUnset && !selector.arg2IsByteLength {
+		return fmt.Errorf("fail-syscall: %s carries its flags in the third argument rather than a byte count; omit `length` for this syscall",
 			parsed.SyscallName)
 	}
 	errno, err := errnoByName(parsed.ErrnoName)
@@ -153,7 +188,7 @@ func arm(parsed options) error {
 		return err
 	}
 
-	filter := buildFilter(arch, selector.number, uint32(errno), parsed.ReadLength)
+	filter := buildFilter(arch, selector.number, uint32(errno), parsed.ByteLength)
 	program := unix.SockFprog{Len: uint16(len(filter)), Filter: &filter[0]}
 	if err := unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
 		return fmt.Errorf("fail-syscall: prctl(PR_SET_NO_NEW_PRIVS): %w", err)
@@ -173,12 +208,12 @@ func arm(parsed options) error {
 	if thread != 0 {
 		return fmt.Errorf("fail-syscall: seccomp could not put the filter on thread %d", thread)
 	}
-	return proveArmed(selector, errno, parsed.ReadLength)
+	return proveArmed(selector, errno, parsed.ByteLength)
 }
 
 // buildFilter answers the classic BPF program seccomp runs at each syscall
 // entry. The shape is fixed: compare the architecture, compare the syscall
-// number, compare the read length when one selects the socket, then answer the
+// number, compare the byte count when selected, then answer the
 // errno. Every comparison falls THROUGH on a match and jumps to the final allow
 // on a mismatch, so each jf is the distance from the instruction after the
 // comparison to that allow.
@@ -187,12 +222,12 @@ func arm(parsed options) error {
 // without it: the same number names a different call under another ABI, so a
 // filter that skipped the check would fail an unrelated syscall on a process
 // running in compatibility mode.
-func buildFilter(auditArchValue, syscallNumber, errno uint32, readLength int) []unix.SockFilter {
-	selectsLength := readLength != lengthUnset
+func buildFilter(auditArchValue, syscallNumber, errno uint32, byteLength int) []unix.SockFilter {
+	selectsLength := byteLength != lengthUnset
 	// Two instructions for each comparison, plus the two returns.
 	count := 6
 	if selectsLength {
-		count = 8
+		count = 10
 	}
 	allow := count - 1
 	filter := make([]unix.SockFilter, 0, count)
@@ -209,7 +244,8 @@ func buildFilter(auditArchValue, syscallNumber, errno uint32, readLength int) []
 	appendComparison(seccompOffsetArch, auditArchValue)
 	appendComparison(seccompOffsetNr, syscallNumber)
 	if selectsLength {
-		appendComparison(seccompOffsetArg2, uint32(readLength))
+		appendComparison(seccompOffsetArg2High, 0)
+		appendComparison(seccompOffsetArg2, uint32(byteLength))
 	}
 	return append(filter,
 		unix.SockFilter{Code: bpfReturnConst, K: unix.SECCOMP_RET_ERRNO | errno},
@@ -221,32 +257,33 @@ func buildFilter(auditArchValue, syscallNumber, errno uint32, readLength int) []
 // installed and selects nothing is otherwise indistinguishable from a daemon
 // that never reached the call, and the test would pass while nothing was ever
 // injected (`ai/rules/principles.md`).
-func proveArmed(selector syscallSelector, errno syscall.Errno, readLength int) error {
-	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
+func proveArmed(selector syscallSelector, errno syscall.Errno, byteLength int) error {
+	fd, err := selector.openProbe()
 	if err != nil {
-		return fmt.Errorf("fail-syscall: open the probe socket: %w", err)
+		return fmt.Errorf("fail-syscall: open the syscall probe descriptor: %w", err)
 	}
-	defer unix.Close(fd) //nolint:errcheck // the probe socket carries no data
+	// The probe descriptor MUST close on every return, including arming failure.
+	defer unix.Close(fd) //nolint:errcheck // this descriptor exists only for the arming probe
 
-	probeLength := readLength
+	probeLength := byteLength
 	if probeLength == lengthUnset {
 		probeLength = 1
 	}
 	if err := selector.probe(fd, make([]byte, probeLength)); !errors.Is(err, errno) {
 		//nolint:errorlint // %w cannot render the case that matters most: a probe the filter never
 		// touched answers a nil error, and this line is a diagnostic rather than a chain to unwrap.
-		return fmt.Errorf("fail-syscall: the filter did not arm: a read of %d bytes answered %v, want %v",
+		return fmt.Errorf("fail-syscall: the filter did not arm: a call with %d bytes answered %v, want %v",
 			probeLength, err, errno)
 	}
-	if readLength == lengthUnset {
+	if byteLength == lengthUnset {
 		return nil
 	}
 	// The negative control. A filter whose jump offsets are wrong fails every
-	// read rather than the selected one, and a daemon with no working socket at
+	// call rather than the selected one, and a daemon with no working socket at
 	// all is not what the caller asked to measure.
-	if err := selector.probe(fd, make([]byte, readLength+1)); errors.Is(err, errno) {
-		return fmt.Errorf("fail-syscall: the filter fires on a read of %d bytes, which `length %d` does not select",
-			readLength+1, readLength)
+	if err := selector.probe(fd, make([]byte, byteLength+1)); errors.Is(err, errno) {
+		return fmt.Errorf("fail-syscall: the filter fires on a call with %d bytes, which `length %d` does not select",
+			byteLength+1, byteLength)
 	}
 	return nil
 }

@@ -20,14 +20,14 @@ func TestParseOptionsReadsEveryKeyword(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "recvfrom", parsed.SyscallName)
 	assert.Equal(t, "ENETDOWN", parsed.ErrnoName)
-	assert.Equal(t, 1500, parsed.ReadLength)
+	assert.Equal(t, 1500, parsed.ByteLength)
 	assert.Equal(t, []string{"ze", "-"}, parsed.Command)
 }
 
 func TestParseOptionsLeavesLengthUnsetWhenAbsent(t *testing.T) {
 	parsed, err := parseOptions([]string{"syscall", "recvmsg", "errno", "ENETDOWN", "--", "ze"})
 	require.NoError(t, err)
-	assert.Equal(t, lengthUnset, parsed.ReadLength)
+	assert.Equal(t, lengthUnset, parsed.ByteLength)
 }
 
 // TestParseOptionsAcceptsTheCeiling pins the boundary from the other side. A
@@ -36,7 +36,7 @@ func TestParseOptionsLeavesLengthUnsetWhenAbsent(t *testing.T) {
 func TestParseOptionsAcceptsTheCeiling(t *testing.T) {
 	parsed, err := parseOptions([]string{"syscall", "recvfrom", "errno", "ENETDOWN", "length", "1048576", "--", "ze"})
 	require.NoError(t, err)
-	assert.Equal(t, readLengthMax, parsed.ReadLength)
+	assert.Equal(t, byteLengthMax, parsed.ByteLength)
 }
 
 func TestParseOptionsRefusesWhatWouldArmTheWrongFilter(t *testing.T) {

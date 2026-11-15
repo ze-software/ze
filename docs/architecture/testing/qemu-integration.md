@@ -1562,30 +1562,57 @@ before it reverts to blocking.
 answers a chosen errno for a chosen syscall, then `execve`s the command, so no
 tracer is in the path and the refused call is charged to the daemon's own CPU
 time.
+<!-- source: internal/test/failsyscall/failsyscall_linux.go -- Run, arm -->
 
 ```
 cmd=background:seq=1:exec=le test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
 ```
+<!-- source: internal/test/failsyscall/options.go -- parseOptions -->
+
+For a daemon write failure, use the same helper. This example fails every
+`write(fd, buf, 21)` with `EIO`, including the 21-byte BGP NOTIFICATION without
+data. The calling fixture runs outside the filtered daemon process.
+<!-- source: internal/test/failsyscall/failsyscall_linux.go -- syscallsByName, buildFilter -->
+<!-- source: internal/component/bgp/message/notification.go -- Notification.Len -->
+
+```
+cmd=background:seq=1:exec=le test fail-syscall syscall write errno EIO length 21 -- ze -:stdin=config
+```
+<!-- source: internal/test/failsyscall/options.go -- parseOptions -->
 
 | Keyword | Meaning |
 |---------|---------|
-| `syscall` | which call fails, by name. `recvfrom` and `recvmsg` are what it knows, and a name it does not know is refused |
+| `syscall` | Which call fails: `recvfrom`, `recvmsg`, or `write`. An unknown name is refused. |
 | `errno` | what the call answers, by name. Pick one the loop under test does NOT classify as a closed socket: `readDiscoveryFrame` maps `EBADF` and `EINVAL` onto `errSocketClosed` and LEAVES the loop, so either would prove nothing |
-| `length` | selects ONE socket by the byte count its reader asks for, which is a per-loop constant. Optional; without it every descriptor in the process fails |
+| `length` | Selects the full 64-bit byte count in the syscall's third argument. Optional; without it every call of the named syscall fails. The supported range is 0 through 1048576 bytes. |
+<!-- source: internal/test/failsyscall/options.go -- options.set -->
+<!-- source: internal/test/failsyscall/failsyscall_linux.go -- syscallsByName, arm -->
 
-Three constraints the caller has to know:
+Four constraints the caller has to know:
 
-- **`length` reads `args[2]`, which is a read length only for some calls.**
-  `recvfrom(fd, buf, len, flags, ...)` carries the length there, so the keyword
-  selects one socket. `recvmsg(fd, msghdr, flags)` carries the FLAGS there, and
-  the launcher refuses the combination rather than compare against a flag word.
+- **`length` reads `args[2]`, which is a byte count only for some calls.**
+  `recvfrom(fd, buf, len, flags, ...)` and `write(fd, buf, count)` carry it
+  there. `recvmsg(fd, msghdr, flags)` carries flags there, so the launcher
+  refuses `length` with `recvmsg`.
+  <!-- source: internal/test/failsyscall/failsyscall_linux.go -- syscallSelector, arm -->
+- **A length selects calls across the process, not one socket.** Every matching
+  call on every descriptor fails, including same-length log, file, pipe, or
+  other peer writes. The filter does not inspect BGP message content and does
+  not match `writev`, `sendto`, or `sendmsg` when `syscall write` is selected.
+  Use a length that leaves the daemon's required control traffic working, and
+  retain a control daemon without injection to prove the expected delivery.
+  <!-- source: internal/test/failsyscall/failsyscall_linux.go -- buildFilter -->
 - **Arming is loud.** The launcher makes the selected call once itself, plus one
   call of a length it must NOT select, and refuses to `execve` anything if
   either answer is wrong. A filter that installed and selects nothing would
   otherwise leave the daemon healthy while the test reported an armed window.
+  For `write`, the probe uses `/dev/null`, so the unselected call can succeed
+  without depending on a network endpoint.
+  <!-- source: internal/test/failsyscall/failsyscall_linux.go -- proveArmed, syscallsByName -->
 - **Wrapped stdin daemons receive isolated storage.** The runner recognizes
   `le test fail-syscall ... -- ze -` and gives it a stable per-daemon config
   folder. The wrapper still needs its own readiness probe.
+  <!-- source: internal/test/runner/runner_exec.go -- Runner.runOrchestrated -->
 
 `CONFIG_SECCOMP` and `CONFIG_SECCOMP_FILTER` are pinned in
 `gokrazy/kernel/runtime.require`, so a defconfig that stopped setting them fails

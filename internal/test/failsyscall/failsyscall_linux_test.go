@@ -51,7 +51,7 @@ func armAndProveInChild(t *testing.T) {
 	require.NoError(t, arm(options{
 		SyscallName: "recvfrom",
 		ErrnoName:   "ENETDOWN",
-		ReadLength:  1500,
+		ByteLength:  1500,
 		Command:     []string{"true"},
 	}))
 
@@ -74,17 +74,17 @@ func TestArmRefusesWhatItCannotSelect(t *testing.T) {
 	}{
 		{
 			name:    "unknown syscall",
-			request: options{SyscallName: "readv", ErrnoName: "ENETDOWN", ReadLength: lengthUnset, Command: []string{"true"}},
+			request: options{SyscallName: "readv", ErrnoName: "ENETDOWN", ByteLength: lengthUnset, Command: []string{"true"}},
 			want:    "syscall readv is not one this can fail",
 		},
 		{
 			name:    "length on a syscall whose third argument is not a length",
-			request: options{SyscallName: "recvmsg", ErrnoName: "ENETDOWN", ReadLength: 1500, Command: []string{"true"}},
+			request: options{SyscallName: "recvmsg", ErrnoName: "ENETDOWN", ByteLength: 1500, Command: []string{"true"}},
 			want:    "carries its flags in the third argument",
 		},
 		{
 			name:    "unknown errno",
-			request: options{SyscallName: "recvfrom", ErrnoName: "ENOTANERRNO", ReadLength: lengthUnset, Command: []string{"true"}},
+			request: options{SyscallName: "recvfrom", ErrnoName: "ENOTANERRNO", ByteLength: lengthUnset, Command: []string{"true"}},
 			want:    "is not an errno name",
 		},
 	}
@@ -102,15 +102,15 @@ func TestArmRefusesWhatItCannotSelect(t *testing.T) {
 func TestBuildFilterJumpsLandOnTheAllow(t *testing.T) {
 	cases := []struct {
 		name       string
-		readLength int
+		byteLength int
 		want       int
 	}{
-		{name: "every read", readLength: lengthUnset, want: 6},
-		{name: "one read length", readLength: 1500, want: 8},
+		{name: "every read", byteLength: lengthUnset, want: 6},
+		{name: "one read length", byteLength: 1500, want: 10},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			filter := buildFilter(unix.AUDIT_ARCH_AARCH64, unix.SYS_RECVFROM, uint32(unix.ENETDOWN), one.readLength)
+			filter := buildFilter(unix.AUDIT_ARCH_AARCH64, unix.SYS_RECVFROM, uint32(unix.ENETDOWN), one.byteLength)
 			require.Len(t, filter, one.want)
 			allow := len(filter) - 1
 			assert.Equal(t, uint32(unix.SECCOMP_RET_ALLOW), filter[allow].K)

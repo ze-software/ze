@@ -10,6 +10,11 @@ import (
 	"os"
 )
 
+// ShortHelp identifies the Linux helper on hosts that cannot install seccomp.
+func ShortHelp() string {
+	return "run Linux syscall failure injection (write or receive)"
+}
+
 // Run refuses on any platform without seccomp. The verb stays registered
 // everywhere so `le test` has one command list on every host, and a caller that
 // reaches it off Linux is told why rather than finding no such command.

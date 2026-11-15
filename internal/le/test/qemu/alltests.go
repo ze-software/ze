@@ -331,6 +331,7 @@ var integrationPackages = []string{
 	"./internal/component/l2tp/ppp",
 	"./internal/component/l2tp/pppoe",
 	"./internal/component/l2tp/pppoeclient",
+	"./internal/test/failsyscall",
 	"./internal/test/pppoeac",
 	"./internal/component/telemetry/collector",
 	"./internal/core/dnsserver",
