@@ -26,10 +26,12 @@ photographed, which is the worst place for a credential to appear.
 leaf package `internal/core/fetch`, which the installer and `ze init` both
 import. It follows a redirect only within the scheme and host of the first
 request: the SHA-256 is optional, so a redirect to another host is the one way
-a fetch would take bytes from a server the operator never named. A file fetch
+a fetch would take bytes from a server the operator never named. The policy is
+exported as `SameOrigin`, and the self-update client uses it too; a refusal is
+a `RedirectRefused`, which names the target with its userinfo redacted. A file fetch
 is written 0600 and bounded at 1 GiB. A stalled stream fails after 60 seconds
 with no data: a timer closes the response body, which ends the blocked read.
-<!-- source: internal/core/fetch/fetch.go -- ToFile, fileFetch, ToDisk, sameOrigin, stallReader -->
+<!-- source: internal/core/fetch/fetch.go -- ToFile, fileFetch, ToDisk, SameOrigin, RedirectRefused, stallReader -->
 <!-- source: internal/core/fetch/scheme.go -- the scheme table ze init --from resolves -->
 
 **`ze init --from` also reads `tftp://host[:port]/file`.** The tftp scheme is

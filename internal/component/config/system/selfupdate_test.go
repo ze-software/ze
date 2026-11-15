@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -822,5 +823,172 @@ func TestParseHHMM(t *testing.T) {
 		} else if err == nil {
 			t.Errorf("parseHHMM(%q) expected error", tt.input)
 		}
+	}
+}
+
+// updateFiles answers as an update server does: /version.json with manifest,
+// any other path with binary.
+func updateFiles(manifest map[string]any, binary []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version.json" {
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(manifest); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		w.Write(binary) //nolint:errcheck // test
+	}
+}
+
+// redirectingUpdateServer starts the configured TLS update server. It answers
+// as updateFiles does, except for path, which it redirects to the same path
+// on redirectTo.
+func redirectingUpdateServer(t *testing.T, manifest map[string]any, binary []byte, path, redirectTo string) *httptest.Server {
+	t.Helper()
+	files := updateFiles(manifest, binary)
+	origin, _ := newCountingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == path {
+			http.Redirect(w, r, redirectTo+r.URL.Path, http.StatusFound)
+			return
+		}
+		files(w, r)
+	})
+	return origin
+}
+
+// VALIDATES: AC-10 of the self-update manifest authenticity spec, for the
+// self-updater: a redirect of the manifest or of the binary to another host,
+// or from https to http, is refused naming the redirect target and the fix,
+// and the target receives no request, on the automatic check and on
+// `update system firmware download` alike.
+// PREVENTS: an update fetched from a server nobody configured, or over plain
+// http, because the configured server answered with a redirect; the request
+// carries the userinfo of the configured url.
+// METHOD: the configured server is TLS and redirects one path; the target
+// counts its requests and answers as a valid update server, so a followed
+// redirect is a count above zero, not a failure that could pass for the
+// refusal. The updater's client keeps its redirect policy and only takes the
+// transport that trusts the test certificate.
+func TestRedirectLeavingOriginRefused(t *testing.T) {
+	binary := []byte("new binary from the configured server")
+	manifest := map[string]any{testKeyVer: "26.05.20", testKeySHA: computeSHA256(binary)}
+	binaryPath := "/" + runtime.GOOS + "/" + runtime.GOARCH
+
+	tests := []struct {
+		name      string
+		path      string // the request the configured server redirects
+		targetTLS bool
+		problem   string // what the problem line names first
+		left      func(origin *httptest.Server) string
+		fix       func(origin, target *httptest.Server) string
+	}{
+		{
+			name: "manifest to another host", path: "/version.json", targetTLS: true,
+			problem: "the update manifest at ",
+			left:    func(origin *httptest.Server) string { return "host " + origin.Listener.Addr().String() },
+			fix: func(_, target *httptest.Server) string {
+				return "set system update-check url " + target.URL + "/version.json"
+			},
+		},
+		{
+			name: "manifest to http", path: "/version.json",
+			problem: "the update manifest at ",
+			left:    func(*httptest.Server) string { return "scheme https" },
+			fix: func(origin, _ *httptest.Server) string {
+				return "serve the manifest at " + origin.URL + "/version.json over https, with no redirect"
+			},
+		},
+		{
+			name: "binary to another host", path: binaryPath, targetTLS: true,
+			problem: "the update binary at ",
+			left:    func(origin *httptest.Server) string { return "host " + origin.Listener.Addr().String() },
+			fix: func(origin, target *httptest.Server) string {
+				return `publish "download-url": "` + target.URL + binaryPath + `" in the manifest at ` +
+					origin.URL + "/version.json"
+			},
+		},
+		{
+			name: "binary to http", path: binaryPath,
+			problem: "the update binary at ",
+			left:    func(*httptest.Server) string { return "scheme https" },
+			fix: func(origin, _ *httptest.Server) string {
+				return "serve the binary at " + origin.URL + binaryPath + " over https, with no redirect"
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, targetHits := newCountingServer(t, tt.targetTLS, updateFiles(manifest, binary))
+			origin := redirectingUpdateServer(t, manifest, binary, tt.path, target.URL)
+			fix := tt.fix(origin, target)
+
+			su := newTestUpdater(t, origin.URL, newTestBinary(t), SelfUpdateConfig{AutoApply: true})
+			su.client.Transport = origin.Client().Transport
+
+			// The automatic check reports a manifest failure as the last
+			// error and a binary failure as the download status.
+			su.check(context.Background())
+			st := su.extendedStatus()
+			if !strings.Contains(st.LastError+st.DownloadStatus, "fix: "+fix) {
+				t.Errorf("check does not report the refusal and its fix:\nlast error: %q\ndownload status: %q",
+					st.LastError, st.DownloadStatus)
+			}
+			if st.StagedVersion != "" {
+				t.Errorf("check staged %q through a refused redirect", st.StagedVersion)
+			}
+
+			_, err := su.manualDownload(context.Background())
+			if err == nil {
+				t.Fatal("manual download followed a redirect that leaves the configured origin")
+			}
+			if targetHits.Load() != 0 {
+				t.Fatalf("redirect target received %d requests, want 0", targetHits.Load())
+			}
+			if !strings.Contains(err.Error(), tt.problem+origin.URL+tt.path) {
+				t.Errorf("refusal does not name the redirected request %s: %v", origin.URL+tt.path, err)
+			}
+			requireUpdateRedirectRefusal(t, err, target.URL+tt.path, tt.left(origin), fix)
+		})
+	}
+}
+
+// VALIDATES: a redirect of the manifest and of the binary within the scheme
+// and host of the configured url is still followed, and the update stages.
+// PREVENTS: a redirect policy that refuses every redirect, which would break
+// an update server that moves its files on the same host.
+func TestRedirectWithinOriginFollowed(t *testing.T) {
+	binary := []byte("new binary behind a same-origin redirect")
+	manifest := map[string]any{testKeyVer: "26.05.20", testKeySHA: computeSHA256(binary)}
+	// The configured url is under /old, so the binary path derived from it
+	// is too, and the server moved both.
+	oldBinaryPath := "/old/" + runtime.GOOS + "/" + runtime.GOARCH
+	files := updateFiles(manifest, binary)
+	origin, _ := newCountingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/old/version.json":
+			http.Redirect(w, r, "/version.json", http.StatusFound)
+		case oldBinaryPath:
+			http.Redirect(w, r, "/files/ze", http.StatusFound)
+		default:
+			files(w, r)
+		}
+	})
+
+	target := newTestBinary(t)
+	su := newTestUpdater(t, origin.URL+"/old", target, SelfUpdateConfig{AutoApply: true})
+	su.client.Transport = origin.Client().Transport
+	su.check(context.Background())
+
+	st := su.extendedStatus()
+	if st.DownloadStatus != statusStaged {
+		t.Fatalf("download status = %q, want %q (last error %q)", st.DownloadStatus, statusStaged, st.LastError)
+	}
+	staged, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(staged, binary) {
+		t.Error("staged binary is not the one behind the same-origin redirect")
 	}
 }

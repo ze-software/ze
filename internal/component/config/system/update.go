@@ -5,6 +5,7 @@ package system
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/fetch"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -63,11 +66,55 @@ func newUpdateChecker(url string, intervalSecs uint32) *UpdateChecker {
 	return &UpdateChecker{
 		url:      url,
 		interval: time.Duration(intervalSecs) * time.Second,
-		client: &http.Client{
-			Timeout: updateFetchTimeout,
-		},
-		done: make(chan struct{}),
+		client:   newUpdateClient(),
+		done:     make(chan struct{}),
 	}
+}
+
+// newUpdateClient builds the HTTP client every update request goes through:
+// the version check's manifest, and the self-updater's manifest and binary
+// (selfupdate.go). It follows a redirect only within the scheme and host of
+// the first request (fetch.SameOrigin). The default client follows one to any
+// host and from https to http, so a server, or anyone able to answer for it,
+// could send the request with the userinfo of the configured url to a host
+// nobody configured, or take the TLS away from the manifest and the binary.
+func newUpdateClient() *http.Client {
+	return &http.Client{Timeout: updateFetchTimeout, CheckRedirect: fetch.SameOrigin}
+}
+
+// manifestFetchError is the error a failed manifest request answers. A
+// redirect fetch.SameOrigin refused becomes an operator error naming the
+// redirect target and the fix; any other error keeps its text, with the URL
+// net/http attaches to it redacted.
+func manifestFetchError(err error, manifestURL string) error {
+	var refused *fetch.RedirectRefused
+	if !errors.As(err, &refused) {
+		return redact.URLError(err)
+	}
+	return opererr.New(
+		"the update manifest at "+redact.URL(manifestURL)+" redirects to "+refused.Target()+
+			", and Ze did not follow it",
+		updateRedirectWhy(refused),
+		manifestRedirectFix(refused, manifestURL))
+}
+
+// manifestRedirectFix names the url that reaches the manifest with no
+// redirect. A target over http is no url to configure: Ze refuses a plain
+// http update url to any host but this one (ValidateUpdateCheckURL), so the
+// server has to answer over https where it is.
+func manifestRedirectFix(refused *fetch.RedirectRefused, manifestURL string) string {
+	if refused.TargetScheme() == "https" {
+		return "set system update-check url " + refused.Target()
+	}
+	return "serve the manifest at " + redact.URL(manifestURL) + " over https, with no redirect"
+}
+
+// updateRedirectWhy says why an update request refused a redirect, for the
+// manifest and the binary alike.
+func updateRedirectWhy(refused *fetch.RedirectRefused) string {
+	return "an update request follows a redirect only within the scheme and host it started at, " +
+		"and this one leaves " + refused.Left() + ": another host is a server nobody configured, " +
+		"and http drops the TLS that authenticates the server"
 }
 
 // ValidateUpdateCheckURL returns an error if the URL is not acceptable.
@@ -255,7 +302,7 @@ func (uc *UpdateChecker) fetchVersion(ctx context.Context) (string, error) {
 	// as well as the log, so each one names the URL through redact.
 	resp, err := uc.client.Do(req)
 	if err != nil {
-		return "", redact.URLError(err)
+		return "", manifestFetchError(err, uc.url)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort close on read path
 

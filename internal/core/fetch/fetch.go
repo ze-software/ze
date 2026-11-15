@@ -54,27 +54,68 @@ var retryDelay = defaultRetryDelay
 var stallTimeout = defaultStallTimeout
 
 var (
-	metadataClient = &http.Client{Timeout: metadataTimeout, CheckRedirect: sameOrigin}
-	streamClient   = &http.Client{CheckRedirect: sameOrigin} // no timeout; image transfers are multi-GB
+	metadataClient = &http.Client{Timeout: metadataTimeout, CheckRedirect: SameOrigin}
+	streamClient   = &http.Client{CheckRedirect: SameOrigin} // no timeout; image transfers are multi-GB
 )
 
-// sameOrigin refuses a redirect that leaves the scheme and host of the first
-// request. The operator named that server and the SHA-256 is optional, so a
-// redirect to another host is the one way a fetch would install bytes from a
-// server nobody named, and a redirect from https to http drops the TLS that
-// authenticates it.
-func sameOrigin(req *http.Request, via []*http.Request) error {
+// SameOrigin is an http.Client CheckRedirect policy: it follows a redirect
+// within the scheme and host of the first request and refuses one that leaves
+// either, with a *RedirectRefused. The operator named that server and the
+// SHA-256 is optional, so a redirect to another host is the one way a fetch
+// would install bytes from a server nobody named, and a redirect from https to
+// http drops the TLS that authenticates it. It is exported so that a client
+// outside this package that fetches what an operator named, the self-update
+// client (internal/component/config/system), holds the same policy rather
+// than a copy of it.
+func SameOrigin(req *http.Request, via []*http.Request) error {
 	if len(via) >= redirectMax {
 		return fmt.Errorf("stopped after %d redirects", redirectMax)
 	}
 	first := via[0].URL
 	if req.URL.Scheme != first.Scheme {
-		return fmt.Errorf("redirect to %s refused: it leaves scheme %s", redact.URL(req.URL.String()), first.Scheme)
+		return newRedirectRefused(req, "scheme "+first.Scheme)
 	}
 	if req.URL.Host != first.Host {
-		return fmt.Errorf("redirect to %s refused: it leaves host %s", redact.URL(req.URL.String()), first.Host)
+		return newRedirectRefused(req, "host "+first.Host)
 	}
 	return nil
+}
+
+// RedirectRefused is the error SameOrigin answers for a redirect that leaves
+// the scheme or the host of the first request. net/http wraps it in a
+// *url.Error, so a caller finds it with errors.As to name the redirect target
+// and its own fix. It holds the target only in its redacted form, so no
+// rendering of it can publish a credential the Location carried.
+//
+// Only SameOrigin builds one. It is immutable after construction and safe for
+// concurrent use.
+type RedirectRefused struct {
+	target       string // the redirect's URL, through redact.URL
+	targetScheme string // the redirect's scheme, lower case as net/url parses it
+	left         string // what the redirect leaves: "scheme https" or "host a.example"
+}
+
+// newRedirectRefused builds the refusal of the redirect request redirect.
+func newRedirectRefused(redirect *http.Request, left string) *RedirectRefused {
+	return &RedirectRefused{
+		target:       redact.URL(redirect.URL.String()),
+		targetScheme: redirect.URL.Scheme,
+		left:         left,
+	}
+}
+
+// Target answers the URL the redirect named, its userinfo redacted.
+func (e *RedirectRefused) Target() string { return e.target }
+
+// TargetScheme answers the scheme of the URL the redirect named.
+func (e *RedirectRefused) TargetScheme() string { return e.targetScheme }
+
+// Left answers what the redirect leaves: "scheme <scheme>" or "host <host>"
+// of the first request.
+func (e *RedirectRefused) Left() string { return e.left }
+
+func (e *RedirectRefused) Error() string {
+	return "redirect to " + e.target + " refused: it leaves " + e.left
 }
 
 // ToFile downloads url to dest with retry, then checks the SHA-256 of the

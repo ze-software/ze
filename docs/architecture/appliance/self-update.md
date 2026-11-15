@@ -5,7 +5,7 @@ running binary atomically, and optionally restarts. It targets standalone Linux
 deployments. A gokrazy appliance has its own update mechanism.
 
 <!-- source: internal/component/config/system/selfupdate.go -- selfUpdater, download, verify, stage, restart -->
-<!-- source: internal/plugins/update-cmd/cmd/serve.go -- the standalone update server that publishes the manifest -->
+<!-- source: internal/plugins/update-cmd/cmd/serve.go -- the standalone update server that publishes the manifest; it answers each path itself and sends no redirect to another origin -->
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- update system firmware CLI handlers -->
 <!-- source: internal/plugins/update-cmd/cmd/show.go -- update status CLI handler -->
 
@@ -34,6 +34,26 @@ deployments. A gokrazy appliance has its own update mechanism.
 - Manual apply and manual download bypass server-side pause, spread, and the
   maintenance window. Auto-apply requires a SHA-256 in the manifest; a manual
   command warns and proceeds without one.
+- **Every update request follows a redirect only within the scheme and host it
+  started at.** The manifest and binary requests share `newUpdateClient` with
+  the version checker, whose `CheckRedirect` is `fetch.SameOrigin`, the policy
+  the installer and `ze init --from` already held. net/http's default follows a
+  redirect to any host and from `https` to `http`, so a server, or anyone able
+  to answer for it, could send the request and the configured url's userinfo
+  to a host nobody configured, or take the TLS away from the bytes about to
+  replace the running binary. Ze refuses such a redirect before the target receives a
+  request. The refusal is an operator error naming the redirect target
+  (userinfo redacted) and the fix. For the manifest the fix is
+  `set system update-check url <target>`. For the binary it is the manifest
+  naming the target as its `download-url`, because the binary's location is
+  the server's to publish. A target over `http` gets neither: the fix asks the
+  server to answer over `https` with no redirect. A same-origin redirect is
+  followed, up to ten. The automatic check reports the refusal as the last
+  error (manifest) or in the download status (binary); the manual commands
+  return it.
+<!-- source: internal/component/config/system/update.go -- newUpdateClient, manifestFetchError, manifestRedirectFix, updateRedirectWhy -->
+<!-- source: internal/component/config/system/selfupdate.go -- fetchManifest, downloadBinary, binaryFetchError, binaryRedirectFix -->
+<!-- source: internal/core/fetch/fetch.go -- SameOrigin, RedirectRefused -->
 
 The restart fixture serves a local manifest whose minimum-version constraint
 the running daemon cannot meet. The auto-updater records its refusal before

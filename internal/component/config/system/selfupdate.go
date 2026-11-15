@@ -25,7 +25,9 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/fetch"
 	"github.com/ze-software/ze/internal/core/identity"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -106,11 +108,9 @@ type selfUpdater struct {
 // nil is safe (falls back to filesystem sources).
 func newSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store identity.Storage) *selfUpdater {
 	return &selfUpdater{
-		url:      url,
-		interval: time.Duration(intervalSecs) * time.Second,
-		client: &http.Client{
-			Timeout: updateFetchTimeout,
-		},
+		url:             url,
+		interval:        time.Duration(intervalSecs) * time.Second,
+		client:          newUpdateClient(),
 		cfg:             cfg,
 		done:            make(chan struct{}),
 		spreadDelay:     make(map[string]time.Duration),
@@ -377,7 +377,10 @@ func (su *selfUpdater) download(ctx context.Context, manifest extendedManifest, 
 	if err != nil {
 		logger.Warn("download failed", "url", redact.URL(downloadURL), "error", err)
 		su.mu.Lock()
-		su.downloadStatus = "error: download failed"
+		// The status names the reason, a refused redirect included: an
+		// operator reading `show system update` sees no log line.
+		var tb textbuf.Buffer
+		su.downloadStatus = tb.Str("error: download failed: ").Err(err).String()
 		su.mu.Unlock()
 		su.recordEvent(running, manifest.Ver, "failed-download")
 		return
@@ -705,7 +708,7 @@ func (su *selfUpdater) fetchManifest(ctx context.Context) (extendedManifest, err
 	// as well as the log, so each one names the URL through redact.
 	resp, err := su.client.Do(req)
 	if err != nil {
-		return extendedManifest{}, redact.URLError(err)
+		return extendedManifest{}, manifestFetchError(err, su.url)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort close on read path
 
@@ -755,10 +758,11 @@ func (su *selfUpdater) downloadBinary(ctx context.Context, downloadURL string) (
 
 	// The download URL comes from whichever server answered the manifest, so
 	// it is no more trusted than the configured one and carries userinfo the
-	// same way.
+	// same way. The client follows a redirect only within its scheme and host
+	// (newUpdateClient).
 	resp, err := su.client.Do(req)
 	if err != nil {
-		return "", redact.URLError(err)
+		return "", binaryFetchError(err, downloadURL, su.url)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort close on read path
 
@@ -796,6 +800,34 @@ func (su *selfUpdater) downloadBinary(ctx context.Context, downloadURL string) (
 	}
 
 	return tempPath, nil
+}
+
+// binaryFetchError is the error a failed binary request answers. A redirect
+// fetch.SameOrigin refused becomes an operator error naming the redirect
+// target and the fix; any other error keeps its text, with the URL net/http
+// attaches to it redacted.
+func binaryFetchError(err error, downloadURL, manifestURL string) error {
+	var refused *fetch.RedirectRefused
+	if !errors.As(err, &refused) {
+		return redact.URLError(err)
+	}
+	return opererr.New(
+		"the update binary at "+redact.URL(downloadURL)+" redirects to "+refused.Target()+
+			", and Ze did not follow it",
+		updateRedirectWhy(refused),
+		binaryRedirectFix(refused, downloadURL, manifestURL))
+}
+
+// binaryRedirectFix names the manifest change that reaches the binary with no
+// redirect. The binary's location is the manifest's download-url, or one
+// derived from the configured url, so the fix is on the update server: a
+// download-url over https names the target directly, and Ze refuses one over
+// plain http to any host but this one (resolveDownloadURL).
+func binaryRedirectFix(refused *fetch.RedirectRefused, downloadURL, manifestURL string) string {
+	if refused.TargetScheme() == "https" {
+		return "publish \"download-url\": \"" + refused.Target() + "\" in the manifest at " + redact.URL(manifestURL)
+	}
+	return "serve the binary at " + redact.URL(downloadURL) + " over https, with no redirect"
 }
 
 // --- binary staging ---

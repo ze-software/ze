@@ -5,6 +5,7 @@ package fetch
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -132,5 +133,62 @@ func TestFetchRedirectOtherHost(t *testing.T) {
 	err = ToFile(srv.URL+"/missing", dest, "")
 	if err == nil || !strings.Contains(err.Error(), "status 404") {
 		t.Fatalf("a 404 is not named in the error: %v", err)
+	}
+}
+
+// VALIDATES: SameOrigin, the policy the self-update client shares, answers a
+// *RedirectRefused naming the target with its userinfo redacted, the target's
+// scheme, and which part of the first request it leaves; a redirect within
+// the scheme and host is followed.
+// PREVENTS: a caller outside this package unable to tell a refused redirect
+// from another failure, or a refusal that prints the credential a Location
+// carried.
+// METHOD: calls SameOrigin with built requests, so no server is involved.
+func TestSameOriginRefusalNamesTheTarget(t *testing.T) {
+	first := httptest.NewRequest(http.MethodGet, "https://update.example/version.json", http.NoBody)
+	tests := []struct {
+		name   string
+		target string
+		want   string // the refusal's Target; empty when the redirect is followed
+		scheme string
+		left   string
+	}{
+		{name: "same origin", target: "https://update.example/v2/version.json"},
+		{
+			name: "other host", target: "https://user:secret@mirror.example/version.json",
+			want: "https://<redacted>@mirror.example/version.json", scheme: "https", left: "host update.example",
+		},
+		{
+			name: "https to http", target: "http://update.example/version.json",
+			want: "http://update.example/version.json", scheme: "http", left: "scheme https",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			redirect := httptest.NewRequest(http.MethodGet, tt.target, http.NoBody)
+			err := SameOrigin(redirect, []*http.Request{first})
+			if tt.want == "" {
+				if err != nil {
+					t.Fatalf("same-origin redirect refused: %v", err)
+				}
+				return
+			}
+			var refused *RedirectRefused
+			if !errors.As(err, &refused) {
+				t.Fatalf("refusal is not a *RedirectRefused: %v", err)
+			}
+			if refused.Target() != tt.want {
+				t.Errorf("Target() = %q, want %q", refused.Target(), tt.want)
+			}
+			if refused.TargetScheme() != tt.scheme {
+				t.Errorf("TargetScheme() = %q, want %q", refused.TargetScheme(), tt.scheme)
+			}
+			if refused.Left() != tt.left {
+				t.Errorf("Left() = %q, want %q", refused.Left(), tt.left)
+			}
+			if strings.Contains(err.Error(), "secret") {
+				t.Errorf("refusal publishes the userinfo: %v", err)
+			}
+		})
 	}
 }

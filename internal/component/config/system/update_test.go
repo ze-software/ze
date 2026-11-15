@@ -5,13 +5,17 @@ package system
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 )
 
@@ -212,5 +216,132 @@ func TestIsNewer(t *testing.T) {
 				t.Errorf("isNewer(%q, %q) = %v, want %v", tt.remote, tt.running, got, tt.want)
 			}
 		})
+	}
+}
+
+// newCountingServer starts a server that answers with handler and counts every
+// request it receives. A redirect target an update request must never reach
+// is one: it answers as a valid update server would, so a followed redirect
+// shows as a count rather than as a failure that could pass for the refusal.
+// httptest's TLS servers share one certificate, so a client that trusts one
+// TLS server would complete the handshake with any other.
+func newCountingServer(t *testing.T, useTLS bool, handler http.HandlerFunc) (*httptest.Server, *atomic.Int32) {
+	t.Helper()
+	hits := &atomic.Int32{}
+	counted := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		handler(w, r)
+	})
+	var srv *httptest.Server
+	if useTLS {
+		srv = httptest.NewTLSServer(counted)
+	} else {
+		srv = httptest.NewServer(counted)
+	}
+	t.Cleanup(srv.Close)
+	return srv, hits
+}
+
+// requireUpdateRedirectRefusal fails t unless err is the operator error an
+// update request answers for a refused redirect: its problem names target,
+// its why names what the redirect leaves, and its fix is fix.
+func requireUpdateRedirectRefusal(t *testing.T, err error, target, left, fix string) {
+	t.Helper()
+	var refusal *opererr.Error
+	if !errors.As(err, &refusal) {
+		t.Fatalf("refused redirect is not an operator error: %v", err)
+	}
+	if !strings.Contains(refusal.Problem(), "redirects to "+target) {
+		t.Errorf("problem does not name the redirect target %s: %q", target, refusal.Problem())
+	}
+	if !strings.Contains(refusal.Why(), "leaves "+left) {
+		t.Errorf("why does not name what the redirect leaves (%s): %q", left, refusal.Why())
+	}
+	if refusal.Fix() != fix {
+		t.Errorf("fix = %q, want %q", refusal.Fix(), fix)
+	}
+}
+
+// VALIDATES: the version check follows a redirect within the scheme and host
+// of the configured url, and refuses one to another host or from https to
+// http with an operator error naming the target and the fix.
+// PREVENTS: a manifest request, and the userinfo of the configured url, sent
+// to a server nobody configured or over plain http because a server answered
+// with a redirect.
+// METHOD: the configured server is TLS and redirects /version.json; the
+// target counts its requests and answers a valid manifest, so a followed
+// redirect is a count above zero. The checker's client keeps its redirect
+// policy and only takes the transport that trusts the test certificate.
+func TestUpdateCheckRedirectLeavingOriginRefused(t *testing.T) {
+	tests := []struct {
+		name      string
+		targetTLS bool
+		left      func(origin *httptest.Server) string
+		fix       func(origin, target *httptest.Server) string
+	}{
+		{
+			name:      "other host",
+			targetTLS: true,
+			left:      func(origin *httptest.Server) string { return "host " + origin.Listener.Addr().String() },
+			fix: func(_, target *httptest.Server) string {
+				return "set system update-check url " + target.URL + "/version.json"
+			},
+		},
+		{
+			name: "https to http",
+			left: func(*httptest.Server) string { return "scheme https" },
+			fix: func(origin, _ *httptest.Server) string {
+				return "serve the manifest at " + origin.URL + "/version.json over https, with no redirect"
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, targetHits := newCountingServer(t, tt.targetTLS, func(w http.ResponseWriter, _ *http.Request) {
+				writeVersionJSON(w, "26.06.01")
+			})
+			origin, _ := newCountingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, target.URL+"/version.json", http.StatusFound)
+			})
+
+			uc := newUpdateChecker(origin.URL+"/version.json", 86400)
+			uc.client.Transport = origin.Client().Transport
+			_, err := uc.fetchVersion(context.Background())
+			if err == nil {
+				t.Fatal("fetchVersion followed a redirect that leaves the configured origin")
+			}
+			if targetHits.Load() != 0 {
+				t.Fatalf("redirect target received %d requests, want 0", targetHits.Load())
+			}
+			requireUpdateRedirectRefusal(t, err, target.URL+"/version.json", tt.left(origin), tt.fix(origin, target))
+
+			uc.check(context.Background())
+			if !strings.Contains(uc.Status().LastError, "fix: "+tt.fix(origin, target)) {
+				t.Errorf("status does not report the refusal and its fix: %q", uc.Status().LastError)
+			}
+		})
+	}
+}
+
+// VALIDATES: a redirect within the scheme and host of the configured url is
+// still followed by the version check.
+// PREVENTS: a redirect policy that refuses every redirect, which would break
+// an update server that moves its manifest on the same host.
+func TestUpdateCheckRedirectWithinOriginFollowed(t *testing.T) {
+	origin, _ := newCountingServer(t, true, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/version.json" {
+			http.Redirect(w, r, "/current/version.json", http.StatusFound)
+			return
+		}
+		writeVersionJSON(w, "26.06.01")
+	})
+	uc := newUpdateChecker(origin.URL+"/version.json", 86400)
+	uc.client.Transport = origin.Client().Transport
+	ver, err := uc.fetchVersion(context.Background())
+	if err != nil {
+		t.Fatalf("same-origin redirect refused: %v", err)
+	}
+	if ver != "26.06.01" {
+		t.Errorf("fetchVersion() = %q, want %q", ver, "26.06.01")
 	}
 }

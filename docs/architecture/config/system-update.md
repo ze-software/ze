@@ -103,3 +103,16 @@ install an HTTP URL that the initial load would have refused.
 
 `fetchVersion` checks the HTTP status code before it parses. Without that check
 a 404 or a 500 surfaces as a confusing JSON parse error.
+
+**A redirect is followed only within the scheme and host of the configured
+url.** The checker's client comes from `newUpdateClient`, which the
+self-updater shares, and its `CheckRedirect` is `fetch.SameOrigin`. A redirect
+to another host would carry the request and its userinfo to a server nobody
+configured, and one from `https` to `http` would drop the TLS that
+authenticates the answer, so either is refused before the target receives a
+request. `manifestFetchError` turns the refusal into an operator error that
+names the target, redacted, and the fix: `set system update-check url
+<target>` for an `https` target, and a server that answers over `https` with no
+redirect otherwise (`docs/architecture/appliance/self-update.md`).
+<!-- source: internal/component/config/system/update.go -- newUpdateClient, manifestFetchError -->
+<!-- source: internal/core/fetch/fetch.go -- SameOrigin, RedirectRefused -->
