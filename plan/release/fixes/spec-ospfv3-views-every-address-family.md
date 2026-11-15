@@ -324,7 +324,7 @@ operator command runs through the daemon on every command surface").
 | Functional proof | `./le test ospf ospf-multiaf-views` in the QEMU guest (`needs-linux`) |
 | Interop proof | `./le test integration interop` with `INTEROP_SCENARIO=ospf-multiaf-v4-frr` |
 | Grammar | `./le cli grammar`, `./le doc yang-contract command-contract` |
-| Change set judged | `./le verify changed` after the closing commit |
+| Change set judged | GitHub CI's `verify` workflow on the pushed commit: no agent runs any `./le verify` command (`ai/META-DECISIONS.md`, "Ze is pre-release"); the scoped runs in Pre-Commit Verification are the closure's evidence |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -392,7 +392,7 @@ operator command runs through the daemon on every command surface").
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass: the OSPF package tests, `./le test ospf` for the changed `.ci` in QEMU, the interop scenario, and `./le verify changed` over the closing commits
+- [ ] The targeted tests for what changed pass: the OSPF package tests, `./le test ospf` for the changed `.ci` in QEMU, the interop scenario; the whole-tree check is GitHub CI's on the pushed commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -413,3 +413,180 @@ operator command runs through the daemon on every command surface").
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-ospfv3-views-every-address-family.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- One selection over the RFC 5838 engine set: `v6EngineSet.selectInstances` and `instanceFor` (`internal/plugins/ospf/register_multiaf.go`) answer every running address family in range order, or the one `address-family <af>` names, refusing an idle, unknown or stray argument with an `opererr` (`unexpectedViewArgsError`, `unknownAFError`, `afNotRunningError`).
+- One registry of per-AF views, `v3Views` (`internal/plugins/ospf/debug_wiring.go`), served by the default arm of `OnExecuteCommand` (`register.go`); rows are led by `address-family` and `instance-id` through `afTaggedRow.MarshalJSON`. `show ospf ipv6 route` is new (YANG `container route`, `ze-ospf:show-ospfv3-route`, `cmdShowIPv6Route`).
+- Both RI views read every selected engine (`routerInformationView`, `v3RouterInformationView`, `riOSPFv3Instance`, `riGroupKeyOf`, `riGroupKeyLess` in `ri_show.go`).
+- `debug ipv6 ospf inject lsa ... address-family <af>`: `debugInjectIntoAF`, `splitInjectAddressFamily`, `injectCommandNamingOnce` (`inject_v3.go`), enablement checked first; `errDebugInjectDisabled` is an `opererr` (`inject.go`).
+- The daemon forwards the keyword in one shape (`afViewForwarder`, `addressFamilyArgs`, `cmd_show.go`); the YANG grouping `ospfv3-address-family` puts the enumerated leaf on 18 view containers (`ze-ospf-cmd.yang`).
+- `commandDecls` declares each per-AF view as a table led by `address-family`, `instance-id` (`v3ViewColumns`) and both RI views by `af`, `address-family`, `instance-id` (`riViewColumns`); `command.PluginShapesFromDecls` is the one declaration-to-shape conversion (`answer_shape.go`, called by `registerPluginShapes` in `plugin/server/startup.go`).
+- Users converted: interop checkers narrowed to `ipv6-unicast` where they mean one family (`check_extras.go`, `check_virtual_link.go`), the `ospf-multiaf-v4-frr` neighbor and route steps added (`checkers.go`), two `.ci` tests and their fixtures, the netns selection, the wire-method snapshot.
+
+### Bugs Found/Fixed
+- The IPv4-unicast next hop was documented as coming from the IPv6 link-local adjacency; `v6NextHop` takes the Link-LSA IPv4 address (RFC 5838 Section 2.5). `docs/guide/ospf.md` corrected (AC-11), pinned by the existing `TestRFC5838IPv4NextHopFromNeighborLinkLSA`.
+- The inject modifier admitted the config's bare `ipv6`, which the views' enumeration refuses: `afFromCanonicalName` now serves both keyword parsers; `TestDebugInjectLSARefusesAnAddressFamilyItCannotUse` and `TestOSPFv3ViewsNarrowToOneAddressFamily` carry the case.
+- `instanceListing` read a zero Instance ID when an engine had no dispatcher; every engine gets one from `newEngineWithCodecAF` (`instance.go`), and the guard was replaced by `instanceFor`.
+
+### Documentation Updates
+- `docs/guide/ospf.md`, `docs/guide/command-reference.md`, `docs/architecture/ospf/ospf-ext-15-multi-af.md`, `docs/architecture/ospf/ospf-ext-14-debug-introspection.md`, `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/testing/interop.md`, `docs/functional-tests.md`, `rfc/short/rfc5838.md` (Debugging row), each with `<!-- source: -->` anchors to the producers above.
+- `./le doc check all` (main thread, this worktree): green except three pre-existing IRR source anchors in `resolve.md` and `irr-filtering.md`. `./le spec citation anchors spec <this spec>`: green. Closure re-ran `./le doc check all` after its own edits: the same three IRR anchors and nothing else. `./le rfc update` at closure left the tree unchanged: the RFC 5838 edit is a Processing Consequences row, and no requirement row or `RFC requirement:` tag changed.
+- Closure: news fragment `website/changes/fragments/ospfv3-views-every-address-family.md`; the OSPFv3 row of `plan/journal/view-reads-one-instance-of-several.md` marked `fixed:`; the citation in `spec-ospfv3-views-every-address-family-ospfv2-instances.md` restated as the bare stem; `spec-bgp-one-off-defects.md` amended with AC-63.
+
+### Deviations from Plan
+- `graceful-restart` and `segment-routing` answer a list of one record per AF where they answered one object (Design Insights, Phase B); AC-3 was rewritten to state it.
+- The route Wiring Test row proves per-AF content through the interop route step, because one router in `ospf-multiaf-views.ci` computes no route.
+- `internal/test/fixture/testdata/ze-help-ai-*.golden` named in Files to Modify does not exist in this tree; nothing was regenerated.
+- The BGP test `adj_rib_in/rib_shape_test.go` keeps its own copy of the shape conversion by owner constraint; homed in Work Not Done.
+
+## Mistake Log
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | `commandDecls` built the per-AF entries in a loop (`v3ViewDecls`, `riViewDecl`) | `./le cli dispatch check` reads every `Name:` literal from the source and refused names it could not read | round-1 review fix, `pluginCommandDecls` (`internal/le/cli/dispatch/resolver.go`) | Literal entries plus `TestOSPFv3ViewDeclsMatchV3Views` comparing them with `v3Views` |
+| assumption | The order `afTaggedRow.MarshalJSON` writes would reach `| table` and `| json` | `| json` sorts every key, `| table` sorts unless a command declares columns (`declaredKeys`, `pipe_table.go`) | round-1 review | Each view declares its leading columns (`v3ViewColumns`, `riViewColumns`) |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every OSPFv3 view answers for every running AF, rows tagged | Done | `debug_wiring.go` `v3Views`; `register_multiaf.go` `selectInstances`, `afTaggedRow` | No `engineFor(afIPv6Unicast)` remains outside tests (grep) |
+| Optional typed `address-family <af>` keyword narrows | Done | `ze-ospf-cmd.yang` grouping `ospfv3-address-family`; `cmd_show.go` `addressFamilyArgs` | |
+| `show ospf ipv6 route` exists | Done | `ze-ospf-cmd.yang` `container route`; `cmd_show.go` `ze-ospf:show-ospfv3-route` | |
+| `debug ipv6 ospf inject lsa` takes the keyword | Done | `inject_v3.go` `debugInjectIntoAF` | |
+| Every surface answers | Done | daemon RPCs via `ForwardToPlugin` | `TestEveryCommandOnEverySurface` green |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestOSPFv3ViewsAnswerEveryAddressFamily`; `ospf-multiaf-views.ci` | |
+| AC-2 | Done | `TestOSPFv3ViewsNarrowToOneAddressFamily`; `ospf-multiaf-views.ci`; `ospf-multiaf-views-cli.ci` step 3 | |
+| AC-3 | Done | `TestOSPFv3ViewsAnswerEveryAddressFamily`, `TestOSPFv3ViewsKeepTheRowsOfOneAddressFamily`, `TestRIViewOverEveryV6Engine`, `TestOSPFCommandSchemaCarriesAddressFamily` | |
+| AC-4 | Done | `TestOSPFv3RouteViewPerAddressFamily`; interop route step | |
+| AC-5 | Done | `TestOSPFv3ViewsNarrowToOneAddressFamily`, `TestDebugInjectLSARefusesAnAddressFamilyItCannotUse`; `ospf-multiaf-views.ci` | |
+| AC-6 | Done | `TestOSPFCommandSchemaCarriesAddressFamily`; `ospf-multiaf-views.ci` (`address-family bogus`) | |
+| AC-7 | Done | interop `ospf-multiaf-v4-frr` step 2, red with `selectInstances` reverted | |
+| AC-8 | Done | `TestDebugInjectLSATargetsTheNamedAddressFamily` | |
+| AC-9 | Done | `TestEveryCommandOnEverySurface`; `ospf-multiaf-views-cli.ci` | |
+| AC-10 | Done | `TestOSPFv3ViewTableLeadsWithTheInstance`, `TestOSPFv3ViewDeclsMatchV3Views`, `TestRIViewTableLeadsWithTheVersion` | |
+| AC-11 | Done | `docs/guide/ospf.md` multi-AF section | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestOSPFv3ViewsAnswerEveryAddressFamily`, `TestOSPFv3ViewsNarrowToOneAddressFamily`, `TestOSPFv3ViewsKeepTheRowsOfOneAddressFamily`, `TestOSPFv3RouteViewPerAddressFamily` | Done | `internal/plugins/ospf/instance_view_test.go` | |
+| `TestRIViewOverEveryV6Engine`, `TestRIGroupOrderBreaksAnInstanceIDTieByAddressFamily` | Done | `internal/plugins/ospf/ri_show_test.go` | |
+| `TestDebugInjectLSATargetsTheNamedAddressFamily`, `TestDebugInjectLSARefusesAnAddressFamilyItCannotUse` | Done | `internal/plugins/ospf/inject_v3_test.go` | |
+| `TestOSPFCommandSchemaCarriesAddressFamily` | Done | `internal/plugins/ospf/yang/cmd_schema_test.go` | |
+| `TestOSPFv3ViewTableLeadsWithTheInstance`, `TestOSPFv3ViewDeclsMatchV3Views`, `TestRIViewTableLeadsWithTheVersion` | Done | `internal/plugins/ospf/v3_view_shape_test.go` | |
+| `TestPluginShapesFromDeclsConvertsEachShapedDeclaration` | Done | `internal/component/command/answer_shape_test.go` | |
+| `ospf-multiaf-views`, `ospf-multiaf-views-cli`, `ospf-multiaf-show` | Done | `test/ospf/` | QEMU PASS |
+| interop `ospf-multiaf-v4-frr` | Done | `test/interop/scenarios/ospf-multiaf-v4-frr` | PASS, discrimination recorded below |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `register.go`, `inject_v3.go`, `register_multiaf.go`, `debug_wiring.go`, `ri_show.go`, `instance_view.go`, `cmd_show.go`, `multiaf.go`, `inject.go`, `yang/ze-ospf-cmd.yang` | Done | |
+| `instance_snapshots.go` | Done | Left unchanged, as planned: the tag is added at marshal time |
+| `answer_shape.go`, `startup.go`, `docs/architecture/api/*` | Done | Outside the OSPF area, named in the c2a548c944 to 6eba0e53a9 bodies |
+| `checkers.go`, `routing_fixture.go`, `register_ospf_multiaf_views_cli.go` | Done | |
+| `ze-help-ai-*.golden` | Changed | Absent from this tree |
+| `test/ospf/ospf-multiaf-views.ci`, `test/ospf/ospf-multiaf-views-cli.ci`, `v3_view_shape_test.go` | Done | |
+
+### Audit Summary
+- **Total items:** 30 (5 requirements, 11 ACs, 8 test rows, 6 file rows)
+- **Done:** 29
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, the absent `ze-help-ai-*.golden` (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An IPv4-unicast OSPFv3 instance's neighbors are visible, tagged | interop | `ospf-multiaf-v4-frr` PASS (image sha256:b4f6fc1ee49a): `show ospf ipv6 neighbor address-family ipv4-unicast` on the second Ze holds `"address-family": "ipv4-unicast"`, `"instance-id": 64`, router-id 172.30.0.2, state full. With `selectInstances` looking up `afIPv6Unicast`, image sha256:8fe10c1d0a8b, the run failed at that step ("OSPFv3 address family ipv4-unicast is not running") while step 1 stayed green; restored, PASS (sha256:fd207b4712a0), 2026-11-15 |
+| Its LSDB is visible and narrowable | functional | `test/ospf/ospf-multiaf-views.ci` PASS in QEMU: two tagged records, the ipv4-unicast one holding LSAs of 10.0.0.1, one record when narrowed |
+| `show ospf ipv6 route` shows an OSPFv3 instance's computed routes | interop | `ospf-multiaf-v4-frr` route step: `show ospf ipv6 route address-family ipv4-unicast` holds `10.99.0.0/24` tagged ipv4-unicast, 64 |
+| Every view takes the keyword and answers every surface | functional + unit | `ospf-multiaf-views-cli.ci` PASS (`ze cli -c` over SSH, `| json` and `| table`); `TestEveryCommandOnEverySurface` green; `TestOSPFCommandSchemaCarriesAddressFamily` green |
+| `debug ipv6 ospf inject lsa` reaches a named family behind the double gate | unit (negative included) | `TestDebugInjectLSATargetsTheNamedAddressFamily`: the LSA lands in the ipv4-unicast LSDB; disarmed, every family is refused |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `declareShapes` in `internal/component/bgp/plugins/adj_rib_in/rib_shape_test.go` still copies the Stage 1 shape conversion instead of calling `command.PluginShapesFromDecls` | BGP area, kept out by owner constraint | `plan/release/fixes/spec-bgp-one-off-defects.md` (AC-63) |
+| The same per-instance views for OSPFv2 (RFC 6549) | Known Limitation, separate mechanism (`instanceManager`) | `plan/release/fixes/spec-ospfv3-views-every-address-family-ospfv2-instances.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/ospfv3-views-every-address-family-5a9a4bd9-5348-4116-8dd3-8815135bbc31.md` (32 files, verdict clean) |
+| `./le spec review check` | clean: "OK (31 code files, clean, hashes match)" |
+| Rounds | 4: rounds 1-3 by implementation-phase reviewer agents, round 4 by this closure agent over the whole diff `git diff 7a35bc133d..HEAD` (the working tree is clean, so the pinned files are the committed content) |
+| Reviewer lenses used | round 4: logic+wiring, security+edge-cases, RFC/protocol+style; pre-checks `./le test weakened check base 7a35bc133d` clean (15 test files), `./le repo check` 4 issues, all in IRR, firewall and `internal/le/test/deployment`, none in this diff |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `| table` and `| json` did not keep the identity keys first | `register.go` `commandDecls` | 8626726527 (`v3ViewColumns`, `riViewColumns`, `TestOSPFv3ViewTableLeadsWithTheInstance`) |
+| 2 | ISSUE | No `ze cli` proof for AC-9 | `test/ospf/ospf-multiaf-views-cli.ci` | 5a90b47393 |
+| 3 | ISSUE | Route wiring row proved only tags on one router | `checkers.go` route step | 8626726527 |
+| 4 | ISSUE | Silent zero Instance ID guard; placeholder fix lines | `instance_view.go`, `cmd_show.go` | 8626726527 |
+| 5 | ISSUE | A copy of the Stage 1 shape conversion in the OSPF test | `answer_shape.go` `PluginShapesFromDecls` | bd29e82654 |
+| 6 | ISSUE | Inject refusals named placeholder fix lines; RI tie order untested | `inject_v3.go`, `ri_show_test.go` | bd29e82654 |
+| 7 | ISSUE | A repeated `address-family` refusal named a fix line that kept the repeated value | `inject_v3.go` `injectCommandNamingOnce` | 6eba0e53a9 |
+
+Round 4 (this closure, whole diff): 0 BLOCKER, 0 ISSUE. NOTEs, none blocking:
+- N1: `ospf-multiaf-views.ci` judges the route and neighbor rows of one router, which computes no route and forms no adjacency, so those two tag checks hold over empty lists; the test says so, and the unit tests and the interop steps prove per-family content.
+- N2: `unexpectedViewArgsError` (`register_multiaf.go`) echoes the arguments unclamped; only a caller that bypasses the registry reaches it, because `addressFamilyArgs` refuses spare tokens in the daemon first.
+- N3: The segment-routing views declare `v3ViewColumns` while their no-OSPFv3 fallback record carries neither key; `docs/guide/ospf.md` states the exception.
+- Verified at the producer: `instanceFor`'s never-nil dispatcher (`spawn` calls `newEngineWithCodecAF`, which sets `dispatch: newDispatcher(codec)` in `instance.go`); both RFC 5838 quotes byte-exact against `rfc/full/rfc5838.txt` (Sections 1.1 and 2); the guide's route table header matches `spf.RouteSnapshotEntry` sorted by name; no `RFC requirement:` tag added or changed.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/ospf/ospf-multiaf-views.ci` | Yes | `wc -l`: 74 lines |
+| `test/ospf/ospf-multiaf-views-cli.ci` | Yes | 138 lines |
+| `internal/plugins/ospf/v3_view_shape_test.go` | Yes | 307 lines |
+| `internal/test/fixture/register_ospf_multiaf_views_cli.go` | Yes | 85 lines |
+| `test/ospf/ospf-multiaf-show.ci` | Yes | 63 lines |
+| `test/interop/scenarios/ospf-multiaf-v4-frr` | Yes | `ls test/interop/scenarios/` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-8, AC-10 | Unit tests green | `./le test unit pkg path ./internal/plugins/ospf/` green after 6eba0e53a9 (main thread) |
+| AC-6 | Enumeration on every view | `./le test unit pkg path ./internal/plugins/ospf/yang/` green; `ospf-multiaf-views.ci` PASS |
+| AC-7 | Neighbor step red without the selection | interop discrimination above |
+| AC-9 | Every surface | `./le test unit pkg path ./cmd/ze/hub/ run TestEveryCommandOnEverySurface` green; `ospf-multiaf-views-cli.ci` PASS |
+| AC-11 | Next hop text | `docs/guide/ospf.md`: "takes its next hop from the IPv4 address in the leading 32 bits of the neighbor's Link-LSA (§2.5)" |
+| Completeness | No hardcoded lookup left | `grep -n "engineFor(afIPv6Unicast)" internal/plugins/ospf/*.go` outside tests: no hit |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show ospf ipv6 database address-family ipv4-unicast` via the plugin dispatch | `test/ospf/ospf-multiaf-views.ci` (fixture `ospfMultiAFViewsScenario`) | Yes, read: the narrowed answer must be the one ipv4-unicast record |
+| `show ospf ipv6 neighbor address-family ipv4-unicast` on a second Ze | interop `ospf-multiaf-v4-frr` (`checkers.go`) | Yes, PASS and red when reverted |
+| `show ospf ipv6 route address-family ipv4-unicast` on a second Ze | interop `ospf-multiaf-v4-frr` | Yes, PASS with 10.99.0.0/24 |
+| `ze cli -c` with the database view, `| json` and `| table` | `test/ospf/ospf-multiaf-views-cli.ci` | Yes, read: steps 3-5, with reject lines for a second record and for ipv6-unicast when narrowed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestOSPFv3ViewsAnswerEveryAddressFamily` runs every `v3Views` producer over an ipv4-unicast engine, green |
+| A-2 | confirmed | `./le cli grammar` (only the pre-existing R9 on `le arch error-inventory`/`error-wrap`), `./le doc yang-contract command-contract`, `usage-contract`, `help-shape` green |
+| A-3 | confirmed | Users narrowed (`check_extras.go`, `check_virtual_link.go`); `ospfv3-debug-decode-frr`, `ospfv3-vlink-frr` PASS; `ospfv3-sr-frr` step 2 (the narrowed SR view, 16000) PASS, and its step 3 red is the open 2026-11-14 row of `plan/journal/interop-check-expects-what-the-peer-cannot-do.md`, owned by `spec-rfc-verdict-fix-ospf` (MPLS label-space sysctl) |
+| A-4 | confirmed | `TestRIViewOverEveryV6Engine` green |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI reference: per-AF views, keyword, route view, inject keyword | `docs/guide/command-reference.md` against `ze-ospf-cmd.yang` and `v3Views` | Yes |
+| User guide: route `| table` header | `spf.RouteSnapshotEntry` keys area, prefix, metric, type, origin, next-hops, sorted after the two declared columns | Yes |
+| RFC 5838 Debugging row | `rfc/short/rfc5838.md` anchors `selectInstances`, `afTaggedRow`, `v3Views`, `riOSPFv3Instance` | Yes |
+| Feature level (category 1) | The `ospf` feature's scope is unchanged; the views complete it | No update |
+| `docs/guide/status.md` (category 15) | `grep -c "ospf ipv6" docs/guide/status.md`: 0, no OSPF command list | No update |
+| `./le doc check all` | Green except three pre-existing IRR anchors | Yes |

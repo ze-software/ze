@@ -29,6 +29,13 @@ dropped.
 Rows left to root-cause specs: the rpki origin-AS pair (S4), `Session.SendAnnounce`
 (S5), the ExaBGP bridge argv rows (S7) and the ze-peer OPEN mirror rows (T5).
 
+Amended 2026-11-15 from the closure of `spec-ospfv3-views-every-address-family`, which
+made `command.PluginShapesFromDecls` (`internal/component/command/answer_shape.go`) the
+one conversion from a plugin's command declarations to its answer shapes and left the
+BGP area untouched by owner constraint: `declareShapes`
+(`internal/component/bgp/plugins/adj_rib_in/rib_shape_test.go`) still carries its own
+copy of that loop (AC-63).
+
 ## Required Reading
 
 ### Architecture Docs
@@ -224,6 +231,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | AC-60 | `countPeerUpBarrier` by process name (moved from `spec-typed-identity-keys`, 2026-11-14) | A process started under an alias of a registration that requires the peer-up barrier counts toward the barrier, resolved through `plugin.RegistryNames` as `declaresSessionReady` does; a unit starts an aliased process and asserts the count |
 | AC-61 | `recordCreatedPeerLocked` name collision (moved from `spec-typed-identity-keys`, 2026-11-14) | `create bgp peer` whose name from `peerConfigNameFor` is already an operator's peer at another address is refused with what, why and the fix, and the operator's peer in the running tree is unchanged; a unit creates the collision and reads the tree |
 | AC-62 | MRT TABLE_DUMP_V2 ADD-PATH Path Identifier (RFC8050-4.1-1, `partial`; moved from `spec-rfc-verdict-test-fix-pass`, 2026-11-14) | RFC 8050 Section 4.1: "This adds a field to the RIB Entries record to store the Path Identifier when used with the RIB_IPV4_UNICAST_ADDPATH, RIB_IPV4_MULTICAST_ADDPATH, RIB_IPV6_UNICAST_ADDPATH, and RIB_IPV6_MULTICAST_ADDPATH subtypes." Today each entry's Path Identifier is 0, because `writeTableDumpV2` builds `RIBEntry` without `PathID` and `RIBDumpVisitor.OnRoute` carries none. Target: `writeTableDumpV2` (`internal/plugins/mrt/dump.go`) writes each RIB entry's Path Identifier from the route's own identifier, carried through `RIBDumpVisitor.OnRoute` (`internal/component/plugin/registry/interfaces.go`), never a constant; a test dumps two paths of one prefix and reads two distinct Path Identifiers; a non-author re-judges the verdict |
+| AC-63 | adj-rib-in `declareShapes` copy of the Stage 1 shape conversion (moved from `spec-ospfv3-views-every-address-family`, 2026-11-15) | `declareShapes` (`internal/component/bgp/plugins/adj_rib_in/rib_shape_test.go`) registers `commandDecls()` through `command.PluginShapesFromDecls`, as Stage 1's `registerPluginShapes` and the OSPF `declareOSPFShapes` do, and carries no loop of its own; the adj-rib-in shape tests stay green and assert what they asserted before |
 
 ## 🧪 TDD Test Plan
 

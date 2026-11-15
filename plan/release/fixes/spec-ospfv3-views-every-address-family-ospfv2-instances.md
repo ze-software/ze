@@ -16,7 +16,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Source: `plan/release/fixes/spec-ospfv3-views-every-address-family.md`, which
+Source: `spec-ospfv3-views-every-address-family` (closed 2026-11-15; its design is in
+`docs/architecture/ospf/ospf-ext-15-multi-af.md`), which
 fixes the same shape for OSPFv3 address families and leaves OSPFv2 instances
 to this spec (its Known Limitations).
 
