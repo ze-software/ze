@@ -156,7 +156,9 @@ type PluginShape struct {
 // spelling ParseAnswerShape does not know is refused, never read as a document.
 // The daemon has already refused such a declaration with its names clamped
 // (validateShapeDecls), so this refusal reaches only a caller that skipped that
-// check, and it bounds each echoed name to 64 runes for the same reason.
+// check, and it quotes each name through echoValue for the same reason: its
+// first echoMax characters, then "...". clampDeclared lives in plugin/server,
+// which imports this package, so this package's own clamp is the one used.
 //
 // Columns and AddressFields are carried as given; RegisterPluginShapes stores
 // its own normalized copy of each.
@@ -169,8 +171,8 @@ func PluginShapesFromDecls(commands []rpc.CommandDecl) ([]PluginShape, error) {
 		}
 		shape, known := ParseAnswerShape(c.Shape)
 		if !known {
-			return nil, fmt.Errorf("command %.64q declares answer shape %.64q, which is not %s",
-				c.Name, c.Shape, AnswerShapeSpellings())
+			return nil, fmt.Errorf("command %q declares answer shape %q, which is not %s",
+				echoValue(c.Name), echoValue(c.Shape), AnswerShapeSpellings())
 		}
 		declared = append(declared, PluginShape{
 			Command:       c.Name,

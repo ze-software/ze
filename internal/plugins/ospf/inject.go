@@ -44,6 +44,14 @@ const (
 	actionWithdraw  = "withdraw"
 )
 
+// injectKeywordType / injectKeywordID / injectKeywordHex are the keywords both families'
+// inject parsers read (parseV3Inject, inject.go's OSPFv2 parser) and isV3InjectKeyword lists.
+const (
+	injectKeywordType = "type"
+	injectKeywordID   = "id"
+	injectKeywordHex  = "hex"
+)
+
 var (
 	// errDebugInjectDisabled is the runtime half of the double gate, shared by both families'
 	// inject commands; the IPv6 command answers it before it reads the address family.
@@ -144,7 +152,7 @@ func parseOpaqueInject(args []string) (opaqueInjectParams, error) {
 				return p, err
 			}
 			p.scope, haveScope, i = sc, true, i+2
-		case "id":
+		case injectKeywordID:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err
@@ -157,7 +165,7 @@ func parseOpaqueInject(args []string) (opaqueInjectParams, error) {
 				return p, errors.New("opaque id exceeds 24 bits (max 16777215)")
 			}
 			p.opaqueID, haveID, i = uint32(n), true, i+2
-		case "type":
+		case injectKeywordType:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err
@@ -170,7 +178,7 @@ func parseOpaqueInject(args []string) (opaqueInjectParams, error) {
 				return p, errors.New("opaque type must be Private-Use (128-255)")
 			}
 			p.opaqueType, i = uint8(n), i+2
-		case "hex":
+		case injectKeywordHex:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err

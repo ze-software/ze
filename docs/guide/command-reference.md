@@ -1210,9 +1210,10 @@ OSPFv3 runs one instance per configured address family (RFC 5838), and every
 **`graceful-restart`**, **`segment-routing`**, **`route`** and every **`database`**
 view. Each row names its `address-family` and `instance-id`, so the rows of the
 IPv6-unicast and IPv4-unicast instances can be told apart in `| json` and `| table`.
-The two segment-routing views, `segment-routing` and `database segment-routing`, are
-the exception: they answer one record, the IPv6 Segment Routing state of the OSPFv2
-Router ID, which belongs to no OSPFv3 instance and carries neither key.
+With no OSPFv3 address family configured, the two segment-routing views,
+`segment-routing` and `database segment-routing`, answer one record: the IPv6
+Segment Routing state of the OSPFv2 Router ID, which belongs to no OSPFv3 instance and
+carries neither key.
 **`show ospf ipv6 route`** lists the routes each OSPFv3 instance computed;
 `show ospf route` lists the OSPFv2 ones. Each of these views, and **`show ospf database
 router-information`** for its OSPFv3 part, takes an optional `address-family` keyword

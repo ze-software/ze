@@ -91,6 +91,9 @@ func TestDebugInjectLSARefusesAnAddressFamilyItCannotUse(t *testing.T) {
 		// A repeated keyword followed by another keyword keeps that keyword in the fix.
 		{"repeated before id", []string{keywordAddressFamily, afNameIPv4Unicast, "type", "0x2001", keywordAddressFamily, "id", "1", "hex", "00000000"},
 			[]string{"more than once", "\nfix: " + cmdDebugInjectLSA + " " + keywordAddressFamily + " " + afNameIPv4Unicast + " " + strings.Join(v3InjectRouterLSA, " ")}},
+		// A repeated keyword's unknown value goes with it: the inject parser would refuse it.
+		{"repeated with an unknown value", append([]string{keywordAddressFamily, afNameIPv4Unicast, keywordAddressFamily, "bogus"}, v3InjectRouterLSA...),
+			[]string{"more than once", "\nfix: " + cmdDebugInjectLSA + " " + keywordAddressFamily + " " + afNameIPv4Unicast + " " + strings.Join(v3InjectRouterLSA, " ")}},
 		// The fix lists the running families, the value the keyword is missing.
 		{"no value", append(slices.Clone(v3InjectRouterLSA), keywordAddressFamily),
 			[]string{"no value", "\nfix: " + cmdShowIPv6Instance}},

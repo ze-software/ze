@@ -111,10 +111,12 @@ func splitInjectAddressFamily(cmdArgs []string) (addressFamily, []string, error)
 
 // injectCommandNamingOnce spells the inject command the operator typed with one
 // address-family pair: the family the first pair named, then every other argument in the
-// order given. Every address-family keyword is dropped, and so is the word after one when
-// that word is an address family name, so a word that belongs to another keyword stays. It
-// is the fix a repeated keyword's refusal names (splitInjectAddressFamily), a line the
-// operator can run as it stands. The loop is bounded by the argument count.
+// order given. Every address-family keyword is dropped, and so is the word after one
+// unless that word is a keyword parseV3Inject takes (isV3InjectKeyword): a family name, an
+// unknown word and a stray value all go, since the parser refuses any of them where they
+// stand, while a word that starts another keyword's pair stays. It is the fix a repeated
+// keyword's refusal names (splitInjectAddressFamily), a line the operator can run as it
+// stands. The loop is bounded by the argument count.
 func injectCommandNamingOnce(af addressFamily, cmdArgs []string) string {
 	words := make([]string, 0, len(cmdArgs)+3)
 	words = append(words, cmdDebugInjectLSA, keywordAddressFamily, af.String())
@@ -129,7 +131,12 @@ func injectCommandNamingOnce(af addressFamily, cmdArgs []string) string {
 		if i == len(cmdArgs) {
 			break
 		}
-		if _, isFamily := afFromCanonicalName(cmdArgs[i]); isFamily {
+		// A following address-family keyword is neither consumed nor kept here: the next
+		// pass drops it as a keyword of its own.
+		if cmdArgs[i] == keywordAddressFamily {
+			continue
+		}
+		if !isV3InjectKeyword(cmdArgs[i]) {
 			i++
 		}
 	}
@@ -219,12 +226,28 @@ func crossCheckV3Scope(kw, derived string) error {
 	return nil
 }
 
-// parseV3Inject parses the keyword-before-value v6 inject grammar.
+// isV3InjectKeyword reports whether word is one of the keywords parseV3Inject takes. It is
+// the one list of them: parseV3Inject refuses any word it does not name before its switch
+// dispatches, so a case added to that switch MUST be added here, or the keyword is refused.
+// injectCommandNamingOnce reads it to keep a keyword the operator typed in its fix line.
+func isV3InjectKeyword(word string) bool {
+	switch word {
+	case labelScope, injectKeywordType, injectKeywordID, injectKeywordHex, actionWithdraw:
+		return true
+	}
+	return false
+}
+
+// parseV3Inject parses the keyword-before-value v6 inject grammar. Its keywords are the
+// ones isV3InjectKeyword names, and any other word in a keyword position is refused.
 func parseV3Inject(args []string) (v3InjectParams, error) {
 	var p v3InjectParams
 	haveType, haveID := false, false
 	i := 0
 	for i < len(args) {
+		if !isV3InjectKeyword(args[i]) {
+			return p, fmt.Errorf("unexpected inject argument: %s", args[i])
+		}
 		switch args[i] {
 		case labelScope:
 			v, err := injectNextArg(args, i)
@@ -232,7 +255,7 @@ func parseV3Inject(args []string) (v3InjectParams, error) {
 				return p, err
 			}
 			p.scopeKw, i = v, i+2
-		case "type":
+		case injectKeywordType:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err
@@ -242,7 +265,7 @@ func parseV3Inject(args []string) (v3InjectParams, error) {
 				return p, err
 			}
 			p.lsType, haveType, i = n, true, i+2
-		case "id":
+		case injectKeywordID:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err
@@ -252,7 +275,7 @@ func parseV3Inject(args []string) (v3InjectParams, error) {
 				return p, err
 			}
 			p.linkStateID, haveID, i = uint32(n), true, i+2
-		case "hex":
+		case injectKeywordHex:
 			v, err := injectNextArg(args, i)
 			if err != nil {
 				return p, err

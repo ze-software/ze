@@ -3,6 +3,7 @@ package command
 import (
 	"encoding/json"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -389,5 +390,18 @@ func TestPluginShapesFromDeclsConvertsEachShapedDeclaration(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal %q does not name %s", err, want)
 		}
+	}
+
+	// A name over the bound is quoted as its first echoMax characters and "...", never whole.
+	long := "show " + strings.Repeat("x", 2*echoMax)
+	_, err = PluginShapesFromDecls([]rpc.CommandDecl{{Name: long, Shape: "Doc"}})
+	if err == nil {
+		t.Fatalf("a misspelled shape on %q was accepted", long)
+	}
+	if want := strconv.Quote(long[:echoMax] + "..."); !strings.Contains(err.Error(), want) {
+		t.Errorf("refusal %q does not quote the clamped name %s", err, want)
+	}
+	if strings.Contains(err.Error(), long[:echoMax+1]) {
+		t.Errorf("refusal %q quotes more than %d characters of the name", err, echoMax)
 	}
 }
