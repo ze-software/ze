@@ -173,7 +173,7 @@ func (r *Reactor) refreshPeerLinkScopes() {
 		return
 	}
 
-	addresses, err := network.InterfacePrefixes()
+	addresses, err := readAddressTable()
 	if err != nil {
 		reactorLogger().Error("refresh receive NEXT_HOP addresses", "error", err)
 	}
