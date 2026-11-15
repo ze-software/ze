@@ -25,6 +25,7 @@ const sameBestAllocsMax = 2
 func TestCIDRSameBestAllocations(t *testing.T) {
 	t.Run("without-add-path", func(t *testing.T) {
 		r := newTestRIBManagerWithBus(newTestEventBus())
+		electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 		peer := netip.MustParseAddr("192.0.2.1")
 		r.peerMeta[peer] = &peerMetadata{PeerASN: 65000, LocalASN: 65000}
 		rib := storage.NewPeerRIB(peer.String())
@@ -43,6 +44,7 @@ func TestCIDRSameBestAllocations(t *testing.T) {
 	})
 	t.Run("add-path", func(t *testing.T) {
 		r := newTestRIBManagerWithBus(newTestEventBus())
+		electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 		peer := netip.MustParseAddr("192.0.2.31")
 		rib := newAddPathPeer(r, peer)
 		key := addPathKey(7)

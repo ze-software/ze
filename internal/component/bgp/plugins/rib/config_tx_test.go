@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -77,9 +76,7 @@ func TestRIBMaximumPathsReloadBoundary(t *testing.T) {
 // MUTATION: drop the reselect call from the install and the apply check fails.
 func TestRIBReselectOnRuleChange(t *testing.T) {
 	r := newRIBManager(nil)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("198.51.100.1"), netip.MustParseAddr("198.51.100.2"))
 	tx := r.newConfigTx(false)
 	require.NoError(t, tx.Configure(ribSections(`"multipath":{"maximum-paths":1}`)))
 

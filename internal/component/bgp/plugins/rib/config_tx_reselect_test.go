@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -39,9 +38,7 @@ func relaxAttrs(nh [4]byte, origin uint32) []byte {
 // so the edit waits for the next UPDATE of each prefix.
 func TestRIBReselectOnRelaxASPathChange(t *testing.T) {
 	r := newRIBManager(nil)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("198.51.100.1"), netip.MustParseAddr("198.51.100.2"))
 	tx := r.newConfigTx(false)
 	require.NoError(t, tx.Configure(ribSections(`"multipath":{"maximum-paths":2,"relax-as-path":false}`)))
 
@@ -83,9 +80,7 @@ func TestRIBReselectOnRelaxASPathChange(t *testing.T) {
 func TestRIBReselectOnBlackholeRuleChange(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	r := newTestRIBManagerWithBus(newTestEventBus())
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	routes := storage.NewPeerRIB(peer.String())
 	r.bgpPeers[peer] = routes

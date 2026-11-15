@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // unicastAttrs builds IPv4 unicast path attributes: ORIGIN IGP, an empty
@@ -52,6 +51,7 @@ func newAddPathPeer(r *RIBManager, peer netip.Addr) *storage.PeerRIB {
 // Section 3.1.
 func TestAddPathUnicastOneElectionPerPrefix(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 	peer := netip.MustParseAddr("192.0.2.31")
 	rib := newAddPathPeer(r, peer)
 
@@ -83,6 +83,7 @@ func TestAddPathUnicastOneElectionPerPrefix(t *testing.T) {
 // prefix in the non-ADD-PATH peer, which made its default route a candidate.
 func TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.9"))
 	addPathPeer := netip.MustParseAddr("192.0.2.31")
 	plainPeer := netip.MustParseAddr("192.0.2.1")
 	newAddPathPeer(r, addPathPeer).Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 1}, 10, 100), addPathKey(7))
@@ -109,7 +110,7 @@ func TestAddPathMixedModeKeyNeverReadsAsAnotherPrefix(t *testing.T) {
 // rank on distance and MED alone and so install path 9.
 func TestAddPathLocRIBHoldsOneBGPPath(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
-	r.locRIB.Store(locrib.NewRIB())
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.7"), netip.MustParseAddr("10.0.0.9"))
 	rib := newAddPathPeer(r, netip.MustParseAddr("192.0.2.31"))
 	pfx := netip.MustParsePrefix("10.0.0.0/8")
 
@@ -141,6 +142,7 @@ func TestAddPathLocRIBHoldsOneBGPPath(t *testing.T) {
 // PREVENTS: a withdrawal judged by the withdrawn path id alone.
 func TestAddPathWithdrawalKeepsOrPromotes(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.7"), netip.MustParseAddr("10.0.0.9"))
 	rib := newAddPathPeer(r, netip.MustParseAddr("192.0.2.31"))
 	rib.Insert(famV4, unicastAttrs([4]byte{10, 0, 0, 7}, 10, 100), addPathKey(7))
 	r.checkBestPathChange(famV4, addPathKey(7), true, nil)

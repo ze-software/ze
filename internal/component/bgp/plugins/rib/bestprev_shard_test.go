@@ -65,6 +65,15 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 		perRoutine = 64
 	)
 	r := newTestRIBManager(t)
+	// Each destination is also its next hop. A preferred connected host route
+	// keeps the candidate resolvable even in the prospective installed table.
+	hops := make([]netip.Addr, 0, goroutines*perRoutine)
+	for g := range goroutines {
+		for i := range perRoutine {
+			hops = append(hops, netip.AddrFrom4([4]byte{10, byte(g), byte(i >> 8), byte(i)}))
+		}
+	}
+	electionFixtureLocRIB(t, r, hops...)
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr("10.0.0.1")
 	peerRIB := storage.NewPeerRIB(peerAddr.String())
@@ -189,6 +198,15 @@ func TestParallelMultiPeerNoLostWrites(t *testing.T) {
 		perRoutine = 128
 	)
 	r := newTestRIBManager(t)
+	// Seed every independent host route before concurrent peer updates begin;
+	// a broader covering route would be captured by these same-prefix offers.
+	hops := make([]netip.Addr, 0, peers*perRoutine)
+	for p := range peers {
+		for i := range perRoutine {
+			hops = append(hops, netip.AddrFrom4([4]byte{172, byte(p), byte(i >> 8), byte(i)}))
+		}
+	}
+	electionFixtureLocRIB(t, r, hops...)
 	fam := family.Family{AFI: 1, SAFI: 1}
 
 	var wg sync.WaitGroup
