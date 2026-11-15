@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"html"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -209,6 +211,21 @@ func TestTheCompliancePagesGoldenIsCurrent(t *testing.T) {
 		t.Fatalf("read %s: %v. Write it with: ./le job run label unit-pkg command go test -run TestTheCompliancePagesGoldenIsCurrent ./internal/le/site/ -args -update", rfcCompliancePagesGolden, err)
 	}
 	if !bytes.Equal(got, want) {
+		var recorded, rendered struct {
+			Files map[string]string `json:"files"`
+		}
+		if err := json.Unmarshal(got, &recorded); err != nil {
+			t.Fatalf("read recorded compliance pages: %v", err)
+		}
+		if err := json.Unmarshal(want, &rendered); err != nil {
+			t.Fatalf("read rendered compliance pages: %v", err)
+		}
+		for _, name := range slices.Sorted(maps.Keys(rendered.Files)) {
+			if recorded.Files[name] != rendered.Files[name] {
+				t.Fatalf("%s is stale at %s:\n%s", rfcCompliancePagesGolden, name,
+					firstDifference(recorded.Files[name], rendered.Files[name]))
+			}
+		}
 		t.Fatalf("%s is stale: a compliance page changed, so the browser tests load an old page.\n"+
 			"Refresh it with: ./le job run label unit-pkg command go test -run TestTheCompliancePagesGoldenIsCurrent ./internal/le/site/ -args -update",
 			rfcCompliancePagesGolden)
