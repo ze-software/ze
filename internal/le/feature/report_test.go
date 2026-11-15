@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/rfc"
 )
@@ -21,6 +22,21 @@ func TestReportListsUnderClaimAsCandidate(t *testing.T) {
 	tree := fixtureTree(t, func(text string) string {
 		return strings.Replace(text, "| Level | supported |", "| Level | experimental |", 1)
 	})
+	today := time.Now().UTC()
+	record, err := loadRunRecord(tree, "widget", today)
+	if err != nil {
+		t.Fatal(err)
+	}
+	date := today.Format(time.DateOnly)
+	for i := range record.Runs {
+		record.Runs[i].Date = date
+	}
+	for i := range record.Interop {
+		record.Interop[i].Date = date
+	}
+	if err := writeRunRecord(tree, &record); err != nil {
+		t.Fatal(err)
+	}
 	entries, err := Report(tree, "widget")
 	if err != nil {
 		t.Fatal(err)
