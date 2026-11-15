@@ -379,7 +379,10 @@ in the spec or commit it applies to.
   machine through git and tests them there in a worktree of their own,
   detached at those commits. The other machine's shared checkout is never
   pulled into or tested for that work. The branch reaches `main` only when
-  Thomas lands it with `git rebase <branch>`.
+  Thomas lands it with `git rebase <branch>`. Everything the agent writes for
+  that work, scratch files included, lives in that worktree, under its own
+  `tmp/`, or on the machine the work lands on, never elsewhere on the disk of
+  the machine the agent runs on.
 - Close in-progress specs before opening new ones. The WIP cap is lowered as
   specs close, never raised.
 - Two limits apply to spec work, and they count different things. The open
