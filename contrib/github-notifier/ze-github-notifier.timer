@@ -1,0 +1,13 @@
+# Installation: docs/contributing/github-notifier.md
+[Unit]
+Description=Poll Ze maintainer GitHub results every fifteen minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=20
+Unit=ze-github-notifier.service
+
+[Install]
+WantedBy=timers.target
+

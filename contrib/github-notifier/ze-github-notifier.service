@@ -1,0 +1,31 @@
+# Installation: docs/contributing/github-notifier.md
+[Unit]
+Description=Ze maintainer GitHub result notifications
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ze-github-notifier
+Group=ze-github-notifier
+WorkingDirectory=/var/lib/ze-github-notifier
+ExecStart=/opt/ze-github-notifier/current/le github poll config /etc/ze-github-notifier/poll.json "|" json
+Environment=HOME=/var/lib/ze-github-notifier
+UnsetEnvironment=ZE_REPO_ROOT ZE_LE_BUILD_NAME GOROOT GOTOOLCHAIN
+UMask=0077
+TimeoutStartSec=90
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ze-github-notifier
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+

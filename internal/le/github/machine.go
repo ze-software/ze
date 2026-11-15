@@ -139,7 +139,7 @@ func observeMachine(requested string, source machineSources) (machineReport, err
 	if err != nil {
 		return report.machineFailure(err)
 	}
-	if branch != "main" {
+	if branch != mainBranch {
 		report.Problems = append(report.Problems, "this is not the main checkout branch")
 	}
 	report.LinkedWorktree, err = source.linked(root)

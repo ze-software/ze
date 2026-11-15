@@ -1,5 +1,5 @@
 // Design: docs/contributing/github-integration.md -- previews bind trusted evidence, exact templates and destination identities.
-// Related: notification_delivery.go -- dormant approved delivery and its receipts.
+// Related: notification_delivery.go -- approved delivery and its receipts.
 package github
 
 import (
@@ -26,6 +26,8 @@ const (
 	notificationWireCompleted = "completed"
 	notificationWireSuccess   = "success"
 	notificationWireTimedOut  = "timed_out"
+	notificationWireQuiet     = "quiet"
+	notificationWireDelivered = "delivered"
 )
 
 // notificationDestination is a validated presentation label and optional
@@ -41,16 +43,11 @@ func newNotificationDestination(label, channel, webhook string) (notificationDes
 		return notificationDestination{}, errors.New("notification destination label exceeds 80 bytes")
 	}
 	for _, r := range label {
-		if r >= 'a' && r <= 'z' {
+		if notificationASCIIAlphanumeric(r) {
 			continue
 		}
-		if r >= 'A' && r <= 'Z' {
-			continue
-		}
-		if r >= '0' && r <= '9' {
-			continue
-		}
-		if r == '-' || r == '_' {
+		switch r {
+		case '-', '_':
 			continue
 		}
 		return notificationDestination{}, errors.New("notification destination label must contain only letters, digits, hyphens and underscores")
@@ -68,6 +65,27 @@ func newNotificationDestination(label, channel, webhook string) (notificationDes
 		}
 	}
 	return notificationDestination{label: label, channel: channel, webhook: webhook}, nil
+}
+
+// notificationASCIIAlphanumeric keeps label and credential acceptance on the
+// same exact ASCII ranges without accepting other Unicode letters or digits.
+func notificationASCIIAlphanumeric(value rune) bool {
+	if value >= 'a' {
+		if value <= 'z' {
+			return true
+		}
+	}
+	if value >= 'A' {
+		if value <= 'Z' {
+			return true
+		}
+	}
+	if value >= '0' {
+		if value <= '9' {
+			return true
+		}
+	}
+	return false
 }
 
 func notificationSnowflake(value string) error {
@@ -198,15 +216,11 @@ func buildNotificationPreview(report Report, template notificationTemplate, dest
 		return preview, errors.New("notification run does not match the requested identity")
 	}
 	preview.Run = &run
-	binding, err := json.Marshal(struct {
-		Version                                          int
-		Failure, Recovery, Destination, Channel, Webhook string
-	}{
-		1, template.failure, template.recovery, destination.label, destination.channel, destination.webhook})
+	binding, err := notificationTemplateBinding(template, destination)
 	if err != nil {
 		return preview, err
 	}
-	preview.ApprovalDigest = notificationDigest(binding)
+	preview.ApprovalDigest = binding
 	preview.event = &notificationEvent{runID: run.ID, attempt: run.Attempt, workflowID: run.WorkflowID,
 		workflowPath: run.WorkflowPath, binding: preview.ApprovalDigest, destination: destination}
 	replace := strings.NewReplacer("{workflow}", run.Name, "{revision}", run.Revision,
@@ -226,6 +240,19 @@ func buildNotificationPreview(report Report, template notificationTemplate, dest
 	return preview, nil
 }
 
+// notificationTemplateBinding computes an identity for comparison with the
+// operator's supplied approval. Computing it never issues that approval.
+func notificationTemplateBinding(template notificationTemplate, destination notificationDestination) (string, error) {
+	body, err := json.Marshal(struct {
+		Version                                          int
+		Failure, Recovery, Destination, Channel, Webhook string
+	}{1, template.failure, template.recovery, destination.label, destination.channel, destination.webhook})
+	if err != nil {
+		return "", err
+	}
+	return notificationDigest(body), nil
+}
+
 func notificationTrust(run Run) error {
 	if run.ID == 0 {
 		return errors.New("notification run identity is missing")
@@ -242,7 +269,7 @@ func notificationTrust(run Run) error {
 	if *run.HeadRepository != Repository {
 		return errors.New("notification run was not produced by the fixed repository")
 	}
-	if run.HeadBranch != "main" {
+	if run.HeadBranch != mainBranch {
 		return errors.New("notification run is not on the trusted main branch")
 	}
 	switch run.Event {
@@ -310,10 +337,12 @@ func notificationResult(run Run) (notificationVerdict, string, string) {
 				allPassed = false
 			}
 		}
-		if job.Conclusion == notificationWireFailure || job.Conclusion == notificationWireTimedOut {
+		switch job.Conclusion {
+		case notificationWireFailure, notificationWireTimedOut:
 			failures = append(failures, notificationListDigest([]string{"job", job.Name, job.Conclusion}))
 			for _, step := range job.Steps {
-				if step.Conclusion == notificationWireFailure || step.Conclusion == notificationWireTimedOut {
+				switch step.Conclusion {
+				case notificationWireFailure, notificationWireTimedOut:
 					failures = append(failures, notificationListDigest([]string{"step", job.Name, strconv.FormatUint(step.Number, 10), step.Name, step.Conclusion}))
 				}
 			}

@@ -1,4 +1,4 @@
-// Design: docs/contributing/github-integration.md -- a bounded dormant webhook sender never retries an uncertain POST.
+// Design: docs/contributing/github-integration.md -- a bounded webhook sender never retries an uncertain POST.
 package github
 
 import (
@@ -17,7 +17,7 @@ import (
 
 // discordNotificationSender contains the webhook credential privately. It is
 // safe for concurrent use when its supplied transport is. Its zero value is
-// invalid. No CLI or workflow constructs this sender before separate activation.
+// invalid. The private activation boundary supplies its credential separately.
 type discordNotificationSender struct {
 	client      *http.Client
 	endpoint    string
@@ -83,13 +83,7 @@ func newDiscordNotificationSender(raw string, destination notificationDestinatio
 		return nil, errors.New("discord webhook token exceeds its bound")
 	}
 	for _, r := range parts[1] {
-		if r >= 'a' && r <= 'z' {
-			continue
-		}
-		if r >= 'A' && r <= 'Z' {
-			continue
-		}
-		if r >= '0' && r <= '9' {
+		if notificationASCIIAlphanumeric(r) {
 			continue
 		}
 		if strings.ContainsRune("._-", r) {

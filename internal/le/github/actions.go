@@ -13,6 +13,8 @@ import (
 )
 
 const area = "github"
+const runKeyword = "run"
+const runIDValueLabel = "run-id"
 
 var actions = reportArea(answerReport)
 
@@ -24,7 +26,7 @@ func reportArea(answer func(leaction.Arguments) (any, int)) leaction.Area {
 		Why: "Read every bounded API page for one exact revision or workflow run. Return job and step results with their source identities; incomplete data cannot certify a passing revision.",
 		Parameters: []leaction.Parameter{
 			{Keyword: "revision", Kind: leaction.KindLabel, Value: "full-sha", Help: "the full 40-character commit ID to report", Requirement: leaction.Optional},
-			{Keyword: "run", Kind: leaction.KindUint, Value: "run-id", Help: "one positive GitHub Actions run ID", Requirement: leaction.Optional},
+			{Keyword: runKeyword, Kind: leaction.KindUint, Value: runIDValueLabel, Help: "one positive GitHub Actions run ID", Requirement: leaction.Optional},
 			{Keyword: "machine", Kind: leaction.KindSwitch, Help: "observe local checkout identity and current capacity"},
 		},
 		AnswerArgs: answer,
@@ -59,7 +61,7 @@ func answerWith(client *Client, args leaction.Arguments) (any, int) {
 	if args.Has("machine") {
 		return answerMachine(args)
 	}
-	if args.Has("revision") == args.Has("run") {
+	if args.Has("revision") == args.Has(runKeyword) {
 		leaction.ReportError(opererr.New("github report needs exactly one selector",
 			"A revision report and a run report identify different evidence. Supply revision or run, without combining them.",
 			"./le help github report"))
@@ -70,7 +72,7 @@ func answerWith(client *Client, args leaction.Arguments) (any, int) {
 	if args.Has("revision") {
 		report, err = client.reportRevision(context.Background(), args.One("revision"))
 	} else {
-		id, parseErr := strconv.ParseUint(args.One("run"), 10, 64)
+		id, parseErr := strconv.ParseUint(args.One(runKeyword), 10, 64)
 		if parseErr != nil {
 			leaction.ReportError(opererr.Wrap(parseErr, "github report run ID is not an unsigned integer",
 				"The run cannot be identified from this value.", "./le help github report run"))
@@ -95,7 +97,7 @@ func answerWith(client *Client, args leaction.Arguments) (any, int) {
 }
 
 func answerMachine(args leaction.Arguments) (any, int) {
-	if args.Has("run") {
+	if args.Has(runKeyword) {
 		leaction.ReportError(opererr.New("machine reporting cannot select a GitHub run",
 			"Current local observations cannot certify a previous workflow result.", "./le help github report"))
 		return nil, 2

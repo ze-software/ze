@@ -5,6 +5,9 @@ package github
 // Repository is the only repository this development integration reads.
 const Repository = "ze-software/ze"
 
+// mainBranch is the fixed branch used by trusted evidence and local handoffs.
+const mainBranch = "main"
+
 // Report is an external presentation document. Complete means every requested
 // API result was read and understood; it does not mean the tests passed.
 type Report struct {

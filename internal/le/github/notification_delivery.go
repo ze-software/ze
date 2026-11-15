@@ -1,4 +1,4 @@
-// Design: docs/contributing/github-integration.md -- receipt durability precedes every dormant delivery attempt.
+// Design: docs/contributing/github-integration.md -- receipt durability precedes every approved delivery attempt.
 // Related: notification_store.go -- atomic locked receipts; notification_discord.go -- bounded transport.
 package github
 
@@ -10,8 +10,8 @@ import (
 )
 
 // notificationApproval is a supplied owner-approval receipt. This package
-// verifies its binding but never issues approval or exposes a delivery CLI.
-// A later activation entry point MUST establish owner authorization first.
+// verifies its binding but never issues approval. The activation boundary MUST
+// load this operator authority from a private, owner-provisioned file.
 type notificationApproval struct {
 	BindingDigest string `json:"binding-digest"`
 }
@@ -35,6 +35,8 @@ type notificationReceipt struct {
 	Mode             notificationReceiptMode `json:"mode"`
 	SeenRunID        uint64                  `json:"seen-run-id"`
 	SeenAttempt      uint64                  `json:"seen-attempt"`
+	ScanRunID        uint64                  `json:"scan-run-id,omitempty"`
+	ScanAttempt      uint64                  `json:"scan-attempt,omitempty"`
 	FailureDigest    string                  `json:"delivered-failure-digest"`
 	FailureScope     string                  `json:"delivered-failure-scope"`
 	FailureMessageID string                  `json:"delivered-failure-message-id"`
@@ -100,7 +102,10 @@ func notificationReceiptValid(receipt notificationReceipt) error {
 		if receipt.AttemptedAttempt == 0 {
 			return errors.New("blocked notification receipt has no attempted run attempt")
 		}
-		if receipt.AttemptedRunID != receipt.SeenRunID || receipt.AttemptedAttempt != receipt.SeenAttempt {
+		if receipt.AttemptedRunID != receipt.SeenRunID {
+			return errors.New("unresolved notification receipt does not identify its current observed event")
+		}
+		if receipt.AttemptedAttempt != receipt.SeenAttempt {
 			return errors.New("unresolved notification receipt does not identify its current observed event")
 		}
 		if receipt.MessageID != "" {
@@ -121,6 +126,15 @@ func notificationReceiptValid(receipt notificationReceipt) error {
 	} else {
 		if receipt.SeenAttempt == 0 {
 			return errors.New("notification receipt has no seen attempt")
+		}
+	}
+	if receipt.ScanRunID == 0 {
+		if receipt.ScanAttempt != 0 {
+			return errors.New("notification scan has an attempt without a run")
+		}
+	} else {
+		if receipt.ScanAttempt == 0 {
+			return errors.New("notification scan has no attempt")
 		}
 	}
 	if receipt.FailureDigest == "" {
@@ -174,8 +188,10 @@ func notificationReceiptValid(receipt notificationReceipt) error {
 		if receipt.AttemptedRunID > receipt.SeenRunID {
 			return errors.New("notification receipt attempted run exceeds its observed run")
 		}
-		if receipt.AttemptedRunID == receipt.SeenRunID && receipt.AttemptedAttempt > receipt.SeenAttempt {
-			return errors.New("notification receipt attempted number exceeds its observed attempt")
+		if receipt.AttemptedRunID == receipt.SeenRunID {
+			if receipt.AttemptedAttempt > receipt.SeenAttempt {
+				return errors.New("notification receipt attempted number exceeds its observed attempt")
+			}
 		}
 	}
 	if len(receipt.StopReason) > 256 {
@@ -238,9 +254,9 @@ type notificationDeliveryReport struct {
 	Reason      string `json:"reason"`
 }
 
-// deliverNotification is dormant until a separately authorized caller supplies
-// exact approval and transport. The CLI/workflow expose preview only. A durable
-// in-flight receipt makes a crash or lost acknowledgement a reconciliation stop.
+// deliverNotification requires exact approval and a bound transport from the
+// private activation boundary. A durable in-flight receipt makes a crash or
+// lost acknowledgment a reconciliation stop.
 func deliverNotification(ctx context.Context, store notificationStore, preview notificationPreview, approval notificationApproval, sender notificationSender) (notificationDeliveryReport, error) {
 	if preview.event == nil {
 		return notificationDeliveryReport{State: notificationWireBlocked}, errors.New("notification preview was not constructed")
@@ -284,7 +300,7 @@ func deliverNotification(ctx context.Context, store notificationStore, preview n
 		kind, text, reason := notificationTransition(preview, ready)
 		report.Kind, report.Reason = kind.word(), reason
 		if kind == notificationKindUnspecified {
-			report.State = "quiet"
+			report.State = notificationWireQuiet
 			if preview.verdict == notificationUnjudged {
 				return nil
 			}
@@ -313,7 +329,7 @@ func deliverNotification(ctx context.Context, store notificationStore, preview n
 		result, sendErr := attempt.send(ctx, sender, preview.event.destination, text)
 		resolved, deliveryState, deliveryReason := attempt.resolve(preview, result, sendErr)
 		report.State, report.Reason = deliveryState, deliveryReason
-		if deliveryState == "delivered" {
+		if deliveryState == notificationWireDelivered {
 			report.MessageID = result.MessageID
 		}
 		if err := ledger.save(resolved.encode()); err != nil {

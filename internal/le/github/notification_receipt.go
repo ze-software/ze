@@ -48,6 +48,7 @@ type notificationReceiptFacts struct {
 	workflowID                                    uint64
 	workflowPath                                  string
 	seenRunID, seenAttempt                        uint64
+	scanRunID, scanAttempt                        uint64
 	failureDigest, failureScope, failureMessageID string
 	attemptedRunID, attemptedAttempt              uint64
 	attemptedKind                                 notificationTransitionKind
@@ -79,7 +80,7 @@ func decodeNotificationReceipt(raw notificationReceipt) (notificationReceiptStat
 		return nil, err
 	}
 	state := notificationReceiptFacts{binding: raw.BindingDigest, workflowID: raw.WorkflowID, workflowPath: raw.WorkflowPath,
-		seenRunID: raw.SeenRunID, seenAttempt: raw.SeenAttempt, failureDigest: raw.FailureDigest,
+		seenRunID: raw.SeenRunID, seenAttempt: raw.SeenAttempt, scanRunID: raw.ScanRunID, scanAttempt: raw.ScanAttempt, failureDigest: raw.FailureDigest,
 		failureScope: raw.FailureScope, failureMessageID: raw.FailureMessageID,
 		attemptedRunID: raw.AttemptedRunID, attemptedAttempt: raw.AttemptedAttempt,
 		attemptedKind: kind, messageID: raw.MessageID}
@@ -102,6 +103,7 @@ func decodeNotificationReceipt(raw notificationReceipt) (notificationReceiptStat
 func (state notificationReceiptFacts) encode(mode notificationReceiptMode, reason string) notificationReceipt {
 	return notificationReceipt{Version: 1, BindingDigest: state.binding, WorkflowID: state.workflowID,
 		WorkflowPath: state.workflowPath, Mode: mode, SeenRunID: state.seenRunID, SeenAttempt: state.seenAttempt,
+		ScanRunID: state.scanRunID, ScanAttempt: state.scanAttempt,
 		FailureDigest: state.failureDigest, FailureScope: state.failureScope, FailureMessageID: state.failureMessageID,
 		AttemptedRunID: state.attemptedRunID, AttemptedAttempt: state.attemptedAttempt,
 		AttemptedKind: state.attemptedKind.word(), MessageID: state.messageID, StopReason: reason}
@@ -117,20 +119,32 @@ func (blocked notificationBlockedReceipt) encode() notificationReceipt {
 }
 
 func (ready notificationReadyReceipt) observe(preview notificationPreview) (notificationReadyReceipt, error) {
-	if preview.event.binding == "" || ready.state.binding != preview.event.binding {
+	if preview.event.binding == "" {
 		return notificationReadyReceipt{}, errors.New("notification observation has another approval binding")
 	}
-	if ready.state.workflowID != preview.event.workflowID || ready.state.workflowPath != preview.event.workflowPath {
+	if ready.state.binding != preview.event.binding {
+		return notificationReadyReceipt{}, errors.New("notification observation has another approval binding")
+	}
+	if ready.state.workflowID != preview.event.workflowID {
 		return notificationReadyReceipt{}, errors.New("notification observation belongs to another workflow")
 	}
-	if preview.verdict != notificationFailed && preview.verdict != notificationPassed {
+	if ready.state.workflowPath != preview.event.workflowPath {
+		return notificationReadyReceipt{}, errors.New("notification observation belongs to another workflow")
+	}
+	switch preview.verdict {
+	case notificationFailed, notificationPassed:
+	case notificationUnspecified, notificationUnjudged:
 		return notificationReadyReceipt{}, errors.New("notification observation has no usable completed verdict")
+	default:
+		panic("BUG: unknown validated notification evidence verdict")
 	}
 	if preview.event.runID < ready.state.seenRunID {
 		return notificationReadyReceipt{}, errors.New("notification observation precedes recorded history")
 	}
-	if preview.event.runID == ready.state.seenRunID && preview.event.attempt <= ready.state.seenAttempt {
-		return notificationReadyReceipt{}, errors.New("notification observation was already processed")
+	if preview.event.runID == ready.state.seenRunID {
+		if preview.event.attempt <= ready.state.seenAttempt {
+			return notificationReadyReceipt{}, errors.New("notification observation was already processed")
+		}
 	}
 	state := ready.state
 	state.seenRunID, state.seenAttempt = preview.event.runID, preview.event.attempt
@@ -138,8 +152,12 @@ func (ready notificationReadyReceipt) observe(preview notificationPreview) (noti
 }
 
 func (ready notificationReadyReceipt) prepare(preview notificationPreview, kind notificationTransitionKind) (notificationInFlightReceipt, error) {
-	if kind != notificationKindFailure && kind != notificationKindRecovery {
+	switch kind {
+	case notificationKindFailure, notificationKindRecovery:
+	case notificationKindUnspecified:
 		return notificationInFlightReceipt{}, errors.New("notification attempt has no known transition")
+	default:
+		panic("BUG: unknown validated notification transition kind")
 	}
 	expected, _, _ := notificationTransition(preview, ready)
 	if kind != expected {
@@ -175,7 +193,11 @@ func (attempt notificationPersistedAttempt) send(ctx context.Context, sender not
 
 func (attempt notificationPersistedAttempt) resolve(preview notificationPreview, result notificationSendResult, sendErr error) (notificationReceiptState, string, string) {
 	state := attempt.flight.state
-	if result.Outcome == notificationSendConfirmed && sendErr == nil {
+	if result.Outcome == notificationSendConfirmed {
+		if sendErr != nil {
+			reason := "delivery result is ambiguous; reconcile the attempted event and destination"
+			return notificationBlockedReceipt{state: state, reason: reason}, notificationWireBlocked, reason
+		}
 		if err := notificationSnowflake(result.MessageID); err != nil {
 			reason := fmt.Errorf("delivery confirmation identity is invalid; reconcile the attempted event: %w", err).Error()
 			return notificationBlockedReceipt{state: state, reason: reason}, notificationWireBlocked, reason
@@ -186,7 +208,7 @@ func (attempt notificationPersistedAttempt) resolve(preview notificationPreview,
 		} else {
 			state.failureDigest, state.failureScope, state.failureMessageID = "", "", ""
 		}
-		return notificationReadyReceipt{state: state}, "delivered", ""
+		return notificationReadyReceipt{state: state}, notificationWireDelivered, ""
 	}
 	if result.Outcome == notificationSendRejected {
 		return notificationReadyReceipt{state: state}, "rejected", "transport confirmed that no message was delivered; this event is not retried automatically"

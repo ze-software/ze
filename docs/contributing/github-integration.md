@@ -97,8 +97,15 @@ Render the two candidate messages for an identified workflow run:
 The command reads public GitHub evidence and returns `delivery-state:
 preview-only`, the selected run, a proposed destination label, both rendered
 messages and an approval digest. It writes no receipt and sends no message.
-The destination label supplies no Discord channel identity or credential, so
-this preview cannot initialise a delivery ledger.
+The destination label alone supplies no Discord identity. To bind a proposed
+destination, supply both token-free identities:
+
+```sh
+./le github preview run <positive-run-id> destination <label> channel <channel-id> webhook <webhook-id> '|' json
+```
+
+Both identities are required together. A preview computes a comparison digest
+but records no owner approval. No preview acquires a credential or creates state.
 <!-- source: internal/le/github/notification_actions.go -- notificationPreviewAction, answerNotificationPreview -->
 
 The manually dispatched `notification-preview` workflow uses default-branch
@@ -111,18 +118,86 @@ full commit ID and canonical run link remain part of the evidence.
 <!-- source: .github/workflows/notification-preview.yml -- preview -->
 <!-- source: internal/le/github/notification.go -- notificationTrust -->
 
-The candidate text in `candidateNotificationTemplate` is awaiting Thomas's
-review, along with the actual destination. A future activation must establish
-owner approval of the exact failure and recovery template bytes and the
-destination's channel and webhook identities. Their digest binds the receipt;
-changing any of them requires a fresh approval. No registered command or
-workflow currently activates delivery. Public news continues through its
-separate exact-text approval procedure.
+Thomas approved both templates in `candidateNotificationTemplate` for automatic
+delivery to the selected existing GitHub activity feed. Approval binds the
+exact failure and recovery template bytes, destination label, channel identity
+and webhook identity. Changing any bound value requires fresh owner approval.
+Public news retains its separate exact-text approval procedure.
 <!-- source: internal/le/github/notification.go -- candidateNotificationTemplate, buildNotificationPreview -->
 <!-- source: internal/le/github/notification_delivery.go -- checkNotificationApproval -->
-<!-- source: internal/le/github/notification_actions.go -- notificationActions -->
 
-## Dormant delivery and receipts
+## Private notification configuration
+
+The operator provisions one private configuration file per workflow. This
+file is trusted operator authority, not cryptographic proof of a human's
+identity. Neither initialization nor delivery issues approval. A CLI argument,
+API response or computed preview digest cannot create approval by itself.
+<!-- source: internal/le/github/notification_activation.go -- loadNotificationActivation -->
+
+Use an existing directory owned by the account running the notifier, with
+permissions `0700`. Keep the configuration and separate credential files at
+`0600`, owned by that same account. Both files must be regular files, with no
+symbolic link at the file or containing directory. Paths must be absolute and
+clean. Configuration reads are limited to 64 KiB, with unknown keys and
+trailing data refused.
+<!-- source: internal/le/github/notification_activation.go -- readNotificationPrivateFile, notificationPrivateOwner, notificationPrivatePath -->
+
+After exact text and destination approval, copy the identity preview's digest
+into `approval-digest`. Use these configuration fields:
+
+```json
+{
+  "version": 1,
+  "destination": "<approved-label>",
+  "channel-id": "<approved-channel-id>",
+  "webhook-id": "<approved-webhook-id>",
+  "failure-template": "<exact-approved-failure-template>",
+  "recovery-template": "<exact-approved-recovery-template>",
+  "approval-digest": "<digest-from-the-approved-identity-preview>",
+  "credential-file": "/absolute/private/directory/webhook",
+  "state-directory": "/absolute/private/directory/workflow-receipts"
+}
+```
+
+The credential file contains only the exact Discord webhook URL, without a
+newline. It is limited to 2048 bytes. Credentials never belong in command
+arguments, configuration JSON, output or receipt files. Each workflow needs
+its own existing private state directory. The receipt binds the workflow ID
+and path, so another workflow cannot use its history.
+<!-- source: internal/le/github/notification_activation.go -- notificationActivationFile, loadNotificationActivation, notificationActivation.deliver -->
+<!-- source: internal/le/github/notification_delivery.go -- deliverNotification -->
+
+## Explicit initialization and delivery
+
+Initialize each workflow once, selecting an identified trusted run. Then
+deliver one identified run at a time:
+
+```sh
+./le github initialize run <positive-run-id> config /absolute/private/directory/config.json
+./le github deliver run <positive-run-id> config /absolute/private/directory/config.json '|' json
+```
+
+Initialization creates an empty receipt and sends nothing. It refuses to
+replace any existing receipt, including corrupt or unresolved state. Delivery
+opens existing state and attempts at most one message. It never initializes,
+resets or retries state implicitly. Both commands validate approval before
+reading workflow evidence. The credential is read only for delivery.
+<!-- source: internal/le/github/notification_activation_actions.go -- notificationActivationActions, answerNotificationActivation -->
+<!-- source: internal/le/github/notification_activation.go -- notificationActivation.initialize, notificationActivation.deliver -->
+
+An initialization or delivery refusal carries the registered diagnostic
+`github-notification-unavailable`, with the delivery outcome and the command
+that explains the required private files. Missing operator authority, transport
+or receipt readiness cannot produce a successful status. Credential contents
+are excluded from the diagnostic and report.
+<!-- source: internal/le/github/notification_activation_actions.go -- notificationActivationError, notificationActivationOperatorError -->
+<!-- source: internal/le/github/register.go -- init -->
+
+For polling behavior and the portable Linux systemd installation, see
+[Install maintainer result notifications](github-notifier.md).
+<!-- source: internal/le/github/notification_poll.go -- notificationPollActions -->
+
+## Delivery history and recovery
 
 The delivery library records a confirmed failure before it can qualify a later
 result as recovery. The same failure signature remains quiet across later runs;
@@ -149,11 +224,21 @@ persistence produces the capability that calls and resolves the sender.
 <!-- source: internal/le/github/notification_delivery.go -- deliverNotification -->
 <!-- source: internal/le/github/notification_receipt.go -- decodeNotificationReceipt, notificationInFlightReceipt.persist, notificationPersistedAttempt.resolve -->
 
-The dormant Discord sender checks the webhook's current channel before its
+The Discord sender checks the webhook's current channel before its
 single message POST and requests `wait=true` to obtain a message identity.
 It disables mentions and redirects, bounds request time and response bytes,
 and excludes webhook URLs and response bodies from its errors. An uncertain
 POST is never retried automatically. Webhook credentials belong only in the
-later authorised caller's transport configuration; previews and receipt files
+private credential file; previews and receipt files
 contain identity fields without the credential URL or token.
 <!-- source: internal/le/github/notification_discord.go -- newDiscordNotificationSender, Send, notificationDiscordResponse -->
+
+If delivery becomes unresolved, stop scheduling that workflow and preserve its
+receipt. Compare its attempted run, attempt and message kind with the actual
+Discord channel before any further delivery. A missing acknowledgment can mean
+the message was posted. There is no reset or retry command that can settle
+that uncertainty. Reinitializing or replacing the receipt would discard the
+history that prevents duplicate messages. Reconcile the observed outcome and
+review any receipt correction before restarting the schedule.
+<!-- source: internal/le/github/notification_receipt.go -- decodeNotificationReceipt, notificationPersistedAttempt.resolve -->
+<!-- source: internal/le/github/notification_store.go -- initialize, withLock -->

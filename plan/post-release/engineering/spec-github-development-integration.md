@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling, docs |
 | Priority | P2 |
 | Release reason | Owner-requested development integration; this adds no first-release prerequisite or product-support claim. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | owner-review |
+| Phase | 4/4 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -28,6 +28,8 @@ Continuation, Thomas, 2026-11-15: "Okay, complete the work."
 
 The latest AI-contribution paragraph reviewed in this chat is approved for application. Continue the integration work within the existing scope. Item 5 remains excluded. Public news retains its exact-text approval requirement, and Discord activation requires an identified destination. Publication must not silently include unrelated changes on the shared branch.
 
+Continuation, Thomas: "Show me one. Finish two. Perform Four. Then I will consider three." This resumes alert activation and independent operational review while source and website publication remain withheld. Thomas subsequently approved both exact alert templates and selected the Linux development server `claude`, authorizing installation of the result-only notifier and schedule there. He also requires instructions for installing it elsewhere. Contribution/form wording remains available for review; the approved alert text is no longer a blocker. The notifier reads result metadata, never runs reported commits or tests, and retains durable private delivery state across restarts.
+
 Item 5 is the GitHub front-door proposal: organization profile, repository description, README and roadmap presentation. It is excluded. Report templates, contribution instructions and notification text remain drafts until Thomas approves them. This spec adds no automatic release announcement.
 
 Goals: G-1, show what GitHub actually tested for a revision; G-2, carry committed work between the two machines through the existing permitted routes; G-3, publish the exact requested and reviewed website artifact; G-4, prepare and, only after separate approval, deliver failure/recovery messages without repeated unchanged alerts.
@@ -40,11 +42,11 @@ Existing-owner search: CI coverage and peer-harness specs concern different test
 
 ## Blocker
 
-Thomas reserved review of messaging. The exact AI contribution paragraph is approved and applied; the other contribution/form wording and maintainer templates still need his review. He selected the existing GitHub activity feed for maintainer alerts, and its webhook/channel identity was verified by read-only requests without retaining credentials. `notification_actions.go` exposes preview only. The tested private delivery/store/transport code has no activation caller, so this spec does not claim an installed notifier or complete AC-9 operational delivery. Approved activation remains work owned by this spec.
+Thomas reserved review of messaging. The exact AI contribution paragraph and both exact maintainer alert templates are approved; other contribution/form wording remains available for review. He selected the existing GitHub activity feed and authorized installation of the result-only notifier and schedule on `claude`. Its identity was verified read-only without retaining credentials. Explicit initialization/delivery and bounded polling are implemented and undergoing scoped tests and independent review. Installation and AC-9 operational evidence are not yet claimed complete. The portable installation guide is part of this continuation.
 
 Canonical contribution HTML and Markdown have been regenerated through the native docs producer and checked. No site artifact was committed or deployed. Publication must preserve the requested source/artifact identities and obtain an explicit owner push instruction for the exact shared-branch ancestry; unrelated README changes remain excluded from this task's authorization.
 
-The native session state owns the current review index, rendered candidate example, token-free destination identity, test logs, and publication ancestry snapshot. Resume this spec after the remaining wording decision; complete activation and approved publication, then run the independent closure gate. The destination choice is settled. No operational CLEAN closure artifact has been recorded.
+The native session state owns the complete wording review, rendered candidate example, token-free destination identity, test logs, and publication ancestry snapshot. Alert template, destination and host decisions are settled. Complete activation and independent operational review now; source and website publication remain withheld for Thomas's later step 3 decision. AC-6 live deployment confirmation and final spec closure remain owned here until that publication occurs. A source-review result must not be described as completed publication.
 
 ## Implementation Evidence
 
