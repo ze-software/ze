@@ -95,7 +95,7 @@ func (s *Scheduler) fireAll(ctx context.Context) {
 		s.tracker.HasChanged(ac.Name, content)
 
 		filename := FormatFilename(ac.Filename, s.configPath, &sys, ac.Name, ts)
-		if archErr := archiveToLocation(content, ac.Location, filename, ac.Timeout); archErr != nil {
+		if archErr := archiveToLocation(content, ac.Name, ac.Location, filename, ac.Timeout); archErr != nil {
 			slog.Warn("archive scheduler: boot archive failed", "name", ac.Name, "error", archErr)
 			continue
 		}
@@ -134,7 +134,7 @@ func (s *Scheduler) fireByTrigger(ctx context.Context, trigger string) {
 		}
 
 		filename := FormatFilename(ac.Filename, s.configPath, &sys, ac.Name, ts)
-		if archErr := archiveToLocation(content, ac.Location, filename, ac.Timeout); archErr != nil {
+		if archErr := archiveToLocation(content, ac.Name, ac.Location, filename, ac.Timeout); archErr != nil {
 			slog.Warn("archive scheduler: archive failed", "name", ac.Name, "trigger", trigger, "error", archErr)
 			continue
 		}

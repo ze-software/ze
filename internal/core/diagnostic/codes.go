@@ -1738,6 +1738,12 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-archive-unreachable"},
 	},
 	{
+		Code:        "doctor-archive-redirected",
+		Title:       "Archive destination redirects",
+		Description: "A configured HTTP/HTTPS config archive destination answered the HTTP HEAD probe with a redirect. Ze follows no redirect when it uploads the config, because the upload carries the config's reversible $9$ secrets, so every upload to that location fails. Set the archive location to the URL the redirect names, as the finding's fix line shows.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-archive-redirected"},
+	},
+	{
 		Code:        "doctor-archive-invalid",
 		Title:       "Archive entry invalid",
 		Description: "A system archive entry holds a value the uploader cannot use, such as a timeout that is not a positive Go duration, so no destination of the config was probed. Correct the entry the message names; `ze config validate` reports the same refusal.",

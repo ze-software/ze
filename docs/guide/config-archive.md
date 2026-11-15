@@ -50,6 +50,25 @@ system {
 Use absolute paths for `file://` locations. `file://./relative` does not work correctly in Go's URL parser.
 <!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP -->
 
+An HTTP or HTTPS upload follows no redirect, to the same host included. The
+upload carries the whole config with its reversible `$9$` secrets, so it goes
+only to the location the config names, never to one a server answers with.
+When the server answers a 3xx with a `Location`, the upload fails with an error
+that names the status and that `Location` (any password redacted), and ends
+with the command that configures it:
+
+```
+archive offsite: the archive server at https://archive.example.com/configs answered HTTP 308, a redirect to https://backup.example.com/configs, and Ze did not follow it
+the upload carries the whole config with its reversible $9$ secrets, so Ze sends it only to the location you configured, never to one a server names
+fix: set system archive offsite location https://backup.example.com/configs
+```
+
+Run that command only when you trust the server the redirect names. `ze doctor`
+probes each HTTP or HTTPS location the same way and reports one that redirects
+as `doctor-archive-redirected`, with the same fix.
+<!-- source: internal/component/config/archive/archive.go -- archiveClient, redirectOf, uploadRedirect.refusal -->
+<!-- source: internal/component/config/archive/doctor.go -- probeArchiveDestination, checkArchiveDestinations -->
+
 ### Validation
 
 `ze config validate` and every commit check each archive entry, so an entry
@@ -270,4 +289,4 @@ The HTTP endpoint receives a POST with:
 | `Content-Type` | `text/plain` |
 | `X-Archive-Filename` | Generated filename (e.g., `edge-01-router1-20260329-143045.conf`) |
 
-The body is the raw config file content. Any HTTP 2xx response is treated as success.
+The body is the raw config file content. Any HTTP 2xx response is treated as success. A 3xx redirect is a failure, never followed (see "Location Schemes"), so the receiver answers at the URL the archive block names.

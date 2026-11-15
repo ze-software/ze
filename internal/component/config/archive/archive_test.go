@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -142,7 +145,7 @@ func TestToHTTP(t *testing.T) {
 	defer server.Close()
 
 	content := []byte("bgp { local-as 65000; }")
-	err := archive.ToHTTP(content, server.URL, "test-router1-20260309-143045.conf", 5*time.Second)
+	err := archive.ToHTTP(content, "backup", server.URL, "test-router1-20260309-143045.conf", 5*time.Second)
 	require.NoError(t, err)
 
 	assert.Equal(t, "POST", receivedMethod)
@@ -161,7 +164,7 @@ func TestToHTTP_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err := archive.ToHTTP([]byte("data"), server.URL, "test.conf", 5*time.Second)
+	err := archive.ToHTTP([]byte("data"), "backup", server.URL, "test.conf", 5*time.Second)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }
@@ -171,8 +174,90 @@ func TestToHTTP_ServerError(t *testing.T) {
 // VALIDATES: Unreachable HTTP server produces timeout/connection error.
 // PREVENTS: Hanging on unreachable servers.
 func TestToHTTP_Unreachable(t *testing.T) {
-	err := archive.ToHTTP([]byte("data"), "http://192.0.2.1:9999/archive", "test.conf", 100*time.Millisecond)
+	err := archive.ToHTTP([]byte("data"), "backup", "http://192.0.2.1:9999/archive", "test.conf", 100*time.Millisecond)
 	assert.Error(t, err)
+}
+
+// TestToHTTP_RefusesRedirect verifies the upload follows no redirect.
+//
+// VALIDATES: when the configured server answers the POST with a redirect, the
+// upload is refused with an error that names the status, the Location the
+// server answered with (resolved and redacted), and the `set` command that
+// configures it; the target never receives a request. The cases cover the two
+// statuses on which Go's default client re-sends the body (307, 308), the
+// three on which it re-sends a body-less GET whose 2xx then reads as a
+// successful upload (301, 302, 303), a target on the same host, and a target
+// whose URL carries a password. TestToHTTP covers the 2xx answer.
+// PREVENTS: the whole config, with its reversible $9$ secrets, reaching a host
+// or a scheme the operator never configured, because a compromised endpoint or
+// anyone able to inject a redirect named it.
+func TestToHTTP_RefusesRedirect(t *testing.T) {
+	content := []byte("system { authentication { user admin { password $9$secret; } } }")
+
+	var targetHits atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHits.Add(1)
+		io.Copy(io.Discard, r.Body) //nolint:errcheck // the request is the evidence, not its body
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+	targetHost := strings.TrimPrefix(target.URL, "http://")
+
+	tests := []struct {
+		name     string
+		status   int
+		location string // the Location header; a leading "/" names a path on the origin
+	}{
+		{"307 to another host", http.StatusTemporaryRedirect, target.URL + "/configs"},
+		{"308 to another host", http.StatusPermanentRedirect, target.URL + "/configs"},
+		{"301 to another host", http.StatusMovedPermanently, target.URL + "/configs"},
+		{"302 to another host", http.StatusFound, target.URL + "/configs"},
+		{"303 to another host", http.StatusSeeOther, target.URL + "/configs"},
+		{"307 to the same host", http.StatusTemporaryRedirect, "/moved"},
+		{"308 to a URL with a password", http.StatusPermanentRedirect, "http://admin:s3cret@" + targetHost + "/configs"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targetHits.Store(0)
+			var movedHits atomic.Int32
+			var originBody atomic.Value
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/moved" {
+					movedHits.Add(1)
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				data, readErr := io.ReadAll(r.Body)
+				if readErr != nil {
+					t.Errorf("origin read body: %v", readErr)
+				}
+				originBody.Store(string(data))
+				w.Header().Set("Location", tt.location)
+				w.WriteHeader(tt.status)
+			}))
+			defer origin.Close()
+
+			wantTarget := tt.location
+			if strings.HasPrefix(tt.location, "/") {
+				wantTarget = origin.URL + tt.location
+			}
+			wantTarget = archive.RedactURL(wantTarget)
+
+			err := archive.ToHTTP(content, "backup", origin.URL+"/upload", "test.conf", 5*time.Second)
+			require.Error(t, err, "a redirect must refuse the upload, never follow it")
+
+			assert.Equal(t, string(content), originBody.Load(), "the configured server received the upload")
+			assert.Zero(t, targetHits.Load(), "the redirect target must receive no request")
+			assert.Zero(t, movedHits.Load(), "a same-host redirect must not be followed either")
+
+			msg := err.Error()
+			assert.Contains(t, msg, "redirect")
+			assert.Contains(t, msg, strconv.Itoa(tt.status))
+			assert.Contains(t, msg, wantTarget)
+			assert.Contains(t, msg, "set system archive backup location "+wantTarget)
+			assert.NotContains(t, msg, "s3cret", "the Location the server named is redacted")
+		})
+	}
 }
 
 // --- NewNotifier tests ---
@@ -873,7 +958,7 @@ func TestRedactURL_InvalidURL(t *testing.T) {
 // VALIDATES: AC-1 -- HTTP upload error output sanitizes credentials.
 // PREVENTS: Password appearing in HTTP upload error message.
 func TestToHTTP_RedactsCredentials(t *testing.T) {
-	err := archive.ToHTTP([]byte("data"), "https://admin:s3cret@192.0.2.1:9999/archive", "test.conf", 100*time.Millisecond)
+	err := archive.ToHTTP([]byte("data"), "backup", "https://admin:s3cret@192.0.2.1:9999/archive", "test.conf", 100*time.Millisecond)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "s3cret")
 	assert.Contains(t, err.Error(), "xxxxx")

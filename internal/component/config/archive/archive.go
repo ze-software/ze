@@ -23,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // Trigger keywords for archive blocks.
@@ -63,7 +64,7 @@ func NewNotifier(configFile string, configs []ArchiveConfig, sys *system.SystemC
 
 		for _, ac := range configs {
 			filename := FormatFilename(ac.Filename, configFile, sys, ac.Name, ts)
-			if err := archiveToLocation(content, ac.Location, filename, ac.Timeout); err != nil {
+			if err := archiveToLocation(content, ac.Name, ac.Location, filename, ac.Timeout); err != nil {
 				errs = append(errs, fmt.Errorf("archive %s: %w", ac.Name, err))
 				continue
 			}
@@ -163,7 +164,11 @@ func ToFile(content []byte, destDir, filename string) error {
 
 // ToHTTP POSTs config content to an HTTP(S) endpoint.
 // The filename is passed in the X-Archive-Filename header.
-func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) error {
+//
+// The upload follows no redirect (archiveClient): a server that answers with
+// one gets the POST and nothing more, and the error names the Location it
+// answered with and the command that configures it for archiveName.
+func ToHTTP(content []byte, archiveName, baseURL, filename string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -175,7 +180,7 @@ func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) err
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("X-Archive-Filename", filename)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := archiveClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("archive HTTP upload to %s: %w", RedactURL(baseURL), err)
 	}
@@ -184,6 +189,10 @@ func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) err
 		resp.Body.Close()              //nolint:errcheck // close error non-fatal
 	}()
 
+	if redirect, ok := redirectOf(resp); ok {
+		return redirect.refusal(archiveName, baseURL)
+	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("archive HTTP upload to %s: status %d", RedactURL(baseURL), resp.StatusCode)
 	}
@@ -191,8 +200,66 @@ func ToHTTP(content []byte, baseURL, filename string, timeout time.Duration) err
 	return nil
 }
 
+// archiveClient sends every request to an archive location: the upload, and
+// the doctor probe that stands in front of it. It follows no redirect. The
+// upload carries the whole config with its reversible $9$ secrets, and Go's
+// default client re-sends a POST body on a 307 or 308 to any host and any
+// scheme, https to http included, so a compromised or misconfigured endpoint,
+// or anyone able to inject a redirect, would receive the config. On a 301, 302
+// or 303 it re-sends a GET with no body, whose 2xx would read as a successful
+// upload of a config nobody stored. A same-origin redirect is refused too: the
+// operator configures the final URL instead, so the config goes only where the
+// configuration names. The appliance push refuses every redirect the same way
+// (internal/appliance/cmd_push.go, refusePushRedirect).
+//
+// The timeout is the caller's, through the request context. Safe for
+// concurrent use.
+var archiveClient = &http.Client{CheckRedirect: refuseArchiveRedirect}
+
+// refuseArchiveRedirect answers http.ErrUseLastResponse, so the client hands
+// back the 3xx answer unfollowed and redirectOf reads its Location.
+func refuseArchiveRedirect(_ *http.Request, _ []*http.Request) error {
+	return http.ErrUseLastResponse
+}
+
+// uploadRedirect is a 3xx answer from an archive location that names another
+// location.
+type uploadRedirect struct {
+	status int
+	target string // the Location the server answered with, resolved against the request and redacted
+}
+
+// redirectOf answers the redirect resp carries. A 3xx with no Location, or
+// with one that does not parse, names nowhere to configure, so it is not a
+// redirect and the caller's status check reports it.
+func redirectOf(resp *http.Response) (uploadRedirect, bool) {
+	if resp.StatusCode < 300 {
+		return uploadRedirect{}, false
+	}
+	if resp.StatusCode > 399 {
+		return uploadRedirect{}, false
+	}
+	target, err := resp.Location()
+	if err != nil {
+		return uploadRedirect{}, false
+	}
+	return uploadRedirect{status: resp.StatusCode, target: RedactURL(target.String())}, true
+}
+
+// refusal is the operator error for an upload to location that the server
+// answered with r.
+func (r uploadRedirect) refusal(archiveName, location string) error {
+	return opererr.New(
+		"the archive server at "+RedactURL(location)+" answered HTTP "+strconv.Itoa(r.status)+
+			", a redirect to "+r.target+", and Ze did not follow it",
+		"the upload carries the whole config with its reversible $9$ secrets, so Ze sends it only to the location you configured, never to one a server names",
+		"set system archive "+archiveName+" location "+r.target)
+}
+
 // archiveToLocation dispatches to the appropriate uploader based on URL scheme.
-func archiveToLocation(content []byte, location, filename string, timeout time.Duration) error {
+// archiveName is the block the location belongs to, which an upload refusal
+// names in its fix.
+func archiveToLocation(content []byte, archiveName, location, filename string, timeout time.Duration) error {
 	parsed, err := url.Parse(location)
 	if err != nil {
 		return fmt.Errorf("invalid archive location %q: %w", RedactURL(location), err)
@@ -202,7 +269,7 @@ func archiveToLocation(content []byte, location, filename string, timeout time.D
 	case config.ArchiveSchemeFile:
 		return ToFile(content, parsed.Path, filename)
 	case config.ArchiveSchemeHTTP, config.ArchiveSchemeHTTPS:
-		return ToHTTP(content, location, filename, timeout)
+		return ToHTTP(content, archiveName, location, filename, timeout)
 	}
 
 	return fmt.Errorf("unsupported archive scheme %q in location %q", parsed.Scheme, parsed.Redacted())

@@ -1,6 +1,6 @@
 // Design: docs/guide/config-archive.md -- the readiness check this component owns
 // Overview: register.go -- the init() that installs the registration below
-// Related: archive.go -- ExtractConfigs and ToHTTP, the parse and the upload this check stands in front of
+// Related: archive.go -- ExtractConfigs, ToHTTP and archiveClient, the parse, the upload and the redirect policy this check stands in front of
 //
 // The check lived in internal/component/doctor and the runner reached it by
 // writing its name out. A check that probes archive destinations belongs to
@@ -11,6 +11,10 @@
 package archive
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +28,10 @@ import (
 // `ze show diagnostic doctor-archive-unreachable` answers.
 const codeArchiveUnreachable = "doctor-archive-unreachable"
 
+// codeArchiveRedirected names an HTTP archive destination that answers the
+// probe with a redirect. ToHTTP follows none, so every upload to it fails.
+const codeArchiveRedirected = "doctor-archive-redirected"
+
 // codeArchiveInvalid names an archive entry ExtractConfigs refuses, which a
 // validated config cannot hold. The check reports it rather than probing
 // nothing in silence.
@@ -35,7 +43,42 @@ const archiveProbeTimeout = 5 * time.Second
 
 // archiveHTTPHead is the probe checkArchiveDestinations runs. It is a variable
 // so a test can stand in an unreachable destination; nothing else assigns it.
-var archiveHTTPHead = diagnostic.DoctorHTTPReachable
+var archiveHTTPHead = probeArchiveDestination
+
+// probeArchiveDestination sends an HTTP HEAD to location inside timeout,
+// through archiveClient, which follows no redirect, the same as the upload.
+// Any answer counts as reachable, whatever its status, except a redirect: the
+// upload would refuse it, so the probe answers it as a *redirectedDestination.
+// A 404 from a live server is a fact about the path rather than about
+// reachability (diagnostic.DoctorHTTPReachable, which follows redirects, makes
+// the same call for every other destination).
+func probeArchiveDestination(location string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, location, http.NoBody)
+	if err != nil {
+		return err
+	}
+	resp, err := archiveClient.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close() //nolint:errcheck // a HEAD answer has no body to lose
+	if redirect, ok := redirectOf(resp); ok {
+		return &redirectedDestination{redirect: redirect}
+	}
+	return nil
+}
+
+// redirectedDestination is the probe's answer for a destination that answered
+// with a redirect.
+type redirectedDestination struct {
+	redirect uploadRedirect
+}
+
+func (d *redirectedDestination) Error() string {
+	return "answered HTTP " + strconv.Itoa(d.redirect.status) + ", a redirect to " + d.redirect.target
+}
 
 // archiveDoctorCheck describes the check. register.go registers it.
 //
@@ -51,7 +94,7 @@ var archiveDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "archive",
 	Dependencies: []string{"archive-server"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{codeArchiveUnreachable, codeArchiveInvalid},
+	Codes:        []string{codeArchiveUnreachable, codeArchiveRedirected, codeArchiveInvalid},
 	Check:        checkArchiveDestinations,
 }
 
@@ -86,15 +129,29 @@ func checkArchiveDestinations(ctx diagnostic.DoctorCheckContext) []diagnostic.Di
 		if !strings.HasPrefix(ac.Location, config.ArchiveSchemeHTTP+"://") && !strings.HasPrefix(ac.Location, config.ArchiveSchemeHTTPS+"://") {
 			continue
 		}
-		if err := archiveHTTPHead(ac.Location, diagnostic.DoctorProbeTimeout(archiveProbeTimeout)); err != nil {
+		err := archiveHTTPHead(ac.Location, diagnostic.DoctorProbeTimeout(archiveProbeTimeout))
+		if err == nil {
+			continue
+		}
+		if redirected, ok := errors.AsType[*redirectedDestination](err); ok {
 			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     codeArchiveUnreachable,
+				Code:     codeArchiveRedirected,
 				Severity: diagnostic.SeverityWarning,
-				Message:  tb.Str("archive ").Str(ac.Name).Str(": location unreachable: ").Err(err).String(),
-				Path:     ac.Location,
+				Message: tb.Str("archive ").Str(ac.Name).Str(": location ").Str(RedactURL(ac.Location)).Str(" ").Err(err).
+					Str("; Ze follows no redirect when it uploads the config, because the upload carries its reversible $9$ secrets, so every upload to this location fails").String(),
+				Path: RedactURL(ac.Location),
+				Fix:  "set system archive " + ac.Name + " location " + redirected.redirect.target,
 			})
+			continue
 		}
+		var tb textbuf.Buffer
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     codeArchiveUnreachable,
+			Severity: diagnostic.SeverityWarning,
+			Message:  tb.Str("archive ").Str(ac.Name).Str(": location unreachable: ").Err(err).String(),
+			Path:     RedactURL(ac.Location),
+		})
 	}
 	return diags
 }

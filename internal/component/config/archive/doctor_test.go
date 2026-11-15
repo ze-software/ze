@@ -8,6 +8,9 @@ package archive
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,6 +55,43 @@ func TestDoctorArchiveDestinations_HTTPUnreachable(t *testing.T) {
 	assert.Equal(t, []string{"https://archive.example.invalid/configs"}, *asked)
 }
 
+// TestDoctorArchiveDestinations_Redirected drives the real probe against a
+// destination that answers with a redirect, and against one that answers 200.
+//
+// VALIDATES: a destination that redirects is reported under
+// codeArchiveRedirected, naming the Location it answered with, with the `set`
+// command that configures that location as the fix, and the probe never
+// reaches the target; a destination that answers 200 is reported nothing.
+// PREVENTS: `ze doctor` reporting a destination healthy while ToHTTP, which
+// follows no redirect, refuses every upload to it.
+func TestDoctorArchiveDestinations_Redirected(t *testing.T) {
+	var targetHits atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		targetHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Location", target.URL+"/configs")
+		w.WriteHeader(http.StatusPermanentRedirect)
+	}))
+	defer origin.Close()
+
+	diags := checkArchiveDestinations(diagnostic.DoctorCheckContext{Tree: archiveTree("remote-backup", origin.URL+"/configs")})
+	require.Len(t, diags, 1)
+	assert.Equal(t, codeArchiveRedirected, diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	assert.Contains(t, diags[0].Message, "remote-backup")
+	assert.Contains(t, diags[0].Message, "308")
+	assert.Contains(t, diags[0].Message, target.URL+"/configs")
+	assert.Equal(t, "set system archive remote-backup location "+target.URL+"/configs", diags[0].Fix)
+	assert.Zero(t, targetHits.Load(), "the probe must not follow the redirect")
+
+	assert.Empty(t, checkArchiveDestinations(diagnostic.DoctorCheckContext{Tree: archiveTree("direct", target.URL+"/configs")}),
+		"a destination that answers 200 is healthy")
+}
+
 func TestDoctorArchiveDestinations_FileSkipped(t *testing.T) {
 	asked := withDestinationProbe(t, errors.New("connection refused"))
 
@@ -92,4 +132,6 @@ func TestArchiveDoctorCheckRegistered(t *testing.T) {
 
 	diagnostic.RegisterBuiltinCodes()
 	assert.NotNil(t, diagnostic.Lookup(codeArchiveUnreachable), "diagnostic code %q is not registered", codeArchiveUnreachable)
+	assert.NotNil(t, diagnostic.Lookup(codeArchiveRedirected), "diagnostic code %q is not registered", codeArchiveRedirected)
+	assert.Contains(t, found.Codes, codeArchiveRedirected, "the check must declare the redirect code it emits")
 }
