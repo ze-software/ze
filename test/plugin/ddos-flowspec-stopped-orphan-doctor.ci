@@ -120,6 +120,10 @@ ddos {
 }
 bgp {
 	peer peer1 {
+		filter {
+			import { final reject; }
+			export { final reject; }
+		}
 		connection {
 			remote {
 				ip 127.0.0.1
