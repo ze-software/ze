@@ -52,11 +52,13 @@ func TestL2TPLabPeersRunWithoutPrivilege(t *testing.T) {
 			}
 			// ze and the LAC open PPP units; FRR holds the NET_ADMIN and
 			// SYS_ADMIN of the shared FRR peer; every other peer holds none.
+			// Classify the binary role because scale uses several independently
+			// named LACs with the same PPP device requirement.
 			var want grantcheck.Grants
-			switch peer.Name {
-			case peerZe, peerLAC:
+			switch peer.Image {
+			case imageZe, imageZeScale, imageLAC, imageKL2TP:
 				want = grantcheck.Grants{Capabilities: []string{"NET_ADMIN"}, Devices: []string{"/dev/ppp"}}
-			case peerFRR:
+			case imageFRR:
 				want = grantcheck.Grants{Capabilities: []string{"NET_ADMIN", "SYS_ADMIN"}}
 			}
 			for _, problem := range grantcheck.Problems(grantcheck.ParsePeer(peer, grantcheck.StagedRoots(t)...), want) {

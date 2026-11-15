@@ -2,11 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
+| Scope | tooling |
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
-| Depends | - |
-| Phase | - |
+| Depends | AC-2 passing proof: `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md`; scenario construction and AC-3 can proceed independently |
+| Phase | 1/5 wiring; AC-2 and AC-3 only |
 | Updated | 2026-11-15 |
 
 ## Post-Compaction Recovery
@@ -17,6 +18,18 @@
 3. `git log -p plan/deferrals.md` (pre-2026-07-06) - original deferral rows + evidence
 
 ## Task
+
+### Active session scope (2026-11-15)
+
+The owner instructed: "This session owns spec-finish-l2tp, AC-2 and AC-3 only."
+The server import step does not apply to this Mac session. This session designs
+AC-2 and AC-3 and presents the design before moving to ready. Implementation
+starts only after approval. The other work items stay in this spec, unclaimed
+by this session. AC-33 and D-14 remain separate work.
+
+The owner instructed: "AC-2 is expected to stay red until
+spec-l2tp-session-identity-and-publish-stall lands: record that, do not weaken it."
+That dependency holds the AC-2 passing proof, not construction of its scenario.
 
 Close the remaining L2TP test-coverage and documentation gaps. Core L2TP subsystem shipped (7b/7c done); these are proof-run and unit-level residuals.
 
@@ -75,7 +88,7 @@ Added 2026-11-15 for AC-2 and AC-3; the older work items fill their rows at desi
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | L2TP interop lab | `internal/le/interoplab/l2tp/` (scenario checkers, `register_images.go`), `test/interop-l2tp/` (`Dockerfile.lac`, `scenarios/`), `docs/architecture/testing/interop.md` | Runs xl2tpd and pppd as the LAC, one session per tunnel, against Ze as LNS | Extends: AC-2 adds a kl2tpd LAC image built on the same pppd 2.5.5 and a scenario of its own; the xl2tpd scenarios stay |
-| AVP relay and its PPP frame reader | `avprelay/pppinject.go` `relayData`, `injectFrames`, `pppFrameBehind`; `ppp_code_reject.go` `relayPPPFrames`, `pppInformation` | Logs every data datagram after the checker's marker and injects PPP probes; the reader refuses a frame with no `ff 03` | Extends: AC-3 logs from the first data datagram, tags the existing `ff 03` refusal as the proof, and adds one injected compressed LCP packet for the negative |
+| AVP relay and its PPP frame reader | `avprelay/pppinject.go` `relayData`, `injectFrames`, `pppFrameBehind`; `ppp_code_reject.go` `relayPPPFrames`, `pppInformation` | Logs every data datagram after the checker's marker and injects PPP probes; the reader refuses a frame with no `ff 03` | Extends: AC-3 logs from the first data datagram, retains the original arming boundary explicitly, tags the existing `ff 03` refusal as the proof, and adds one injected compressed LCP packet for the negative |
 | Per-tunnel notification order | `docs/architecture/l2tp/subscriber-session-model.md`, "The order of one L2TP session's notifications" | Orders one tunnel's route observer calls and events with a ticket | Does not change: AC-2 is the first lab load on it with many sessions in one tunnel |
 | Session identity across tunnels | `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` | Owns the fix for observers and teardown keyed on the session id alone | Does not apply here: AC-2 proves that fix end to end and goes red until it lands |
 
@@ -88,6 +101,15 @@ Added 2026-11-15 for AC-2 and AC-3; the older work items fill their rows at desi
 1. A LAC establishes an L2TP tunnel + PPP session
 2. NCP negotiates addresses/DNS; LCP restart timer governs retransmit
 3. Operator queries state via `ze l2tp show tunnels`
+
+### Changed-Wire Census
+
+The selected work changes no shipped protocol, config, API or event format.
+The private relay log gains startup data and one injection direction; its
+invocation gains a transparent capture mode. Search scope, producer/consumer
+rows and preservation decisions are recorded in "Data flow and changed-wire
+census" in the AC-2/AC-3 design below. That is the source census for this
+session, including unchanged readers and the Docker build consumer.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -129,11 +151,11 @@ Added 2026-11-15 for AC-2 and AC-3; the older work items fill their rows at desi
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | (define per work item when this skeleton moves to `design`) | (define at design time) |
-| AC-2 | kl2tpd v0.1.8 with several `[tunnel.*]` blocks, each opening many pppd sessions, against Ze as LNS, with `sid` forcing equal session IDs on different tunnels | Every session reaches IPCP Opened with an address and passes traffic in both directions; two sessions on different tunnels with the same session ID keep their own address, route and teardown (the collision `spec-l2tp-session-identity-and-publish-stall` fixes); Ze never has more than 4 unacknowledged control messages outstanding toward a peer that sent no Receive Window Size (RFC 2661 Section 4.4.3) |
-| AC-3 | `ppp-code-reject-xl2tpd` relay log of the data datagrams Ze sends to the LAC | Every Ze-to-LAC PPP frame starts `ff 03`; a frame without it fails the check; the receive-side handling of a compressed LCP packet is asserted; a discrimination record proves the check goes red |
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | Older work items, outside this session | Remains unselected; define when its work is claimed | No change to the older obligations |
+| AC-2 | `l2tp-many-sessions-kl2tpd`: three LAC containers running kl2tpd v0.1.8 and pppd 2.5.5, one tunnel and 16 sessions each; repeat LAC SIDs, and use the isolated allocator overlay described below to force equal Ze-local SIDs across tunnels | All 48 sessions complete IPCP, hold distinct pool addresses, kernel routes and observer-produced /32 routes in FRR, and pass interface-bound traffic both ways. Send a RADIUS Disconnect naming one colliding session's exact Acct-Session-Id: only that session ends and 47 survive. Then end a second session from its pppd: 46 survive. Captured ICRPs and daemon state establish the Ze-local collision. Each SCCRQ omits Receive Window Size. A controlled ACK hold reaches four outstanding Ze controls with a fifth response pending, rejects any fifth outstanding control, and releases ACKs to prove queued work resumes | Every untargeted session must survive: an SID is scoped by its tunnel. Retransmissions and ZLB ACKs are legal and must not count as new outstanding messages. The expected red stays red until the identity fix lands |
+| AC-3 | Full-session relay capture in `ppp-code-reject-xl2tpd`, with ACFC disabled and a separately identified compressed LCP Echo-Request | Every Ze-to-LAC PPP datagram carries `ff 03`, including startup Configure exchange, LCP Code-Rejects, Echo-Reply and IP traffic; missing framing, an empty capture or missing phase witnesses fails a dedicated numbered assertion. The compressed Echo-Request reaches Ze and gets a correlated uncompressed reply under Linux 7.3, followed by working traffic and unchanged interfaces. Record a failing relay-framing break separately for both RFC rows | Linux may accept the compressed input: RFC 1661 Section 6.6 permits, but does not require, silent discard. Original four-probe, two-Code-Rejects-per-protocol, MRU, stability and IPCP termination assertions remain required |
 
 ## 🧪 TDD Test Plan
 
@@ -231,3 +253,352 @@ Establish what ze does with a received AVP whose reserved bits 2-5 are set (RFC2
 Deferred by spec-rfcgate-2-deferred-nonunit-evidence-backfill (closure review).
 
 Fence `test/l2tp/rfc2661-emitted-control-shape.ci` on the daemon's acceptance line: the peer script sends the SCCCN and exits without reading a reply, so the runner can reach teardown before ze verifies the digest and writes `tunnel now established`
+
+## AC-2 and AC-3 design: approved
+
+This section completes design for the two selected rows only. The older
+scaffolding above remains the owning record of the other work items. Its
+whole-tree verification commands are superseded for this session by the scoped
+commands below; no agent runs a `./le verify` command. No code, image or test
+has been changed or run during this design.
+
+### Research and constraints
+
+| Reading | Decision or constraint |
+|---------|------------------------|
+| `ai/doors/system.md`, `ai/doors/access-security.md`, `ai/doors/le-tooling.md` | → Constraint: test the real subsystem and its kernel PPP path. Add no testing API to the public SDK or shipped daemon; keep lab declarations in the owning lab |
+| `docs/labs/l2tp-interop.md`, `docs/architecture/testing/interop.md` | → Decision: extend the registered L2TP suite, its image registry, relay and checker. Preserve all existing scenarios and numbered assertions |
+| `docs/research/l2tpv2-ze-integration.md`, kernel PPP control/data split | → Constraint: IP traffic is handled in the kernel; control negotiation reaches Ze through PPP descriptors. A userspace frame-builder test cannot prove transmitted framing |
+| `docs/architecture/l2tp/subscriber-session-model.md`, notification ordering | → Constraint: do not change per-tunnel notification tickets or any observer/teardown implementation. The separate identity spec owns those fixes |
+| `checkers.go` `checkBGPRedistribute`, `waitFRRRoute`; `route_observer.go` `OnSessionIPUp`, `OnSessionDown`, `emitEntries` | → Constraint: the observer defect changes redistribution events, not PPP's directly installed kernel route. Reuse the existing FRR view to require every subscriber /32; a kernel-only route check misses the defect |
+| `radiussubscriber/check_coa_disconnect.go` `dynamicRequest`; `authradius/coa.go` `findSessions`, `handleDisconnect` | → Decision: reuse the registered FreeRADIUS image and its radclient workflow. Identify the session by the complete accounting ID, then inspect actual target and survivor state; Disconnect-ACK alone cannot prove correct targeting |
+| `reliable.go` `Enqueue`, `drainSendQueue`; `cmd/l2tp.go` `handleReliable` | → Constraint: warm up CWND to four before holding ACK advancement. Use existing live reliable statistics and processed-session evidence to prove a fifth response is pending while four are outstanding; normal prompt ACKs are not a window-boundary proof |
+| `plan/learned/DESIGN-HISTORY.md`, L2TP and sequence ordering | → Constraint: retain modular registration and signed sequence ordering; the wire checker must account for 16-bit wrap and retransmission |
+| `rfc/full/rfc2661.txt`, Sections 4.4.3, 5.3 and 5.8 | → Constraint: session identity is scoped by tunnel; absent Receive Window Size means four. Count distinct control Ns, cumulative Nr and ZLBs correctly |
+| `rfc/full/rfc1661.txt`, Section 6.6; `rfc/full/rfc1662.txt`, Section 3.1 | → Constraint: the default framing fields are FF 03 and LCP must not compress them. Receive-side silent discard is a MAY, not a MUST |
+| `rfc/short/rfc1661.md`, RFC1661-6.6-1 and RFC1661-6.6-2 | → Decision: add only the proof links and records for these two existing rows; keep their lower-layer attribution and support metadata |
+| kl2tpd v0.1.8 `application.run`, `instantiatePPPPseudowire`, `newPPPDaemon`, `newV2Sccrq`, `newV2Icrq` | → Constraint: configuration opens all sessions at startup; each uses pppd with pppol2tp.so. `sid` selects the LAC's ID, not Ze's. SCCRQ omits the window AVP. Use the configured transmit window of four, below Ze's advertised window |
+| pppd 2.5.5 `lcp_option_list` and `options.c` | → Decision: use per-session options, interface names and link names for scale. Use `noaccomp` in AC-3 and verify its effect in the actual Configure exchange |
+| Linux v7.3 `net/l2tp/l2tp_ppp.c`, `pppol2tp_recv` and `pppol2tp_xmit` | → Constraint: receive strips FF 03 when present and otherwise passes the protocol bytes to PPP; transmit prepends FF 03 unconditionally. The receive probe therefore expects acceptance and an Echo-Reply, not mandatory discard |
+| `docs/contributing/rfc-conformance-gates.md`, recorded breaks and interop attribution | → Constraint: a record must observe its own numbered checker assertion failing under the break; a build failure or an earlier assertion is not the proof |
+
+Peer source: [kl2tpd v0.1.8](https://github.com/katalix/go-l2tp/tree/v0.1.8/cmd/kl2tpd),
+[message builders](https://github.com/katalix/go-l2tp/blob/v0.1.8/l2tp/msg.go),
+[pppd 2.5.5 LCP](https://github.com/ppp-project/ppp/blob/v2.5.5/pppd/lcp.c),
+and [Linux v7.3 PPPoL2TP](https://github.com/torvalds/linux/blob/v7.3/net/l2tp/l2tp_ppp.c).
+FRR and BIRD are not PPP/L2TP peers for this proof; no BGP protocol change is
+proposed.
+
+**Key insight:** repeated kl2tpd SIDs alone do not exercise the known bug.
+`L2TPTunnel.allocateSessionID` draws Ze's local SID independently with
+crypto/rand; `handleICRQ` stores that and the peer's Assigned Session ID in
+different fields. The collision proof must establish equal Ze-local SIDs.
+
+### Current producers and mechanisms being extended
+
+| Producer | Current behavior | Proposed extension |
+|----------|------------------|--------------------|
+| `l2tp.go` `LabBinaries`, `prepareScenario`, `imageBuilds`; `register_images.go` | Standard Ze/le staging, a fixed peer inventory, scenario switches and image-name tests | Declare the new scenario's checker, preparation, peers and required images together in the owning lab's registration. Derive selection and cleanup inventory from those declarations; preserve the existing scenario population and plans. Do not add the new scenario's name to shared switches |
+| `zebuild.go` `LabBinary`, `stageBinary` | Every staged binary builds `./cmd/ze`; it inherits the toolchain environment and GOFLAGS | Extend this same staging declaration with an optional package and an overlay-preparation callback owned by the declaring lab. Defaults retain current command-root builds. The callback returns the overlay and cleanup; invoke it only for the selected scale binary and combine its input with the child's inherited overlay without silently replacing a recorder break. Stage the relay package here, and stage the scale daemon under its own output and image. Do not mutate process-global GOFLAGS |
+| `test/overlay` `Write` | Supplies a Go overlay while leaving tracked source untouched | Reuse it from the L2TP lab for the allocator substitution. Do not import it into its dependency `interoplab`, which would form a cycle |
+| `avprelay/Dockerfile` | Builds copied relay source inside Docker, outside the recorder's Go overlay | Replace that build with a copy of the host-staged relay binary. Its declaration participates in existing staging/image inventories and ignore-file checks |
+| `avprelay/main.go` `run`, `pppinject.go` `relayData` | One sequential socket loop, bounded capture; normal PPP logging starts after the Code-Reject marker | Separate capture from injection arming. Capture AC-3 from the first data datagram. Scale uses a transparent bounded capture mode per LAC, with no AVP mutation and a control cap sized for 16 sessions plus teardown |
+| `ppp_code_reject.go` `pppInformation`, `relayPPPFrames`, `sessionKept` | Strict FF 03 parsing, four injected probes, exact Code-Reject counts, post-marker stability | Keep strict parsing. Give framing a dedicated verdict before generic decoder failures. Judge full-session framing separately from stability at the original arming boundary, including the trigger before injection |
+
+### AC-2 topology and deterministic collision
+
+1. Register `l2tp-many-sessions-kl2tpd`. Three LACs each have one kl2tpd tunnel,
+   16 session entries, one relay and distinct peer addresses. Add the existing
+   FRR peer to observe L2TP redistribution and the registered FreeRADIUS image
+   for authentication, accounting and radclient, using scenario-specific
+   declarative inputs and synthetic credentials. Reuse the pppd
+   2.5.5 build through a kl2tpd image derived from the maintained LAC image;
+   install kl2tpd at the pinned v0.1.8 tag rather than copying the ppp build.
+   Prepare the LAC containers without starting their tunnels. Once all peers
+   are ready, the checker launches each configured kl2tpd through the existing
+   detached-exec boundary and completes that tunnel's window proof before
+   launching the next LAC. All three then remain up for the 48-session proof.
+2. Build a separately named scale Ze image. Its Go overlay changes only the
+   candidate choice inside `allocateSessionID` to the lowest unused nonzero
+   ID in that tunnel. Retain the existing random read/error handling and
+   validation; no global random source is replaced. Refuse an unexpected
+   allocator source shape. Normal Ze and all other scenarios use no overlay.
+   This proves downstream identity handling under legal repeated IDs; it
+   makes no claim about randomness or production performance.
+3. Correlate each pppd interface, address and IPCP completion with captured
+   ICRQ/ICRP IDs, live daemon state and its RADIUS Accounting-Start. Require
+   exactly 48 sessions, distinct pool addresses, kernel routes and all 48 /32
+   routes in FRR's native BGP RIB through the existing L2TP redistribution path.
+   Require the exact queried prefix, a nonempty path list and the expected
+   Ze peer; the current helper's presence of a `prefix` or `paths` key alone
+   is insufficient. Correlate accounting records by full ID, username and
+   Framed-IP-Address instead of taking the first Start record.
+   Do not infer observer correctness from direct kernel routes. Bind each traffic probe
+   to its corresponding interface in both directions so one working session
+   cannot satisfy the other 47.
+4. Send an authenticated RADIUS Disconnect-Request with the exact
+   Acct-Session-Id issued for one colliding session, through the existing
+   radclient workflow. Require Disconnect-ACK, the selected session's actual
+   removal, its matching Accounting-Stop, and all 47 survivors' state, FRR
+   routes and traffic. This reaches Ze-originated teardown, including today's
+   `teardownSessionByID` defect. Then end a different pppd by its
+   session-specific process identity. kl2tpd's
+   `application.run` closes only the session whose pseudowire completed.
+   Observe its CDN, route withdrawal and kernel cleanup; probe all 46
+   survivors again. Check FRR withdrawal of only the selected /32 in each
+   step while its BGP session stays up. This does not select a future operator clear grammar or
+   change the separate identity spec's teardown design.
+5. Decode each tunnel's actual control trace independently. Require the
+   omitted window AVP. During establishment, after normal ACKs have warmed
+   CWND to four, each relay self-arms from captured cumulative ACK progress
+   rather than waiting for a checker marker that can miss startup load. It
+   holds only LAC Nr advancement at a known
+   baseline while forwarding at least five response-producing session
+   requests with their Ns and AVPs intact. Hold/drop pure ACK advancement too.
+   Preserve the LAC's receipt of Ze's controls so kl2tpd can continue sending
+   requests. Require four distinct outstanding Ze controls on wire and in
+   live reliable statistics (`cwnd=4`, `peer-rws=4`, held `peer-nr`), and
+   evidence that Ze processed an additional
+   request and queued its response. The existing session wait-connect log is
+   emitted after `Enqueue` returns; live state and reliable `nr` advancing
+   past the response-producing requests provide the processing barrier.
+   Release the latest genuine held cumulative ACK, then require queued
+   responses and all sessions to progress. Bound the hold against the
+   configured retransmission budget and always release on its deadline;
+   tag the one replay with `scale_release` equal to `marker` or `deadline`.
+   The checker requires `marker`; an automatic deadline replay cannot be
+   credited to a later marker. Timeout is a failed proof, never a smaller
+   accepted window. Track
+   outstanding distinct Ns against cumulative peer
+   Nr, excluding ZLBs and duplicate retransmissions. Reject a fifth
+   outstanding message and malformed or incomplete trace evidence. Retransmit
+   and wrap cases get cheap unit tests; no packet loss timing is claimed.
+6. An observer collision must report the affected tunnel/SID pair, assigned
+   address and lost/replaced route. Keep that assertion red until the named
+   identity fix lands. A setup, image, authentication or capture failure is
+   a different red and does not satisfy this expected failure.
+
+### AC-3 full-session framing and receive probe
+
+1. Log normal PPP data before checking injection markers. Record complete
+   bounded evidence rather than accepting a Docker tail that can lose the
+   Configure exchange; refuse a missing first-phase witness.
+2. Add one dedicated numbered framing assertion with positive tags for both
+   RFC rows. Reuse the strict FF 03 parser on every Ze data datagram, including
+   IP packets before filtering protocols. Require actual startup Configure,
+   Code-Reject, Echo-Reply and IP witnesses. Route any framing error to this
+   assertion even when an earlier checker poll discovers it.
+3. Preserve assertions 1 through 6 and their exact probe counts. The existing
+   stability check sees every normal frame from the original marker-check
+   boundary onward, including the LAC trigger before the first injection.
+   It must still reject LCP/IPCP renegotiation or termination in that whole
+   interval. Each normal data row carries `code_reject_armed`, sampled after
+   forwarding and before logging/injection at the same point as the old gate;
+   missing or retreating phase metadata fails rather than narrowing the proof.
+4. Disable ACFC with `noaccomp` and prove it was not negotiated from the
+   captured requests and acknowledgments. After the four-probe stability
+   check, inject one compressed LCP Echo-Request under its own event identity.
+   It carries a unique Identifier and data and the peer Magic-Number Ze
+   acknowledged. Decode that intentional input explicitly; do not relax
+   `pppInformation` to admit unframed Ze output.
+5. Require a matching uncompressed Echo-Reply with Ze's negotiated Magic-Number
+   and the echoed data, unchanged PPP interfaces and subsequent traffic.
+   Then run the existing IPCP Terminate-Request/Ack check. Attribute the
+   receive handling to the pinned kernel path and Ze's `handleLCPPacket` /
+   `sendEchoReply`; do not publish this acceptance as a rejection requirement.
+6. Use `./le rfc record` for both rows. The single relay break removes FF 03
+   from the logged Ze frame; it must reach the host-staged relay image and
+   fail the dedicated framing assertion. It must not alter peer forwarding,
+   fail setup, or be accepted as a record for a different assertion. Unit
+   tests cover default, Length, Sequence and Offset header shapes and refusal
+   of empty, truncated, malformed or late capture.
+
+The receive probe has its own negative tag for RFC1661-6.6-2 and numbered
+verdict. Its separate discrimination break suppresses the compressed probe,
+so the missing correlated exchange fails that verdict, rather than an earlier
+framing assertion. Editing `checkPPPCodeReject` also stales the existing four
+tagged claims (RFC1661-5.6-1, 5.6-2, 5.6-3 and 5.5-1). Preserve their claims
+and renew their recorded breaks in this implementation; adding the new two
+rows is not permission to leave those records stale.
+
+### Alternatives and design judgment
+
+| Choice | Alternative | Reason for the proposed choice |
+|--------|-------------|--------------------------------|
+| Separate scale image with an allocator overlay | A permanent injected allocator dependency installed by a test-only daemon fixture | Both can force a valid Ze-local collision. The overlay uses existing machinery and changes no shipped construction path or API; its isolation and source-drift checks are mandatory |
+| Deterministic Ze-local collision plus repeated peer SIDs | Rely on the ordinary random allocator across three LACs | Random repetition is not a reliable regression oracle. Peer SIDs alone test a different identity |
+| Extend the existing FF 03 checker and relay | A separate framing scenario sharing the helpers | A separate scenario isolates phases but repeats setup and does not meet the requested extension as directly. Explicit capture and injection fences preserve the existing proof |
+| Stage the relay through `LabBinary` | Teach Docker's independent source build to consume Go overlays | One host staging mechanism already supplies feature tags, architecture and build environment. Extending it removes the disconnected relay build and makes the recorder reach the producer |
+
+| Challenge | Judgment |
+|-----------|----------|
+| Simplicity | One new scenario, the existing framing scenario and existing staging/overlay machinery. No production allocator seam, global random override or second test runner |
+| Uniformity | Scenario and image registration, typed checkers, numbered failures, existing Suite cleanup and the native RFC recorder |
+| Performance | No shipped hot-path change. Capture, parsing and overlays allocate only in bounded lab tooling; this is a functional proof, not a benchmark |
+
+### Data flow and changed-wire census
+
+AC-2: registered plan → staged images → real kl2tpd/pppd → relay → Ze control
+reactor and kernel PPP → pool and observer → kernel routes, FRR redistribution
+and bidirectional traffic. FreeRADIUS records the issued accounting IDs and
+radclient selects one for Ze-originated teardown. AC-3: kernel-produced Ze PPP datagram → relay JSONL → framing
+assertion; the separately labeled compressed input travels through Linux PPP
+to Ze and its Echo-Reply returns through the same observed boundary.
+
+No shipped config, event, API or PPP wire format changes. The test-only relay
+log gains startup data, normal-data ordinal/arming metadata and one injection direction, and the private relay
+invocation gains a transparent capture mode. Source search covered Go and
+non-Go files under `internal/le/interoplab/l2tp`, `test/interop-l2tp` and
+`internal/le/interoplab/topology`, using `wireObservation`,
+`avpWireObservation`, `relayPPPFrames`, `pppInformation`, `Forwarded`,
+`direction`, `inject` and `code-reject`. Positive controls were `relayData`
+and `relayPPPFrames`. These paths contain no Python/shell log parser; the
+Dockerfile is a build consumer, not a JSONL reader.
+
+| Wire | Role | Carrier and source evidence | Disposition |
+|------|------|-----------------------------|-------------|
+| Relay JSONL | Writer | `avprelay/main.go` `run`; `pppinject.go` `relayData`, `injectFrames`; `lcprestart.go` `encodeWire`, `relayRestartData`; new `avprelay/pppframing.go` normal-data wrapper | Keep the base direction/original/forwarded structure and all old literal writers. Normal data gains contiguous `data_ordinal` starting at one and required `code_reject_armed`; capture begins at session start and arming is sampled at the old marker-check boundary. Restart extensions remain separate. Scale records actual original/forwarded controls during its bounded Nr hold/release |
+| Relay JSONL | Reader | `mandatory_avp.go` `optionalAVPEvidence`, `mandatoryAVPRefusal`, `injectedControl` | Preserve control-message selection with additional normal data present |
+| Relay JSONL | Reader | `ppp_code_reject.go` `relayPPPFrames`, `injectedProbes`, `injectedTerminate`, `sessionKept`; new framing helper's full-capture and armed-subset readers | Full-log framing requires contiguous normal-data ordinals and explicit monotonic arming flags. Stability includes the armed trigger before injection. Explicit negative-input handling and original exact counts remain. No old generic PPP decoder is relaxed |
+| Relay JSONL | Reader | `lcp_restart.go` `readRestartEvidence` and its `restartWire` | Preserve filtering on Restart; earlier startup data must not enter the restart timing proof |
+| Relay JSONL | Writer/reader fixtures | `mandatory_avp_test.go`, `ppp_code_reject_test.go`, `lcp_restart_test.go`, relay unit tests | Retain old fixtures; add separate startup, phase-fence, compressed-input and capture-integrity cases |
+| Scale replay JSONL | Writer / reader | New `avprelay/scale.go` genuine held-control replay; new scale checker's window evidence reader | Embed the unchanged base wire observation and add `scale_release` only on the replay. Values distinguish a checker marker from automatic deadline release; only a marker release satisfies AC-2. Other scenarios never produce this event |
+| Relay invocation | Writer | `mandatory_avp.go` `avpRelayPeer`; new scale peer declaration | Existing two-endpoint invocation stays valid; scale passes its explicit capture mode and bounded capacity |
+| Relay invocation | Reader | `avprelay/main.go` `run` | Validate the private mode; preserve old AVP, Code-Reject and restart behavior |
+| Compressed-Echo marker | Writer | New checker helper `armCompressedPPPEcho` | Writes only the acknowledged peer Magic-Number as eight hexadecimal digits and a newline, under the fixed scenario marker path; no shell syntax is taken from peer input |
+| Compressed-Echo marker | Reader | New relay helper `framingCapture.injectCompressed` | Strictly parses the marker, injects one separately identified compressed Echo and retains its wire evidence |
+| L2TP/PPP | Outside writer/reader | Pinned kl2tpd/pppd; Linux `pppol2tp_recv` / `pppol2tp_xmit`; Ze `handleICRQ`, PPP session reader/writer | Preserve the real protocol. Overlay changes only a legal SID choice; probes are explicit relay-originated datagrams |
+
+### Tests, files and implementation phases
+
+| Phase | Files and concrete proof |
+|-------|--------------------------|
+| Wiring first | `l2tp.go`, `register_images.go`, new `register_scale.go` and `scale_test.go`: `TestScaleScenarioPlan` proves discovery, all LAC/relay peers, image needs, session count and cleanup inventory. Existing scenario-plan tests preserve the prior catalog |
+| Build inputs | `zebuild.go`, `zebuild_test.go`, `zebuild_labs_test.go`; `l2tp.go` binary declarations; `avprelay/Dockerfile`; `.gitignore`, `.dockerignore`; new `scale_overlay.go`, `scale_overlay_test.go`, `Dockerfile.ze-scale`: `TestLabBinaryPackageAndOverlay`, `TestScaleAllocatorOverlayIsolation` prove arbitrary package staging, ambient recorder overlay inheritance, scale-only substitution, no source mutation and source-drift refusal |
+| AC-2 | New `scale.go`, `scale_test.go`; relay scale capture/ACK-hold and tests; kl2tpd image derived from `Dockerfile.lac`; `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/` includes FRR and FreeRADIUS inputs: `TestScaleSessionEvidence`, `TestScaleControlWindow`, `TestScaleDisconnectTarget` discriminate missing FRR routes, wrong tuples, wrong teardown, one-way traffic, duplicate/retransmitted Ns, ZLBs, wrap, an unexercised hold and a fifth outstanding packet. Reuse existing image registrations and radclient protocol; do not write a new RADIUS implementation. Real scenario exercises all of AC-2 |
+| AC-3 | `ppp_code_reject.go`, new `ppp_framing.go` and `ppp_framing_test.go`; `avprelay/pppinject.go`, `main.go`, new `avprelay/pppframing.go` and its tests; existing scenario `ppp-options`: `TestPPPFullSessionFraming`, `TestPPPArmedPhasePreservation`, `TestPPPArmedPhaseMetadata`, `TestPPPCompressedEchoEvidence`, `TestPPPFramingAssertionAttribution` plus unchanged existing Code-Reject and restart regressions. Add a replay if the scenario has a committed recording; do not invent one |
+| Proof records and documentation | `rfc/short/rfc1661.md`, recorder-written per-requirement records under `rfc/discrimination/rfc1661/`; `docs/labs/l2tp-interop.md`, L2TP section of `docs/architecture/testing/interop.md`; discovery keywords in `ai/INDEX.md`. Explain instrumented collision scope, full-session framing and receive-side kernel behavior in the phase that changes each |
+
+New helper tests are separate cases; existing assertions are not retargeted.
+An independent test judge must approve any edit to an RFC-tagged unit before
+the edit, using the repository's existing approval route. The framing tags
+claim L2TP evidence only and do not claim a new PPPoE proof.
+
+| Wiring entry | Feature code | Test |
+|--------------|--------------|------|
+| Native L2TP scenario selector | Registered scale plan, images, real peers and checker | `TestScaleScenarioPlan`; `l2tp-many-sessions-kl2tpd` |
+| Existing Code-Reject selector | Host-staged relay and framing assertion | `TestLabBinaryPackageAndOverlay`; `ppp-code-reject-xl2tpd` |
+| RFC recorder's relay overlay | Staged relay image and dedicated numbered failure | Each RFC1661-6.6 row's recorded mutant walk |
+
+### Failure modes and assumptions
+
+| ID | Risk or assumption | Signal | Validation or mitigation |
+|----|--------------------|--------|--------------------------|
+| A-2 | Linux receive acceptance inferred from v7.3 source is reachable on Ze's installed PPP channel | No correlated Echo-Reply | Require successful baseline traffic, capture of the exact compressed probe and reply; trace any discrepancy through the real channel rather than accepting both outcomes |
+| A-3 | The identity fix may change the allocator or command/state shape before this work lands | Overlay shape check or tuple extraction fails | Re-read that producer and amend this design; never silently omit collision checks |
+| R-2 | Peer SID reuse is mistaken for Ze-local reuse | ICRP/state do not hold the intended collision | Require both wire and daemon-state witnesses before judging the observer |
+| R-3 | Instrumentation escapes into another scenario or production | Wrong output/image or child environment | Separate binary/image declarations and an isolation unit test; no global GOFLAGS or crypto/rand mutation |
+| R-4 | Startup logs trigger a false stability failure, or a late capture gives a vacuous framing pass | Configure exchange absent or counted as armed-phase restart | Full-log phase witnesses plus the explicit original arming boundary, retaining its pre-injection trigger; preserve exact original probe counts |
+| R-5 | The malformed receive probe hides a real Ze framing failure | Generic parser accepts missing FF 03 | Separate injection identity, strict Ze decoder and a dedicated framing failure before other polls |
+| R-6 | A relay break never reaches the image, or fails a different assertion | Clean/broken output lacks the cited verdict | Host staging, overlay propagation tests and native recorder attribution; no hand-authored proof record |
+| R-7 | One session, default route or direct kernel route masks the observer defect | Aggregate count is right but an interface probe or FRR /32 is missing | Correlate both IDs, address, interface, kernel route and FRR route for every session; probe all survivors after both teardown paths |
+| R-8 | Capture truncation, bounds or sequence-accounting error masks load | Missing setup witness, capture refusal, duplicate Ns counted twice | Bounded complete capture, source-scoped control cap, wrap/retransmit/ZLB unit cases; malformed evidence fails |
+| R-9 | Pool exhaustion, failed authentication or a missing kernel feature is mislabeled the expected identity red | No complete tuple and address evidence | Check infrastructure prerequisites separately, report the actual failing phase, keep AC-2 open |
+| R-10 | Shared binary staging changes another lab's build | Existing LabBinary command changes unexpectedly | Preserve default package/tags/probes, test all current declarations with existing lightweight staging tests; no whole-tree build |
+| R-11 | Prompt ACKs or CWND=1 make the four-message assertion vacuous | Four outstanding and queued fifth are never witnessed | Warm up first; use the bounded Nr hold, wire/state barrier and release-progress assertion; refuse an unexercised boundary |
+| R-12 | Peer-CDN teardown bypasses Ze's targeting defect, or ACK hides a wrong target | Named accounting session survives while another disappears | Exact Acct-Session-Id Disconnect plus target/survivor state and matching Accounting-Stop; keep the separate peer-CDN check too |
+| R-13 | Suite readiness consumes the one-second first retransmission interval before the checker observes saturation; retry resets CWND to one | The live saturation tuple is missed even though the wire reached four | Defer each kl2tpd launch until the checker is ready to observe its bounded hold, then launch LACs sequentially. Keep all three up afterward. Never accept a late CWND=1 snapshot or extend the proof by changing max-retransmit |
+
+### Integration and documentation checklists for this session
+
+| Integration point | Applies? | File or reason |
+|-------------------|----------|----------------|
+| YANG schema, native constraints and custom validators | N-A | No shipped config change |
+| CLI commands/flags, grammar, completion and pipes | N-A | Reuse existing native selector and daemon queries; private relay mode only |
+| New RPC/API functional test | N-A | No new RPC/API; the two real-peer scenarios are the entry-point proof |
+| Env var registration | N-A | Reuse existing selector; per-binary Go overlay is internal build input |
+| Doctor dependency check and code per problem class | N-A | No shipped dependency or diagnostic class added. Existing lab preflight owns PPP/kernel/Docker prerequisites; image build failures remain native tooling errors |
+| Prometheus metrics | N-A | No product metric changes |
+| BGP family surface | N-A | No BGP behavior change |
+
+| Documentation category | Applies? | File or reason |
+|------------------------|----------|----------------|
+| Feature declaration or maturity | No | This adds selected evidence without changing a feature's declared level; do not claim broader support from a red scale run |
+| Config syntax; CLI reference; API/RPC; plugin guide | N-A | No shipped surface changes |
+| User guide | No | Existing L2TP operator workflow is unchanged; add lab usage to its owning lab page |
+| Wire format; SDK/process protocol | N-A | No shipped format change; private capture contract documented with the lab |
+| RFC behavior newly proven | Yes | Only RFC1661-6.6-1 and RFC1661-6.6-2 links and records; keep Support metadata unchanged |
+| Test infrastructure | Yes | `docs/architecture/testing/interop.md` staging/package/overlay contract; `docs/labs/l2tp-interop.md` scenarios and proof limits |
+| Comparison | No | No new implemented capability |
+| Architecture | Yes | The existing interop architecture page owns shared staging and capture; no product architecture change |
+| Route metadata; counters; plugin/event/command inventories | N-A | None change |
+| Design headers and source anchors | Yes | The two interop pages are named by changed-source Design headers; derive other anchors with `./le spec citation anchors` before implementation |
+| Existing examples | Yes | Check the selected lab recipes and peer options against the actual selector and parser while editing the lab page |
+| Agent discovery | Yes | `ai/INDEX.md` points scale/framing keywords to the lab page. Existing scenario/image catalogs remain the inventories; tests refuse an undiscovered scenario or unstaged image input |
+
+### Scoped validation and cleanup
+
+The main thread runs the named-build unit tests for `internal/le/interoplab/`,
+`internal/le/interoplab/l2tp/` and its `avprelay/` package, then the selected
+scale and Code-Reject scenarios in Ze's own kernel/system guest. Run the
+existing mandatory-AVP and LCP-restart regressions because relay capture reaches
+them. Run `./le rfc record` with each implemented tag's exact unit, polarity,
+mutant and numbered citation, followed by `./le rfc check`; run the required
+documentation check after the two page edits. Exact mutant positions are
+implementation output, not prewritten evidence.
+
+On the server, the owner requires: "Lab and VM scratch goes on the second
+disk: TMPDIR=$HOME/.cache/<name>." Use the session's own named cache directory
+there. On the Mac, use the existing session scratch and Ze-kernel guest
+runner. No second architecture run or performance figure is owed. Before a
+heavy run, inspect `./le job report` and available space. Remove task-owned
+overlay files after compilation and task-owned guests/containers/build inputs
+when the run ends. Retain only the smallest failure evidence in the native
+job log and this spec; record any retained large item and its removal condition
+here. No test or lab has run yet.
+
+**Approval gate:** the approved scope includes the isolated allocator overlay,
+scenario declaration extension and overlay-aware relay staging described here.
+They are needed for deterministic, attributable proof and are not product
+identity fixes. Thomas approved this design on 2026-11-15: "Okay go." The strongest
+remaining risk is proof instrumentation: collision and framing breaks must
+reach the intended binary and assertion without changing the behavior under
+test elsewhere.
+
+### Design review record
+
+| Pass | Result | Correction |
+|------|--------|------------|
+| Initial independent source review | REWORK for AC-2; AC-3 and the log/invocation census accepted | Added exact accounting-ID Disconnect to reach Ze-originated teardown; added the CWND warm-up and bounded ACK-hold boundary proof |
+| Main-thread producer check | Kernel routes alone bypass the observer's redistribution events | Added all-session FRR route/path evidence and survivor withdrawals using the existing BGP lab path; no BGP implementation change |
+| Focused independent re-review | ACCEPT for corrected AC-2; no remaining issue in the re-review scope | Verified Ze-originated and peer teardown paths, exercised window boundary, observer-visible FRR evidence and survivor checks. No code or test execution was part of this judgment |
+| AC-3 prospective RFC test judgment | Revised patch `027f263d87968310e28df1a03bef06e7e19fbc8ab2041ff51ba34b1e7756ed38` approved | Explicit arming metadata preserves the original trigger and pre-injection interval; Code 1/2/5/6 regression cases compare both readers against unchanged `sessionKept`. Approval recorded before edit; renew its source digest after the exact patch is applied |
+| Implementation admission | Thomas authorized the one-claim cap of 17 on 2026-11-15: "Yeah. Start it." | `./le spec claim` admitted this spec as in-progress at 17/17. This is not a standing cap increase |
+
+### Critical Review Checklist
+
+| Check | What to verify for AC-2 and AC-3 |
+|-------|--------------------------------|
+| Collision identity | Captured ICRPs and live state prove equal Ze-local SIDs in distinct tunnels; repeated peer SIDs alone never satisfy the proof |
+| Instrumentation isolation | Only the scale daemon receives the allocator overlay; relay recorder overlays reach the staged relay binary; normal scenarios and shipped sources remain unaffected |
+| Route and teardown identity | All 48 FRR paths are actual Ze-originated subscriber /32s, then only the exact RADIUS target and peer-CDN target disappear; accounting IDs and survivor traffic agree |
+| Control window | Self-armed Nr hold reaches four outstanding and a processed fifth request before release; retransmissions, wrap and ZLBs do not change the distinct outstanding count |
+| PPP framing | Full-session Ze output is strictly FF 03 framed; startup and later phase witnesses are required; intentional compressed receive input has a separate identity and verdict |
+| Existing evidence | Original four probes, exact rejection counts, MRU, stability and IPCP termination remain; all changed RFC-tagged claims have current attributable discrimination records |
+| Cleanup and bounds | Capture, holds and loops have explicit limits; task-owned overlays, images, guests and outputs follow the existing cleanup lifecycle |
+
+### Implementation evidence and current reds
+
+| Check | Observed result | Current state |
+|-------|-----------------|---------------|
+| `TestScaleScenarioPlan` | Initial red: scenario has no Go checker. After wiring, exact test and full L2TP harness package both passed | Wiring unit proof passed; no real scale run yet |
+| Scoped L2TP harness lint | Host and Linux each reported new repeated command literals, large range-value copies and missing known-capacity preallocation | Source fixes passed the same host and Linux lint scope with zero issues |
+| New `TestLabBinary` staging behavior | Named reds: package override ignored, overlay cleanup absent, conflicting overlays accepted, failed preparation accepted, cleanup error hidden and incomplete declarations accepted. Default-input preservation passed | All seven staging tests passed; scenario build wiring remains in phase 2 |
+| AC-2 identity collision | No lab run yet; expected dependency failure is specified, not observed | Keep the identity fix dependency open; do not report an infrastructure failure as this proof |
+| AC-3 RFC preservation judgment | First proposal refused because its first-injection cutoff dropped armed pre-injection frames. Revised proposal preserves the exact armed population and was independently approved | Approved patch remains unapplied pending host-staged relay wiring; renew digest-bound approval after application |
+| Documentation checks | Broad check failed with 720 drift findings, including generated OSPF command pages outside this scope | L2TP source anchors corrected; broad documentation health is not claimed |
+
+The main thread read the deciding peer functions at FreeRADIUS 3.2.10
+(`radclient.c` request types and response handling) and FRR 10.7.1
+(`bgp_route.c` route selection, per-prefix header and path output). Reuse the
+registered versions rather than adding version declarations in this scenario.

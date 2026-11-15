@@ -30,6 +30,7 @@ test/interop-l2tp/
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
     lcp-restart-timer-pppd/   configured retry interval and request budget after live LCP restart
+    l2tp-many-sessions-kl2tpd/   registered scale topology; the session proof is under implementation
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
     l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
     l2tp-lns-negotiated-mru-xl2tpd/   unequal configured/negotiated session output
@@ -47,9 +48,19 @@ internal/le/interoplab/l2tp/
   radiusmock/          Independent Go RADIUS peer
 ```
 
-Each scenario contains the protocol configuration mounted by its typed plan.
-The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for that scenario, while
-the checker map fixes the complete scenario population. The
+Each scenario registers its checker, plan, kernel prerequisite and image
+selection in the owning L2TP lab. Discovery and the catalog read that same
+registry. Existing scenarios retain their established preparation; the scale
+scenario declares three kl2tpd LACs and three relays, plus Ze, FRR and
+FreeRADIUS. Its cleanup container list and failure diagnostics derive from
+those peer declarations. The scale checker currently returns an explicit
+failure until its session proof is implemented.
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- registerScenario, scenarioCheckerMap, scenarioPlan, imageBuilds -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init, checkScaleSessions -->
+<!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scaleScenarioPlan, scalePeerTemplates -->
+
+The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for each established
+scenario. The
 `dns-resolver-l2tp-subscriber` plan adds Knot DNS on `172.29.0.7`, and the
 `l2tp-unknown-mandatory-avp-xl2tpd` and `ppp-code-reject-xl2tpd` plans put the
 relay on `172.29.0.4`, the address their xl2tpd dials as its LNS.
@@ -57,6 +68,7 @@ The `l2tp-lns-*` plans also start the independent RADIUS backend on
 `172.29.0.5` before Ze and the LAC. The positive plan requires a credential
 request there; the refusal plan requires none. Both disable xl2tpd redial and
 pppd persistence, so the evidence belongs to one attempt.
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- prepareScenario -->
 
 ## Prerequisites
 
@@ -448,7 +460,8 @@ Select it with `ZE_L2TP_INTEROP_SCENARIO=l2tp-proxy-mru-transmit-cap`
 when running `./le --name session test deployment docker-l2tp-ppp`.
 The suite retains its normal Docker-host Ze-kernel prerequisite, image
 staging, peer readiness and cleanup.
-<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, scenarioCheckerMap -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt -->
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- scenarioCheckerMap -->
 
 ### l2tp-radius-acct-wire-fixture
 
@@ -479,7 +492,8 @@ Select it with `ZE_L2TP_INTEROP_SCENARIO=l2tp-radius-acct-wire-fixture`
 when running `./le --name session test deployment docker-l2tp-ppp`.
 It reuses the proxy-cap scenario's staged helper and the suite's Ze image,
 readiness, kernel prerequisite and cleanup.
-<!-- source: internal/le/interoplab/l2tp/l2tp.go -- LabBinaries, scenarioCheckerMap, prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- LabBinaries, prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- scenarioCheckerMap -->
 
 ## Relationship to Other Evidence
 

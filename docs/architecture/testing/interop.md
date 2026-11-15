@@ -82,6 +82,15 @@ A scenario directory is NAMED and carries no numeric prefix. The name is the
 scenario's identity: `Discover` matches it exactly, `./le test integration` takes it
 as a scenario selector, and specs, journal rows and code comments cite it.
 
+The L2TP suite registers each scenario's checker, plan, kernel prerequisite
+and image selection together. Discovery, catalog lookup and image selection
+read those registrations. The scale scenario derives its cleanup containers
+and failure-log peer names from its peer declaration, so adding another LAC
+does not require a second cleanup inventory.
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- registerScenario, scenarioCheckerMap, imageBuilds -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
+<!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates, scaleScenarioPlan -->
+
 ### Role export policy on a roleless destination
 
 `bgp-role-export-roleless-destination-frr` runs FRR as a Customer whose

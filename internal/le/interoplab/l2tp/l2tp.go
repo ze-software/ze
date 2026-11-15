@@ -69,25 +69,6 @@ const (
 	netAdminCapability = "NET_ADMIN"
 )
 
-func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
-	return map[string]interoplab.Checker{
-		scenarioPPPIPv4:             checker(checkPPPIPv4, timeout, peerZe, peerLAC),
-		scenarioBGPRedistribute:     checker(checkBGPRedistribute, timeout, peerZe, peerLAC, peerFRR),
-		scenarioInitiator:           checker(checkInitiator, timeout, peerZe, peerLAC),
-		scenarioRadiusAttrs:         checker(checkRadiusAttributes, timeout, peerZe, peerLAC, peerRadius),
-		scenarioUnknownMandatoryAVP: checker(checkUnknownMandatoryAVP, timeout, peerZe, peerLAC, peerAVPRelay),
-		scenarioDNSResolver:         checker(checkDNSResolverSubscriber, timeout, peerZe, peerLAC, peerKnot),
-		scenarioPPPCodeReject:       checker(checkPPPCodeReject, timeout, peerZe, peerLAC, peerAVPRelay),
-		scenarioLNSMRU:              checker(checkLNSMRU, timeout, peerZe, peerLAC, peerRadius),
-		scenarioLNSOmittedMRU:       checker(checkLNSOmittedMRU, timeout, peerZe, peerLAC, peerRadius),
-		scenarioLNSNegotiatedMRU:    checker(checkLNSNegotiatedMRU, timeout, peerZe, peerLAC, peerRadius),
-		scenarioLNSCHAPOnly:         checker(checkLNSCHAPOnly, timeout, peerZe, peerLAC, peerRadius),
-		scenarioProxyMRU:            checker(checkProxyMRU, timeout, peerZe),
-		scenarioRadiusFixture:       checker(checkRadiusAccountingFixture, timeout, peerZe),
-		scenarioLCPRestart:          checker(checkLCPRestart, timeout, peerZe, peerLAC, peerAVPRelay),
-	}
-}
-
 // ScenarioNames returns every typed L2TP scenario in lexical selection order.
 func ScenarioNames() []string {
 	names := make([]string, 0, len(scenarioCheckerMap(0)))
@@ -169,14 +150,14 @@ func plansAt(root, selector string, environment interoplab.Environment) ([]inter
 	standardFlow := false
 	for _, source := range sources {
 		plans = append(plans, scenarioPlan(root, source, environment))
-		if source.Name != scenarioInitiator {
+		if scenarioRegistrations[source.Name].needsKernel {
 			standardFlow = true
 		}
 	}
 	return plans, standardFlow, nil
 }
 
-func scenarioPlan(root string, source interoplab.ScenarioSource, environment interoplab.Environment) interoplab.ScenarioPlan {
+func standardScenarioPlan(root string, source interoplab.ScenarioSource, environment interoplab.Environment) interoplab.ScenarioPlan {
 	var tb textbuf.Buffer
 	networkName := tb.Str("ze-l2tp-").Str(environment.Suffix).String()
 	containers := []string{
@@ -408,10 +389,10 @@ func LabBinaries() []interoplab.LabBinary {
 	}
 }
 
-// imageBuilds answers the images plans run: the Ze and LAC images always,
+// standardImageBuilds answers the established plans' images: Ze and LAC always,
 // each other registered image only when a scenario that needs it is planned,
 // and FRR from the run's environment reference.
-func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) []interoplab.ImageBuild {
+func standardImageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) []interoplab.ImageBuild {
 	needed := map[string]bool{imageZe: true, imageLAC: true}
 	needFRR := false
 	for index := range plans {
