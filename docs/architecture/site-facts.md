@@ -6,8 +6,8 @@
 <!-- source: internal/le/verify/engine/stages.go -- the site facts check stage -->
 
 The website publishes numbers about this repository: how many Go packages it
-holds, how many file headers explain themselves, how many peers it is tested
-against. Each number is a claim, and this page states where a claim like that
+holds, how many file headers explain themselves, how many interoperability
+scenarios are defined. Each number is a claim, and this page states where it
 must come from.
 
 ## The defect this page exists to remove
@@ -65,6 +65,46 @@ measurement. All three line totals use the same display and staleness precision.
 <!-- source: internal/le/site/facts/sitefacts.go -- derive -->
 <!-- source: internal/le/repo/rewrite/activity.go -- collectGoStats, ThirdPartyPath, CountGoLines -->
 <!-- source: internal/le/site/facts/golines.go -- displayedFact -->
+
+## Interoperability scenario inventory
+
+`countInterop` derives `interop.scenarios` from tracked files beneath
+`test/interop/scenarios/<name>/` and `test/interop-<suite>/scenarios/<name>/`.
+Several files under the same scenario count once; the same name in different
+suites describes distinct cases. Hidden scenario directories and files directly
+under `scenarios/` do not contribute. `interop.scenario_dirs_raw` also includes
+hidden scenario directories. An image-only suite contributes no scenarios or
+scenario-bearing suite to `interop.suite_count`.
+
+The producer discovers the suites from those paths, rather than a fixed list.
+It records `interop.suites.<suite>` and `interop.protocols.<area>` alongside the
+total in `website/data/repo-facts.json`. The site reader exposes those same maps
+and refuses negative, missing or null measurements, a suite-count mismatch,
+or a partition whose sum differs from `interop.scenarios`. The site build does
+not rescan the scenario directories.
+<!-- source: internal/le/site/facts/sitefacts.go -- countInterop, scenarioDir, derive -->
+<!-- source: internal/le/site/interop_inventory.go -- factsFromInteropInventory -->
+
+Each scenario belongs to one primary protocol or test area. The shared suite
+uses the reviewed name prefixes in `interopSharedPrefixes`: BGP includes
+`addpath`, `as`, `frr`, `local`, `no`, `peer`, `show` and `shutdown` cases as well
+as the `bgp` prefix. Four historical `ospf` names belong to OSPFv3:
+`ospf-ipsec-ah-frr`, `ospf-ipsec-frr`, `ospf-multiaf-frr` and
+`ospf-multiaf-v4-frr`. Cross-protocol cases stay in their primary group.
+Dedicated suites retain their own area, with the login and subscriber RADIUS
+suites sharing the RADIUS protocol row. Unfamiliar future cases remain visible
+under `other` until reviewed; they cannot silently disappear from the total.
+The producer publishes explicit zero counts for known areas, including `other`;
+the homepage displays Other only when it has cases.
+<!-- source: internal/le/site/facts/sitefacts.go -- interopSharedPrefixes, interopSharedOverrides, interopSuiteProtocols, interopProtocol, InteropProtocolKeys -->
+
+These are authored scenario cases, each potentially containing many checks.
+They are neither the number of assertions nor evidence of currently passing
+runs. Many cases reuse the same image. `interop.targets` preserves the legacy
+counter of direct main-suite peer Dockerfiles, excluding Ze, plus the separately
+supplied FRR image. It excludes pulled images such as pmacct and images from
+other suites, and must never be labelled as a complete image or lab count.
+<!-- source: internal/le/site/facts/sitefacts.go -- interopTargetsSource, frrTarget -->
 
 ## Not every fact can be committed
 

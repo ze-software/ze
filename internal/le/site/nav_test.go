@@ -184,13 +184,16 @@ func TestTheSharedHeaderRefusesACountItCannotAnswer(t *testing.T) {
 
 // VALIDATES: AC-4's parity target, for the header fragment.
 //
-// The fragment published at gh-pages 2fa8fa2ad is the golden, with four edits
-// since: the roadmap entry's description, which spec-release-roadmap changed in
+// The fragment published at gh-pages 2fa8fa2ad is the golden, with the committed
+// navigation updates since: the roadmap entry's description, which spec-release-roadmap changed in
 // website/data/nav.json, the Examples menu's "Completion by use case"
 // entry, which links the RFC profile index from the menu, the Changes
 // entry's "development updates" renamed "update reports" at the owner's order,
 // and the Start menu's "Use Ze with an AI agent" entry, which links the
-// owner-approved guides/ai-agent/ page from the Learn column. The one difference
+// owner-approved guides/ai-agent/ page from the Learn column. The deployment
+// journey commits expanded Install and separated the netlab guide from its lab;
+// the project navigation commits changed ordering and milestone/history labels.
+// All six historical fact values remain controlled inputs. The one difference
 // this comparison allows is the spelling of an apostrophe: Python wrote &#x27;
 // where Go writes &#39;, and the owner ruled on 2026-08-29 that a character reference a reader cannot tell
 // apart is not a difference.

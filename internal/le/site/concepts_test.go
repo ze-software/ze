@@ -82,7 +82,7 @@ func TestHomeCompactLabelsCarryTheirMeaning(t *testing.T) {
 	if !strings.Contains(page, `class="interop-strip-label concept-evidence">Tested against</span>`) {
 		t.Error("the interop strip has no evidence label")
 	}
-	if got := strings.Count(page, `class="proof-check concept-evidence"`); got != 5 {
+	if got := strings.Count(page, `class="index4-badge concept-evidence"`); got != 5 {
 		t.Errorf("the homepage marks %d proof labels, want 5", got)
 	}
 	strip := sliceBetween(t, page, `<div class="interop-strip"`, "</section>")

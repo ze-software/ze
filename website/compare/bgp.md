@@ -458,8 +458,9 @@ has no programmatic API, YANG model, or structured logging.
 
 Do not take that on faith: it is backed by {{ze:tests.unit_display}} Go test functions,
 {{ze:tests.e2e_display}} end-to-end tests, {{ze:tests.fuzz_display}} fuzz targets, and
-{{ze:interop.target_display}} interoperability test images covering routing and
-network services. That evidence can be checked. It is not a promise. Ze
+{{ze:interop.target_display}} test images in the main shared suite’s recorded set.
+That set covers routing and network services; other labs and tools use additional
+images, including pmacct. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
 on real networks. Use it in labs first.
 

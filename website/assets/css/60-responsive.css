@@ -90,6 +90,7 @@
     .site-home .hero-release-callout { max-width: none; }
     .site-home .hero-primary-actions { flex-basis: 70%; }
     .site-home .usp-grid, .site-home .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .site-home .home-section-panel-map .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1080px) {
     main, main.site-main-wide, main.has-page-sidebar { width: min(var(--max), calc(100% - 3rem)); padding: 0 0 3rem; }
@@ -132,6 +133,7 @@
     .blog-article-shell .blog-article-visual { grid-column: 1; grid-row: auto; max-width: 40rem; }
     .blog-article-shell .blog-article-heading .journey-hero.blog-article-hero :is(h1, h2) { font-size: clamp(2rem, 5vw, 2.6rem); }
     .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .home-section-panel-map .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .terminal-panel { grid-template-columns: minmax(0, 1fr); }
     .site-home .hero-primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
@@ -154,7 +156,7 @@
     .site-home .hero .eyebrow { margin-bottom: 0.6rem; }
     .site-home #hero-title { font-size: clamp(1.7rem, 7vw, 2rem); margin-bottom: 0.75rem; }
     .site-home #hero-title em { font-size: 0.78em; }
-    .site-home .hero-start-points { margin-bottom: 0.65rem; gap: 0.25rem 0.65rem; }
+    .site-home .hero-start-points { margin-bottom: 0.65rem; gap: 0.4rem 0.85rem; font-size: 0.73rem; }
     .site-home .hero-intro { font-size: 0.98rem; line-height: 1.5; margin-bottom: 0.7rem; }
     .site-home .hero-actions { margin-top: 1rem; gap: 0.5rem; }
     .site-home .hero-actions .button { font-size: 0.75rem; flex: 1 1 auto; min-height: 2.6rem; padding: 0.65rem 0.6rem; gap: 0.4rem; }
@@ -172,6 +174,7 @@
     .site-home .home-proof-block { padding-block: 2.25rem; }
     .site-home :is(.section-head, .home-proof-head, .status-copy, .why-lead) h2 { font-size: 1.65rem; }
     .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid, .site-home .home-usecase-grid, .site-home .proof-strip, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }
+    .site-home .home-section-panel-map .capability-grid { grid-template-columns: minmax(0, 1fr); }
     .site-home .proof { border-right: 0; }
     .site-home .proof:last-child { border-bottom: 0; }
     .site-home .why-lead { padding: 1.25rem; }

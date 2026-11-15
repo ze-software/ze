@@ -31,6 +31,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -89,29 +90,27 @@ const annotationSource = "git ls-files '*.go', counting the file-header annotati
 // directory that happens to hold a Go file.
 const goPackagesSource = "go list ./..., keeping the packages git holds a file for"
 
-// interopTargetsSource and interopScenariosSource say the same for the two
-// interop figures. Both count what GIT holds rather than what test/interop/
-// contains, and that is the whole change: a scenario directory another session
+// interopTargetsSource and interopScenariosSource state the distinct populations
+// of the image counter and scenario inventory. Both count what GIT holds rather
+// than what test/interop*/ contains: a scenario directory another session
 // is part-way through writing sits on this disk and in no commit, and it moved
 // a published number every time a site build walked that directory.
 const (
-	interopTargetsSource   = "git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus the FRR image a run names by variable"
-	interopScenariosSource = "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
+	interopTargetsSource   = "legacy image counter: git ls-files test/interop/Dockerfile.*, less Dockerfile.ze, plus FRR; excludes pulled pmacct and other suites' images"
+	interopScenariosSource = "git ls-files test/interop*, counting distinct non-hidden test/interop[-<suite>]/scenarios/<name>/ directories; authored cases, not passing runs or assertions"
 )
 
-// The paths the two interop counts read, and the two names they treat apart.
-// Dockerfile.ze builds ze itself rather than a peer to test against, so it is
-// not one of the implementations the figure claims.
+// The legacy image counter's root and Dockerfile names. Dockerfile.ze builds
+// Ze itself rather than one of the recorded peer image targets.
 const (
 	interopRoot      = "test/interop"
-	scenarioRoot     = "test/interop/scenarios"
 	dockerfilePrefix = "Dockerfile."
 	zeDockerfile     = "Dockerfile.ze"
 )
 
-// frrTarget is the one interop peer with no Dockerfile of its own: a run names
-// the FRR image by variable (FRR_IMAGE), so counting Dockerfiles alone answers
-// one short of the implementations ze is tested against.
+// frrTarget preserves the existing image counter's separately supplied FRR
+// image. This counter is a bounded list, not every image: pulled pmacct and
+// the other suites' images are outside its Dockerfile-based population.
 const frrTarget = 1
 
 // categoryBuiltBinary marks a published fact about this repository that this
@@ -164,6 +163,59 @@ type interopCounts struct {
 	targets      int
 	scenarios    int
 	scenarioDirs int
+	suites       map[string]int
+	protocols    map[string]int
+}
+
+// interopScenario identifies a case within its suite. Names can recur in a
+// different suite, while several files in the same case still identify one case.
+type interopScenario struct {
+	suite string
+	name  string
+}
+
+// Reviewed primary-area aliases partition the shared suite. Cross-protocol
+// cases belong to their primary area, never to every protocol they mention.
+var interopSharedPrefixes = map[string]string{
+	"bgp": "bgp", "addpath": "bgp", "as": "bgp", "frr": "bgp", "local": "bgp",
+	"no": "bgp", "peer": "bgp", "show": "bgp", "shutdown": "bgp",
+	"ospf": "ospfv2", "ospfv3": "ospfv3", "isis": "isis", "bfd": "bfd", "bmp": "bmp",
+	"rpki": "rpki", "rtr": "rpki", "vrrp": "vrrp", "dns": "dns",
+	"dhcpv4": "dhcpv4", "dhcpv6": "dhcpv6", "ldp": "ldp", "as112": "as112", "gtsm": "gtsm",
+}
+
+// These four names predate the explicit ospfv3 prefix. Their primary area is
+// OSPFv3, including the IPsec authentication cases, rather than OSPFv2 or IPsec.
+var interopSharedOverrides = map[string]string{
+	"ospf-ipsec-ah-frr": "ospfv3", "ospf-ipsec-frr": "ospfv3",
+	"ospf-multiaf-frr": "ospfv3", "ospf-multiaf-v4-frr": "ospfv3",
+}
+
+// Dedicated suites retain their primary test area; both RADIUS populations
+// share one protocol row but remain separate suite counts.
+var interopSuiteProtocols = map[string]string{
+	"interop-ipsec": "ipsec", "interop-l2tp": "l2tp", "interop-pppoe": "pppoe",
+	"interop-radius": "radius", "interop-radius-subscriber": "radius",
+	"interop-rsvpte": "rsvpte", "interop-topology": "topology",
+}
+
+// InteropProtocolKeys names the partition the committed producer publishes.
+// Other retains an unfamiliar future case explicitly rather than dropping it
+// from the total or guessing its primary protocol. Callers receive their own list.
+func InteropProtocolKeys() []string {
+	keys := map[string]struct{}{"other": {}}
+	for _, protocol := range interopSharedPrefixes {
+		keys[protocol] = struct{}{}
+	}
+	for _, protocol := range interopSuiteProtocols {
+		keys[protocol] = struct{}{}
+	}
+	result := make([]string, 0, len(keys))
+	for protocol := range keys {
+		result = append(result, protocol)
+	}
+	slices.Sort(result)
+	return result
 }
 
 // goPackage is the part of a `go list -json` record this tool reads: where the
@@ -209,7 +261,7 @@ func derive(root string) (facts, error) {
 		return facts{}, err
 	}
 
-	interopPaths, err := trackedPaths(root, interopRoot)
+	interopPaths, err := trackedPaths(root, "test/interop*")
 	if err != nil {
 		return facts{}, err
 	}
@@ -219,7 +271,7 @@ func derive(root string) (facts, error) {
 		return facts{}, fmt.Errorf("measure Go line inventory: %w", err)
 	}
 
-	return facts{Live: liveFacts(), Facts: map[string]fact{
+	derived := facts{Live: liveFacts(), Facts: map[string]fact{
 		GoSourceLinesKey: {
 			Category: categoryCommitted,
 			Value:    inventory.Code.TotalLines,
@@ -265,7 +317,22 @@ func derive(root string) (facts, error) {
 			Value:    interop.scenarioDirs,
 			Source:   interopScenariosSource,
 		},
-	}}, nil
+	}}
+	derived.Facts["interop.suite_count"] = fact{
+		Category: categoryCommitted, Value: len(interop.suites), Source: interopScenariosSource,
+	}
+	for suite, count := range interop.suites {
+		derived.Facts["interop.suites."+suite] = fact{
+			Category: categoryCommitted, Value: count, Source: interopScenariosSource,
+		}
+	}
+	for protocol, count := range interop.protocols {
+		derived.Facts["interop.protocols."+protocol] = fact{
+			Category: categoryCommitted, Value: count,
+			Source: interopScenariosSource + "; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols",
+		}
+	}
+	return derived, nil
 }
 
 // liveFacts is every published fact ABOUT this repository that the site derives
@@ -293,20 +360,19 @@ func liveFacts() map[string]live {
 	}
 }
 
-// countInterop counts the interop peers and the interop scenarios git holds,
-// from the tracked paths under test/interop/.
-//
-// A checkout that holds no interop tree at all answers zero for all three,
-// rather than answering the one peer that has no Dockerfile: the figure is a
-// claim about a suite this repository does not carry.
+// countInterop inventories tracked scenario directories across every interop
+// suite, and preserves the separately scoped legacy main-suite image counter.
 func countInterop(paths []string) interopCounts {
-	if len(paths) == 0 {
-		return interopCounts{}
+	counts := interopCounts{suites: make(map[string]int), protocols: make(map[string]int)}
+	for _, protocol := range InteropProtocolKeys() {
+		counts.protocols[protocol] = 0
 	}
-
-	var counts interopCounts
-	dirs := make(map[string]struct{}, len(paths))
+	dirs := make(map[interopScenario]struct{}, len(paths))
+	mainSuite := false
 	for _, rel := range paths {
+		if strings.HasPrefix(rel, interopRoot+"/") {
+			mainSuite = true
+		}
 		dir, base := path.Split(rel)
 		// A peer's Dockerfile sits DIRECTLY in test/interop/, so this is an
 		// equality and not a containment: a Dockerfile inside a scenario builds
@@ -321,13 +387,18 @@ func countInterop(paths []string) interopCounts {
 			dirs[name] = struct{}{}
 		}
 	}
-	counts.targets += frrTarget
+	if mainSuite {
+		counts.targets += frrTarget
+	}
 
-	for name := range dirs {
+	for scenario := range dirs {
 		counts.scenarioDirs++
-		if !strings.HasPrefix(name, ".") {
-			counts.scenarios++
+		if strings.HasPrefix(scenario.name, ".") {
+			continue
 		}
+		counts.scenarios++
+		counts.suites[scenario.suite]++
+		counts.protocols[interopProtocol(scenario)]++
 	}
 	return counts
 }
@@ -338,19 +409,52 @@ func countInterop(paths []string) interopCounts {
 // A scenario is a DIRECTORY, so a file sitting directly in scenarios/ names
 // none: the path has to carry a separator after the name for the name to be a
 // directory git holds something under.
-func scenarioDir(rel string) (string, bool) {
-	rest, ok := strings.CutPrefix(rel, scenarioRoot)
-	if ok {
-		rest, ok = strings.CutPrefix(rest, "/")
-	}
+func scenarioDir(rel string) (interopScenario, bool) {
+	rest, ok := strings.CutPrefix(rel, "test/")
 	if !ok {
-		return "", false
+		return interopScenario{}, false
 	}
-	name, _, ok := strings.Cut(rest, "/")
+	suite, rest, ok := strings.Cut(rest, "/scenarios/")
 	if !ok {
-		return "", false
+		return interopScenario{}, false
 	}
-	return name, true
+	if suite != "interop" {
+		if !strings.HasPrefix(suite, "interop-") {
+			return interopScenario{}, false
+		}
+	}
+	if strings.Contains(suite, "/") {
+		return interopScenario{}, false
+	}
+	name, child, ok := strings.Cut(rest, "/")
+	if !ok {
+		return interopScenario{}, false
+	}
+	if name == "" {
+		return interopScenario{}, false
+	}
+	if child == "" {
+		return interopScenario{}, false
+	}
+	return interopScenario{suite: suite, name: name}, true
+}
+
+// interopProtocol assigns one primary area, using exact names before prefixes.
+func interopProtocol(scenario interopScenario) string {
+	if scenario.suite != "interop" {
+		if protocol, known := interopSuiteProtocols[scenario.suite]; known {
+			return protocol
+		}
+		return "other"
+	}
+	if protocol, overridden := interopSharedOverrides[scenario.name]; overridden {
+		return protocol
+	}
+	prefix, _, _ := strings.Cut(scenario.name, "-")
+	if protocol, known := interopSharedPrefixes[prefix]; known {
+		return protocol
+	}
+	return "other"
 }
 
 // countAnnotations counts the file-header annotations across the tracked Go

@@ -167,15 +167,18 @@ type factsFeatures struct {
 	CoreExperimental int            `json:"core_experimental"`
 }
 
-// factsInterop counts the peers ze is tested against and the scenarios it is
-// tested through. ScenarioDirsRaw counts every directory, Scenarios counts the
-// ones a reader sees.
+// factsInterop inventories authored scenarios, not assertions or passing runs.
+// The suite and primary-area partitions describe the same visible population.
+// Targets retains only the legacy main-suite Dockerfile-plus-FRR image counter.
 type factsInterop struct {
-	ScenarioDirsRaw  int    `json:"scenario_dirs_raw"`
-	Scenarios        int    `json:"scenarios"`
-	ScenariosDisplay string `json:"scenarios_display"`
-	TargetDisplay    string `json:"target_display"`
-	Targets          int    `json:"targets"`
+	Protocols        map[string]int `json:"protocols"`
+	ScenarioDirsRaw  int            `json:"scenario_dirs_raw"`
+	Scenarios        int            `json:"scenarios"`
+	ScenariosDisplay string         `json:"scenarios_display"`
+	SuiteCount       int            `json:"suite_count"`
+	Suites           map[string]int `json:"suites"`
+	TargetDisplay    string         `json:"target_display"`
+	Targets          int            `json:"targets"`
 }
 
 // factsRepo counts what the Go tree holds: packages, source, test and vendor lines,
@@ -441,6 +444,11 @@ func factsFromRepositoryFile(source string, facts *siteFacts) error {
 	facts.Interop.ScenariosDisplay = displayCount(facts.Interop.Scenarios)
 	facts.Interop.Targets = committed.Facts["interop.targets"].Value
 	facts.Interop.TargetDisplay = displayCount(facts.Interop.Targets)
+	// The same committed bytes MUST supply the full scenario partitions; the
+	// inventory reader must not replace these recorded values with a tree walk.
+	if err := factsFromInteropInventory(content, facts); err != nil {
+		return err
+	}
 
 	facts.Repo.DesignComments = committed.Facts["repo.design_comments"].Value
 	facts.Repo.DesignCommentsDisplay = displayCount(facts.Repo.DesignComments)

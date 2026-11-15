@@ -30,7 +30,7 @@ func llmsPaths(t *testing.T) Paths {
 		"dependencies":42,"changes":37,"features":{"core_experimental":52},
 		"equivalents":{"mapping_entries":3,"reviewed":2,"vendor_cli":2,"vendor_only":1},
 		"tests":{"unit_display":"23,700+","fuzz_display":"78","e2e_display":"1,700+"},
-		"interop":{"scenarios":130,"scenarios_display":"130","target_display":"9"},
+		"interop":{"scenarios":130,"scenarios_display":"130","suite_count":8,"target_display":"9"},
 		"plugin_registrations":1,"generated_at":"2026-08-27"}`)
 	addPageLocalCounts(t, paths.Output)
 	writeArtifactFile(t, paths.Output, pluginFile, `[{"name":"bfd",
@@ -164,7 +164,7 @@ func TestThePageMapTakesItsCountsFromTheFactsSnapshot(t *testing.T) {
 	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":7,"config_sections":36,
 		"dependencies":3,"changes":9,"features":{"core_experimental":5},
 		"tests":{"unit_display":"1","fuzz_display":"2","e2e_display":"3"},
-		"interop":{"scenarios":4,"scenarios_display":"4","target_display":"5"},
+		"interop":{"scenarios":4,"scenarios_display":"4","suite_count":2,"target_display":"5"},
 		"plugin_registrations":1,"generated_at":"2026-08-27"}`)
 
 	if _, err := renderLLMS(paths); err != nil {
@@ -269,14 +269,14 @@ func TestLLMSAndMirrorsCarryPlainSnapshotValues(t *testing.T) {
 	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":402,"config_sections":36,
 		"dependencies":42,"changes":37,"features":{"core_experimental":52},
 		"tests":{"unit_display":"23,700+","fuzz_display":"78","e2e_display":"1,700+"},
-		"interop":{"scenarios":130,"scenarios_display":"120+","target_display":"9"},
+		"interop":{"scenarios":130,"scenarios_display":"120+","suite_count":8,"target_display":"9"},
 		"plugin_registrations":11,"generated_at":"2026-08-27"}`)
 
 	if _, err := renderLLMS(paths); err != nil {
 		t.Fatal(err)
 	}
 	content := readArtifact(t, paths.Output, llmsFile)
-	for _, want := range []string{"120+ interop scenarios across 9 target", "11 plugin registrations",
+	for _, want := range []string{"120+ interop scenarios across 8 lab suites", "main recorded set has 9 test images", "11 plugin registrations",
 		"23,700+ unit tests", "402 CLI commands"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("llms.txt does not state %q", want)

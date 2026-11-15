@@ -119,8 +119,9 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 	out.Str("- Test evidence counts: ").Str(lookup.plain("tests.unit_display")).Str(" unit tests, ").
 		Str(lookup.plain("tests.fuzz_display")).Str(" fuzz targets, ").Str(lookup.plain("tests.e2e_display")).
 		Str(" end-to-end transcript steps, ").Str(lookup.plain("interop.scenarios_display")).
-		Str(" interop scenarios across ").Str(lookup.plain("interop.target_display")).
-		Str(" target implementations.\n")
+		Str(" interop scenarios across ").Str(lookup.plain("interop.suite_count")).
+		Str(" lab suites; the main recorded set has ").Str(lookup.plain("interop.target_display")).
+		Str(" test images, and other suites use additional images.\n")
 	out.Str("- Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](").
 		Str(siteBase).Str("project/roadmap/index.md), [snapshot JSON](").
 		Str(siteBase).Str(roadmapDataFile).Str(").\n")
@@ -150,9 +151,10 @@ func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 	out.Str("- Editor `.et` transcripts: drive the headless interactive editor.\n")
 	out.Str("- QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, ").
 		Str("PPP, network namespaces, and kernel modules exist.\n")
-	out.Str("- Interop: ").Int(int64(inputs.Facts.Interop.Scenarios)).Str(" scenarios against ").
-		Str(inputs.Facts.Interop.TargetDisplay).Str(" target implementations, including FRR, BIRD, GoBGP, ").
-		Str("RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.\n")
+	out.Str("- Interop: ").Int(int64(inputs.Facts.Interop.Scenarios)).Str(" scenarios across ").
+		Int(int64(inputs.Facts.Interop.SuiteCount)).Str(" lab suites. The main recorded set has ").
+		Str(inputs.Facts.Interop.TargetDisplay).Str(" test images; other suites use additional images. ").
+		Str("Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.\n")
 	out.Str("- Verify workflow: `./le verify worktree` runs the whole native verification ").
 		Str("population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, ").
 		Str("groups related failures, and prints narrow rerun commands. `./le repo` is the ").

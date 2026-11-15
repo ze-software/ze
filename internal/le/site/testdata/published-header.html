@@ -16,21 +16,29 @@
                     <div class="nav-dropdown-panel" id="nav-panel-start">
                     <div class="nav-dropdown-col">
                         <span class="nav-dropdown-label">Install</span>
-                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__guides/quickstart/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
-                            <span><strong>Quickstart</strong><small>Two BGP peers in under five minutes</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/ze-install/">
+                        <a class="nav-dropdown-item nav-dropdown-feature" href="__ZE_SITE_ROOT__guides/ze-install/">
                             <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
-                            <span><strong>Install Ze</strong><small>Run Ze on Linux or as a bootable appliance</small></span>
+                            <span><strong>Install Ze</strong><small>One command installs Ze: sudo ze install. Compare Linux, Docker, VM and lab</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/quickstart/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🚀</span>
+                            <span><strong>Quickstart</strong><small>Two local BGP peers and a received route</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/ubuntu-build-install/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🐧</span>
-                            <span><strong>Ubuntu build</strong><small>Compile Ze, install it, initialize the store, and start SSH</small></span>
+                            <span><strong>Build and install on Linux</strong><small>Build Ze, then install, upgrade or remove it with its own CLI</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__labs/netlab/">
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/docker/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📦</span>
+                            <span><strong>Docker</strong><small>Keep configuration and login across container recreation</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/appliance/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">💿</span>
+                            <span><strong>VM and gokrazy</strong><small>ISO installation, image updates and previous-slot recovery</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__guides/netlab/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
-                            <span><strong>containerlab and netlab</strong><small>Run Ze as a netlab daemon node in the supplied three-node topology</small></span>
+                            <span><strong>containerlab and netlab</strong><small>Start the supplied three-node topology by hand</small></span>
                         </a>
                     </div>
                     <div class="nav-dropdown-col">
@@ -194,6 +202,10 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">🌐</span>
                             <span><strong>BGP interop</strong><small>FRR, BIRD, and GoBGP sessions</small></span>
                         </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__labs/netlab/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🧪</span>
+                            <span><strong>netlab topology</strong><small>Three-node templates with a live routing and traffic check</small></span>
+                        </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__labs/ipsec-interop/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🔒</span>
                             <span><strong>IPsec and IKEv2</strong><small>Ze IKE initiator against strongSwan</small></span>
@@ -230,7 +242,7 @@
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__reference/configuration/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧬</span>
-                            <span><strong>Configuration reference</strong><small><span data-ze-stat="config_sections">36</span> sections, generated from Ze&#39;s YANG schemas</small></span>
+                            <span><strong>Configuration reference</strong><small><span data-ze-stat="config_sections">36</span> sections, generated from Ze&#x27;s YANG schemas</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__reference/plugins/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🔌</span>
@@ -269,25 +281,25 @@
                             <span class="nav-dropdown-icon" aria-hidden="true">🧭</span>
                             <span><strong>Project overview</strong><small>Progress, history, talks, and contribution paths</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/roadmap/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
-                            <span><strong>Roadmap</strong><small>Planned changes and remaining release work, awaiting prioritization</small></span>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/activity/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
+                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/milestones/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🏁</span>
+                            <span><strong>Milestone</strong><small>Landmark features, newest to oldest</small></span>
                         </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/changes/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🧾</span>
                             <span><strong>Changes</strong><small><span data-ze-stat="changes">37</span> update reports, what shipped</small></span>
                         </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/milestones/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">🏁</span>
-                            <span><strong>Milestones</strong><small>Landmark features, oldest to newest</small></span>
-                        </a>
-                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/activity/">
-                            <span class="nav-dropdown-icon" aria-hidden="true">📈</span>
-                            <span><strong>Activity</strong><small>A year of commits, at a glance</small></span>
-                        </a>
                         <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/history/">
                             <span class="nav-dropdown-icon" aria-hidden="true">🕰️</span>
-                            <span><strong>Project history</strong><small>How ExaBGP&#x27;s programmable model grew into Ze</small></span>
+                            <span><strong>Project History</strong><small>How ExaBGP&#x27;s programmable model grew into Ze</small></span>
+                        </a>
+                        <a class="nav-dropdown-item" href="__ZE_SITE_ROOT__project/roadmap/">
+                            <span class="nav-dropdown-icon" aria-hidden="true">🗺️</span>
+                            <span><strong>Roadmap</strong><small>Planned changes and remaining release work, awaiting prioritization</small></span>
                         </a>
                     </div>
                     <div class="nav-dropdown-col">

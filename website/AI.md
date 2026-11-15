@@ -457,16 +457,16 @@ recording for `homeTemplate`'s `data-cast-poster`.
 
 
 The hero's project-size band replaces its repeated navigation tiles. It shows
-lines of Go source code, lines of Go test code, lines of third-party Go code,
-plugins and CLI commands through marked `data/site-facts.json` values. The line
+lines of Go source code, lines of Go test code and lines of third-party Go code
+through marked `data/site-facts.json` values. Plugin and CLI counts remain in the
+generated reference cards beneath the evidence section. The line
 figures include comments and blank lines. Source and test lines exclude
 dependencies; the separate third-party figure counts tracked vendored Go files.
 Source includes development tooling.
 They come from the recorded repository facts, which count the tracked Go files
 of the checkout. The activity page states its sizes from the committed size
 history instead, so the two can describe different commits. Each line figure
-links to activity, while plugins and commands link
-to their reference pages. Why Ze exists remains an introductory text link, and
+links to activity. The plugin and command reference cards link to their own pages. Why Ze exists remains an introductory text link, and
 Discord is linked in a sentence. Search and demonstrations retain their existing
 header and player paths. The release notice and testing proof section remain.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
@@ -483,11 +483,12 @@ Thomas requested this correction on 11 November 2026:
 > Current first-party Go inventory. Includes comments and blank lines; excludes third-party dependencies. Development activity →
 > The comment is not useful with the extra number and the details are on the page so remove
 
-The opening paragraph combines routing, interfaces, tunnels, forwarding and
-services with their documentation links. Detailed configuration information
-sits beside the demonstration on desktop and below the player on smaller screens. The metric
-band has five figures and no inventory note; their definitions remain on the
-activity page and in this build reference.
+The opening paragraph describes the configuration and plugin engine, its
+pre-installed network functions, management surfaces and deployment options,
+with links on the technical terms. Detailed configuration information sits
+beside the demonstration on desktop and below the player on smaller screens.
+The metric band has three line-count figures and no inventory note; their
+definitions remain on the activity page and in this build reference.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-start-intro.hero-grid -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-capabilities -->
@@ -512,16 +513,17 @@ take their width from their content and wrap as whole cards when space runs out.
 The release group comes first, with no leading divider. Its larger bird fills
 the height of a counter card and sits beside the title and two release lines,
 with no divider between bird and text. On desktop the release group and the
-five metrics share one row that fills the hero, flush at both ends and never
+three metrics share one row that fills the hero, flush at both ends and never
 packed to the left. The spacing is a constraint, never a written value: every
 item grows by the same share of the free width, a metric sits in the middle of
 its share, and the two end items take half a share on their inner side, so each
 separator is as far from the content before it as from the number after it.
 Thomas asked for both on 2026-11-14: the row spread across the full width, and
 the separator spacing produced by the layout rule instead of a hardcoded gap.
-The introduction presents IPsec VPN or WireGuard as tunnel options and FIB or
-VPP as forwarding options. The management clause describes interfaces and
-services.
+The introduction names the pre-installed routing and network functions. It
+explains that one YANG-defined configuration can be managed through Ze’s own
+SSH server, CLI, web interface, MCP and APIs. Custom plugins can use any
+programming language, and Ze can run as a Linux daemon or a read-only appliance.
 Links in the hero are never underlined, in any state. One rule covers every
 link the hero holds, so a link added later is not underlined either. A text
 link, one inside a paragraph or a caption, is a brighter blue than the muted
@@ -557,10 +559,16 @@ requested these changes on 2026-11-11:
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: website/assets/css/30-components.css -- .site-home .hero-release-callout p -->
 
-Keep the RFC card's bullets compact while retaining the reviewed population,
-exclusions and historical counting note. Thomas requested this on 2026-11-11:
-
-> Under the first section with 45.3% has very long descriptions in the three bullet points pushing the page down. Can we be more compact in our descriptions ?
+The management walkthrough follows the hero before news and evidence. The
+evidence section keeps RFC populations and counting history, an interoperability
+scenario table split by primary protocol, the bounded list of 13 test images,
+and the three other test layers. Every figure comes from the facts snapshot.
+These are inventory counts, not passing-run totals or individual assertions.
+The trial choices come from `audience.json` Run entries. Each has five rows:
+badge and optional recommendation, title, description, success or availability
+check, and primary plus optional secondary action. The Who grid keeps its
+existing audience-card presentation. The other-paths strip retains the lab and
+deployment destinations beside these four choices.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 ### Site design and content rules
@@ -595,7 +603,40 @@ website edit.
 |--------|-------|----------------------|-------------------|
 | Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |
 | The front page says Ze is self-contained: "Self-contained" is the fourth hero key point, placed first in the row beside "Extend with plugins", "Appliance option" and "ExaBGP compatible". Thomas chose the wording on 2026-11-14, after rejecting "Fully integrated" as not the right expression. It means the shipped `ze` binary needs no other routing daemon or runtime library; Linux or VPP still forwards the packets, so it claims nothing about the forwarding plane | Homepage hero | The `hero-start-points` row in `homeTemplate`, `internal/le/site/homebody.go` | `TestHeroSaysZeIsSelfContained` |
+| Each existing hero key point has the blue tick from index2. The wording and order remain Self-contained, Extend with plugins, Appliance option, ExaBGP compatible; each tick stays with its label when the row wraps | Homepage hero | `.site-home .hero-start-points span::before` and its span rule in `website/assets/css/30-components.css` | `TestHeroKeyPointsUseApprovedTicks` |
+| The current homepage adopts index2's Capabilities and current limitations presentation: maturity introduction, compact configuration/command/plugin reference cards, then the complete generated feature directory in flat category groups. Counts and destinations remain generated; the documentation explanation stays beneath the reference cards | Homepage capability section | `homeTemplate` in `internal/le/site/homebody.go`, `.home-section-panel-map` reference and capability rules in `website/assets/css/30-components.css`, responsive rules in `website/assets/css/60-responsive.css` | `TestHomepageCapabilitiesRetainGeneratedDestinations` |
 <!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined, TestHeroSaysZeIsSelfContained -->
+<!-- source: internal/le/site/home_approved_presentation_test.go -- TestHeroKeyPointsUseApprovedTicks, TestHomepageCapabilitiesRetainGeneratedDestinations -->
+
+On 14 November 2026, Thomas changed the hero metric population:
+
+> remove 96 and 500 fro the hero
+
+The three Go line figures remain in the hero; plugin and command counts remain
+in the reference cards. `TestHomeProjectMetricsUseSnapshotValues` and
+`TestHomeProjectMetricsPreserveNavigationAndRelease` pin that population.
+
+For the opening paragraph, Thomas chose these corrections verbatim:
+
+> pre-installd
+>
+> is managed -> can be managed
+>
+> protocol engine -> plugin engine
+>
+> add your -> develop your own .. in any programming language
+
+After reading the complete revised paragraph, he approved replacement and links:
+
+> cool - now replace make sure all the keyword are links like now
+
+The approved wording is:
+
+> Ze is built on a configuration and plugin engine, with pre-installed plugins for BGP, OSPF, IS-IS, VPNs, interfaces, DNS, DHCP and other network functions. Its single YANG-defined configuration can be managed through Ze’s own SSH server, CLI, web interface, MCP and APIs. You can develop your own plugins in any programming language and run Ze as a Linux daemon or an appliance with a read-only operating system.
+
+`TestHomeOpeningKeepsLinkedCapabilities` and `TestHomeIntroMergesLinkedRouting`
+pin the wording and linked destinations in the rendered opening.
+<!-- source: internal/le/site/home_metrics_test.go -- TestHomeProjectMetricsUseSnapshotValues, TestHomeProjectMetricsPreserveNavigationAndRelease, TestHomeOpeningKeepsLinkedCapabilities, TestHomeIntroMergesLinkedRouting -->
 
 The approved design uses logo blue for Ze's identity and a distinct soft
 background behind each card's small category badge. Follow the canonical
@@ -654,7 +695,8 @@ Use `categoryLabel` for category display names: `platform` reads as
 
 The homepage preserves its useful content and data slots. Its opening keeps
 the network OS and immutable-services identity, followed by a short explanation
-of Linux routing and shared configuration through SSH, web and APIs.
+of the configuration and plugin engine, its pre-installed network functions and
+shared configuration through SSH, CLI, web, MCP and APIs.
 "Try the BGP quickstart" is the first, primary action and links directly to
 `guides/quickstart/`; the demo gallery is secondary. The copy, actions and
 pre-release notice sit beside the genuine terminal recording on desktop.
@@ -662,18 +704,18 @@ Keep these actions and the recording controls within the initial laptop
 viewport. On phones, compact the copy and place the recording before the
 interface selector so its preview and Play action are visible before scrolling.
 The project metrics, release callout and product map follow the opening row.
-Two groups below that map retain every routing, interface, tunnel and
-management destination, followed by the engine, plugin and deployment
-explanation. No capability content is collapsed or hidden.
+The detailed configuration paragraph retains the REST, gRPC and gNMI
+destinations beside the recording. No capability content is collapsed or hidden.
 The outer hero alone paints the shared navy gradient. Its inner panel and
 showcase chrome remain transparent in both themes, without an inner shadow
 that creates seams at the left and right edges.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
-Regression prevention follows Latest news. Its cards describe the behavior checked, with short action
-sentences and links to the test methods. Counts represent Go test functions,
-functional scenarios, fuzz targets and interop images, not a passing-run total.
-The RFC card separately shows the tested share of tracked MUST requirements.
+Testing evidence follows Latest news, after the management walkthrough. Its
+cards describe the behavior checked, with links to the test methods. Counts
+represent Go test functions, functional scenarios, fuzz targets, interop
+scenarios and a bounded image list, not a passing-run total. The RFC card
+separately shows the tested share of tracked MUST requirements.
 The management panel's left column starts with Why Ze,
 then explains how to manage Ze directly through its own SSH service. It has no
 self-contained management badge. The architectural argument cards remain below
@@ -707,14 +749,19 @@ recording's original provenance; selecting a frame is not a new recording.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 The replay heading uses solid hero text rather than the page-title gradient,
 which is too dark against the blue hero in light mode.
-The category overview derives every
-feature link from `features.json`, alongside the existing category counts.
-The documentation section explains how YANG and command definitions keep the
-reference aligned with the documented build. Its introduction sits to the right
-of its heading on desktop. Direct configuration, command and plugin reference
-cards precede the feature directory. Both groups share the run cards' neutral
-surfaces and spacing, with a category-colored background behind the compact
-name only. Feature links appear one per line, without removing any destinations.
+The category overview derives every feature link from `features.json`, alongside
+the existing category counts. The capability section opens with the maturity
+record, then compact configuration, command and plugin reference cards. The
+command and plugin cards carry the published counts. The explanation of how YANG
+and command definitions keep the reference aligned with the documented build
+sits beneath those cards. The directory presents every feature in flat category
+groups, with four columns on wide screens and three, two or one as space narrows.
+A small guide card links to documentation and the maturity-filtered catalogue.
+Category color stays behind the compact group name; links remain one per line.
+<!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: internal/le/site/home.go -- homeFeatureOverview -->
+<!-- source: website/assets/css/30-components.css -- homepage reference and capability rules -->
+<!-- source: website/assets/css/60-responsive.css -- homepage capability breakpoints -->
 Its management explanation states that Ze runs its own SSH service and CLI,
 without relying on a host SSH service or shell.
 The management section keeps that explanation, its compact interface map and

@@ -348,20 +348,27 @@ See `website/AI.md` for the full reference: structure, tools, and how to add a t
 
 ## README thumbnail and terminal playback
 
-The homepage introduces project size with five linked figures: Go source lines,
-Go test lines, third-party Go lines, plugins and CLI commands. The line totals are recorded through
+The homepage introduces project size with three linked figures: Go source lines,
+Go test lines and third-party Go lines. The line totals are recorded through
 `./le site facts update`; the build reads those committed values and publishes
 compact display strings in its facts snapshot. Counts include comments and
 blank lines. Source and test counts exclude dependencies; the third-party
-counter shows vendored Go lines separately. Activity retains the detailed inventory,
-and the plugin and CLI references explain the other figures. The hero keeps
-Why Ze exists and Discord as text links alongside the existing demo and search
-paths; its release notice and testing evidence remain separate.
-The opening summary links to its protocol, tunnel, forwarding and management
-pages. Detailed configuration information sits beside the demo on desktop and
-below it on mobile.
-The metrics omit the inventory note because the activity page carries the details.
+counter shows vendored Go lines separately. Activity retains the detailed
+inventory. Plugin and CLI counts appear in the generated reference cards.
+The hero keeps Why Ze exists and Discord as text links alongside the existing
+demo and search paths. Its opening explains the configuration and plugin engine,
+pre-installed network functions, shared management model and deployment options,
+with links on the technical terms. Detailed configuration information sits
+beside the demo on desktop and below it on mobile. The management walkthrough
+follows the hero, then news and testing evidence. The evidence section states
+RFC populations and counting history, scenario counts by primary protocol,
+the bounded list of 13 test images and the other test layers. These counts
+describe inventory, not current passing runs or individual assertions.
+The four trial choices use Run entries in `audience.json`, including success
+checks, an optional recommendation and an optional secondary link. The Who
+entries retain their audience-card presentation.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
+<!-- source: internal/le/site/home.go -- homeRunCards -->
 <!-- source: internal/le/site/facts.go -- factsFromRepositoryFile -->
 
 The repository's size per section on each day of its history is recorded the

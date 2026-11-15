@@ -33,7 +33,7 @@ func metricHomeFixture(t *testing.T) Paths {
 }
 
 // TestHomeProjectMetricsUseSnapshotValues exercises the registered homepage's
-// actual renderer with five independent values and checks each destination.
+// actual renderer with three independent values and checks each destination.
 func TestHomeProjectMetricsUseSnapshotValues(t *testing.T) {
 	paths := metricHomeFixture(t)
 	if _, err := renderHome(paths); err != nil {
@@ -48,8 +48,6 @@ func TestHomeProjectMetricsUseSnapshotValues(t *testing.T) {
 		"repo.go_source_lines_display": {"2.35 million", "lines of Go source code", "project/activity/"},
 		"repo.go_test_lines_display":   {"3.46 million", "lines of Go test code", "project/activity/"},
 		"repo.go_vendor_lines_display": {"4.57 million", "lines of third-party Go code", "project/activity/"},
-		"plugin_registrations":         {"87", "Plugins", "reference/plugins/"},
-		"cli_commands":                 {"612", "CLI commands", "reference/cli/"},
 	}
 	seen := make(map[string]bool)
 	var order []string
@@ -88,8 +86,8 @@ func TestHomeProjectMetricsUseSnapshotValues(t *testing.T) {
 			t.Errorf("homepage lacks metric %s with its label and destination", key)
 		}
 	}
-	if got := strings.Join(order, ","); got != "repo.go_source_lines_display,repo.go_test_lines_display,repo.go_vendor_lines_display,plugin_registrations,cli_commands" {
-		t.Errorf("homepage metric order = %s, want source, tests, third-party, plugins, commands", got)
+	if got := strings.Join(order, ","); got != "repo.go_source_lines_display,repo.go_test_lines_display,repo.go_vendor_lines_display" {
+		t.Errorf("homepage metric order = %s, want source, tests, third-party", got)
 	}
 }
 
@@ -195,7 +193,7 @@ func TestHomeOpeningKeepsLinkedCapabilities(t *testing.T) {
 	collect(opening)
 	for _, href := range []string{
 		"guides/bgp-peering/", "guides/isis/", "guides/ospf/", "features/interfaces/",
-		"guides/ipsec/", "features/interfaces/#wireguard-configuration", "reference/plugins/fib-kernel/",
+		"guides/ipsec/", "reference/plugins/", "reference/plugins/dhcpserver/",
 		"features/bgp-configuration/", "features/web-interface/", "features/cli-commands/",
 		"features/mcp-integration/", "features/api-commands/", "guides/api/#rest-endpoints",
 		"guides/api/#grpc-services", "guides/gnmi/", "architecture/", "guides/appliance/",
@@ -242,19 +240,18 @@ func TestHomeIntroMergesLinkedRouting(t *testing.T) {
 	}
 	collect(intro)
 	for _, href := range []string{
-		"guides/bgp-peering/", "guides/ospf/", "guides/isis/", "features/interfaces/",
-		"guides/ipsec/", "features/interfaces/#wireguard-configuration", "reference/plugins/fib-kernel/",
-		"reference/configuration/", "features/cli-commands/", "features/web-interface/", "features/api-commands/",
-		"reference/plugins/fib-vpp/",
+		"architecture/", "reference/plugins/", "guides/bgp-peering/", "guides/ospf/", "guides/isis/",
+		"guides/ipsec/", "features/interfaces/", "reference/plugins/dhcpserver/", "features/",
+		"reference/configuration/", "features/cli-commands/", "features/web-interface/",
+		"features/mcp-integration/", "features/api-commands/", "developers/plugins/", "guides/appliance/",
 	} {
 		if !links[href] {
 			t.Errorf("introduction lacks useful link %s", href)
 		}
 	}
-	for _, text := range []string{"Linux", "services", "tunnels", "FIB or VPP forwarding"} {
-		if !strings.Contains(metricNodeText(intro), text) {
-			t.Errorf("introduction lacks routing or management information %q", text)
-		}
+	want := "Ze is built on a configuration and plugin engine, with pre-installed plugins for BGP, OSPF, IS-IS, VPNs, interfaces, DNS, DHCP and other network functions. Its single YANG-defined configuration can be managed through Ze’s own SSH server, CLI, web interface, MCP and APIs. You can develop your own plugins in any programming language and run Ze as a Linux daemon or an appliance with a read-only operating system."
+	if got := strings.Join(strings.Fields(metricNodeText(intro)), " "); got != want {
+		t.Errorf("introduction = %q, want %q", got, want)
 	}
 	if strings.Contains(metricNodeText(root), "Route and connect") {
 		t.Error("homepage retains the routing heading after its content was merged")

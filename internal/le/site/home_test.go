@@ -73,7 +73,9 @@ func homeFixtureWeeks() []string {
 // published it, cut to the numbers the proof strip shows.
 //
 // These are rendering inputs, not claims about the checkout's current counts.
-// Facts freshness is checked against re-derivation elsewhere.
+// Facts freshness is checked against re-derivation elsewhere. The expanded
+// interoperability inventory is controlled rendering input for the current
+// homepage, not a claim about what gh-pages 2fa8fa2ad published.
 //
 // The five proof-share keys are the exception: that build published two
 // absolute counts and no share at all, so there is nothing to carry forward.
@@ -89,7 +91,11 @@ const publishedFactsSnapshot = `{
            "go_vendor_lines": 1999450, "go_vendor_lines_display": "2.00 million"},
   "features": {"categories": {"automate": 7, "observe": 9, "operate": 6, "platform": 6,
                "routing": 9, "secure": 6, "services": 9}},
-  "interop": {"target_display": "9"},
+  "interop": {"target_display": "13", "targets": 13, "scenarios": 399, "suite_count": 8,
+    "protocols": {"bgp": 144, "ospfv2": 36, "ospfv3": 20, "isis": 14, "bfd": 5,
+      "bmp": 4, "rpki": 3, "vrrp": 2, "dns": 2, "dhcpv4": 3, "dhcpv6": 2,
+      "ldp": 3, "as112": 6, "gtsm": 1, "ipsec": 85, "l2tp": 13, "pppoe": 16,
+      "radius": 12, "rsvpte": 10, "topology": 18, "other": 0}},
   "rfc": {"enrolled_display": "171", "gated_must_display": "2,972",
           "must_kept_display": "2,966", "implemented_display": "140",
           "inspected_display": "171", "not_walked_display": "31",
@@ -302,36 +308,46 @@ func firstMismatch(got, want string) (string, string) {
 func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 	page, _ := renderHomeFixture(t)
 	spans := []string{
-		`<span data-ze-stat="tests.unit_display">23,700+</span>`,
-		`<span data-ze-stat="tests.e2e_display">1,700+</span>`,
-		`<span data-ze-stat="tests.fuzz_display">78</span>`,
-		`<span data-ze-stat="interop.target_display">9</span>`,
-		`<span data-ze-stat="rfc.proven_display">1,609</span>`,
-		`<span data-ze-stat="rfc.must_kept_display">2,966</span>`,
-		`<span data-ze-stat="rfc.proven_percent">54.2</span>`,
-		`<span data-ze-stat="rfc.implemented_display">140</span>`,
-		`<span data-ze-stat="rfc.not_walked_display">31</span>`,
+		markedFact("tests.unit_display", "23,700+"), markedFact("tests.e2e_display", "1,700+"),
+		markedFact("tests.fuzz_display", "78"), markedFact("interop.target_display", "13"),
+		markedFact("rfc.proven_display", "1,609"), markedFact("rfc.must_kept_display", "2,966"),
+		markedFact("rfc.proven_percent", "54.2"), markedFact("rfc.implemented_display", "140"),
+		markedFact("rfc.not_walked_display", "31"),
 	}
-	strip := sliceBetween(t, page, `<div class="proof-strip"`, `<div class="interop-strip"`)
+	for key, count := range map[string]string{
+		"bgp": "144", "ospfv2": "36", "ospfv3": "20", "isis": "14", "bfd": "5", "bmp": "4",
+		"rpki": "3", "vrrp": "2", "dns": "2", "dhcpv4": "3", "dhcpv6": "2", "ldp": "3",
+		"as112": "6", "gtsm": "1", "ipsec": "85", "l2tp": "13", "pppoe": "16", "radius": "12",
+		"rsvpte": "10", "topology": "18",
+	} {
+		spans = append(spans, markedFact("interop.protocols."+key, count))
+	}
+	// The total appears in the headline, table heading and footer; suite count appears twice.
+	for range 3 {
+		spans = append(spans, markedFact("interop.scenarios", "399"))
+	}
+	for range 2 {
+		spans = append(spans, markedFact("interop.suite_count", "8"))
+	}
+	strip := sliceBetween(t, page, `<section id="proof"`, `<div class="interop-strip"`)
 	for _, span := range spans {
 		if !strings.Contains(strip, span) {
-			t.Errorf("the proof strip does not carry %s", span)
+			t.Errorf("the proof section does not carry %s", span)
 		}
 	}
 	if count := strings.Count(strip, `data-ze-stat=`); count != len(spans) {
-		t.Errorf("the proof strip carries %d stat spans, want %d", count, len(spans))
+		t.Errorf("the proof section carries %d stat spans, want %d", count, len(spans))
 	}
 	// The category buttons carry one marked count each, outside the strip.
 	categories := strings.Count(page, `data-ze-stat="features.categories.`)
 	if categories != len(legendCategories) {
 		t.Errorf("the category buttons carry %d stat spans, want %d", categories, len(legendCategories))
 	}
-	// The hero's five project metrics are the only other marked values on the
-	// page: TestHomeProjectMetricsUseSnapshotValues names each one.
-	const heroMetrics = 5
-	if count := strings.Count(page, `data-ze-stat=`) - categories - len(spans); count != heroMetrics {
-		t.Errorf("the homepage carries %d stat spans outside the proof strip and the category buttons, want the hero's %d",
-			count, heroMetrics)
+	// Three hero figures and two reference counts remain outside the proof section.
+	const otherMetrics = 5
+	if count := strings.Count(page, `data-ze-stat=`) - categories - len(spans); count != otherMetrics {
+		t.Errorf("the homepage carries %d stat spans outside the proof strip and the category buttons, want three hero and two reference figures (%d)",
+			count, otherMetrics)
 	}
 }
 
@@ -339,18 +355,21 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 // than publishing a blank where a number belongs.
 func TestAFactTheSnapshotLostStopsTheHomepage(t *testing.T) {
 	paths := homeFixture(t)
-	writeArtifactFile(t, paths.Output, factsFile,
-		`{"cli_commands":499,"plugin_registrations":96,
-		  "repo":{"go_source_lines_display":"1.57 million","go_test_lines_display":"1.84 million",
-		          "go_vendor_lines_display":"2.00 million"},
-		  "features":{"categories":{"automate":7,"observe":9,"operate":6,"platform":6,
-		              "routing":9,"secure":6,"services":9}},
-		  "interop":{"target_display":"9"},
-		  "rfc":{"enrolled_display":"171","gated_must_display":"2,972",
-		         "must_kept_display":"2,966","implemented_display":"140",
-		         "inspected_display":"171","not_walked_display":"31","proven_percent":"54.2"},
-		  "tests":{"e2e_display":"1,700+","fuzz_display":"78","unit_display":"23,700+"}}`)
-	_, err := renderHome(paths)
+	var snapshot map[string]any
+	if err := json.Unmarshal([]byte(publishedFactsSnapshot), &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	rfc, ok := snapshot["rfc"].(map[string]any)
+	if !ok {
+		t.Fatal("the fixture has no RFC facts object")
+	}
+	delete(rfc, "proven_display")
+	content, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeArtifactFile(t, paths.Output, factsFile, string(content))
+	_, err = renderHome(paths)
 	if err == nil {
 		t.Fatal("a snapshot with no proven count published a homepage with a blank")
 	}
@@ -371,13 +390,16 @@ func TestTheHomepageCardsKeepTheDataFilesOwnOrder(t *testing.T) {
 	if err := readSourceJSON(paths.Source, audienceDataFile, &audience); err != nil {
 		t.Fatal(err)
 	}
-	if len(audience.Run) != 3 || len(audience.Who) != 7 {
-		t.Fatalf("the published audience file holds %d run cards and %d use cases, want 3 and 7",
+	if len(audience.Run) != 4 || len(audience.Who) != 7 {
+		t.Fatalf("the published audience file holds %d run cards and %d use cases, want 4 and 7",
 			len(audience.Run), len(audience.Who))
 	}
 	previous := 0
 	for _, card := range append(append([]audienceCard{}, audience.Run...), audience.Who...) {
-		at := strings.Index(page, ">"+card.Title+"</a></h3>")
+		at := strings.Index(page, ">"+card.Title+"</h3>")
+		if at < 0 {
+			at = strings.Index(page, ">"+card.Title+"</a></h3>")
+		}
 		if at < 0 {
 			t.Fatalf("the homepage shows no card titled %q", card.Title)
 		}
@@ -386,8 +408,8 @@ func TestTheHomepageCardsKeepTheDataFilesOwnOrder(t *testing.T) {
 		}
 		previous = at
 	}
-	if got := strings.Count(page, `class="card audience-card`); got != 10 {
-		t.Errorf("the homepage shows %d audience cards, want 10", got)
+	if got := strings.Count(page, `class="card audience-card`); got != 7 {
+		t.Errorf("the homepage shows %d use-case cards, want 7", got)
 	}
 }
 

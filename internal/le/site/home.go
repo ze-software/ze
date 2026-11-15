@@ -56,7 +56,7 @@ const homeSummaryRunes = 108
 // audienceData is website/data/audience.json: the two card grids the homepage
 // shows, each in the file's own order.
 //
-// Run is the "Run paths" grid and Who is the "Safe ways to try Ze" grid. The
+// Run is the "Choose how to try Ze" grid and Who is the "Safe ways to try Ze" grid. The
 // order is the author's, so nothing here sorts.
 type audienceData struct {
 	Run []audienceCard `json:"run"`
@@ -65,15 +65,20 @@ type audienceData struct {
 
 // audienceCard is one card of either grid.
 //
-// Category identifies the subject; omission is neutral. Link is optional: a
-// card with none shows no call to action.
+// Category identifies the Who card subject; omission is neutral. Who links
+// are optional. Run cards require a label, success check and primary link;
+// recommendation and secondary link are optional Run-only fields.
 type audienceCard struct {
-	Title    string        `json:"title"`
-	Label    string        `json:"label"`
-	Category string        `json:"category"`
-	Chips    []string      `json:"chips"`
-	Body     string        `json:"body"`
-	Link     *audienceLink `json:"link"`
+	Title          string        `json:"title"`
+	Label          string        `json:"label"`
+	Category       string        `json:"category"`
+	Chips          []string      `json:"chips"`
+	Body           string        `json:"body"`
+	Link           *audienceLink `json:"link"`
+	SecondaryLink  *audienceLink `json:"secondary_link"`
+	SuccessLabel   string        `json:"success_label"`
+	Success        string        `json:"success"`
+	Recommendation string        `json:"recommendation"`
 }
 
 // audienceLink is a card's call to action: where it goes, what it says, and the
@@ -274,7 +279,7 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	if err != nil {
 		return "", err
 	}
-	runCards, err := audienceCards(audience.Run)
+	runCards, err := homeRunCards(audience.Run)
 	if err != nil {
 		return "", err
 	}
@@ -290,10 +295,15 @@ func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureDa
 	if err != nil {
 		return "", err
 	}
+	otherRow, err := homeInteropOtherRow(snapshot)
+	if err != nil {
+		return "", err
+	}
 	slots := append([]string(nil), hero...)
 	slots = append(slots,
 		"{whats_new}", news,
 		"{run_cards}", runCards,
+		"{interop_other_row}", otherRow,
 		"{who_cards}", whoCards,
 		"{category_links}", categoryLinks,
 		"{feature_overview}", homeFeatureOverview(features),
@@ -338,6 +348,84 @@ func everySlotFilled(slots []string) error {
 	return nil
 }
 
+// homeInteropOtherRow keeps scenarios outside the named protocol rows visible.
+// Older snapshots can omit this bucket; a nonzero bucket always reaches the table.
+func homeInteropOtherRow(snapshot siteFactSnapshot) (string, error) {
+	value, found := snapshot.value("interop.protocols.other")
+	if !found {
+		return "", nil
+	}
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		return "", fmt.Errorf("interop.protocols.other is not a scenario count: %w", err)
+	}
+	if count < 0 {
+		return "", fmt.Errorf("interop.protocols.other is negative")
+	}
+	if count == 0 {
+		return "", nil
+	}
+	return `                            <tr role="row"><th scope="row" role="rowheader">Other protocols</th><td role="cell">` +
+		markedFact("interop.protocols.other", value) + `</td><td role="cell">Scenarios whose primary protocol is outside the named rows.</td></tr>`, nil
+}
+
+// homeRunCards gives each deployment choice the same five rows so the call to
+// action stays aligned while its authored description and success check vary.
+func homeRunCards(cards []audienceCard) (string, error) {
+	var out textbuf.Buffer
+	for index := range cards {
+		card := &cards[index]
+		if err := validateAudienceCard(card); err != nil {
+			return "", err
+		}
+		if card.Label == "" {
+			return "", fmt.Errorf("the run card %q states no label", card.Title)
+		}
+		if card.SuccessLabel == "" {
+			return "", fmt.Errorf("the run card %q states no success label", card.Title)
+		}
+		if card.Success == "" {
+			return "", fmt.Errorf("the run card %q states no success check", card.Title)
+		}
+		if card.Link == nil {
+			return "", fmt.Errorf("the run card %q states no link", card.Title)
+		}
+		if card.SecondaryLink != nil {
+			if card.SecondaryLink.Href == "" {
+				return "", fmt.Errorf("the run card %q states a secondary link with no href", card.Title)
+			}
+			if card.SecondaryLink.Label == "" {
+				return "", fmt.Errorf("the run card %q states a secondary link with no label", card.Title)
+			}
+		}
+		out.Str(`                    <article class="index4-choice`)
+		if card.Recommendation != "" {
+			out.Str(" index4-choice-featured")
+		}
+		out.Str(`">` + "\n" + `                        <div class="index4-choice-top"><span class="index4-choice-badge">`).
+			Str(html.EscapeString(card.Label)).Str("</span>")
+		if card.Recommendation != "" {
+			out.Str(`<span class="index4-recommendation">`).Str(html.EscapeString(card.Recommendation)).Str("</span>")
+		}
+		out.Str("</div>\n                        <h3>").Str(html.EscapeString(card.Title)).Str("</h3>\n                        <p>").
+			Str(html.EscapeString(card.Body)).Str("</p>\n")
+		out.Str(`                        <p class="index4-success"><strong>`).Str(html.EscapeString(card.SuccessLabel)).
+			Str("</strong>").Str(html.EscapeString(card.Success)).Str("</p>\n")
+		if card.SecondaryLink == nil {
+			out.Str(`                        <a class="index4-choice-link" href="`).Str(html.EscapeString(card.Link.Href)).
+				Str(`">`).Str(html.EscapeString(card.Link.Label)).Str(` <span aria-hidden="true">→</span></a>`)
+		} else {
+			out.Str(`                        <div class="index4-choice-links">`)
+			for _, link := range []*audienceLink{card.Link, card.SecondaryLink} {
+				out.Str(`<a href="`).Str(html.EscapeString(link.Href)).Str(`">`).Str(html.EscapeString(link.Label)).Str(" →</a>")
+			}
+			out.Str("</div>")
+		}
+		out.Str("\n                    </article>\n")
+	}
+	return out.String(), nil
+}
+
 // audienceCards renders one grid of the homepage, in the data file's own order.
 func audienceCards(cards []audienceCard) (string, error) {
 	rendered := make([]string, 0, len(cards))
@@ -351,6 +439,25 @@ func audienceCards(cards []audienceCard) (string, error) {
 	return strings.Join(rendered, "\n"), nil
 }
 
+// validateAudienceCard checks shared authored fields before either grid renders.
+func validateAudienceCard(card *audienceCard) error {
+	if card.Title == "" {
+		return fmt.Errorf("an audience card in data/%s states no title", audienceDataFile)
+	}
+	if card.Body == "" {
+		return fmt.Errorf("the audience card %q states no body", card.Title)
+	}
+	if card.Link != nil {
+		if card.Link.Href == "" {
+			return fmt.Errorf("the audience card %q states a link with no href", card.Title)
+		}
+		if card.Link.Label == "" {
+			return fmt.Errorf("the audience card %q states a link with no label", card.Title)
+		}
+	}
+	return nil
+}
+
 // audienceCardHTML renders one card of a homepage grid.
 //
 // A card with no title or no body is refused by name. The retired renderer
@@ -358,11 +465,8 @@ func audienceCards(cards []audienceCard) (string, error) {
 // second, and an empty card on the homepage is a hole a reader meets before
 // anything else on the site.
 func audienceCardHTML(card *audienceCard) (string, error) {
-	if card.Title == "" {
-		return "", fmt.Errorf("an audience card in data/%s states no title", audienceDataFile)
-	}
-	if card.Body == "" {
-		return "", fmt.Errorf("the audience card %q states no body", card.Title)
+	if err := validateAudienceCard(card); err != nil {
+		return "", err
 	}
 	category, err := cardCategory(card.Category)
 	if err != nil {
@@ -375,12 +479,6 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 	title := html.EscapeString(card.Title)
 	action := ""
 	if card.Link != nil {
-		if card.Link.Href == "" {
-			return "", fmt.Errorf("the audience card %q states a link with no href", card.Title)
-		}
-		if card.Link.Label == "" {
-			return "", fmt.Errorf("the audience card %q states a link with no label", card.Title)
-		}
 		title = `<a href="` + html.EscapeString(card.Link.Href) + `">` + title + `</a>`
 		action = "                        <span class=\"audience-card-cta\">" + html.EscapeString(card.Link.Label) +
 			" <small>" + html.EscapeString(card.Link.Sublabel) + "</small></span>\n"
