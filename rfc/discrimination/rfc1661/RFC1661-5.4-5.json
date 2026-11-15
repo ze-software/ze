@@ -7,29 +7,29 @@
     "claim-sha": "a473b30ffa6dfead",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
-    "producer-sha": "abd4485d9d816b85",
-    "break": "line 1057: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
+    "producer-sha": "0a3d4bde51684a19",
+    "break": "line 1118: \"if rejected.HasPrimary {\" -\u003e \"if false {\""
   },
   {
     "rid": "RFC1661-5.4-5",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions",
-    "unit-sha": "3d2d0454a890864a",
+    "unit-sha": "203f608da5d08db5",
     "claim-sha": "95763fc7a7948101",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "8b1c1dfd13a0c73c",
+    "producer-sha": "824c89b420634628",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-5.4-5",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions",
-    "unit-sha": "3d2d0454a890864a",
+    "unit-sha": "203f608da5d08db5",
     "claim-sha": "a1949ec1622f828c",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "8b1c1dfd13a0c73c",
+    "producer-sha": "824c89b420634628",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

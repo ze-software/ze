@@ -2888,6 +2888,20 @@ times the request budget bounds a peer that repeatedly refuses negotiation.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
 
+`max-failure` accepts 1 to 255 consecutive Configure-Naks (default 5). After
+that limit, further unacceptable peer options are rejected with their original
+bytes. A sent Configure-Ack renews the Nak budget. A change applies to the next
+session and its later LCP renegotiations.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+
+The `ipv6cp restart-timer` leaf controls IPv6CP retries separately from IPCP.
+It accepts 100 to 60000 milliseconds and defaults to 3000. IPv6CP stops after
+ten unanswered requests while IPv4 can continue. Changes apply to the next
+session, including later renegotiations on that session.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client ipv6cp -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- newClientIPv6CP, tick -->
+
 Two more blocks tune dead-peer detection and the redial hold-off of each client.
 `keepalive interval` (1 to 3600 seconds, default 10) is the time between two
 LCP Echo-Requests, and `keepalive failures` (1 to 255, default 3) ends the
@@ -2908,6 +2922,10 @@ interface {
         lcp {
             restart-timer 500;
             max-configure 3;
+            max-failure 2;
+        }
+        ipv6cp {
+            restart-timer 500;
         }
         keepalive { interval 5; failures 4; }
         reconnect { delay-min 5; delay-max 120; }
@@ -4677,6 +4695,19 @@ pppoe {
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
 | `interface / max-sessions-per-mac` | uint16 | (global) | Per-interface override for max-sessions-per-mac. |
+| `lcp / restart-timer` | uint16 | 3000 | Wait in milliseconds after each LCP request, 100..60000. |
+| `lcp / max-terminate` | uint8 | 2 | Terminate-Requests without a Terminate-Ack, 1..255, including the first. |
+| `lcp / max-configure` | uint8 | 10 | Configure-Requests without a valid Configure-Ack, Nak or Reject, 1..255. |
+| `lcp / max-failure` | uint8 | 5 | Configure-Naks without a sent Configure-Ack, 1..255. Further unacceptable options receive Reject. |
+
+The same four `lcp` leaves are available under `l2tp`. Their defaults are
+declared once in the shared PPP schema. Both transports copy the values into a
+new session. Reload changes the next admission and preserves existing sessions.
+The Restart timer applies to Configure-Request, Terminate-Request and the
+Zero-Restart-Count action. The default silent-peer negotiation budget is 30 seconds.
+
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared server LCP defaults -->
+<!-- source: internal/component/l2tp/ppp/lcp_config.go -- LCPConfig -->
 
 Without `authentication-allow`, the effective policy is `[chap-md5]` for
 `chap-md5`, `[ms-chap-v2]` for `ms-chap-v2`, `[chap-md5 pap]` for `pap`,

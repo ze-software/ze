@@ -77,7 +77,7 @@ func TestPPPStoppedDispatcherClosesQueuedDescriptors(t *testing.T) {
 		dispatchDone: make(chan struct{}),
 		stopped:      true,
 	}
-	driver.sessionsIn <- StartSession{ChanFD: channel, UnitFD: unit}
+	driver.sessionsIn <- StartSession{LCP: testLCPConfig(), ChanFD: channel, UnitFD: unit}
 	close(driver.stopCh)
 	driver.dispatch()
 	for _, fd := range []int{channel, unit} {

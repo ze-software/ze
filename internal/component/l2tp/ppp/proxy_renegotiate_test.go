@@ -21,6 +21,7 @@ func proxyStreamCHAP() []byte {
 // with CHAP-MD5 configured and both NCPs off so LCP and auth are all it runs.
 func proxyStart(fd int, stream []byte, renegotiate bool) StartSession {
 	return StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           uint16(fd),
 		ChanFD:              fd,

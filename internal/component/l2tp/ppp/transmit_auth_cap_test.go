@@ -47,6 +47,7 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 					peer := optStream(mruOpt(tc.peer), magicOpt(0x11223344))
 					local := optStream(mruOpt(tc.cap), magicOpt(0x01020304), authProtoOpt(proto, authData...))
 					d.SessionsIn() <- StartSession{
+						LCP:      testLCPConfig(),
 						TunnelID: 24, SessionID: 1, ChanFD: 24101, UnitFD: 24102, UnitNum: 7,
 						MaxMRU: tc.cap, AuthMethod: method, AuthFallbackOrder: []AuthMethod{method}, AuthRequired: true,
 						DisableIPCP: true, DisableIPv6CP: true,

@@ -166,6 +166,7 @@ func startProxyMRUOptionEncodingDriver(t *testing.T, cap uint16, initial, local,
 		d.Stop()
 	})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            24,
 		SessionID:           1,
 		ChanFD:              24001,

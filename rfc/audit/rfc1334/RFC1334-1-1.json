@@ -1,13 +1,14 @@
 {
-  "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
+  "code": {},
+  "note": "Independent rejudgment 2026-11-15 against RFC 1334 Section 1: \"If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase.\" The current short row accurately records RFC1994-1-1 as the restatement. TestLocalCONFREQAdvertisesAuthMethod starts the actual Driver with valid LCP configuration and an explicit single-method fallback policy, reads its first LCP Configure-Request and asserts the Authentication-Protocol value for PAP, CHAP-MD5 and MS-CHAPv2, including the exact CHAP algorithm and PAP data length. The distinct TestAuthProtoRejectClearsMethod first verifies a real PAP offer, sends a canonical Configure-Reject with the current request Identifier and original authentication bytes, and requires the next Configure-Request to omit Authentication-Protocol when optional authentication becomes None. These are different producer conditions, not a neighbouring malformed-packet rule. spawnSession preserves the method, sendConfigureRequest calls authMethodToLCPOptions and BuildLocalConfigRequest, and validated Reject dispatch clears it before SCR. Fixture LCP values add valid admission without changing the wire assertions. Existing native discrimination was retaken by the main thread; this note claims no additional semantic coverage from a producer-disabled panic.",
   "requirement_sha": "093f9a2e6c9c7f8d",
   "tests": {
-    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "3e703019f5a4f6fa",
-    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "3e703019f5a4f6fa"
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "e9dbeed76a179ddb",
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "e9dbeed76a179ddb"
   },
   "units": {
-    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "fd7d02df859049d4",
-    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "986db7580b77147a"
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "ec07af0441aac70e",
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "49bbd0c6f3f0f0ff"
   },
   "verdict": "enforced"
 }

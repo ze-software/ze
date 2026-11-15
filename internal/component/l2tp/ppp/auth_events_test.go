@@ -118,6 +118,7 @@ func TestDriverStopSessionDuringAuthPhase(t *testing.T) {
 	// (and therefore runAuthPhase) without needing a scripted peer.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            11,
 		SessionID:           22,
 		ChanFD:              7001,
@@ -180,6 +181,7 @@ func TestRunAuthPhaseTimeout(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            30,
 		SessionID:           40,
 		ChanFD:              7101,
@@ -241,6 +243,7 @@ func TestRunAuthPhaseReject(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            50,
 		SessionID:           60,
 		ChanFD:              7201,
@@ -314,6 +317,7 @@ func TestEventAuthRequestContent(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            55,
 		SessionID:           66,
 		ChanFD:              7301,
@@ -371,6 +375,7 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            70,
 		SessionID:           80,
 		ChanFD:              7401,

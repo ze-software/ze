@@ -20,12 +20,14 @@ import (
 // keepalive or reconnect leaf. TestPPPoEClientKeepaliveDefaults proves the
 // parse yields exactly this value, so fixtures that use it run at the defaults.
 var testPPPoETiming = PPPoEClientTiming{
-	LCPRestartTimer:   3 * time.Second,
-	LCPMaxConfigure:   10,
-	KeepaliveInterval: 10 * time.Second,
-	KeepaliveFailures: 3,
-	ReconnectDelayMin: time.Second,
-	ReconnectDelayMax: 60 * time.Second,
+	IPv6CPRestartTimer: 3 * time.Second,
+	LCPRestartTimer:    3 * time.Second,
+	LCPMaxConfigure:    10,
+	LCPMaxFailure:      5,
+	KeepaliveInterval:  10 * time.Second,
+	KeepaliveFailures:  3,
+	ReconnectDelayMin:  time.Second,
+	ReconnectDelayMax:  60 * time.Second,
 }
 
 // testPPPoEClientSchema resolves the timing containers from the real schema.
@@ -65,7 +67,8 @@ func TestPPPoEClientKeepaliveDefaults(t *testing.T) {
 	cfg, err = pppoeTimingJSON(t, `"interval": "4"`, `"delay-max": "30"`)
 	require.NoError(t, err)
 	assert.Equal(t, PPPoEClientTiming{
-		LCPRestartTimer: 3 * time.Second, LCPMaxConfigure: 10,
+		IPv6CPRestartTimer: 3 * time.Second,
+		LCPRestartTimer:    3 * time.Second, LCPMaxConfigure: 10, LCPMaxFailure: 5,
 		KeepaliveInterval: 4 * time.Second, KeepaliveFailures: 3,
 		ReconnectDelayMin: time.Second, ReconnectDelayMax: 30 * time.Second,
 	}, cfg.PPPoEClient[0].Timing)

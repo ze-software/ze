@@ -104,6 +104,7 @@ func TestNormalPathDispatchesCHAPMD5(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:        testLCPConfig(),
 		TunnelID:   301,
 		SessionID:  401,
 		ChanFD:     17001,
@@ -170,6 +171,7 @@ func TestNormalPathDispatchesMSCHAPv2(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:        testLCPConfig(),
 		TunnelID:   302,
 		SessionID:  402,
 		ChanFD:     17101,
@@ -372,6 +374,7 @@ func TestAuthFallbackOnNakProceedsToCHAP(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:               testLCPConfig(),
 		TunnelID:          303,
 		SessionID:         403,
 		ChanFD:            17201,

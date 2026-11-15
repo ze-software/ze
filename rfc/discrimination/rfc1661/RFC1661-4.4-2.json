@@ -2,13 +2,35 @@
   {
     "rid": "RFC1661-4.4-2",
     "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod",
+    "unit-sha": "bbd66e274765140a",
+    "claim-sha": "1416fc39de47821a",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::armRestartTimer",
+    "producer-sha": "202f0258ef300a55",
+    "break": "line 1849: \"s.restartTimer.Reset(s.lcpConfig.RestartTimer())\" -\u003e \"s.restartTimer.Reset(3 * time.Second)\""
+  },
+  {
+    "rid": "RFC1661-4.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPZeroRestartPeriod",
+    "unit-sha": "bbd66e274765140a",
+    "claim-sha": "86108ca43bdb41f1",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+    "producer-sha": "266e90dcbea5cd84",
+    "break": "line 1614: \"s.stopRestartTimer()\" -\u003e \"s.armRestartTimer()\""
+  },
+  {
+    "rid": "RFC1661-4.4-2",
+    "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer",
     "unit-sha": "8d7662cb7259127d",
     "claim-sha": "94163636fa5dc40c",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::armRestartTimer",
-    "producer-sha": "723de859687359ae",
-    "break": "body of armRestartTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "202f0258ef300a55",
+    "break": "body of armRestartTimer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-4.4-2",
@@ -18,7 +40,7 @@
     "claim-sha": "6ccdf85f8e5acfaf",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
-    "producer-sha": "8798b5437047a526",
+    "producer-sha": "266e90dcbea5cd84",
     "break": "body of applyTransition replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

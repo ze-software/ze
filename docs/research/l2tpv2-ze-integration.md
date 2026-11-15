@@ -1029,21 +1029,50 @@ Single goroutine manages all timers:
 Uses a priority queue (min-heap by deadline). Wakes up on the nearest
 deadline, processes all expired timers, calculates next wake.
 
-### 11.3 PPP worker pool
+### 11.3 PPP session ownership
 
-PPP negotiation (LCP/auth/IPCP/IPv6CP) involves reading from `/dev/ppp`
-file descriptors, which is blocking I/O. Use a fixed-size worker pool:
+Each admitted PPP session owns its main goroutine and one reader for each
+channel or unit descriptor. The main goroutine drives LCP, authentication and
+the NCPs. Shutdown closes the descriptors, waits for both readers, and returns
+queued frames to the pool before it releases the session.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- run, closeFiles, drainFramesToPool -->
 
-```go
-type pppWorkerPool struct {
-    sessions chan *pppSession
-    wg       sync.WaitGroup
-}
-```
+The LCP Restart timer is a stopped, per-session one-shot timer. Only a
+Configure-Request, Terminate-Request or Zero-Restart-Count action arms it.
+Each request transmission, including the first, spends one Restart count.
+Expiry selects TO+ or TO- from the remaining count. The session's immutable
+LCP configuration supplies the interval and Max-Configure or Max-Terminate.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, armRestartTimer, spendRestartCount, handleRestartTimeout -->
 
-Each worker picks up a session, runs the PPP FSM to completion (or timeout),
-then picks up the next. This bounds the number of concurrent PPP negotiations
-without creating a goroutine per session.
+Valid Nak/Reject replies can renew the RFC counter, so a separate convergence
+deadline bounds each negotiating lifetime at twice its configured silent-peer
+budget. A silent peer still exhausts the default ten requests in 30 seconds.
+A responsive nonconverging peer has 60 seconds at the defaults. Configured
+longer intervals are not cut short by an independent fixed 30-second timer.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- updateLCPConvergence -->
+
+The actual LCP transition stops the convergence timer on entering Opened and
+renews it on entering a new negotiation. This also applies when authentication
+or NCP processes a Configure-Request before it returns to the outer loop.
+A nested restart receives a full bound rather than the initial lifetime's remainder.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, armRestartTimer, spendRestartCount, handleRestartTimeout, updateLCPConvergence -->
+
+Max-Failure counts successfully sent Configure-Naks since the last successfully
+sent Configure-Ack. After the configured number of Naks, further unacceptable
+peer options draw a Configure-Reject carrying their original bytes. Permitted
+and absent locally desired options are excluded from that Reject. The shared
+converter preserves the first instance that earned each Nak. If a malformed
+duplicate caused the Nak after a permitted instance, only the malformed
+instance is rejected. The permitted instance is retained.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- sendConfigureNakOrReject, sendConfigureAck, LCPRejectNakOptions -->
+
+Leaving LCP Opened first disconnects the PPP channel and removes its NCP
+resources. EventLCPDown then waits for the transport's network-lifetime cleanup
+acknowledgment before the accompanying LCP responses are sent. Authentication
+and NCP negotiate anew on the same transport. An Echo keeps Opened and invokes
+none of this cleanup.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition, performAction, sendConfigureNakOrReject -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- resetNCP -->
 
 ### 11.4 Event emission
 
@@ -1114,6 +1143,38 @@ reintroduces the spin this design removes.
 ---
 
 ## 12. Package Layout
+
+Both server transports parse `lcp` settings through the shared PPP YANG
+grouping. Its defaults are 3000 milliseconds, Max-Terminate 2, Max-Configure 10
+and Max-Failure 5. `ppp.NewLCPConfig` validates the immutable snapshot before a
+transport places it in `StartSession.LCP`. `Driver.spawnSession` rejects a
+missing snapshot and copies an admitted one into the session. L2TP carries it
+through `reactorParams`, while PPPoE carries it through each interface-server
+generation.
+<!-- source: internal/component/l2tp/ppp/lcp_config.go -- NewLCPConfig -->
+<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP defaults -->
+
+Reload updates the next admission and preserves every running
+session's values, including across LCP renegotiation. No Go bootstrap defaults
+duplicate the grouping. CHAP retransmission and the proxied PAP wait retain
+their separate authentication timing.
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP defaults -->
+<!-- source: internal/component/l2tp/ppp/lcp_config.go -- NewLCPConfig -->
+<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
+<!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- applyInterfaceConfig -->
+
+The transport parser refuses unknown provider settings instead of silently
+using a default, and suggests the closest declared leaf with a complete
+transport-specific repair command. It renders invalid provider values as
+structured operator errors. Their final line restores the schema default with
+a complete `set l2tp lcp ...` or `set pppoe lcp ...` command. An unavailable or invalid
+shared schema instead identifies the required build repair. A leaf change
+cannot install a missing module.
+
+<!-- source: internal/component/l2tp/ppp/lcp_config.go -- NewLCPConfig -->
+<!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
+<!-- source: internal/component/l2tp/ppp/start_session.go -- StartSession.LCP -->
 
 ```
 internal/

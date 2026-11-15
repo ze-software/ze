@@ -116,6 +116,7 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 	events := make(chan Event, 16)
 	ops, _, _ := newFakeOps()
 	s := &pppSession{
+		lcpConfig:            testLCPConfig(),
 		tunnelID:             1,
 		sessionID:            2,
 		chanFile:             rec,

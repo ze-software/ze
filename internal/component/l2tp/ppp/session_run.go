@@ -29,29 +29,8 @@ import (
 const (
 	defaultEchoInterval  = 10 * time.Second
 	defaultEchoFailures  = 3
-	defaultNegoTimeout   = 30 * time.Second
 	defaultAuthTimeout   = 30 * time.Second
 	magicDrawMaxAttempts = 8
-
-	// RFC 1661 Section 4.6, Restart Timer: "The Restart timer MUST be
-	// configurable, but SHOULD default to three (3) seconds." Ze takes the
-	// recommended default.
-	defaultRestartTimer = 3 * time.Second
-
-	// RFC 1661 Section 4.6, Max-Terminate: "Max-Terminate indicates the
-	// number of Terminate-Request packets sent without receiving a
-	// Terminate-Ack before assuming that the peer is unable to respond.
-	// Max-Terminate MUST be configurable, but SHOULD default to two (2)
-	// transmissions." Ze takes the recommended default.
-	defaultMaxTerminate = 2
-
-	// RFC 1661 Section 4.6, Max-Configure: "Max-Configure indicates the
-	// number of Configure-Request packets sent without receiving a valid
-	// Configure-Ack, Configure-Nak or Configure-Reject before assuming that
-	// the peer is unable to respond. Max-Configure MUST be configurable, but
-	// SHOULD default to ten (10) transmissions." Ze takes the recommended
-	// default.
-	defaultMaxConfigure = 10
 )
 
 // frameBufPool supplies MaxFrameBufLen-byte buffers used for both reads
@@ -106,8 +85,8 @@ func drainFramesToPool(frames <-chan []byte) {
 // avoid the double-reader race between negotiation and opened
 // phases, and a SINGLE readUnitFrames goroutine for the unit, which
 // carries the NCP frames once the channel is connected. The main loop
-// differentiates phases via timer channel enablement (negoTimerC vs
-// echoTickerC).
+// gates the convergence timer at actual LCP transitions and enables the echo
+// ticker only after authentication and NCP complete.
 func (s *pppSession) run(start *StartSession) {
 	// Teardown order must be: close unitStop (ends a readUnitFrames that
 	// waits for a connect or a free queue slot) -> close both files
@@ -204,11 +183,23 @@ func (s *pppSession) run(start *StartSession) {
 	// has to guard. The proxy path starts Opened, which runs no Restart
 	// timer, and a later Terminate-Request from the peer arms it through
 	// zrc like any other session.
-	s.restartTimer = time.NewTimer(defaultRestartTimer)
+	s.restartTimer = time.NewTimer(s.lcpConfig.RestartTimer())
 	s.restartTimer.Stop()
 	defer s.restartTimer.Stop()
+	// The actual FSM edges own this separate bound. Authentication can see
+	// Opened and restart LCP before the outer loop observes either transition.
+	convergenceLimit := 2 * time.Duration(s.lcpConfig.MaxConfigure()) * s.lcpConfig.RestartTimer()
+	s.lcpConvergenceTimer = time.NewTimer(convergenceLimit)
+	s.lcpConvergenceTimer.Stop()
+	defer s.lcpConvergenceTimer.Stop()
 
 	if isProxy {
+		// RFC 1661 Section 4.4: "This action sets the Restart counter to the
+		// appropriate value (Max-Terminate or Max-Configure)."
+		// Accepted proxy LCP represents an exchange completed by the LAC.
+		// Match the counter left by RCA's IRC so an Opened RCR can spend the
+		// configured budget without adding IRC to that edge or arming its timer.
+		s.restartCount = s.lcpConfig.MaxConfigure()
 		negotiatedMethod := authMethodFromAuthProto(proxy.AuthProto, proxy.AuthData)
 		s.initialAuthMethod = s.configuredAuthMethod
 		s.authNegotiationStarted = true
@@ -260,19 +251,6 @@ func (s *pppSession) run(start *StartSession) {
 		}
 	}
 	opened := s.currentState() == LCPStateOpened
-
-	// Negotiation timeout timer. Active until Opened is reached
-	// (or skipped via proxy). After Opened the timer is stopped and
-	// negoTimerC is nil, so the select ignores it.
-	var (
-		negoTimer  *time.Timer
-		negoTimerC <-chan time.Time
-	)
-	if !opened {
-		negoTimer = time.NewTimer(defaultNegoTimeout)
-		defer negoTimer.Stop()
-		negoTimerC = negoTimer.C
-	}
 
 	// Echo ticker. Enabled after Opened. In the proxy path we are
 	// already Opened, so enable immediately.
@@ -387,9 +365,9 @@ func (s *pppSession) run(start *StartSession) {
 				return
 			}
 
-		case <-negoTimerC:
+		case <-s.lcpConvergenceTimer.C:
 			var tb textbuf.Buffer
-			s.fail(tb.Str("LCP negotiation timeout after ").Str(defaultNegoTimeout.String()).String())
+			s.fail(tb.Str("LCP convergence timeout after ").Str(convergenceLimit.String()).String())
 			return
 
 		case <-s.restartTimer.C:
@@ -479,10 +457,6 @@ func (s *pppSession) run(start *StartSession) {
 		}
 		// afterLCPOpen has completed authentication and NCP. Reset the
 		// tickers so a previous LCP lifetime cannot supply a pending tick.
-		if negoTimer != nil {
-			negoTimer.Stop()
-			negoTimerC = nil
-		}
 		s.mu.Lock()
 		s.echoOutstanding = 0
 		s.mu.Unlock()
@@ -1539,15 +1513,17 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 			return s.refuseAuthMethod(cur, pkt)
 		}
 	}
+	// RFC 1661 Section 4.5.
+	s.updateLCPConvergence(cur, tr.NewState)
 	// RFC 1661 Section 4.4, Initialize-Restart-Count: "This action sets the
 	// Restart counter to the appropriate value (Max-Terminate or
 	// Max-Configure)." The Section 4.1 table pairs irc with either str or
 	// scr inside one transition, so the companion action is what names which
 	// of the two values the counter takes.
-	restartMax := defaultMaxConfigure
+	restartMax := s.lcpConfig.MaxConfigure()
 	for _, act := range tr.Actions {
 		if act == LCPActSTR {
-			restartMax = defaultMaxTerminate
+			restartMax = s.lcpConfig.MaxTerminate()
 		}
 	}
 
@@ -1671,6 +1647,40 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 	}
 
 	return false
+}
+
+// updateLCPConvergence bounds a responsive peer's Nak loop separately from the
+// RFC Restart counter. Entering a fresh negotiating lifetime renews the bound;
+// replies within that lifetime do not. run MUST create and stop the owned timer.
+// RFC 1661 Section 4.5: "Implementors should keep this in mind and SHOULD
+// implement loop detection mechanisms or higher level timeouts."
+func (s *pppSession) updateLCPConvergence(previous, next LCPState) {
+	if s.lcpConvergenceTimer == nil {
+		// Direct transition tests need no running session or lifetime timer.
+		return
+	}
+	if !lcpNegotiating(next) {
+		s.lcpConvergenceTimer.Stop()
+		return
+	}
+	if lcpNegotiating(previous) {
+		return
+	}
+	limit := 2 * time.Duration(s.lcpConfig.MaxConfigure()) * s.lcpConfig.RestartTimer()
+	s.lcpConvergenceTimer.Reset(limit)
+}
+
+// lcpNegotiating classifies the three negotiation states; other states have
+// no convergence deadline because authentication and termination own theirs.
+func lcpNegotiating(state LCPState) bool {
+	// This predicate intentionally handles only the negotiating-state subset.
+	//exhaustive:ignore
+	switch state {
+	case LCPStateReqSent, LCPStateAckRcvd, LCPStateAckSent:
+		return true
+	default:
+		return false
+	}
 }
 
 // signalLayerFinished performs This-Layer-Finished for a Stopped the peer's
@@ -1836,7 +1846,7 @@ func (s *pppSession) armRestartTimer() {
 		return
 	}
 	s.restartTimer.Stop()
-	s.restartTimer.Reset(defaultRestartTimer)
+	s.restartTimer.Reset(s.lcpConfig.RestartTimer())
 }
 
 // spendRestartCount books one transmission of a Configure-Request or a
@@ -2006,6 +2016,9 @@ func (s *pppSession) sendConfigureAck(req LCPPacket) bool {
 	}
 	s.proxyCapture.noteRequestAnswered(req)
 	s.proxyCapture.noteRequestAcked(req)
+	// RFC 1661 Section 4.6 counts Naks "without sending a Configure-Ack".
+	// Only a successfully transmitted Ack starts a fresh Nak budget.
+	s.lcpNakCount = 0
 	return true
 }
 
@@ -2125,7 +2138,8 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 		return true
 	}
 
-	code, opts, reply := LCPNakOrReject(w, s.negPolicy())
+	policy := s.negPolicy()
+	code, opts, reply := LCPNakOrReject(w, policy)
 	if !reply {
 		// Ze judged the request unacceptable and holds no option to name in
 		// the answer. RFC 1661 Section 5.3 fills the Options field with
@@ -2137,6 +2151,17 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 			"id", req.Identifier,
 			"len", len(req.Data))
 		return true
+	}
+	if code == LCPConfigureNak {
+		if s.lcpNakCount >= s.lcpConfig.MaxFailure() {
+			// RFC 1661 Section 4.6: "Any further Configure-Nak packets for
+			// peer requested options are converted to Configure-Reject
+			// packets, and locally desired options are no longer appended."
+			// A Reject copies the peer's option, never the Nak's suggestion.
+			// RFC 1661 Section 5.4.
+			opts = LCPRejectNakOptions(w, opts, policy)
+			code = LCPConfigureReject
+		}
 	}
 
 	buf := getFrameBuf()
@@ -2163,7 +2188,64 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 		return false
 	}
 	off += WriteLCPPacket(buf, off, code, req.Identifier, buf[dataOff:dataOff+dataLen])
-	return s.writeFrame(buf[:off])
+	if !s.writeFrame(buf[:off]) {
+		return false
+	}
+	if code == LCPConfigureNak {
+		s.lcpNakCount++
+	}
+	return true
+}
+
+// LCPRejectNakOptions converts an actual Nak's suggestions back to the original
+// peer-requested instances. Callers MUST supply the walk and policy used for
+// that Nak; suggestions may also include their own authentication-policy Nak.
+// The received frame bounds both walks. Each Type is returned at most once.
+//
+// RFC 1661 Section 4.6: "Any further Configure-Nak packets for peer requested
+// options are converted to Configure-Reject packets, and locally desired
+// options are no longer appended."
+// RFC 1661 Section 5.4: "The Options field is filled with only the unacceptable
+// Configuration Options from the Configure-Request." The returned options
+// retain the original bytes and order required by the same section.
+func LCPRejectNakOptions(w LCPOptionWalk, suggestions []LCPOption, policy LCPNegPolicy) []LCPOption {
+	var refused [4]uint64
+	for _, opt := range suggestions {
+		refused[opt.Type/64] |= uint64(1) << (opt.Type % 64)
+	}
+	var listed [4]uint64
+	var rejects []LCPOption
+	for _, opt := range w.Options {
+		word, bit := opt.Type/64, uint64(1)<<(opt.Type%64)
+		if refused[word]&bit == 0 {
+			continue
+		}
+		if listed[word]&bit != 0 {
+			continue
+		}
+		listed[word] |= bit
+		if w.Fault == LCPOptionsBadLength {
+			if opt.Type == w.FaultOpt {
+				// The trailing malformed instance, rather than an acceptable
+				// earlier instance of this Type, may have caused the Nak.
+				// RFC 1661 Section 6.
+				outcome, _ := negotiatePeerOption(opt, policy)
+				if outcome == negAck {
+					continue
+				}
+			}
+		}
+		rejects = append(rejects, opt)
+		refused[word] &^= bit
+	}
+	if w.Fault == LCPOptionsBadLength {
+		if refused[w.FaultOpt/64]&(uint64(1)<<(w.FaultOpt%64)) != 0 {
+			if len(w.FaultRaw) >= lcpOptHeaderLen {
+				rejects = append(rejects, LCPOption{Type: w.FaultOpt, Raw: w.FaultRaw})
+			}
+		}
+	}
+	return rejects
 }
 
 // sendTerminateRequest emits a Terminate-Request with a fresh Identifier.

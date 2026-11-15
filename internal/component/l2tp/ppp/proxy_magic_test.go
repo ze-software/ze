@@ -74,6 +74,7 @@ func TestProxyLCPMalformedMagicRenegotiates(t *testing.T) {
 	sent := optStream(mruOpt(1500), magicOpt(0x01020304))
 	recv := optStream(mruOpt(1500), LCPOption{Type: LCPOptMagic, Data: []byte{1, 2}})
 	d.SessionsIn() <- StartSession{
+		LCP:      testLCPConfig(),
 		TunnelID: 29, SessionID: 5, ChanFD: 29401, UnitFD: 29402,
 		MaxMRU: 1500, DisableIPCP: true, DisableIPv6CP: true,
 		AuthTimeout: 5 * time.Second, IPTimeout: 5 * time.Second,

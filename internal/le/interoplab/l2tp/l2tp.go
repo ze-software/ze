@@ -39,6 +39,7 @@ const (
 	scenarioLNSCHAPOnly         = "l2tp-lns-chap-only-xl2tpd"
 	scenarioProxyMRU            = "l2tp-proxy-mru-transmit-cap"
 	scenarioRadiusFixture       = "l2tp-radius-acct-wire-fixture"
+	scenarioLCPRestart          = "lcp-restart-timer-pppd"
 
 	commandShow  = "show"
 	commandLink  = "link"
@@ -83,6 +84,7 @@ func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 		scenarioLNSCHAPOnly:         checker(checkLNSCHAPOnly, timeout, peerZe, peerLAC, peerRadius),
 		scenarioProxyMRU:            checker(checkProxyMRU, timeout, peerZe),
 		scenarioRadiusFixture:       checker(checkRadiusAccountingFixture, timeout, peerZe),
+		scenarioLCPRestart:          checker(checkLCPRestart, timeout, peerZe, peerLAC, peerAVPRelay),
 	}
 }
 
@@ -235,9 +237,9 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 		// The registered native LAC fixture runs inside Ze's container so it
 		// shares the kernel PPP namespace whose installed MTU it measures.
 		peers = []interoplab.PeerConfig{ze}
-	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject:
-		// Both put the relay between the LAC and Ze: the AVP scenario for
-		// control messages, the Code-Reject scenario for PPP frames.
+	case scenarioUnknownMandatoryAVP, scenarioPPPCodeReject, scenarioLCPRestart:
+		// The relay observes control messages and PPP frames without
+		// replacing xl2tpd's tunnel or pppd's negotiation.
 		relay, err := avpRelayPeer(environment.Suffix, network)
 		if err != nil {
 			return interoplab.PreparedScenario{}, err
@@ -419,7 +421,7 @@ func imageBuilds(root string, plans []interoplab.ScenarioPlan, frrImage string) 
 			name == scenarioLNSMRU || name == scenarioLNSOmittedMRU ||
 			name == scenarioLNSNegotiatedMRU || name == scenarioLNSCHAPOnly
 		needed[imageAVPRelay] = needed[imageAVPRelay] || name == scenarioUnknownMandatoryAVP ||
-			name == scenarioPPPCodeReject
+			name == scenarioPPPCodeReject || name == scenarioLCPRestart
 		needed[imageKnot] = needed[imageKnot] || name == scenarioDNSResolver
 	}
 	builds := slices.DeleteFunc(interoplab.SuiteImages(imageOwner, interoplab.ImageContext{Root: root}),

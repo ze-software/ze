@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-4.6-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxFailure",
+    "unit-sha": "0897334a1498cf90",
+    "claim-sha": "90c4a68d656bfbbb",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureNakOrReject",
+    "producer-sha": "35eb6f117df641c7",
+    "break": "line 2156: \"s.lcpNakCount \u003e= s.lcpConfig.MaxFailure()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC1661-4.6-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxFailure",
+    "unit-sha": "0897334a1498cf90",
+    "claim-sha": "44042f47a789b074",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureAck",
+    "producer-sha": "19ede7ebf60984f8",
+    "break": "line 2021: \"s.lcpNakCount = 0\" -\u003e \"s.lcpNakCount += 0\""
+  },
+  {
+    "rid": "RFC1661-4.6-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go::TestRFC1661ClientMaxFailureAckRenewsBudget",
+    "unit-sha": "a0733a298265d198",
+    "claim-sha": "0c4f058ce6cf92c8",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+    "producer-sha": "824c89b420634628",
+    "break": "line 477: \"naksSent = 0\" -\u003e \"naksSent += 0\""
+  },
+  {
+    "rid": "RFC1661-4.6-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_max_failure_test.go::TestRFC1661ClientMaxFailureConvertsFurtherNak",
+    "unit-sha": "8017539b057e3de4",
+    "claim-sha": "94c95f4c896abd0a",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+    "producer-sha": "824c89b420634628",
+    "break": "line 268: \"naksSent \u003e= cfg.lcpMaxFailure\" -\u003e \"naksSent \u003e= 5\""
+  }
+]

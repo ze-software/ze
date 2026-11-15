@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppconfig"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -208,6 +209,14 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 	}
 
 	// Hot-apply: auth/NCP settings for new sessions.
+	if prev.LCP != next.LCP {
+		s.params.LCP = next.LCP
+		for _, r := range s.reactors {
+			r.setLCPConfig(next.LCP)
+		}
+		s.logger.Info("l2tp reload: LCP retransmission settings updated for new sessions")
+		applied++
+	}
 	if prev.AuthTimeout != next.AuthTimeout {
 		s.params.AuthTimeout = next.AuthTimeout
 		for _, r := range s.reactors {
@@ -300,7 +309,12 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	if len(l2tpRoot) == 0 {
 		return Parameters{}, nil
 	}
+	lcp, err := pppconfig.ParseLCP("l2tp", l2tpRoot["lcp"])
+	if err != nil {
+		return Parameters{}, err
+	}
 	p := Parameters{
+		LCP:            lcp,
 		Enabled:        true,
 		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
 		HelloRetries:   DefaultHelloRetries,

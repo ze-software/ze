@@ -116,6 +116,14 @@ func (r *l2tpReactor) setAuthTimeout(d time.Duration) {
 	r.tunnelsMu.Unlock()
 }
 
+// setLCPConfig replaces the snapshot used by the next admitted session.
+// Caller MUST NOT hold tunnelsMu; existing sessions retain their own copies.
+func (r *l2tpReactor) setLCPConfig(c ppp.LCPConfig) {
+	r.tunnelsMu.Lock()
+	r.params.LCP = c
+	r.tunnelsMu.Unlock()
+}
+
 func (r *l2tpReactor) setReauthInterval(d time.Duration) {
 	r.tunnelsMu.Lock()
 	r.params.ReauthInterval = d

@@ -1,0 +1,46 @@
+module ze-ppp-lcp {
+    namespace "urn:ze:ppp:lcp";
+    prefix plcp;
+
+    import ze-extensions { prefix ze; }
+
+    description "Shared PPP LCP retransmission settings for L2TP and PPPoE servers.";
+
+    revision 2026-11-14 {
+        description "Configure the RFC 1661 Section 4.6 timer and counters.";
+    }
+
+    grouping lcp {
+        description "The LCP settings copied into each newly admitted PPP session.";
+        container lcp {
+            description "LCP retransmission settings for new sessions. Established sessions retain their admitted values.";
+            ze:help "LCP retransmission timer and limits for new sessions.";
+
+            leaf restart-timer {
+                type uint16 { range "100..60000"; }
+                units milliseconds;
+                default 3000;
+                description "Wait after each Configure-Request or Terminate-Request, and after zeroing the Restart counter. A shorter interval increases per-session wakeups. Changes apply to new sessions only.";
+                ze:help "LCP Restart timer in milliseconds, 100 to 60000, default 3000.";
+            }
+            leaf max-terminate {
+                type uint8 { range "1..255"; }
+                default 2;
+                description "Maximum Terminate-Request transmissions without a Terminate-Ack, including the first request. Changes apply to new sessions only.";
+                ze:help "Unanswered Terminate-Request transmission limit, 1 to 255, default 2.";
+            }
+            leaf max-configure {
+                type uint8 { range "1..255"; }
+                default 10;
+                description "Maximum Configure-Request transmissions without a valid Configure-Ack, Configure-Nak or Configure-Reject. Changes apply to new sessions only.";
+                ze:help "Unanswered Configure-Request transmission limit, 1 to 255, default 10.";
+            }
+            leaf max-failure {
+                type uint8 { range "1..255"; }
+                default 5;
+                description "Configure-Naks sent without a Configure-Ack before unacceptable options are rejected and desired options are no longer appended. Changes apply to new sessions only.";
+                ze:help "Configure-Nak limit before rejecting unacceptable options, 1 to 255, default 5.";
+            }
+        }
+    }
+}

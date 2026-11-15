@@ -301,6 +301,7 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:            testLCPConfig(),
 		TunnelID:       411,
 		SessionID:      511,
 		ChanFD:         18001,
@@ -465,6 +466,7 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:           testLCPConfig(),
 		TunnelID:      421,
 		SessionID:     521,
 		ChanFD:        18101,

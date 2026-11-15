@@ -76,6 +76,7 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           1,
 		ChanFD:              9001,
@@ -577,6 +578,7 @@ func TestIPTimeout(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            77,
 		SessionID:           88,
 		ChanFD:              12001,

@@ -1963,9 +1963,11 @@ Ze sends a priority with no entry as PCP 0.";
                 description "LCP retransmits an unanswered Configure-Request after restart-timer
                              milliseconds and ends negotiation after max-configure unanswered
                              requests. A valid negotiation reply renews the request budget. A
+                             sent Configure-Ack renews the max-failure limit on consecutive
+                             Configure-Naks; further unacceptable peer options are rejected. A
                              timing-only change keeps the running session and takes effect on the
                              next session, including its later LCP renegotiations.";
-                ze:help "LCP Configure-Request retransmission timer and request limit.";
+                ze:help "LCP retransmission timer and negotiation limits.";
 
                 leaf restart-timer {
                     type uint16 {
@@ -1988,6 +1990,38 @@ Ze sends a priority with no entry as PCP 0.";
                                  negotiation ends. The first request counts toward this limit.
                                  RFC 1661 Section 4.6 recommends the default of ten requests.";
                     ze:help "Maximum LCP Configure-Requests without a valid negotiation reply.";
+                }
+
+                leaf max-failure {
+                    type uint8 {
+                        range "1..255";
+                    }
+                    default 5;
+                    description "After this many consecutive Configure-Naks, further unacceptable
+                                 peer options receive Configure-Reject with their original bytes.
+                                 A sent Configure-Ack renews the limit. RFC 1661 Section 4.6
+                                 recommends the default of five Configure-Naks.";
+                    ze:help "Consecutive LCP Configure-Naks before rejecting unacceptable peer options.";
+                }
+            }
+
+            container ipv6cp {
+                description "IPv6CP configures the IPv6 link independently of IPCP. Its Restart
+                             timer controls retries while IPv6CP negotiates, including after an
+                             LCP restart. A timing-only change takes effect on the next session.
+                             The setting is retained even while IPv6 is disabled.";
+                ze:help "IPv6CP Configure-Request retransmission timer.";
+
+                leaf restart-timer {
+                    type uint16 {
+                        range "100..60000";
+                    }
+                    units milliseconds;
+                    default 3000;
+                    description "After each IPv6CP Configure-Request, wait this many milliseconds
+                                 before retrying. The default of three seconds follows RFC 1661
+                                 Section 4.6. A shorter timer can exhaust retries on a lossy link.";
+                    ze:help "Milliseconds before retrying an unanswered IPv6CP request.";
                 }
             }
 

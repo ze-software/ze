@@ -429,7 +429,7 @@ func (s *pppSession) serveFrameAwaitingDecision(f []byte, lcpState LCPState) boo
 
 // chapChallengeMax is the optional retry counter of RFC 1994 Section 4.1:
 // the most Challenges one authentication round sends before it gives up.
-// Ten, sent defaultRestartTimer apart, is pppd's authenticator default
+// Ten, sent three seconds apart, is pppd's authenticator default
 // (pppd/chap.c, chap_max_transmits and chap_server_timeout_time), so a Ze
 // LNS gives up on a silent peer when pppd would.
 const chapChallengeMax = 10
@@ -489,7 +489,8 @@ func waitCHAPLike[T any](
 	defer timer.Stop()
 	restart := s.chapRestart
 	if restart <= 0 {
-		restart = defaultRestartTimer
+		// CHAP has its own retransmission period; tuning LCP does not change it.
+		restart = 3 * time.Second
 	}
 	retransmit := time.NewTimer(restart)
 	defer retransmit.Stop()

@@ -61,6 +61,7 @@ type peerKey struct {
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
 type reactorParams struct {
+	LCP              ppp.LCPConfig
 	ServerName       string         // `environment l2tp server` key of this reactor's listener, for operator errors
 	ConfiguredListen netip.AddrPort // the listener the config declares now; a reload moves it, never the bound socket
 	MaxTunnels       uint16         // 0 = unbounded (by this knob; uint16 still caps at 65535)

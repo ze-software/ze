@@ -28,6 +28,12 @@ l2tp {
     allow-no-auth false;         // explicit opt-in required for no-auth
     proxy-lcp accept;            // LNS: accept the LAC's proxy LCP, or renegotiate
     mru 1500;                   // Information-field octets; 68..1500, IPv6 needs 1280
+    lcp {
+        restart-timer 3000;      // milliseconds, 100..60000
+        max-terminate 2;         // transmissions, including the first
+        max-configure 10;        // transmissions without a valid reply
+        max-failure 5;           // Naks before rejecting unacceptable options
+    }
     authentication {
         allow [ chap-md5 ];     // ordered permitted methods; optional
     }
@@ -52,6 +58,32 @@ Presence of `l2tp {}` with any content implies the subsystem is
 enabled. Set `enabled false` to disable explicitly. Listener endpoints
 use the standard `zt:listener` grouping (`ip`, `port`) with port
 conflict detection via `ze:listener`.
+
+The `lcp` settings control RFC 1661 retransmission on local PPP
+sessions. Each limit accepts 1 through 255. The Restart timer is restarted by
+each Configure-Request or Terminate-Request transmission, and by the
+Zero-Restart-Count action after the peer stops LCP. A silent peer receives
+exactly `max-configure` requests before negotiation ends. The defaults give a
+30-second budget.
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- armRestartTimer, spendRestartCount, handleRestartTimeout -->
+
+`max-failure` counts Configure-Naks sent since the last Configure-Ack.
+After that many Naks, Ze rejects unacceptable options.
+An accepted proxy LCP starts already Opened and sends no initial requests.
+It retains the configured request budget for a later peer-triggered LCP
+renegotiation. Its Restart timer stays stopped while Opened.
+
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
+<!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
+
+A responding peer can renew the request budget with valid negotiation replies.
+Each LCP negotiation therefore has a convergence deadline of twice the Restart
+timer times `max-configure`, or 60 seconds at the defaults. A new negotiation
+after Opened gets a new deadline. Replies within one negotiation do not extend
+that deadline.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- updateLCPConvergence, lcpNegotiating -->
 
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 
@@ -1538,6 +1570,7 @@ each knob according to this policy:
 | `mru` | Hot-apply to new PPP sessions; established sessions retain their requested MRU. |
 | `authentication/allow` | Hot-apply to new PPP sessions; existing sessions retain their policy. |
 | `authentication/timeout` | Hot-apply to new PPP sessions. |
+| `lcp/restart-timer`, `lcp/max-terminate`, `lcp/max-configure`, `lcp/max-failure` | Hot-apply to new PPP sessions. A running session retains all four admitted values, including across LCP renegotiation. |
 | `authentication/reauth-interval` | Hot-apply to new PPP sessions. |
 | `auth/local/user` | Apply replaces the local credential table, including removing users. Subsequent local authentication requests use it. |
 | `auth/radius` | Apply replaces the RADIUS client and claims the shared authentication slot; removing the block restores local authentication. |

@@ -54,7 +54,7 @@ func TestIPv6CPStartsBesideIPCP(t *testing.T) {
 		frames := make(chan readFrame)
 		stop := make(chan struct{})
 		defer close(stop)
-		c := newClientIPv6CP(ipv6cpTestMAC, 0)
+		c := timedIPv6CP(t, 3*time.Second)
 		type outcome struct {
 			result ipcpResult
 			err    error
@@ -133,7 +133,7 @@ func TestIPv6CPProtocolRejectDuringIPCP(t *testing.T) {
 		w := &frameLog{}
 		frames := make(chan readFrame)
 		stop := make(chan struct{})
-		c := newClientIPv6CP(ipv6cpTestMAC, 0)
+		c := timedIPv6CP(t, 3*time.Second)
 		ended := make(chan struct{})
 		go func() {
 			defer close(ended)
@@ -147,8 +147,8 @@ func TestIPv6CPProtocolRejectDuringIPCP(t *testing.T) {
 		frames <- ncpReadFrame(ppp.ProtoLCP, ppp.LCPProtocolReject, 9, rejected)
 		synctest.Wait()
 		before := len(w.snapshot())
-		// sleep(timer): advance the shared Restart timer once.
-		time.Sleep(ipv6cpRestartInterval)
+		// sleep(timer): advance IPCP's Restart timer once after IPv6CP stopped.
+		time.Sleep(ipcpRestartInterval)
 		synctest.Wait()
 		written := w.snapshot()
 		if len(written) != before+1 {

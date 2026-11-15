@@ -47,6 +47,7 @@ type InterfaceServer struct {
 	authMethod    ppp.AuthMethod
 	authRequired  bool
 	authAllow     []ppp.AuthMethod
+	lcpConfig     ppp.LCPConfig
 
 	discFD    int
 	pppDriver *ppp.Driver
@@ -373,6 +374,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// refuses. AuthRequired disconnects a client that rejects the method
 	// rather than admitting it unauthenticated.
 	start := ppp.StartSession{
+		LCP:               s.lcpConfig,
 		TunnelID:          uint16(s.ifIndex),
 		SessionID:         sid,
 		ChanFD:            chanFD,

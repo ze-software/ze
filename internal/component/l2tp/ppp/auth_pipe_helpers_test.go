@@ -30,6 +30,7 @@ func newAuthTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent) {
 	eventsOut := make(chan Event, 4)
 	frames := make(chan []byte, 4)
 	s := &pppSession{
+		lcpConfig:     testLCPConfig(),
 		tunnelID:      55,
 		sessionID:     66,
 		chanFile:      driverEnd,

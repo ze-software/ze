@@ -71,7 +71,7 @@ type lcpRunResult struct {
 // it ran. The caller MUST close stop or let the negotiation end.
 func startLCP(t *testing.T, w *timedLCPWriter, frames <-chan readFrame, stop <-chan struct{}) <-chan lcpRunResult {
 	t.Helper()
-	return startConfiguredLCP(t, w, frames, stop, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492})
+	return startConfiguredLCP(t, w, frames, stop, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492})
 }
 
 // startConfiguredLCP retains the same virtual clock and worker lifetime as
@@ -99,7 +99,7 @@ func TestLCPConfiguredBudget(t *testing.T) {
 				w := &timedLCPWriter{}
 				stop := make(chan struct{})
 				defer close(stop)
-				cfg := sessionConfig{mtu: 1492, lcpRestartTimer: interval, lcpMaxConfigure: 3}
+				cfg := sessionConfig{mtu: 1492, lcpRestartTimer: interval, lcpMaxConfigure: 3, lcpMaxFailure: 5}
 				got := <-startConfiguredLCP(t, w, make(chan readFrame), stop, cfg)
 				if got.err == nil {
 					t.Fatal("LCP opened without a reply")
@@ -127,7 +127,7 @@ func TestLCPConfiguredBudgetAllowsSuccess(t *testing.T) {
 		frames := make(chan readFrame, 2)
 		stop := make(chan struct{})
 		defer close(stop)
-		cfg := sessionConfig{mtu: 1492, lcpRestartTimer: time.Second, lcpMaxConfigure: 1}
+		cfg := sessionConfig{mtu: 1492, lcpRestartTimer: time.Second, lcpMaxConfigure: 1, lcpMaxFailure: 5}
 		done := startConfiguredLCP(t, w, frames, stop, cfg)
 		synctest.Wait()
 		requests, _ := w.requests()
@@ -149,7 +149,7 @@ func TestLCPConfiguredConvergenceDeadline(t *testing.T) {
 		frames := make(chan readFrame, 1)
 		stop := make(chan struct{})
 		defer close(stop)
-		cfg := sessionConfig{mtu: 1492, lcpRestartTimer: 5 * time.Second, lcpMaxConfigure: 10}
+		cfg := sessionConfig{mtu: 1492, lcpRestartTimer: 5 * time.Second, lcpMaxConfigure: 10, lcpMaxFailure: 5}
 		done := startConfiguredLCP(t, w, frames, stop, cfg)
 		var got lcpRunResult
 		for ended := false; !ended; {
@@ -181,7 +181,7 @@ func TestLCPRefusesMissingTimingBeforeWriting(t *testing.T) {
 	for _, missing := range []string{"restart-timer", "max-configure"} {
 		t.Run(missing, func(t *testing.T) {
 			w := &timedLCPWriter{}
-			cfg := sessionConfig{mtu: 1492, lcpRestartTimer: time.Second, lcpMaxConfigure: 3}
+			cfg := sessionConfig{mtu: 1492, lcpRestartTimer: time.Second, lcpMaxConfigure: 3, lcpMaxFailure: 5}
 			if missing == "restart-timer" {
 				cfg.lcpRestartTimer = 0
 			}

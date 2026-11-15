@@ -3,22 +3,22 @@
     "rid": "RFC1332-2.1-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU",
-    "unit-sha": "9ce9ba7485406446",
+    "unit-sha": "16482cf8476a7ac0",
     "claim-sha": "102885fcae66997e",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
     "producer-sha": "02b8b819c2c4278f",
-    "break": "line 708: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
+    "break": "line 680: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
   },
   {
     "rid": "RFC1332-2.1-4",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU",
-    "unit-sha": "9ce9ba7485406446",
+    "unit-sha": "16482cf8476a7ac0",
     "claim-sha": "c3d7ae58bf224aec",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
     "producer-sha": "02b8b819c2c4278f",
-    "break": "line 708: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
+    "break": "line 680: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
   }
 ]

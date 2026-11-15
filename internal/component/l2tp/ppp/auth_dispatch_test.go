@@ -180,6 +180,7 @@ func TestAuthProtoRejectClearsMethod(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:        testLCPConfig(),
 		TunnelID:   181,
 		SessionID:  281,
 		ChanFD:     16001,
@@ -251,6 +252,7 @@ func TestAuthFallbackOnNakDispatches(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:        testLCPConfig(),
 		TunnelID:   182,
 		SessionID:  282,
 		ChanFD:     16101,
@@ -336,6 +338,7 @@ func TestAuthFallbackOnNakExhaustsToNone(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:               testLCPConfig(),
 		TunnelID:          183,
 		SessionID:         283,
 		ChanFD:            16201,
@@ -418,6 +421,7 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:        testLCPConfig(),
 		TunnelID:   101,
 		SessionID:  201,
 		ChanFD:     15001,
@@ -503,6 +507,7 @@ func TestProxyLCPAuthMethodOverrides(t *testing.T) {
 		magicOpt(0xCAFEBABE),
 	})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            111,
 		SessionID:           222,
 		ChanFD:              15101,
@@ -573,6 +578,7 @@ func TestProxyLCPDispatchesCHAPMD5(t *testing.T) {
 		magicOpt(0xCAFEBABE),
 	})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            121,
 		SessionID:           232,
 		ChanFD:              15201,
@@ -631,6 +637,7 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 		magicOpt(0xCAFEBABE),
 	})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            131,
 		SessionID:           242,
 		ChanFD:              15301,
@@ -709,6 +716,7 @@ func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 			defer d.Stop()
 
 			d.SessionsIn() <- StartSession{
+				LCP:        testLCPConfig(),
 				TunnelID:   uint16(140 + int(tc.method)),
 				SessionID:  uint16(240 + int(tc.method)),
 				ChanFD:     15400 + int(tc.method),

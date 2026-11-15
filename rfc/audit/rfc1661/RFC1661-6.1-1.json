@@ -1,15 +1,20 @@
 {
-  "note": "RFC 1661 Section 6.1: \"If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost.\" Rejudged statically at HEAD; the narrowed claims match the body. TestReceiveFullFrameBelowConfiguredMRU requests MRU 1492 through the real Driver and proxy LCP, sends a valid 1500-octet Echo-Request, and fullMRUReceiveRecorder copies the actual read: its length must be the full frame and its Code, Identifier and Data must be the original, so a buffer cut to the requested MRU goes red (recorded mutant on readFrames). The negative asserts the one setMRU call carries 1500 (recorded mutant on afterLCPOpen), which is the state Ze installs; no real kernel is exercised. The capped 1492-octet reply is not credited as receive evidence. TestFullInformationFieldReceived proves ParseFrame, the pooled read buffer and ParseLCPPacket hold 1500; its 1501 rejection is not credited. The unit-fd reader uses the same getFrameBuf.",
+  "code": {
+    "internal/component/l2tp/ppp/frame.go::ParseFrame": "a00075b0b9a58722",
+    "internal/component/l2tp/ppp/session_run.go::afterLCPOpen": "31901656854a1656",
+    "internal/component/l2tp/ppp/session_run.go::readFrames": "d76b987ab4400b22"
+  },
+  "note": "Re-read Section 6.1 and both tagged units. At requested MRU1492, TestReceiveFullFrameBelowConfiguredMRU starts the real Driver with accepted proxy LCP and records the actual channel read before interpreting the capped reply. It requires the full1502-octet frame, LCP protocol, original Echo code/Identifier and all original1500 Information octets, independently of the1492-octet reply. Its separate negative asserts exactly one installed receive-MRU value of1500 through the fake ops boundary; this does not claim a real-kernel execution. The only changed input is an explicit validated3s/2/10/5 LCP snapshot. TestFullInformationFieldReceived separately asserts ParseFrame and ParseLCPPacket accept1500 and the pooled buffer holds the full frame; its1501 rejection is not credited to this RFC requirement. Current readFrames uses the full pooled buffer and afterLCPOpen installs MaxFrameLen. The recorded receive-buffer and setMRU mutants correspond to the two distinct assertions.",
   "requirement_sha": "bf8de5e1aac53efe",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "9702a8b651d08d9e",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "4875e45937e7afa2",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "4875e45937e7afa2"
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "d616282c8cfcd04c",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "d616282c8cfcd04c"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "e079b4cb6eaed385",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "4ceca3f15eaad530",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "4ceca3f15eaad530"
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "a2b86667e0fa30c6",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "a2b86667e0fa30c6"
   },
   "verdict": "enforced"
 }

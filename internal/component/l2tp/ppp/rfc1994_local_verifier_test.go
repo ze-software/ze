@@ -102,6 +102,7 @@ func chapReplyThroughLocalVerifier(t *testing.T, chanFD int, session uint16, pee
 	go drainSessionEvents(d, stop)
 
 	d.SessionsIn() <- ppp.StartSession{
+		LCP:               testLCPConfig(),
 		TunnelID:          1,
 		SessionID:         session,
 		ChanFD:            chanFD,

@@ -18,7 +18,7 @@
     "claim-sha": "fa4e5b46a81bcb15",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
-    "producer-sha": "8798b5437047a526",
+    "producer-sha": "266e90dcbea5cd84",
     "break": "body of applyTransition replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

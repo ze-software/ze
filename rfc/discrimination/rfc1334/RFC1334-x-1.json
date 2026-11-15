@@ -80,22 +80,22 @@
     "rid": "RFC1334-x-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst",
-    "unit-sha": "d56237ff6bf43ec4",
+    "unit-sha": "e81d63b6b988c360",
     "claim-sha": "ebe5324b8e02bc77",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/auth.go::initialAuthMethod",
     "producer-sha": "d604d07b23e9b61c",
-    "break": "line 100: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
+    "break": "line 101: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
   },
   {
     "rid": "RFC1334-x-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst",
-    "unit-sha": "d56237ff6bf43ec4",
+    "unit-sha": "e81d63b6b988c360",
     "claim-sha": "47a6098f5b82c16f",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/auth.go::initialAuthMethod",
     "producer-sha": "d604d07b23e9b61c",
-    "break": "line 100: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
+    "break": "line 101: \"if configured != AuthMethodPAP {\" -\u003e \"if configured != AuthMethodNone {\""
   }
 ]

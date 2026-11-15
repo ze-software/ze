@@ -4,6 +4,18 @@ A PPPoE access concentrator, as an alternative to L2TP for a direct-attach
 broadband network gateway. Discovery wire format, AC-Cookie, session tables,
 kernel sockets, the discovery reader, and the CLI surface.
 
+The shared `ze-ppp-lcp` grouping declares the server's LCP Restart timer and
+Max-Terminate, Max-Configure and Max-Failure limits. `ExtractParameters` reads
+those schema defaults into an immutable `ppp.LCPConfig`. A server generation
+copies that snapshot into every locally terminated `StartSession`; a reload
+changes newly admitted sessions and preserves sessions already handed to PPP.
+The same grouping serves the L2TP server. A Service-Name relay bypasses local
+PPP and therefore does not negotiate LCP with these settings.
+
+<!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- applyInterfaceConfig -->
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared settings -->
+
 <!-- source: internal/component/l2tp/pppoe/discovery.go -- ParseDiscovery, Builder, MatchServiceName -->
 <!-- source: internal/component/l2tp/pppoe/cookie.go -- GenerateCookie, VerifyCookie, CookieKey -->
 <!-- source: internal/component/l2tp/pppoe/session.go -- SessionTable, AllocSID, Add, Remove, Lookup -->

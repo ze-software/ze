@@ -1,7 +1,7 @@
 FROM golang:1.27-alpine AS builder
 WORKDIR /src
-COPY internal/le/interoplab/l2tp/avprelay/main.go internal/le/interoplab/l2tp/avprelay/pppinject.go ./
-RUN CGO_ENABLED=0 go build -o /avp-relay ./main.go ./pppinject.go
+COPY internal/le/interoplab/l2tp/avprelay/main.go internal/le/interoplab/l2tp/avprelay/pppinject.go internal/le/interoplab/l2tp/avprelay/lcprestart.go ./
+RUN CGO_ENABLED=0 go build -o /avp-relay ./main.go ./pppinject.go ./lcprestart.go
 
 FROM alpine:3.24.3
 COPY --from=builder /avp-relay /usr/local/bin/avp-relay

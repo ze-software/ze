@@ -1,17 +1,22 @@
 {
-  "note": "Independent rejudge 2026-11-14: only old-default client timing became explicit. A wrong-Identifier Reject leaves output and LCP completion unchanged, while a matching Reject creates a fresh request without the rejected options. The server correlation pair checks the same Identifier distinction and that MRU is absent from the replacement after a valid Reject. Re-read RFC Section 5.4 and both ValidateLCPReply callers; peer packets and assertions remain identical.",
+  "code": {
+    "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
+  },
+  "note": "Re-read Section 5.4 and all three tagged units. A Reject carrying an unchanged requested MRU option under the wrong Identifier leaves FSM/wire or client completion/output unchanged. A matching Identifier causes the next request to omit that option, and the client covers MRU-only, Magic-only and whole-request Rejects before completing on an exact replacement Ack. The wrong-Identifier Reject contains an otherwise valid requested subset, isolating the Identifier rule. The client fixture adds only valid Max-Failure five, retaining every packet and assertion. Both current receiving paths apply the shared Identifier validator before rejection flags or requests change. Producer-disable records prove those paths are reached; the exact acceptance/discard assertions independently enforce this clause.",
   "requirement_sha": "ef8cbb2be56072e4",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "926652e8c68a9120",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "926652e8c68a9120"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "d3b8bb0cb396f6cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "d3b8bb0cb396f6cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "3aec64b128f9a7b0",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "8a4eed6c5f3fad83"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "f6c813e247413393",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "49ca4108362b90e9"
   },
   "verdict": "enforced"
 }

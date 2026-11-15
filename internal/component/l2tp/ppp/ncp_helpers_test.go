@@ -102,6 +102,7 @@ func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driv
 	// play the full LCP exchange as well; spec 6c's focus is NCP.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	start := StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           1,
 		ChanFD:              fd,

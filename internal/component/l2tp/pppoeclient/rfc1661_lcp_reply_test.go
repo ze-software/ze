@@ -32,7 +32,7 @@ func TestClientLCPReplyCorrelation(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+			_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 			done <- err
 		}()
 		synctest.Wait()
@@ -90,7 +90,7 @@ func TestClientLCPRejectRemovesOnlyRejectedOptions(t *testing.T) {
 				done := make(chan error, 1)
 				go func() {
 					var buf [ppp.MaxFrameBufLen]byte
-					_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+					_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 					done <- err
 				}()
 				synctest.Wait()
@@ -154,7 +154,7 @@ func TestClientLCPNakChangesIdentifierAndDropsStaleReply(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+			_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 			done <- err
 		}()
 		synctest.Wait()
@@ -195,7 +195,7 @@ func TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			result, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+			result, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 			if err == nil {
 				if err := sendEchoReply(w, buf[:], ppp.LCPPacket{Identifier: 0x51}, result.localMagic); err != nil {
 					t.Errorf("Echo-Reply on a healthy writer: %v", err)
@@ -279,7 +279,7 @@ func TestClientLCPMRUNakBounds(t *testing.T) {
 			done := make(chan error, 1)
 			go func() {
 				var buf [ppp.MaxFrameBufLen]byte
-				_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+				_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 				done <- err
 			}()
 			synctest.Wait()

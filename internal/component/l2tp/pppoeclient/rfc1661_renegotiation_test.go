@@ -87,7 +87,7 @@ func TestClientDiscardsMalformedReentryInNetworkPhase(t *testing.T) {
 		close(frames)
 		w := &recordingRWC{}
 		result := sessionResult{reader: testFrameReader(t, frames, nil), magic: clientMagic, peerMRU: 1492}
-		session := newTestConnectedSession(t, w, result, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492})
+		session := newTestConnectedSession(t, w, result, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492})
 		keepaliveLoop(session, make(chan struct{}), make(chan struct{}),
 			slog.New(slog.NewTextHandler(io.Discard, nil)))
 		written := w.snapshot()
@@ -112,7 +112,7 @@ func TestClientReentryRejectsUninitialized(t *testing.T) {
 	frames := make(chan readFrame)
 	close(frames)
 	var buf [ppp.MaxFrameBufLen]byte
-	_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, &lcpReentry{}, make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8))
+	_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, &lcpReentry{}, make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), new(uint8))
 	if err == nil {
 		t.Fatal("uninitialized reentry opened LCP")
 	}
@@ -149,7 +149,7 @@ func TestClientReentryAdmitsNakAndReject(t *testing.T) {
 			close(frames)
 			w := &recordingRWC{}
 			var buf [ppp.MaxFrameBufLen]byte
-			cfg := sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}
+			cfg := sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			reader := testFrameReader(t, frames, nil)
 			err := runClientAuth(w, reader, buf[:], lcpResult{authProto: ppp.ProtoCHAP},
@@ -199,7 +199,7 @@ func TestRFC1661ClientRenegotiatesLCPInNetworkPhase(t *testing.T) {
 	w := &recordingRWC{}
 	var log bytes.Buffer
 	result := sessionResult{reader: testFrameReader(t, clientRenegotiationFrames(), nil), magic: clientMagic, peerMRU: 1492}
-	session := newTestConnectedSession(t, w, result, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492})
+	session := newTestConnectedSession(t, w, result, sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492})
 	keepaliveLoop(session, make(chan struct{}), make(chan struct{}),
 		slog.New(slog.NewTextHandler(&log, nil)))
 	t.Logf("network phase: %s", log.String())
@@ -300,7 +300,7 @@ func TestClientRenegotiationNakNeedsPeerAcceptance(t *testing.T) {
 	w := &restartExchange{t: t, frames: make(chan readFrame, 32), zeroMagic: true, rejectOnly: true, auth: ppp.ProtoCHAP}
 	link := &sessionLink{channel: w}
 	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, -1,
-		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492, chanFD: -1, username: "user", password: "pass"},
+		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, chanFD: -1, username: "user", password: "pass"},
 		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	if err == nil {
 		t.Fatal("uncorrected peer proposal opened LCP")
@@ -486,7 +486,7 @@ func runRestartExchange(t *testing.T, duringIPCP, zeroMagic bool, auth uint16) *
 	w := &restartExchange{t: t, frames: make(chan readFrame, 32), duringIPCP: duringIPCP, zeroMagic: zeroMagic, auth: auth}
 	link := &sessionLink{channel: w}
 	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, -1,
-		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492, chanFD: -1, username: "user", password: "pass"},
+		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, chanFD: -1, username: "user", password: "pass"},
 		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	// Invalid descriptors deliberately stop the real entry point only AFTER
 	// both protocol directions have opened. Kernel ownership is Phase 3/5 proof.

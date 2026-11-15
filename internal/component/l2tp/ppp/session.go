@@ -275,10 +275,16 @@ type pppSession struct {
 	// Zero-Restart-Count actions start or re-start the Restart timer."
 	restartCount int
 	restartTimer *time.Timer
+	// Owned by run and adjusted at actual FSM edges, including transitions
+	// handled inside authentication/NCP before the outer loop regains control.
+	lcpConvergenceTimer *time.Timer
+	lcpConfig           LCPConfig
+	// Number of Configure-Naks sent since the last Configure-Ack. Owned by run.
+	lcpNakCount int
 
 	// chapRestart is the interval between two CHAP or MS-CHAPv2
 	// Challenges of one authentication round (waitCHAPLike). Zero means
-	// defaultRestartTimer, the value every production session uses; only
+	// three seconds, the value every production session uses; only
 	// a test sets it, to see retransmission without waiting seconds.
 	chapRestart time.Duration
 

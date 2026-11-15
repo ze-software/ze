@@ -1,0 +1,33 @@
+# Question: Does the access concentrator expose the same LCP leaves and bounds?
+# Parser units cannot prove the registered operator CLI accepts both boundaries.
+# PREVENTS: configuration only being reachable on the L2TP transport.
+stdin=low:terminator=END_LOW
+pppoe {
+    enabled false
+    lcp {
+        restart-timer 100
+        max-terminate 1
+        max-configure 1
+        max-failure 1
+    }
+}
+END_LOW
+stdin=high:terminator=END_HIGH
+pppoe {
+    enabled false
+    lcp {
+        restart-timer 60000
+        max-terminate 255
+        max-configure 255
+        max-failure 255
+    }
+}
+END_HIGH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=low
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=high
+expect=exit:code=0
+expect=stdout:contains=configuration valid

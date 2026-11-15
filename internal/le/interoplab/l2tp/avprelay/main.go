@@ -1,9 +1,10 @@
 // Design: docs/architecture/testing/interop.md -- transparent xl2tpd AVP injection.
 // Related: pppinject.go -- the PPP frames sent once the code-reject marker is set.
+// Related: lcprestart.go -- configured-retry loss after a live LCP restart.
 // This process is not an L2TP peer: it maintains no protocol state, and the
 // real xl2tpd and Ze own sequencing, ACKs and retransmits. It originates no
-// control datagram. Its one origination is the four PPP data frames of
-// pppinject.go, sent once and only after a checker sets /run/code-reject.
+// control datagram. A checker can arm a bounded PPP injection: the Code-Reject
+// probes, or one Configure-Request followed by loss of LAC LCP replies.
 // RFC 2661 Section 4.1 -- see rfc/short/rfc2661.md.
 package main
 
@@ -19,6 +20,9 @@ import (
 	"os"
 	"time"
 )
+
+// directionLAC identifies datagrams received from the LAC at the relay boundary.
+const directionLAC = "lac"
 
 func main() {
 	if err := run(); err != nil {
@@ -63,7 +67,7 @@ func run() error {
 			return err
 		}
 		target := ze
-		direction := "lac"
+		direction := directionLAC
 		switch source {
 		case lac:
 		case ze:
@@ -98,7 +102,7 @@ func run() error {
 		if _, err := conn.WriteToUDPAddrPort(packet, target); err != nil {
 			return err
 		}
-		if err := encoder.Encode(wireObservation{direction, original, hex.EncodeToString(packet)}); err != nil {
+		if err := encodeWire(encoder, wireObservation{direction, original, hex.EncodeToString(packet)}, injected.restart); err != nil {
 			return err
 		}
 	}

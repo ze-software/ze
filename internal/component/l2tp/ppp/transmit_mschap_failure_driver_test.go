@@ -43,6 +43,7 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 			peer := optStream(mruOpt(1500), magicOpt(0x11223344))
 			local := optStream(mruOpt(MinIPv4MRU), magicOpt(0x01020304), authProtoOpt(proto, authData...))
 			d.SessionsIn() <- StartSession{
+				LCP:      testLCPConfig(),
 				TunnelID: 24, SessionID: 2, ChanFD: 24201, UnitFD: 24202, UnitNum: 7,
 				MaxMRU: MinIPv4MRU, AuthMethod: AuthMethodMSCHAPv2,
 				AuthFallbackOrder: []AuthMethod{AuthMethodMSCHAPv2}, AuthRequired: true,

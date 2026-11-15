@@ -82,6 +82,7 @@ func TestDriverProxyLCPSkipsNegotiation(t *testing.T) {
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           42,
 		ChanFD:              1001,
@@ -143,6 +144,7 @@ func TestDriverSessionByID(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1492), magicOpt(0xDEADBEEF)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            5,
 		SessionID:           77,
 		ChanFD:              2001,
@@ -200,6 +202,7 @@ func TestDriverStopSession(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0x12345678)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            10,
 		SessionID:           20,
 		ChanFD:              3001,
@@ -255,6 +258,7 @@ func TestDriverLCPNegotiationViaPipe(t *testing.T) {
 	t.Cleanup(func() { <-peerDone })
 
 	d.SessionsIn() <- StartSession{
+		LCP:           testLCPConfig(),
 		TunnelID:      100,
 		SessionID:     200,
 		ChanFD:        4001,
@@ -330,9 +334,9 @@ func TestDriverRejectsInvalidFDs(t *testing.T) {
 		name  string
 		start StartSession
 	}{
-		{"chan fd zero", StartSession{TunnelID: 1, SessionID: 1, ChanFD: 0, UnitFD: 10}},
-		{"unit fd zero", StartSession{TunnelID: 1, SessionID: 2, ChanFD: 10, UnitFD: 0}},
-		{"chan fd negative", StartSession{TunnelID: 1, SessionID: 3, ChanFD: -1, UnitFD: 10}},
+		{"chan fd zero", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 1, ChanFD: 0, UnitFD: 10}},
+		{"unit fd zero", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 2, ChanFD: 10, UnitFD: 0}},
+		{"chan fd negative", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 3, ChanFD: -1, UnitFD: 10}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -358,6 +362,7 @@ func TestDriverRejectsInvalidFDs(t *testing.T) {
 	defer closeConn(pair.peerEnd)
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xDEADBEEF)})
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            99,
 		SessionID:           99,
 		ChanFD:              8001,
@@ -392,6 +397,7 @@ func TestDriverRejectsDuplicate(t *testing.T) {
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 	first := StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            7,
 		SessionID:           8,
 		ChanFD:              9001,

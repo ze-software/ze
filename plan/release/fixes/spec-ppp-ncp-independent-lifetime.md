@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-28 |
+| Updated | 2026-11-15 |
 
 <!-- Bucket: plan/release/fixes/. Every defect here is incorrect shipped behaviour of
      an implemented capability (IPCP, IPv6CP, LCP Protocol-Reject). An IPv4-only CPE
@@ -67,8 +67,8 @@ NCP remains open or negotiating, as pppd does.
 - [ ] `docs/guide/l2tp.md` - PPP phases, NCP independence claim, teardown, Redistribute
   → Constraint: the guide states "NCPs are independent (RFC 1661 S2)" for the pool-decline case only; this spec makes the claim true for every case and must rewrite that paragraph
 - [ ] `docs/architecture/l2tp/subscriber-session-model.md` - per-session model the NCP lifetime changes
-- [ ] `plan/release/fixes/spec-lcp-restart-counters.md` - owns the LCP Restart timer and the configurable counters
-  → Constraint: the NCP Restart timer added here reads the same Restart time, Max-Terminate and Max-Configure values LCP reads; if that spec lands first and makes them configurable, the NCP timer takes the configured values, never a second copy
+- [ ] `docs/guide/l2tp.md` - documents the configured LCP Restart timer and counters
+  → Constraint: the NCP Restart timer added here reads the admitted Restart time, Max-Terminate and Max-Configure values from `ppp.LCPConfig`, never a second copy
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc1661.md` - rows RFC1661-3.6-1, RFC1661-3.6-3, RFC1661-4.3-3, RFC1661-5.7-1, RFC1661-5.7-2, RFC1661-5.7-5
@@ -114,6 +114,26 @@ NCP remains open or negotiating, as pppd does.
 - A Protocol-Reject naming IPCP or IPv6CP stops that NCP.
 - Frames on the unit descriptor are read for the session's life and dispatched like channel frames.
 - `tld` and `tlf` on an NCP withdraw that family; `tlu` (re)installs it.
+
+## Existing Mechanisms (MANDATORY)
+
+This census was refreshed from source on 2026-11-15. The Current Behavior
+list above records the original planning snapshot. In particular, the unit
+reader and its teardown coordination already exist. Per-family FSM state
+also exists, but general independent NCP lifetime does not: an NCP reaching
+Closed or Stopped still ends the session.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Shared PPP automaton with per-family NCP state | `internal/component/l2tp/ppp/ppp_fsm.go` `LCPDoTransition`; `ncp.go` `ncpState`, `setNCPState`, `handleNCPPacket` | IPCP and IPv6CP retain separate states and identifiers and use the same transition table as LCP. `handleNCPPacket` still calls `fail` when either reaches Closed or Stopped | Extends the family action handling and terminal-state policy. Reuses the table and existing state instead of adding another automaton |
+| Shared NCP phase completion and timeout | `internal/component/l2tp/ppp/ncp.go` `runNCPPhase`, `ncpsComplete` | Starts each enabled family, waits for every enabled NCP to open and applies one `ipTimeout` to the phase | Replaces the all-families lifetime barrier with the specified open-or-negotiating policy and per-NCP progress. A silent family must not end a usable sibling |
+| Configured LCP Restart machinery | `internal/component/l2tp/ppp/session_run.go` `applyTransition`, `armRestartTimer`, `handleRestartTimeout`; `ncp.go` `performNCPAction` | LCP owns a one-shot timer and counter with IRC/ZRC/TO actions. The NCP action handler sends protocol packets but treats its counter, timer and layer-notification actions as no-ops | Extends those semantics to separately owned NCP timers/counters. Preserves the existing LCP timer and whole-link transitions; a family must not share its active timer instance with LCP |
+| Validated session configuration snapshot | `internal/component/l2tp/ppp/start_session.go` `StartSession.LCP`; `lcp_config.go` `LCPConfig`; `manager.go` `Driver.spawnSession` | Admission validates and copies immutable LCP timing/counter values into the session. Reload affects later admissions | Reuses the admitted Restart interval and request/termination limits for the NCP design. Adds no duplicate defaults or independently parsed copy |
+| Initial per-family address publication barrier | `internal/component/l2tp/ppp/ncp.go` `onNCPOpened`, `sendIPAssigned`; `events.go` `EventSessionIPAssigned.Acknowledge` | IPv4 and IPv6 assignments carry a family. PPP waits for transport acknowledgment before completion can enable forwarding | Extends the existing event boundary for family withdrawal and reopening. Retains the assignment acknowledgment instead of bypassing transport publication |
+| Whole-network cleanup on LCP down | `internal/component/l2tp/ppp/ncp.go` `resetNCP`, `teardownNCPResources`; `session_run.go` `performAction` | Disconnects the channel, removes the IPCP address, stops IPv6 service and resets both families. TLD waits for `EventLCPDown` acknowledgment when a network lifetime existed | Extends cleanup with family-specific operations while retaining this whole-link cleanup and acknowledgment when LCP leaves Opened |
+| Existing transport cleanup consumers | `internal/component/l2tp/reactor_kernel.go` `handleLCPDown`; `internal/component/l2tp/pppoe/subsystem.go` `handlePPPEvent` | L2TP and PPPoE consume the session event stream, withdraw the old network lifetime and acknowledge LCP-down cleanup | Extends both consumers for the proposed per-family withdrawal event. Preserves the whole-network LCP-down and session-down paths instead of treating those events as family-specific |
+| Coordinated channel and unit readers | `internal/component/l2tp/ppp/session_run.go` `run`, `readFrames`, `readUnitFrames`, `awaitUnitDrained`, `handleFrame` | One reader per descriptor supplies bounded pooled-frame queues. The unit reader waits for connection, the loop dispatches its frames, and teardown closes, joins and drains both readers | Extends the existing reader/dispatch lifecycle for NCP independence. Does not add a second unit reader or replace descriptor ownership |
+| Authentication gate and pool-decline exception | `internal/component/l2tp/ppp/session_run.go` `handleFrame`; `ncp.go` `runNCPPhase`, `requestIPv6CPInterfaceID` | `ncpStarted` prevents premature NCP processing. A declined IPv6 allocation disables IPv6CP before it starts and allows IPv4 to proceed | Preserves both mechanisms. The pool-decline exception is not general independence after a running NCP terminates |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -386,7 +406,7 @@ Both scenarios owe the revert walk: restore `s.fail` on Closed or Stopped, or re
 | One unit reader goroutine per session, started with the session | start on connect, stop on disconnect | the unit fd lives for the session across LCP renegotiations; a read before connect yields nothing, and one lifetime matches `readFrames` |
 
 ## Known Limitations
-- The LCP Restart counters stay compiled-in until `plan/release/fixes/spec-lcp-restart-counters.md` lands; the NCP timer reads the same values.
+- The shared LCP timing and counters are configurable as documented in `docs/guide/l2tp.md`. The NCP timer designed here must read the admitted `ppp.LCPConfig` instead of duplicating defaults.
 
 ## RFC Documentation (Scope: protocol)
 

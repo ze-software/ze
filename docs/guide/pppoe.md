@@ -18,8 +18,8 @@ These restrictions do not change L2TP negotiation. A PADT matching the
 session ID and both MAC addresses ends the PPPoE transport immediately;
 PPP termination packets are not sent afterwards. Local teardown also
 stops PPP before sending PADT. A subscriber's LCP Terminate-Request is
-answered with a Terminate-Ack, and one Restart time later (3 seconds) the
-AC sends the PADT, with User Request as the accounting cause; a new LCP
+answered with a Terminate-Ack. One configured Restart time later (3 seconds
+by default), the AC sends PADT with User Request as the accounting cause. A new LCP
 Configure-Request arriving before the PADT completes is still answered.
 
 ```
@@ -49,6 +49,12 @@ pppoe {
     max-sessions 65535
     max-sessions-per-mac 8
     padi-rate-limit 100
+    lcp {
+        restart-timer 3000      // milliseconds, 100..60000
+        max-terminate 2         // transmissions, including the first
+        max-configure 10        // transmissions without a valid reply
+        max-failure 5           // Naks before rejecting unacceptable options
+    }
     interface eth0 {
     }
     interface eth0.100 {
@@ -61,6 +67,22 @@ pppoe {
 
 See [configuration guide](configuration.md#pppoe-access) for all settings.
 
+The access concentrator shares its LCP settings and defaults with the L2TP
+server. Each counter accepts 1 through 255. A silent subscriber receives
+exactly `max-configure` Configure-Requests before the session ends. The defaults
+give ten requests over 30 seconds. `max-terminate` bounds unanswered
+Terminate-Requests, and `max-failure` bounds Naks sent without a Configure-Ack
+before unacceptable options are rejected. The Restart timer controls each wait.
+
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
+
+Valid negotiation replies can renew the request budget. A convergence deadline
+of twice the Restart timer times `max-configure` bounds each LCP negotiation,
+or 60 seconds at the defaults. A later negotiation after Opened gets a fresh
+deadline, while replies within one negotiation cannot extend it.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- updateLCPConvergence, lcpNegotiating -->
+
 Discovery runs only when `enabled` is true and the block lists at least one
 `interface`. A `pppoe` block with no `interface` entry answers no PADI.
 
@@ -72,6 +94,7 @@ concentrator at once, with no restart:
 | Change | Effect |
 |--------|--------|
 | `ac-name`, `service-name`, `cookie-timeout`, `padi-rate-limit`, `max-sessions`, `max-sessions-per-mac`, `auth-method`, `authentication-allow`, `allow-no-auth` | Apply to the next PADI and the next admitted session. A session already up keeps the terms it was admitted under. A lowered `max-sessions` refuses new sessions and ends none. AC-Cookies already handed out stay valid |
+| `lcp/restart-timer`, `lcp/max-terminate`, `lcp/max-configure`, `lcp/max-failure` | Apply to newly admitted PPP sessions. A running session retains its timing and limits, including during LCP renegotiation |
 | An added `interface` | Served at once. An interface that does not exist refuses the commit, naming it and the `delete pppoe interface <name>` that undoes it |
 | A removed `interface` | Stops answering PADI. Each of its sessions gets a PADT and its PPP session is stopped |
 | `enabled true`, or a first `interface` | Starts discovery, even when the daemon booted with PPPoE disabled |
@@ -195,6 +218,11 @@ machine requires it. A timing-only reload keeps the current session and its
 LCP settings, including during renegotiation. The next session uses the new
 settings. A separate convergence deadline, twice the configured timer times
 the request budget, bounds a peer that repeatedly Naks each request.
+The `lcp max-failure` leaf limits consecutive Configure-Naks sent to the peer
+(1 to 255, default 5). Further unacceptable peer options receive a
+Configure-Reject containing the original options, and a successful
+Configure-Ack renews the Nak budget. It follows the same session snapshot and
+reload behavior as the other LCP settings.
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
 <!-- source: internal/component/iface/pppoe_client.go -- setTiming, pppoeClientConfigChanged -->
@@ -298,6 +326,14 @@ The interop scenarios `pppoe-ipv6cp-ze-client` and
 `pppoe-ipv6cp-rejected-ze-client` prove this against accel-ppp: the first the
 negotiated link-local address, the RA default route and SLAAC, the second an
 access concentrator that rejects IPv6CP (`docs/labs/pppoe-interop.md`).
+
+`interface pppoe-client <name> ipv6cp restart-timer` sets the IPv6CP retry wait
+in milliseconds, from 100 to 60000, default 3000. It starts after each
+Configure-Request and is independent of IPCP's timer. Ten unanswered requests
+stop IPv6CP while IPv4 can continue. A timing-only reload keeps the established
+session and changes the next session's timing.
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client ipv6cp -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- newClientIPv6CP, sendRequest, tick -->
 <!-- source: internal/component/iface/pppoe_client_ipv6.go -- parsePPPoEClientIPv6, applyPPPoEClientSysctls -->
 <!-- source: internal/component/iface/register.go -- reconcileDHCP, pppoeClientDHCPUnit -->
 <!-- source: internal/component/iface/delegated_consumer.go -- runDelegationWorker, installDelegatedAddress -->

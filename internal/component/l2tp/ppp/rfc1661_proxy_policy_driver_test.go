@@ -56,7 +56,7 @@ func TestProxyLCPPolicy(t *testing.T) {
 				sent = append(sent, LCPOption{Type: LCPOptAuthProto, Data: tc.auth})
 			}
 			peer := optStream(mruOpt(tc.peerMRU), magicOpt(0x11223344))
-			d.SessionsIn() <- StartSession{TunnelID: 19, SessionID: 1, ChanFD: 19001, UnitFD: 19002, MaxMRU: tc.maxMRU, AuthMethod: AuthMethodCHAPMD5, AuthFallbackOrder: tc.order, AuthRequired: tc.required, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: optStream(sent...)}
+			d.SessionsIn() <- StartSession{LCP: testLCPConfig(), TunnelID: 19, SessionID: 1, ChanFD: 19001, UnitFD: 19002, MaxMRU: tc.maxMRU, AuthMethod: AuthMethodCHAPMD5, AuthFallbackOrder: tc.order, AuthRequired: tc.required, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: optStream(sent...)}
 			if tc.proxy {
 				select {
 				case ev := <-d.EventsOut():
@@ -141,7 +141,7 @@ func TestReceiveFullFrameBelowConfiguredMRU(t *testing.T) {
 	defer d.Stop()
 	peer := optStream(mruOpt(1500), magicOpt(0x11223344))
 	sent := optStream(mruOpt(1492), magicOpt(0x01020304))
-	d.SessionsIn() <- StartSession{TunnelID: 19, SessionID: 2, ChanFD: 19101, UnitFD: 19102, MaxMRU: 1492, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: sent}
+	d.SessionsIn() <- StartSession{LCP: testLCPConfig(), TunnelID: 19, SessionID: 2, ChanFD: 19101, UnitFD: 19102, MaxMRU: 1492, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: sent}
 	evs := drainTwoEvents(t, d.EventsOut(), time.Second)
 	if _, ok := evs[1].(EventSessionUp); !ok {
 		t.Fatalf("session event %T", evs[1])
@@ -241,6 +241,7 @@ func TestAuthAllowPAPFallbackAndOptionalNoAuth(t *testing.T) {
 				wantMethod = AuthMethodNone
 			}
 			d.SessionsIn() <- StartSession{
+				LCP:      testLCPConfig(),
 				TunnelID: 19, SessionID: 3, ChanFD: 19201, UnitFD: 19202,
 				AuthMethod: AuthMethodCHAPMD5, AuthFallbackOrder: order,
 				AuthRequired: !optional, DisableIPCP: true, DisableIPv6CP: true,

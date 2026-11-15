@@ -1,21 +1,26 @@
 {
-  "note": "Independent rejudge 2026-11-14: the client test changes only explicit old-default timing. It loops Ze's own Magic Nak back, requires a fresh nonzero proposal differing from the old value and suggestion, and requires Echo to carry that negotiated value. Re-read RFC Section 6.4 and generateDifferentMagic's bounded redraw path. The unchanged server tests include the forced repeated first random draw, the looped-Nak exchange and the no-Magic-option control. Preserve the existing limitation: the client uses random draws and its two tags share assertions, so its own test does not discriminate removing the repeated-draw guard; that deterministic negative is provided by the server pair. The client observed-red records require retaking after the fixture change.",
+  "code": {
+    "internal/component/l2tp/ppp/session_run.go::redrawMagicOnNak": "6550dde93773e407",
+    "internal/component/l2tp/pppoeclient/session.go::generateDifferentMagic": "dea10b842ddfe630",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
+  },
+  "note": "Re-read Section 6.4 and all four tagged units. playMagicLoop creates the actual condition: Ze Naks its looped-back Magic and receives that same Nak value back. The server requires a new nonzero value in the next request; its deterministic negative supplies the old value as the first entropy draw and requires the second distinct draw. The MRU-only Nak control separately leaves Magic unchanged. The client loops its own Nak back and checks a fresh proposal and subsequent Echo, but its random source never deliberately repeats the previous proposal, and its two tags share the same assertions. Removing generateDifferentMagic's rejection of magic == previous therefore normally passes that client test; the server's deterministic control exercises redrawMagicOnNak, a different implementation, and cannot catch this client regression. Existing client producer-disable records prove reachability only. The current client guard is present, but the whole implemented path lacks a deterministic repeated-draw control, so the old enforced judgment's acknowledged limitation is a real proof gap. Explicit Max-Failure five does not repair that gap. Add a client repeated-draw input and a targeted guard break before restoring enforced.",
   "requirement_sha": "94435eed625a075f",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "9702a8b651d08d9e",
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "9702a8b651d08d9e",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "7e6e02d9deb55d37",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "7e6e02d9deb55d37",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "926652e8c68a9120",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "926652e8c68a9120"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "d3b8bb0cb396f6cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "d3b8bb0cb396f6cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "a341047d5a329a15",
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "a341047d5a329a15",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "8c97fbfa5b8c2c18",
     "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "39a7cddb75d7c02c",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "c36fcb973cba812a",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "c36fcb973cba812a"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "86638ab9da27ea97",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "86638ab9da27ea97"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

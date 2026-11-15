@@ -77,6 +77,7 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			// without a kernel PPP device. NCP remains unconfigured.
 			options := []byte{1, 4, 5, 220}
 			driver.SessionsIn() <- ppp.StartSession{
+				LCP:      testLCPConfig(),
 				TunnelID: tunnelID, SessionID: sessionID, ChanFD: fds[0], UnitFD: unit,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,

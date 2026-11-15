@@ -456,6 +456,11 @@ func (d *Driver) spawnSession(start *StartSession) {
 		return
 	}
 	maxMRU := start.MaxMRU
+	if err := start.LCP.Validate(); err != nil {
+		start.closeFiles()
+		d.emitRejection(start, err.Error())
+		return
+	}
 	if maxMRU == 0 {
 		maxMRU = MaxFrameLen
 	}
@@ -511,6 +516,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 		chanFile = newChanFileFn(start.ChanFD, "ppp.chan")
 	}
 	s := &pppSession{
+		lcpConfig:            start.LCP,
 		proxyCapture:         capture,
 		tunnelID:             start.TunnelID,
 		sessionID:            start.SessionID,

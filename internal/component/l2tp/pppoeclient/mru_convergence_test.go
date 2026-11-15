@@ -109,7 +109,7 @@ func TestSessionTransportRequired(t *testing.T) {
 		defer close(stop)
 		reader := testFrameReader(t, w.frames, nil)
 		_, err := negotiateSession(w, reader, -1, -1,
-			sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492, chanFD: -1}, stop, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+			sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, chanFD: -1}, stop, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 		if len(w.writes) != 0 {
 			t.Fatal("unsupported transport wrote a packet")
 		}

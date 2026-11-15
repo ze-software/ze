@@ -1,0 +1,74 @@
+# Question: Does the registered config-validation CLI accept IPv6CP timer
+# boundaries and refuse the adjacent invalid values? A parser unit test cannot
+# decide the CLI/YANG contract or its exit status.
+# PREVENTS: accepting an out-of-range retry interval through the CLI.
+# PLATFORM: PPPoE client config exists only on Linux.
+option=skip-os:value=darwin
+
+stdin=low:terminator=END_LOW
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret123; }
+        ipv6cp { restart-timer 100; }
+    }
+}
+END_LOW
+
+stdin=high:terminator=END_HIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret123; }
+        ipv6cp { restart-timer 60000; }
+    }
+}
+END_HIGH
+
+stdin=toolow:terminator=END_TOOLOW
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret123; }
+        ipv6cp { restart-timer 99; }
+    }
+}
+END_TOOLOW
+
+stdin=toohigh:terminator=END_TOOHIGH
+interface {
+    backend netlink
+    ethernet eth2 {
+    }
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret123; }
+        ipv6cp { restart-timer 60001; }
+    }
+}
+END_TOOHIGH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=low
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=high
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=toolow
+expect=exit:code=1
+expect=stdout:contains=100..60000
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=toohigh
+expect=exit:code=1
+expect=stdout:contains=100..60000

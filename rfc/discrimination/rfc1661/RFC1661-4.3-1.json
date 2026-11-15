@@ -51,18 +51,18 @@
     "claim-sha": "f330bf85c3fdd1d8",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/session.go::runIPCP",
-    "producer-sha": "abd4485d9d816b85",
-    "break": "line 909: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+    "producer-sha": "0a3d4bde51684a19",
+    "break": "line 970: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   },
   {
     "rid": "RFC1661-4.3-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase",
-    "unit-sha": "f0b7256e00a302e4",
+    "unit-sha": "8a414794f56dffb0",
     "claim-sha": "90e28605fa63fbc4",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
-    "producer-sha": "d7b4f1e42da1c9a5",
-    "break": "line 270: \"if !admitted {\" -\u003e \"if true || !admitted {\""
+    "producer-sha": "39ba694d4ef253f5",
+    "break": "line 269: \"if !admitted {\" -\u003e \"if true || !admitted {\""
   }
 ]

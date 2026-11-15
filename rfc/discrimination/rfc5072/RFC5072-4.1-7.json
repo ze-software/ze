@@ -7,7 +7,7 @@
     "claim-sha": "41aaf62450805635",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::receiveNak",
-    "producer-sha": "576be58df6cecb3c",
-    "break": "line 462: \"c.local = suggested\" -\u003e \"_ = suggested\""
+    "producer-sha": "5065b6dd904cb930",
+    "break": "line 491: \"c.local = suggested\" -\u003e \"_ = suggested\""
   }
 ]

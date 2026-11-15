@@ -277,6 +277,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			return fmt.Errorf("l2tp: bind %s: %w", addr, err)
 		}
 		reactor := newL2TPReactor(ln, s.logger, reactorParams{
+			LCP:              s.params.LCP,
 			ServerName:       listenName(&s.params, index),
 			ConfiguredListen: addr,
 			MaxTunnels:       s.params.MaxTunnels,

@@ -3,6 +3,7 @@ module ze-pppoe-conf {
     prefix pppoe;
 
     import ze-extensions { prefix ze; }
+    import ze-ppp-lcp { prefix plcp; }
 
     description "PPPoE access concentrator configuration for Ze (RFC 2516).";
 
@@ -32,6 +33,8 @@ module ze-pppoe-conf {
                      'enabled true' as a filler when no other settings are
                      needed.";
         ze:help "PPPoE access concentrator settings (RFC 2516).";
+
+        uses plcp:lcp;
 
         leaf enabled {
             type boolean;

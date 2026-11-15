@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-4.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer",
+    "unit-sha": "5bbd77d44fc686f9",
+    "claim-sha": "c517307d2450c2ab",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::armRestartTimer",
+    "producer-sha": "202f0258ef300a55",
+    "break": "line 1843: \"s.restartTimer.Reset(s.lcpConfig.RestartTimer())\" -\u003e \"s.restartTimer.Reset(3 * time.Second)\""
+  },
+  {
+    "rid": "RFC1661-4.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPRestartTimer",
+    "unit-sha": "5bbd77d44fc686f9",
+    "claim-sha": "424729b2da7b89e7",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+    "producer-sha": "266e90dcbea5cd84",
+    "break": "line 1582: \"s.stopRestartTimer()\" -\u003e \"s.armRestartTimer()\""
+  }
+]

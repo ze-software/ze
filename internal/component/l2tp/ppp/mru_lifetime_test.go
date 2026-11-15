@@ -42,6 +42,7 @@ func TestNewLCPLifetimeRestoresConfiguredMRU(t *testing.T) {
 		d.Stop()
 	})
 	d.SessionsIn() <- StartSession{
+		LCP:      testLCPConfig(),
 		TunnelID: 29, SessionID: 4, ChanFD: 29301, UnitFD: 29302, UnitNum: 42,
 		MaxMRU: 1500, AuthTimeout: 5 * time.Second, IPTimeout: 5 * time.Second,
 	}

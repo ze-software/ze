@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppconfig"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -129,6 +130,7 @@ type Parameters struct {
 	MRU         uint16
 	AuthAllow   []ppp.AuthMethod
 	AllowNoAuth bool
+	LCP         ppp.LCPConfig
 	// ProxyLCP is the LNS policy for the proxy LCP AVPs of ICCN
 	// (`l2tp proxy-lcp`). ExtractParameters sets ProxyLCPAccept when the
 	// leaf is absent; only the disabled zero value holds Unspecified.
@@ -250,6 +252,11 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	if v, ok := l2tpRoot.Get("enabled"); ok {
 		p.Enabled = v == configTrue
 	}
+	lcp, err := pppconfig.ParseLCP("l2tp", l2tpRoot.ToMap()["lcp"])
+	if err != nil {
+		return Parameters{}, err
+	}
+	p.LCP = lcp
 
 	if v, ok := l2tpRoot.Get("max-tunnels"); ok {
 		n, err := strconv.ParseUint(v, 10, 16)

@@ -58,11 +58,16 @@ func checkConfiguredLCPBudget(t *testing.T, restart bool) {
 		}
 	}
 	nextConfiguredLCPRequest(t, ctx, session)
-	// The bound starts only after discovery and the first request. It
-	// permits 1.5 seconds of scheduling delay beyond the 500 ms timer.
+	firstRequestAt := time.Now()
+	// The deadline bounds the read. The receipt gap separately rejects a
+	// timer that runs too fast or too slowly for the configured 500 ms.
 	secondCtx, secondCancel := context.WithTimeout(ctx, 2*time.Second)
 	nextConfiguredLCPRequest(t, secondCtx, session)
 	secondCancel()
+	gap := time.Since(firstRequestAt)
+	if gap < 350*time.Millisecond || gap > 900*time.Millisecond {
+		t.Fatalf("configured LCP retransmission gap = %s, want 350..900ms around 500ms", gap)
+	}
 	remaining, err := session.UnansweredConfigureRequests(ctx)
 	requests := 2 + remaining
 	if err != nil {

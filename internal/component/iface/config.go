@@ -143,7 +143,7 @@ type pppoeClientEntry struct {
 	// the leaf. A PPPoE default is learned from the access concentrator, so
 	// it ranks with the other learned defaults rather than at metric 0.
 	RoutePriority int
-	// Timing carries the LCP, keepalive and reconnect leaves, defaults included:
+	// Timing carries the LCP, IPv6CP, keepalive and reconnect leaves, defaults included:
 	// parsePPPoEClientEntry applies the YANG defaults before it reads them.
 	Timing PPPoEClientTiming
 	// IPv6 is the ipv6 container; its zero value negotiates no IPv6CP.
@@ -1054,7 +1054,7 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 const pppoeDefaultMTU = 1492
 
 // parsePPPoEClientEntry reads one pppoe-client entry. pppoeSchema carries the
-// YANG defaults of its LCP, keepalive and reconnect containers.
+// YANG defaults of its LCP, IPv6CP, keepalive and reconnect containers.
 func parsePPPoEClientEntry(name string, m map[string]any, pppoeSchema pppoeClientSchema) (pppoeClientEntry, error) {
 	entry := pppoeClientEntry{Name: name, MTU: pppoeDefaultMTU, RoutePriority: defaultLearnedRouteMetric}
 	if m == nil {
@@ -1117,7 +1117,7 @@ func parsePPPoEClientEntry(name string, m map[string]any, pppoeSchema pppoeClien
 		}
 		entry.RoutePriority = int(rp)
 	}
-	timing, err := parsePPPoEClientTiming(m, pppoeSchema)
+	timing, err := parsePPPoEClientTiming(m, pppoeSchema, name)
 	if err != nil {
 		return entry, err
 	}

@@ -84,8 +84,8 @@
     "claim-sha": "75989bef3cd2f4db",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureAck",
-    "producer-sha": "f5dfc7cf30003a71",
-    "break": "line 2003: \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)\" -\u003e \"WriteLCPPacket(buf, off, LCPConfigureReject, req.Identifier, req.Data)\""
+    "producer-sha": "19ede7ebf60984f8",
+    "break": "line 2013: \"WriteLCPPacket(buf, off, LCPConfigureAck, req.Identifier, req.Data)\" -\u003e \"WriteLCPPacket(buf, off, LCPConfigureReject, req.Identifier, req.Data)\""
   },
   {
     "rid": "RFC1661-5.4-1",

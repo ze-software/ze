@@ -3,22 +3,22 @@
     "rid": "RFC1661-5.2-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation",
-    "unit-sha": "c23510078b7fda56",
+    "unit-sha": "a54b0da3305d3737",
     "claim-sha": "c051169853df9b24",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "8b1c1dfd13a0c73c",
+    "producer-sha": "824c89b420634628",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-5.2-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation",
-    "unit-sha": "c23510078b7fda56",
+    "unit-sha": "a54b0da3305d3737",
     "claim-sha": "9bad8388437d9025",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
-    "producer-sha": "8b1c1dfd13a0c73c",
+    "producer-sha": "824c89b420634628",
     "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

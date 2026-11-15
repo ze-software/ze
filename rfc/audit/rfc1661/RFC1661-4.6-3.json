@@ -1,0 +1,24 @@
+{
+  "code": {
+    "internal/component/l2tp/ppp/session_run.go::applyTransition": "73ee329731725986",
+    "internal/component/l2tp/ppp/session_run.go::run": "bd0ff2ff01e0457c",
+    "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest": "ac2d6361902b9606",
+    "internal/component/l2tp/pppconfig/lcp.go::ParseLCP": "c4a2f42d76ad4fad",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
+  },
+  "note": "Section 4.6 requires Max-Configure to be configurable. TestConfiguredLCPMaxConfigure contrasts budgets of three and five with exact Configure-Request counts and Stopped on exhaustion; its answering-peer control opens on the second request. TestProxyLCPRenegotiationUsesConfiguredRestartBudget additionally enters accepted proxy LCP through the real Driver and pipe, observes no initial request or timer retry while Opened, then requires exactly three or five requests on 500 ms Restart expiries after peer RCR, followed by Stopped and a session-down event at the final expiry. TestProxyLCPRenegotiationAnswerStopsRestartBudget answers the second request with its matching Ack, requires reopening and exactly two requests with no later event. Section 4.1 gives Opened RCR scr without irc, so accepted-proxy initialization in run must retain the configured budget of a completed exchange; the tests reject a zero initial counter as well as an unconfigurable counter. Both transport settings reach this shared counter. Client LCP independently reads its existing configurable Max-Configure snapshot; these tags do not claim configurable counters for IPv6CP.",
+  "requirement_sha": "311ab45a10d13659",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure": "c7a72d6b7a2dd898",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure#2": "c7a72d6b7a2dd898",
+    "internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go::TestProxyLCPRenegotiationAnswerStopsRestartBudget": "58afbc0f188cc25b",
+    "internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go::TestProxyLCPRenegotiationUsesConfiguredRestartBudget": "58afbc0f188cc25b"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure": "9eab96bead30aea0",
+    "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure#2": "9eab96bead30aea0",
+    "internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go::TestProxyLCPRenegotiationAnswerStopsRestartBudget": "43b4d8765c6d918f",
+    "internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go::TestProxyLCPRenegotiationUsesConfiguredRestartBudget": "1ce9a70c572076e0"
+  },
+  "verdict": "enforced"
+}

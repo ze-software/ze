@@ -1,0 +1,61 @@
+# Question: Can an operator configure and validate the client's LCP Nak limit?
+# A unit cannot prove the registered CLI accepts both limits and refuses their neighbours.
+# PREVENTS: a runtime budget whose configuration cannot reach the client.
+option=skip-os:value=darwin
+
+stdin=low:terminator=END_LOW
+interface {
+    ethernet eth2 {}
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret; }
+        lcp { max-failure 1; }
+    }
+}
+END_LOW
+stdin=high:terminator=END_HIGH
+interface {
+    ethernet eth2 {}
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret; }
+        lcp { max-failure 255; }
+    }
+}
+END_HIGH
+stdin=zero:terminator=END_ZERO
+interface {
+    ethernet eth2 {}
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret; }
+        lcp { max-failure 0; }
+    }
+}
+END_ZERO
+stdin=above:terminator=END_ABOVE
+interface {
+    ethernet eth2 {}
+    pppoe-client pppoe0 {
+        source-interface eth2
+        authentication { username subscriber; password secret; }
+        lcp { max-failure 256; }
+    }
+}
+END_ABOVE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=low
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=high
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=zero
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=above
+expect=exit:code=1
+expect=stdout:contains=1..255

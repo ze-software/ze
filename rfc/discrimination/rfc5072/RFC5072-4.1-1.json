@@ -29,7 +29,7 @@
     "claim-sha": "b5f269ae6688a990",
     "route": "mutant",
     "producer": "internal/component/l2tp/pppoeclient/ipv6cp_client.go::sendRequest",
-    "producer-sha": "95fd8bf91f78f05c",
-    "break": "line 188: \"ppp.WriteIPv6CPInterfaceID(option[:], 0, c.local)\" -\u003e \"ppp.WriteIPv6CPInterfaceID(option[:], 0, ppp.IPv6CPInterfaceID{})\""
+    "producer-sha": "fc757d451c8ba1b1",
+    "break": "line 211: \"ppp.WriteIPv6CPInterfaceID(option[:], 0, c.local)\" -\u003e \"ppp.WriteIPv6CPInterfaceID(option[:], 0, ppp.IPv6CPInterfaceID{})\""
   }
 ]

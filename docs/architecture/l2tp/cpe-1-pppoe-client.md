@@ -57,6 +57,22 @@ request. A replacement peer request that draws a refusal cancels the peer's
 earlier acceptance, so both directions must agree before LCP opens. Echo requests
 receive no reply during negotiation.
 
+The client also bounds the Configure-Naks it sends with `lcp max-failure`
+(default five, range 1..255). Only a successfully written Nak spends this
+budget. A successfully written Configure-Ack renews it. Further unacceptable
+peer-requested options receive Configure-Reject with the original option
+instance and bytes.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+<!-- source: internal/component/iface/pppoe_client_timing.go -- parsePPPoEClientTiming -->
+
+The shared PPP converter preserves first-instance
+negotiation and malformed-option handling. A permitted earlier duplicate stays
+permitted. The client's unsupported authentication-method Nak follows
+the same limit. This setting uses the existing immutable session snapshot.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- LCPRejectNakOptions -->
+<!-- source: internal/component/iface/pppoe_client_timing.go -- parsePPPoEClientTiming -->
+
 IPCP retains and correlates its request in the same way. Its Nak values use the
 IPCP option parser rather than LCP's option widths. A timeout retransmits the
 outstanding request unchanged; a valid Nak changes its Identifier and proposed
@@ -140,32 +156,48 @@ Initial negotiation failures have no phase worker to join.
 ### IPv6CP
 
 When the `pppoe-client` sets `ipv6 enabled true`, the client runs IPv6CP
-(RFC 5072) beside IPCP and independently of it (RFC 7084 WLL-3). IPv6 is set
+(RFC 5072). It runs beside IPCP and independently of it (RFC 7084 WLL-3). IPv6 is set
 to discard on the unit (`PPPIOCSNPMODE` for protocol 0x57, `ppp.SetIPv6Mode`)
 before negotiation starts. On entering the network phase the client sends its
 IPv6CP Configure-Request right after IPCP's, carrying exactly one
 Interface-Identifier, and answers IPv6CP on the same reader while IPCP
-negotiates; both share the three-second Restart timer. IPv6CP never waits for
+negotiates.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
+
+IPv6CP's configured one-shot Restart timer follows its automaton across IPCP
+and the network phase. IPCP retains its separate three-second timer.
+IPv6CP never waits for
 IPCP to open: an access concentrator that holds IPv6CP passive (accel-ppp with
 `ipv6=allow`) activates the session as soon as IPCP opens, and one that has not
 seen IPv6CP by then brings the session up IPv4-only and never starts router
 advertisements or DHCPv6. When IPCP opens, the connected session applies the
 state IPv6CP reached, and the network-phase worker carries on any negotiation
-still in progress. The
-tentative identifier is the modified EUI-64 of the source interface's MAC
+still in progress.
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- clientIPv6CP, applyIPv6CP -->
+<!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
+
+The tentative identifier is the modified EUI-64 of the source interface's MAC
 (RFC 5072 Section 4.1 case 1), or a random value with the "u" bit clear when
 there is none. The peer's request is answered by the Section 4.1 comparison:
 a different non-zero identifier is Acknowledged, an equal or zero one is Naked
 with a suggestion. A Nak adopts the suggested identifier, unless it equals the
 client's own last Nak, when a new one is chosen. On Opened IPv6 passes on the
 unit and the session result carries the link-local address `fe80::<id>`,
-which the iface worker installs as a /64 on the device. A Protocol-Reject of
+which the iface worker installs as a /64 on the device.
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- clientIPv6CP, applyIPv6CP -->
+<!-- source: internal/component/l2tp/ppp/ipv6cp_client.go -- TentativeIPv6CPInterfaceID, IPv6LinkLocal -->
+<!-- source: internal/component/iface/pppoe_client_ipv6.go -- applyPPPoELinkLocal -->
+
+A Protocol-Reject of
 IPv6CP, a Configure-Reject of the identifier, ten unanswered requests or a
-Terminate-Request stop IPv6CP only: IPCP and the IPv4 addresses stay; a
+Terminate-Request stop IPv6CP only: IPCP and the IPv4 addresses stay. A matching
+valid Configure-Nak in Req-Sent or Ack-Sent renews the ten-request budget.
+Ack-Rcvd keeps its existing budget, as its RCN transition carries no IRC. A
 Protocol-Reject received while IPCP still negotiates stops IPv6CP the same way.
 An LCP restart takes IPv6CP down with it and starts it again beside IPCP when
 the network phase is reached again.
 <!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- clientIPv6CP, enableIPv6CP, applyIPv6CP, rejectsIPv6CP -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- receiveNak -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
 <!-- source: internal/component/l2tp/ppp/ipv6cp_client.go -- TentativeIPv6CPInterfaceID, IPv6LinkLocal -->
@@ -413,6 +445,16 @@ any Echo-Reply resets the count. After a session ends or a dial fails, the
 wait before the next discovery starts at `delay-min` and doubles on each
 further failure up to `delay-max`.
 
+The separate `ipv6cp restart-timer` leaf accepts whole milliseconds from 100
+to 60000, defaulting to 3000 from YANG. The existing timing carrier passes it
+to the IPv6CP automaton at Dial. A timing-only reload keeps the current session's
+snapshot and changes the next Dial. IPv6CP owns one Restart timer across IPCP
+negotiation and the established phase. Each successfully written
+Configure-Request resets it, and Opened, Stopped or LCP-down stops it. Session
+cleanup stops it too. IPCP retains its own three-second timer.
+<!-- source: internal/component/iface/pppoe_client_timing.go -- parsePPPoEClientTiming -->
+<!-- source: internal/component/l2tp/pppoeclient/ipv6cp_client.go -- newClientIPv6CP, sendRequest, lowerDown -->
+
 <!-- source: internal/component/iface/pppoe_client.go -- pppoeClientConfigChanged, setTiming, run -->
 <!-- source: internal/component/iface/pppoe_client_timing.go -- PPPoEClientTiming.Validate, reconnectDelay -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
@@ -488,6 +530,20 @@ each phase, then checks resumed traffic and the changed installed state.
 Both tests exercise registered startup config delivery inside their isolated
 test processes; they do not launch the full daemon CLI.
 <!-- source: internal/component/iface/rfc1661_pppoe_packets_integration_linux_test.go -- TestDialRenegotiatesLCPInNetworkPhase, packetProbe -->
+
+The configured LCP budget tests require 350--900 ms between the first two
+Configure-Request receipts, both initially and after a peer-triggered restart.
+They retain a two-second missing-request deadline and require exactly three
+requests before PADT. The answering-peer control must complete LCP,
+authentication and IPCP with a one-request budget.
+<!-- source: internal/component/iface/pppoe_lcp_timing_integration_linux_test.go -- checkConfiguredLCPBudget, TestPPPoEClientLCPConfiguredBudgetAllowsSuccess -->
+
+The configured IPv6CP timer test loads a 500 ms interval through registered
+startup and Dial, leaving IPCP unanswered. It requires unchanged request options
+and 350--900 ms between the first two IPv6CP request receipts, with a two-second
+deadline for a missing retry. The receipt bounds allow scheduling delay.
+Both a fixed 100 ms timer and the three-second default fail those bounds.
+<!-- source: internal/component/iface/pppoe_ipv6cp_timing_integration_linux_test.go -- TestPPPoEClientIPv6CPConfiguredTimerEndToEnd -->
 
 On 2026-11-03, both scenarios passed with race instrumentation on `7.2.9-ze`.
 Omitting interface sections in `Server.deliverConfigRPC` made both fail with

@@ -4774,9 +4774,16 @@ an empty object.
 <!-- source: internal/appliance/cmd_build.go -- InjectDatabase, injectZeFS -->
 
 On macOS, `./le test deployment docker-l2tp-ppp` runs that same proof in
-privileged Linux containers. Docker is only a Linux userspace wrapper here: the
+Linux containers with `NET_ADMIN` and `/dev/ppp`. Docker is a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- zePeer, lacPeer -->
+
+The named `lcp-restart-timer-pppd` scenario checks configured LCP retransmission
+and exhaustion after a real pppd session has carried traffic. It observes exact
+wire counts and timing through the transparent relay; see the
+[L2TP interop lab](labs/l2tp-interop.md#lcp-restart-timer-pppd).
+<!-- source: internal/le/interoplab/l2tp/lcp_restart.go -- checkLCPRestart -->
 
 For appliance evidence, run `./le test deployment gokrazy-l2tp-ppp` on a
 Linux host with QEMU and PPPoL2TP support. The native appliance kernel action

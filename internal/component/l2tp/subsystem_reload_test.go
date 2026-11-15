@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppconfig"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -230,7 +231,10 @@ func TestReloadRejectsEnabledFlip(t *testing.T) {
 
 // VALIDATES: AC-5 -- identical Parameters produce a no-op reload.
 func TestReloadNoOpOnIdentical(t *testing.T) {
+	lcp, err := pppconfig.ParseLCP("l2tp", nil)
+	require.NoError(t, err)
 	s := newStartedSubsystem(t, Parameters{
+		LCP:           lcp,
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		HelloRetries:  DefaultHelloRetries,

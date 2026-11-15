@@ -1,19 +1,25 @@
 {
-  "note": "Independent rejudge 2026-11-14: the client LCP unit adds only explicit old-default timing and still requires rejected MRU/Magic options to stay absent across the next request, retransmission and an appended Nak suggestion, while options not rejected stay byte-identical. The server MRU/all-option pair and the IPCP both-DNS/secondary-only tests retain their exact replacement bytes and successful-completion controls. Re-read RFC Section 5.4, negotiateLCP rejection flags, negotiateIPCP and the tagged tests; no rejection persistence proof was lost.",
+  "code": {
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest": "ac2d6361902b9606",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987",
+    "internal/component/l2tp/pppoeclient/session.go::runIPCP": "b4d9bfcb44eb357a"
+  },
+  "note": "Re-read Section 5.4 and all three tagged units. Server MRU-only rejection preserves the other original bytes, while rejection of MRU/Auth/Magic yields an empty request that a valid Ack can advance. Client MRU-only, Magic-only and all-option cases assert exact surviving bytes, unchanged retransmission, and no resurrection from later appended Nak suggestions, then complete with a matching Ack. The IPCP control removes both DNS options or Secondary-DNS alone, checks the exact remaining request and completes address negotiation with no rejected DNS learned. Removal and preservation are distinct assertions, not two tags on one outcome. New client Max-Failure-five and server validated-LCP fixtures preserve all peer buffers and expectations. Current server rejection flags and client LCP/IPCP request builders retain the removal. Native DNS mutation and producer-disable records supplement these independently read assertions without being described as broader semantic proofs.",
   "requirement_sha": "0f0699a656379b2d",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions": "bce02f968aea7629",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "926652e8c68a9120",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "926652e8c68a9120"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "d3b8bb0cb396f6cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "d3b8bb0cb396f6cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
     "internal/component/l2tp/pppoeclient/rfc1661_client_dns_test.go::TestRFC1661ClientDropsRejectedDNSOptions": "cf99be7427743830",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "3aec64b128f9a7b0",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "3aec64b128f9a7b0"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "f6c813e247413393",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "f6c813e247413393"
   },
   "verdict": "enforced"
 }

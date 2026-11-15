@@ -1,17 +1,22 @@
 {
-  "note": "Independent rejudge 2026-11-14: explicit previous-default timing preserves both client units. A wrong-Identifier Nak in TestClientLCPReplyCorrelation emits no replacement and cannot finish; a matching Nak in TestClientLCPNakChangesIdentifierAndDropsStaleReply must produce a new request and complete only on that request's Ack. The unchanged server correlation pair also checks a valid MRU suggestion reaches the next request. Re-read RFC Section 5.3 and ValidateLCPReply; invalid Identifier is checked before any adoption or FSM transition.",
+  "code": {
+    "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
+  },
+  "note": "Re-read Section 5.3 and all three tagged units. The server's structurally valid MRU Nak with only the Identifier changed leaves FSM, output and Magic unchanged, while its matching Nak sends a fresh request carrying MRU1400. The client wrong-Identifier Nak emits no replacement and cannot finish; the matching-Nak unit requires a fresh request Identifier, refuses the previous Ack and completes on the new Ack. The positive and negative assertions therefore distinguish the Identifier condition rather than blanket refusal. Explicit Max-Failure five preserves the old client inputs and assertions. Both receivers call ValidateLCPReply before adopting Nak options. Existing client revert records show the negotiator is exercised; their panic route is not claimed to specifically prove the Identifier guard.",
   "requirement_sha": "fc804cfd2a5f7edc",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "926652e8c68a9120",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "926652e8c68a9120"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3b8bb0cb396f6cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "d3b8bb0cb396f6cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "4eeb5b80d7a054f9",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "8a4eed6c5f3fad83"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "fcf9935eb3c42587",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "49ca4108362b90e9"
   },
   "verdict": "enforced"
 }

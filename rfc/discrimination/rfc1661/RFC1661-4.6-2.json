@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-4.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxTerminate",
+    "unit-sha": "e6f82f1f553a8bc0",
+    "claim-sha": "784fa63835c512fc",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+    "producer-sha": "266e90dcbea5cd84",
+    "break": "line 1520: \"restartMax = s.lcpConfig.MaxTerminate()\" -\u003e \"restartMax = 2\""
+  },
+  {
+    "rid": "RFC1661-4.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxTerminate",
+    "unit-sha": "e6f82f1f553a8bc0",
+    "claim-sha": "0be16b645dee6137",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+    "producer-sha": "266e90dcbea5cd84",
+    "break": "line 1601: \"s.state = tr.NewState\" -\u003e \"if pkt.Code != LCPTerminateAck { s.state = tr.NewState }\""
+  }
+]

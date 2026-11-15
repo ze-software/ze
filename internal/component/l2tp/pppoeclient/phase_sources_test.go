@@ -88,7 +88,7 @@ func TestClientConnectedUnitFailure(t *testing.T) {
 					var err error
 					switch phase {
 					case "lcp":
-						_, err = negotiateLCP(w, testFrameReader(t, make(chan readFrame), unit), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, make(chan struct{}), logger, new(uint8))
+						_, err = negotiateLCP(w, testFrameReader(t, make(chan readFrame), unit), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, make(chan struct{}), logger, new(uint8))
 					case "auth":
 						err = runClientAuth(w, testFrameReader(t, make(chan readFrame), unit), buf[:], lcpResult{authProto: ppp.ProtoCHAP}, sessionConfig{}, clientMagic, make(chan struct{}), logger, new(uint8))
 					case "ipcp":
@@ -118,7 +118,7 @@ func TestClientEstablishmentDiscardsUnitFrames(t *testing.T) {
 				logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 				var err error
 				if phase == "lcp" {
-					_, err = negotiateLCP(w, testFrameReader(t, make(chan readFrame), unit), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, make(chan struct{}), logger, new(uint8))
+					_, err = negotiateLCP(w, testFrameReader(t, make(chan readFrame), unit), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, make(chan struct{}), logger, new(uint8))
 				} else {
 					err = runClientAuth(w, testFrameReader(t, make(chan readFrame), unit), buf[:], lcpResult{authProto: ppp.ProtoCHAP}, sessionConfig{}, clientMagic, make(chan struct{}), logger, new(uint8))
 				}

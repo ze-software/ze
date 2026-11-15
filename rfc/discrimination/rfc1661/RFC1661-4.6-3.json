@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-4.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure",
+    "unit-sha": "0fd8ca90c284c8dc",
+    "claim-sha": "26d60eab66af8a9c",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+    "producer-sha": "266e90dcbea5cd84",
+    "break": "line 1517: \"restartMax := s.lcpConfig.MaxConfigure()\" -\u003e \"restartMax := 10\""
+  },
+  {
+    "rid": "RFC1661-4.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_configured_restart_test.go::TestConfiguredLCPMaxConfigure",
+    "unit-sha": "0fd8ca90c284c8dc",
+    "claim-sha": "82c24b85aa4cb2c9",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::codeToEvent",
+    "producer-sha": "2ec9036c1e3601e4",
+    "break": "line 1166: \"return LCPEventRCA\" -\u003e \"return LCPEventRCN\""
+  },
+  {
+    "rid": "RFC1661-4.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go::TestProxyLCPRenegotiationAnswerStopsRestartBudget",
+    "unit-sha": "a8cecc01bf3b3075",
+    "claim-sha": "e2bb94b0173c36ef",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::codeToEvent",
+    "producer-sha": "2ec9036c1e3601e4",
+    "break": "line 1172: \"return LCPEventRCA\" -\u003e \"return LCPEventRCN\""
+  },
+  {
+    "rid": "RFC1661-4.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go::TestProxyLCPRenegotiationUsesConfiguredRestartBudget",
+    "unit-sha": "c23974cdfc30964d",
+    "claim-sha": "04791855b78f25c1",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::run",
+    "producer-sha": "7cf0aba336f34b08",
+    "break": "line 202: \"s.restartCount = s.lcpConfig.MaxConfigure()\" -\u003e \"s.restartCount = 0\""
+  }
+]

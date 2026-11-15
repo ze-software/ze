@@ -65,7 +65,7 @@ func TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling(t *testing.T) {
 		go func() {
 			defer close(done)
 			var buf [ppp.MaxFrameBufLen]byte
-			_, _ = negotiateLCP(log, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: mtu}, clientMagic, nil, stop, slog.Default(), new(uint8)) //nolint:errcheck // stopped below; only the first request is read
+			_, _ = negotiateLCP(log, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: mtu}, clientMagic, nil, stop, slog.Default(), new(uint8)) //nolint:errcheck // stopped below; only the first request is read
 		}()
 		synctest.Wait()
 

@@ -24,7 +24,7 @@ func TestClientLCPRepliesInAckReceived(t *testing.T) {
 			done := make(chan error, 1)
 			go func() {
 				var buf [ppp.MaxFrameBufLen]byte
-				_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+				_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 				done <- err
 			}()
 			synctest.Wait()
@@ -80,7 +80,7 @@ func TestClientLCPRefusalRevokesPeerAck(t *testing.T) {
 			done := make(chan outcome, 1)
 			go func() {
 				var buf [ppp.MaxFrameBufLen]byte
-				result, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+				result, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 				done <- outcome{result: result, err: err}
 			}()
 			synctest.Wait()
@@ -123,7 +123,7 @@ func TestClientLCPEchoBeforeOpenDiscarded(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			var buf [ppp.MaxFrameBufLen]byte
-			_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+			_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 			done <- err
 		}()
 		synctest.Wait()
@@ -175,7 +175,7 @@ func TestClientLCPAckWriteFailure(t *testing.T) {
 			done := make(chan error, 1)
 			go func() {
 				var buf [ppp.MaxFrameBufLen]byte
-				_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
+				_, err := negotiateLCP(w, testFrameReader(t, frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, clientMagic, nil, stop, slog.Default(), new(uint8))
 				done <- err
 			}()
 			synctest.Wait()

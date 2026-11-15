@@ -1,17 +1,22 @@
 {
-  "note": "Independent rejudge 2026-11-14 against RFC Section 5.4 and verified erratum 543: subset includes the whole option list. The client tests still accept MRU-only, Magic-only and all-option Rejects, and refuse changed or reordered Reject bytes. The unchanged server test additionally refuses an unrequested option. The only client change is explicit three-second and ten-request timing. ValidateLCPReply still enforces ordered unchanged requested options; no input or outcome assertion changed.",
+  "code": {
+    "internal/component/l2tp/ppp/lcp.go::ValidateLCPReply": "d780e35728fa1ac8",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
+  },
+  "note": "Re-read Section 5.4, retained verified erratum543, and all three tagged units. The corrected requirement permits a subset including the entire original option list. Client valid MRU-only, Magic-only and all-option Rejects create the exact remaining options; modified or reordered Rejects with the current Identifier produce no replacement. The server additionally refuses an unrequested option while accepting the original ordered MRU subset. These are structurally valid option lists, so changed content, membership and ordering are isolated from a packet-length fault. Explicit Max-Failure five changes no assertion. ValidateLCPReply matches each Reject option byte-for-byte against its requested instance and preserves request order, without requiring a proper subset. Revert records establish receiving-path reachability rather than a targeted subset cut; the semantic input pairs were independently read.",
   "requirement_sha": "1db404df8454e0e0",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "926652e8c68a9120",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "926652e8c68a9120"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "d3b8bb0cb396f6cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "d3b8bb0cb396f6cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "3aec64b128f9a7b0",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "8a4eed6c5f3fad83"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "f6c813e247413393",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "49ca4108362b90e9"
   },
   "verdict": "enforced"
 }

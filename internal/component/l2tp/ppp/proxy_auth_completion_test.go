@@ -33,6 +33,7 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 	proxiedPeer := optStream(mruOpt(proxiedPeerMRU), magicOpt(0x11223344))
 	proxiedLocal := optStream(mruOpt(1492), magicOpt(0x01020304), authProtoOpt(authProtoPAP))
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            tunnelID,
 		SessionID:           sessionID,
 		ChanFD:              19301,

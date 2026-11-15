@@ -103,6 +103,7 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 		return
 	}
 	if session.ipv6 != nil {
+		defer session.ipv6.restart.Stop()
 		// The session ends here, and IPv6 with it: the gauge that applyIPv6CP
 		// and restart raise reads 0 once no session carries IPv6.
 		defer recordIPv6CPOpened(session.cfg.name, false)
@@ -129,9 +130,7 @@ func keepaliveLoop(session *connectedSession, done chan<- struct{}, stopCh <-cha
 	// nil (no ipv6 configured).
 	var ipv6Restart <-chan time.Time
 	if session.ipv6 != nil {
-		restart := time.NewTicker(ipv6cpRestartInterval)
-		defer restart.Stop()
-		ipv6Restart = restart.C
+		ipv6Restart = session.ipv6.restart.C
 	}
 
 	// reenter returns the session to Link Establishment for an admitted LCP

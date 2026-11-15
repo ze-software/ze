@@ -36,6 +36,7 @@ const codeTerminateRequest = 5
 type injection struct {
 	codeReject bool
 	terminate  bool
+	restart    *restartProbe
 }
 
 // L2TP data message header flags, RFC 2661 Section 3.1.
@@ -87,6 +88,15 @@ var codeRejectProbes = [...]probe{
 // carries Ns and Nr.
 func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
 	direction string, target netip.AddrPort, injected *injection) error {
+	// The independent restart probe handles its own loss/observation policy;
+	// without its marker this returns false and preserves the original path.
+	handled, err := relayRestartData(conn, encoder, packet, direction, target, injected)
+	if err != nil {
+		return err
+	}
+	if handled {
+		return nil
+	}
 	if _, err := conn.WriteToUDPAddrPort(packet, target); err != nil {
 		return err
 	}
@@ -101,7 +111,7 @@ func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
 	if err := encoder.Encode(wireObservation{direction, encoded, encoded}); err != nil {
 		return err
 	}
-	if direction != "lac" {
+	if direction != directionLAC {
 		return nil
 	}
 	if !injected.codeReject {

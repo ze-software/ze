@@ -6,6 +6,7 @@ package pppoeclient
 import (
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -56,7 +57,11 @@ func ipv6cpOption(id ppp.IPv6CPInterfaceID) []byte {
 
 func startedIPv6CP(t *testing.T) (*clientIPv6CP, *ipv6cpWire, []byte) {
 	t.Helper()
-	c := newClientIPv6CP(ipv6cpTestMAC, 1492)
+	c, err := newClientIPv6CP(ipv6cpTestMAC, 1492, 3*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.restart.Stop() })
 	w := &ipv6cpWire{}
 	buf := make([]byte, ppp.MaxFrameBufLen)
 	if err := c.start(w, buf); err != nil {

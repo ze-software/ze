@@ -70,7 +70,7 @@ func startMRUNegotiation(t *testing.T) *mruNegotiation {
 	t.Cleanup(func() { close(stop) })
 	go func() {
 		var buf [ppp.MaxFrameBufLen]byte
-		result, err := negotiateLCP(n.log, testFrameReader(t, n.frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, mtu: pppoeMRUCeiling}, clientMagic, nil, stop, slog.Default(), new(uint8))
+		result, err := negotiateLCP(n.log, testFrameReader(t, n.frames, nil), buf[:], sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: pppoeMRUCeiling}, clientMagic, nil, stop, slog.Default(), new(uint8))
 		if err != nil {
 			t.Errorf("negotiateLCP: %v", err)
 		}

@@ -1,20 +1,21 @@
 {
-  "note": "Independent rejudge 2026-11-14 against RFC 2516 Section 7: the changed Host-default unit and client MRU helper add only the previous three-second and ten-request LCP timing. Host-default still checks 0 maps to 1492, configured 1492 and 1480 survive, and the actual first Configure-Request names 1492. Host refusals of 1493/1500/9000 still return the specific MTU error before discovery. The client pair still accepts 1492 in both directions, Naks a peer's 1500 to 1492, refuses adoption of a 1500 suggestion and completes at the permitted value. The unchanged AC pair drives handlePADR into production PPP and reads its MRU request, Ack of 1492 and Nak of 1500. Re-read pppoeSessionMTU, Dial, clientLCPPolicy and negotiateLCP. No peer bytes or assertion changed; the changed Host-default unit's observed-red proof also needs retaking even though its producer pppoeSessionMTU did not change.",
+  "code": {},
+  "note": "Independent rejudgment 2026-11-15 against RFC 2516 Section 7: \"The Maximum-Receive-Unit (MRU) option MUST NOT be negotiated to a larger size than 1492.\" Read all seven tagged units and their production paths. Host-default accepts omitted MTU as 1492, preserves 1492 and 1480, and reads an actual first client Configure-Request naming 1492; Host-negative refuses 1493/1500/9000 with the specific range error and verifies Dial rejects 1500 before discovery/interface resolution. The client positive negotiates both directions at 1492 and opens; distinct negative requests a peer MRU 1500, requires a Nak containing only 1492 and then opens after correction, and separately sends a correlated 1500 Nak suggestion which must not raise the next client MRU above1492. The AC pair drives handlePADR into the production PPP driver and observes its own MRU at or below1492, Ack of a canonical1492 request and Nak of a distinct1500 request to1492, preserving Identifiers. TestLCPConfigRequestMRU independently checks exact encoder output1492. Read pppoeSessionMTU and Dial admission, clientLCPPolicy/negotiateLCP and server MaxMRU/transmitMRU caps. Positive and negative buffers differ only in the targeted MRU value and valid correlation; neither relies on a packet-shape refusal. New explicit LCP/Max-Failure fixtures leave the scoped MRU assertions unchanged. Main-thread current native records supply observed-red evidence; no new behavior is claimed from panic-style producer-disable observations.",
   "requirement_sha": "046d4d35e71ec861",
   "tests": {
-    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "8664245d25ebdc42",
-    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "8664245d25ebdc42",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "b809abaa59cd4160",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "b809abaa59cd4160",
-    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "a383fda5674996b1",
-    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "a383fda5674996b1",
+    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "14c6f7ce759171ce",
+    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "14c6f7ce759171ce",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "dc6c608e70811d8a",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "dc6c608e70811d8a",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "fefe88a43c2111ad",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "fefe88a43c2111ad",
     "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "50a2fa5b77fbaf66"
   },
   "units": {
     "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "38d2f6162ca49fd6",
     "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "dd09b9fccc575e61",
     "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "de32032ae81ac1d8",
-    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "5c493178c98f361f",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "1de563324ea57829",
     "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "248fcf02c25c044b",
     "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "0e443aa624b617bf",
     "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "cbfae410eef77856"

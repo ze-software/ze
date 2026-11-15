@@ -7,8 +7,8 @@
     "claim-sha": "10c76e10f7f862ae",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::armRestartTimer",
-    "producer-sha": "723de859687359ae",
-    "break": "body of armRestartTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "202f0258ef300a55",
+    "break": "body of armRestartTimer replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-3.7-1",

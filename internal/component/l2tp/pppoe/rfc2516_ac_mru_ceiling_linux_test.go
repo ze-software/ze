@@ -48,6 +48,7 @@ func acPPPChannel(t *testing.T) int {
 	hwAddr := [EthALen]byte{0x02, 0, 0, 0, 0, 0x01}
 	srcMAC := [EthALen]byte{0x02, 0, 0, 0, 0, 0x02}
 	s := &InterfaceServer{
+		lcpConfig:         testLCPConfig(),
 		ifName:            "eth0",
 		hwAddr:            hwAddr,
 		sessions:          newSessionTable("eth0", 8),

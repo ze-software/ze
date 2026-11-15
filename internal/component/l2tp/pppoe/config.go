@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppconfig"
 	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
@@ -66,6 +67,7 @@ type Parameters struct {
 	AllowNoAuth bool
 	// AuthAllow is the effective immutable policy passed to new PPP sessions.
 	AuthAllow []ppp.AuthMethod
+	LCP       ppp.LCPConfig
 }
 
 // ExtractParameters parses PPPoE configuration from the YANG config tree, in
@@ -98,6 +100,11 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 	if !ok {
 		return p, nil
 	}
+	lcp, err := pppconfig.ParseLCP("pppoe", pppoe["lcp"])
+	if err != nil {
+		return Parameters{}, err
+	}
+	p.LCP = lcp
 
 	if enabled, ok := cfgBool(pppoe["enabled"]); ok {
 		p.Enabled = enabled
@@ -143,7 +150,6 @@ func ExtractParameters(tree map[string]any) (Parameters, error) {
 			return Parameters{}, err
 		}
 	}
-	var err error
 	p.AuthAllow, err = ppp.ResolveAuthAllow(p.AuthMethod, authNames)
 	if err != nil {
 		return Parameters{}, fmt.Errorf("pppoe authentication-allow: %w; run `delete pppoe authentication-allow` to restore the auth-method default, or run `set pppoe auth-method chap-md5`, `delete pppoe authentication-allow`, then `set pppoe authentication-allow chap-md5` to select CHAP-MD5 only", err)

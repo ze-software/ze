@@ -19,6 +19,7 @@ func TestAuthAllowEmptyRefusesPAPNak(t *testing.T) {
 	}
 	defer d.Stop()
 	d.SessionsIn() <- StartSession{
+		LCP:      testLCPConfig(),
 		TunnelID: 16, SessionID: 1, ChanFD: 16001, UnitFD: 16002,
 		AuthMethod: AuthMethodCHAPMD5, AuthRequired: true,
 		DisableIPCP: true, DisableIPv6CP: true,

@@ -103,6 +103,7 @@ func startProxyTransmitCapDriver(t *testing.T, peerMRU uint16) *ncpTestDriver {
 	}
 	peerOptions := optStream(peer...)
 	d.SessionsIn() <- StartSession{
+		LCP:                 testLCPConfig(),
 		TunnelID:            24,
 		SessionID:           1,
 		ChanFD:              24001,

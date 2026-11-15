@@ -28,6 +28,13 @@ This page is the infrastructure it is owed against.
 <!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber, interop-topology and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp, l2tp-ppp, docker-pppoe-accel verbs -->
 
+The L2TP lab's `lcp-restart-timer-pppd` scenario first proves a working PPP
+data path, then loses pppd's LCP replies after a live restart. It measures Ze's
+configured 500 ms retransmission, exact three-request budget and subsequent
+CDN from the relay's monotonic wire observations. The lab page describes the
+peer source and the final kernel cleanup assertion.
+<!-- source: internal/le/interoplab/l2tp/lcp_restart.go -- checkLCPRestart -->
+
 Every suite discovers its scenarios the same way. `Discover`
 (`internal/le/interoplab/discover.go`) reads the scenario directory, keeps the
 subdirectories, sorts the names lexically, and joins each one against the

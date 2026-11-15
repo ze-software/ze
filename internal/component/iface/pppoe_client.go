@@ -45,7 +45,7 @@ type PPPoEClientConfig struct {
 	// concentrator does not land on the metric an operator's static default
 	// occupies.
 	RoutePriority int
-	// Timing is the LCP, keepalive and reconnect timing. A reload that changes
+	// Timing is the LCP, IPv6CP, keepalive and reconnect timing. A reload that changes
 	// only Timing keeps the running session: reconcilePPPoEClients stores the
 	// new value through setTiming, the next Dial and the next redial wait
 	// read it. Readers outside the run goroutine MUST hold mu.
@@ -311,7 +311,7 @@ func (c *PPPoEClient) run() {
 }
 
 // setTiming stores a reloaded timing for the next session and the next redial
-// wait. The running session keeps the LCP and keepalive values it was dialed with.
+// wait. The running session keeps the LCP, IPv6CP and keepalive values it was dialed with.
 func (c *PPPoEClient) setTiming(timing PPPoEClientTiming) {
 	c.mu.Lock()
 	c.cfg.Timing = timing

@@ -2,8 +2,8 @@
   "note": "Rejudged 2026-11-08 after 14d3df65a7 against RFC 5072 Section 3 \"IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase.\" Send half: TestNCPHeldUntilNetworkPhase/ipv6 holds CHAP pending 3 s and onlyChallengesUntil fails on any frame but a CHAP Challenge (Code 1) with a changed Identifier (RFC 1994 4.1 retransmission), so an IPV6CP 0x8057 frame fails it; no EventIPRequest and no P2P install (-); after the Response is accepted pendingLifecycleNCP reads the 0x8057 Configure-Request (+). The stricter window isolates the rule better than before. Receive half: TestIPv6CPNoResponseBeforeNetworkPhase (-), TestIPv6CPOpenedEmitsAssigned (+), unchanged. Records: runAuthPhase revert (-), runNCPPhase mutant (+).",
   "requirement_sha": "92b84b69a4c59301",
   "tests": {
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase": "99a68f4293234999",
-    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned": "99a68f4293234999",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase": "348b8aac320c29c9",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned": "348b8aac320c29c9",
     "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "682b78fb127362e1",
     "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase#2": "682b78fb127362e1"
   },

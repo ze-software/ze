@@ -15,11 +15,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
-
-// ipv6cpRestartInterval is the IPv6CP Restart timer, the RFC 1661 Section 4.6
-// default of three seconds that IPCP negotiation uses too.
-const ipv6cpRestartInterval = 3 * time.Second
 
 // ipv6cpConfigureMax bounds the Configure-Requests sent before IPv6CP gives
 // up: the RFC 1661 Section 4.6 Max-Configure default of ten. IPCP is not
@@ -52,8 +49,12 @@ const (
 // starts there, beside IPCP), then keepaliveLoop. It is not safe for
 // concurrent use.
 // newClientIPv6CP is its only producer.
+// Its zero value is invalid. The session owner MUST stop restart when the
+// session ends; the same timer belongs to the automaton across phase handoffs.
 type clientIPv6CP struct {
-	state ppp.LCPState
+	state         ppp.LCPState
+	restartPeriod time.Duration
+	restart       *time.Timer
 	// identifier is the Identifier of the last Configure-Request sent;
 	// codeRejectID the Identifier of the last Code-Reject sent.
 	identifier   uint8
@@ -75,8 +76,27 @@ type clientIPv6CP struct {
 // newClientIPv6CP builds the automaton for one session. mac is the hardware
 // address of the PPPoE source interface; a nil or non-EUI-48 value falls back
 // to a random identifier (ppp.TentativeIPv6CPInterfaceID).
-func newClientIPv6CP(mac []byte, peerMRU uint16) *clientIPv6CP {
-	return &clientIPv6CP{state: ppp.LCPStateInitial, mac: append([]byte(nil), mac...), peerMRU: peerMRU}
+func newClientIPv6CP(mac []byte, peerMRU uint16, restartPeriod time.Duration) (*clientIPv6CP, error) {
+	if restartPeriod < 100*time.Millisecond {
+		return nil, invalidIPv6CPPeriod(restartPeriod)
+	}
+	if restartPeriod > 60*time.Second {
+		return nil, invalidIPv6CPPeriod(restartPeriod)
+	}
+	if restartPeriod%time.Millisecond != 0 {
+		return nil, invalidIPv6CPPeriod(restartPeriod)
+	}
+	restart := time.NewTimer(restartPeriod)
+	restart.Stop()
+	return &clientIPv6CP{state: ppp.LCPStateInitial, mac: append([]byte(nil), mac...),
+		peerMRU: peerMRU, restartPeriod: restartPeriod, restart: restart}, nil
+}
+
+// invalidIPv6CPPeriod refuses unvalidated callers before creating a timer.
+func invalidIPv6CPPeriod(period time.Duration) error {
+	return opererr.New(fmt.Sprintf("ipv6cp restart-timer %s is outside whole milliseconds in 100..60000", period),
+		"IPv6CP cannot use this retransmission interval",
+		"set interface pppoe-client <name> ipv6cp restart-timer <100..60000>")
 }
 
 // opened reports whether IPv6CP is in the Opened state.
@@ -109,6 +129,7 @@ func (c *clientIPv6CP) start(w io.Writer, buf []byte) error {
 // lowerDown takes IPv6CP down for an LCP restart (RFC 1661 Section 4.1, the
 // Down event). It reports ipv6cpClosed when the link was Opened.
 func (c *clientIPv6CP) lowerDown() ipv6cpEvent {
+	c.restart.Stop()
 	wasOpened := c.opened()
 	c.state = ppp.LCPStateInitial
 	if wasOpened {
@@ -138,6 +159,7 @@ func (c *clientIPv6CP) running() bool {
 // earliest opportunity." A later IPv6CP Configure-Request from the peer
 // restarts the automaton, because the peer then speaks the protocol.
 func (c *clientIPv6CP) protocolRejected() ipv6cpEvent {
+	c.restart.Stop()
 	wasOpened := c.opened()
 	c.state = ppp.LCPStateStopped
 	if wasOpened {
@@ -160,6 +182,7 @@ func (c *clientIPv6CP) tick(w io.Writer, buf []byte, logger *slog.Logger) error 
 		return nil
 	}
 	if c.requests >= ipv6cpConfigureMax {
+		c.restart.Stop()
 		c.state = ppp.LCPStateStopped
 		logger.Warn("pppoe-client: the access concentrator did not complete IPv6CP, so the session carries IPv4 only; enable IPv6 for PPPoE sessions on the access concentrator",
 			"requests", c.requests)
@@ -191,6 +214,9 @@ func (c *clientIPv6CP) sendRequest(w io.Writer, buf []byte) error {
 	if err := writeClientPacket(w, buf[:off]); err != nil {
 		return fmt.Errorf("pppoe-client: IPv6CP Configure-Request: %w", err)
 	}
+	// RFC 1661 Section 4.2: only scr, str and zrc start the Restart timer.
+	// IPv6CP sends no local Terminate-Request, so scr owns every arm here.
+	c.restart.Reset(c.restartPeriod)
 	return nil
 }
 
@@ -239,6 +265,7 @@ func (c *clientIPv6CP) handle(w io.Writer, buf []byte, pkt ppp.LCPPacket, logger
 		// return to Req-Sent. The peer's next Configure-Request restarts.
 		if wasOpened {
 			c.state = ppp.LCPStateStopped
+			c.restart.Stop()
 			logger.Info("pppoe-client: the access concentrator closed IPv6CP; IPv4 continues")
 			return ipv6cpClosed, nil
 		}
@@ -355,6 +382,7 @@ func (c *clientIPv6CP) ackRequest(w io.Writer, buf []byte, pkt ppp.LCPPacket, pr
 	}
 	if c.state == ppp.LCPStateAckRcvd {
 		c.state = ppp.LCPStateOpened
+		c.restart.Stop()
 		return ipv6cpOpened, nil
 	}
 	c.state = ppp.LCPStateAckSent
@@ -414,6 +442,7 @@ func (c *clientIPv6CP) receiveAck(w io.Writer, buf []byte, pkt ppp.LCPPacket) (i
 	case ppp.LCPStateAckSent:
 		c.requests = 0
 		c.state = ppp.LCPStateOpened
+		c.restart.Stop()
 		return ipv6cpOpened, nil
 	case ppp.LCPStateAckRcvd:
 		// RFC 1661 Section 4.1 RCA in Ack-Rcvd: scr, Req-Sent (crossed).
@@ -462,6 +491,15 @@ func (c *clientIPv6CP) receiveNak(w io.Writer, buf []byte, pkt ppp.LCPPacket) (i
 			c.local = suggested
 		}
 	}
+	// RFC 1661 Section 4.1: RCN in Req-Sent and Ack-Sent carries irc,scr;
+	// Ack-Rcvd carries scr alone. Section 4.4: "This action sets the Restart
+	// counter to the appropriate value (Max-Terminate or Max-Configure)."
+	// Only the RCN edges carrying irc renew the spent request budget.
+	//exhaustive:ignore
+	switch c.state {
+	case ppp.LCPStateReqSent, ppp.LCPStateAckSent:
+		c.requests = 0
+	}
 	event := ipv6cpUnchanged
 	if c.state == ppp.LCPStateOpened {
 		event = ipv6cpClosed
@@ -496,6 +534,7 @@ func (c *clientIPv6CP) receiveReject(pkt ppp.LCPPacket, logger *slog.Logger) (ip
 	wasOpened := c.opened()
 	c.state = ppp.LCPStateStopped
 	logger.Warn(errIPv6CPIdentifierRejected.Error())
+	c.restart.Stop()
 	if wasOpened {
 		return ipv6cpClosed, nil
 	}

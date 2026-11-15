@@ -53,12 +53,14 @@ const (
 )
 
 var testDialTiming = iface.PPPoEClientTiming{
-	LCPRestartTimer:   lcpRestartInterval,
-	LCPMaxConfigure:   lcpConfigureMax,
-	KeepaliveInterval: testKeepaliveInterval,
-	KeepaliveFailures: testKeepaliveFailures,
-	ReconnectDelayMin: time.Second,
-	ReconnectDelayMax: 60 * time.Second,
+	IPv6CPRestartTimer: 3 * time.Second,
+	LCPRestartTimer:    lcpRestartInterval,
+	LCPMaxConfigure:    lcpConfigureMax,
+	LCPMaxFailure:      5,
+	KeepaliveInterval:  testKeepaliveInterval,
+	KeepaliveFailures:  testKeepaliveFailures,
+	ReconnectDelayMin:  time.Second,
+	ReconnectDelayMax:  60 * time.Second,
 }
 
 // acceptTestIPv4Mode models a successful kernel mode change for the existing

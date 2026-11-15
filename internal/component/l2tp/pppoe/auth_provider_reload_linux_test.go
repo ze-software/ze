@@ -74,6 +74,7 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 			// authentication request without a kernel PPP device or timer.
 			options := []byte{1, 4, 5, 220}
 			driver.SessionsIn() <- ppp.StartSession{
+				LCP:      testLCPConfig(),
 				TunnelID: 7, SessionID: uint16(index + 1), ChanFD: fds[0], UnitFD: unit,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
@@ -133,6 +134,7 @@ func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
 	}
 	options := []byte{1, 4, 5, 220}
 	driver.SessionsIn() <- ppp.StartSession{
+		LCP:      testLCPConfig(),
 		TunnelID: 7, SessionID: 1, ChanFD: fds[0], UnitFD: unit,
 		LNSMode: true, ProxyLCPInitialRecv: options,
 		ProxyLCPLastSent: options, ProxyLCPLastRecv: options,

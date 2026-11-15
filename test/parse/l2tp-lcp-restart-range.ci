@@ -1,0 +1,59 @@
+# Question: Does the real CLI refuse values outside all four LCP leaf ranges?
+# A constructor unit cannot prove the command reports the accepted range.
+# PREVENTS: zero request budgets or an unusable timer reaching operator config.
+stdin=timerlow:terminator=END_TIMERLOW
+l2tp { lcp { restart-timer 99; } }
+END_TIMERLOW
+stdin=timerhigh:terminator=END_TIMERHIGH
+l2tp { lcp { restart-timer 60001; } }
+END_TIMERHIGH
+stdin=terminatelow:terminator=END_TERMINATELOW
+l2tp { lcp { max-terminate 0; } }
+END_TERMINATELOW
+stdin=terminatehigh:terminator=END_TERMINATEHIGH
+l2tp { lcp { max-terminate 256; } }
+END_TERMINATEHIGH
+stdin=configurelow:terminator=END_CONFIGURELOW
+l2tp { lcp { max-configure 0; } }
+END_CONFIGURELOW
+stdin=configurehigh:terminator=END_CONFIGUREHIGH
+l2tp { lcp { max-configure 256; } }
+END_CONFIGUREHIGH
+stdin=failurelow:terminator=END_FAILURELOW
+l2tp { lcp { max-failure 0; } }
+END_FAILURELOW
+stdin=failurehigh:terminator=END_FAILUREHIGH
+l2tp { lcp { max-failure 256; } }
+END_FAILUREHIGH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=timerlow
+expect=exit:code=1
+expect=stdout:contains=100..60000
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=timerhigh
+expect=exit:code=1
+expect=stdout:contains=100..60000
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=terminatelow
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=terminatehigh
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=configurelow
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=configurehigh
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=failurelow
+expect=exit:code=1
+expect=stdout:contains=1..255
+
+cmd=foreground:seq=8:exec=ze config validate -:stdin=failurehigh
+expect=exit:code=1
+expect=stdout:contains=1..255

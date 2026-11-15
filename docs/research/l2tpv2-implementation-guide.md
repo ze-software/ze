@@ -2495,3 +2495,18 @@ uses DHCPv6-PD (RFC 3633), which is a separate protocol from IPv6CP.
 Until this companion document is written, use RFC 1661 (LCP FSM) and RFC 1332
 (IPCP) as the primary references. The LCP FSM is the foundation: IPCP, IPv6CP,
 and CCP all reuse the same state machine with different option types.
+
+Ze's shared L2TP/PPPoE server drives LCP through RFC 1661's transition table.
+Its Restart timer and Max-Configure, Max-Terminate and Max-Failure limits come
+from the session's admitted configuration. Request transmissions spend the
+Restart counter, while valid replies reset it on the table's IRC edges.
+Zero-Restart-Count arms the configured period with a zero counter: an Opened
+peer's Terminate-Request therefore pauses in Stopping, then reaches Stopped.
+It sends no Terminate-Request of its own. Max-Failure converts subsequent
+Naks to Rejects until a successfully sent Configure-Ack renews that budget.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject, sendConfigureAck -->
+
+The lifecycle and upper-layer cleanup are described in
+[the integration design](l2tpv2-ze-integration.md#113-ppp-session-ownership).
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject, sendConfigureAck -->
+<!-- source: internal/component/l2tp/ppp/lcp_config.go -- LCPConfig -->

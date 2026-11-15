@@ -133,6 +133,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	}
 
 	start := ppp.StartSession{
+		LCP:                 policy.LCP,
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
 		ChanFD:              chanFD,

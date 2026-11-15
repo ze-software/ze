@@ -38,11 +38,12 @@ const papHeaderLen = 4
 const papFirstRequestTimeout = 30 * time.Second
 
 // proxyPAPRequestWait bounds the same wait on a proxied LCP lifetime, where the
-// LAC may already have finished PAP with the peer. It covers two Restart periods:
+// LAC may already have finished PAP with the peer. It covers two conventional
+// three-second PAP retry periods, independently of the configured LCP timer:
 // a peer still in the Authentication phase repeats its request, RFC 1334 Section
 // 2.2.1: "The Authenticate-Request packet MUST be repeated until a valid reply
 // packet is received, or an optional retry counter expires."
-const proxyPAPRequestWait = 2 * defaultRestartTimer
+const proxyPAPRequestWait = 6 * time.Second
 
 // papMaxFieldLen is the maximum length of a Peer-ID, Password or
 // Message field. RFC 1334 prefixes each field with a one-octet length,

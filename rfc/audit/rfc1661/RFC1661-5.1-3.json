@@ -1,17 +1,22 @@
 {
-  "note": "Independent rejudge 2026-11-14: explicit three-second and ten-request session fixtures preserve the prior behavior. TestLCPConfigureRequestIdentifierLifecycle requires a fresh Identifier when request data changes and after a valid Ack, while timeout retransmission stays byte-identical and a stale Ack leaves Req-Sent. The client Nak and Reject tests still require a changed Identifier after the valid reply, reject the stale Ack and finish on the replacement Ack. Re-read RFC Section 5.1 and negotiateLCP; every relevant assertion and peer packet is unchanged.",
+  "code": {
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest": "ac2d6361902b9606",
+    "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
+  },
+  "note": "Re-read Section 5.1 and all three distinct tagged units. TestLCPConfigureRequestIdentifierLifecycle separately requires a new Identifier after changed options and after a valid Ack even when the next options are unchanged. Its timeout retry preserves the outstanding bytes and Identifier, a permitted retransmission control, and a stale Ack leaves the current request unchanged. Client matching Nak and MRU/Magic/all-option Reject probes require replacement Identifiers to differ, refuse the old Ack, and complete on the replacement Ack. Their well-formed replies isolate reply processing rather than a parse failure. The client change is an explicit valid Max-Failure-five fixture with all packet and Identifier assertions retained. The current server request writer and client negotiator implement both Identifier-change conditions. The client revert records prove failure when the producer is disabled, not a targeted Identifier mutation; the exact Identifier assertions were independently read.",
   "requirement_sha": "5bc700d2390ce180",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "6e1e87cfaa4fb86b",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "6e1e87cfaa4fb86b",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "926652e8c68a9120",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "926652e8c68a9120"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3b8bb0cb396f6cf",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "d3b8bb0cb396f6cf"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle": "d6c7b7fef05afe2a",
     "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPConfigureRequestIdentifierLifecycle#2": "d6c7b7fef05afe2a",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "4eeb5b80d7a054f9",
-    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "3aec64b128f9a7b0"
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "fcf9935eb3c42587",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "f6c813e247413393"
   },
   "verdict": "enforced"
 }

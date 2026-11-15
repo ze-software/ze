@@ -1,13 +1,20 @@
 {
-  "note": "Independent rejudge 2026-11-14 after explicit client LCP timing fixtures: the changed network-phase unit still requires the exact peer Identifier and Magic in Configure-Ack, immediately preceded by our Configure-Request. The Auth and IPCP consumer tests retain the same outputs and the Auth test requires a second CHAP Response. The unchanged ppp tests require Ack-Sent and scr/sca or scr/scn from Opened, with an Echo control keeping Opened without scr/tld. The new timing fields carry the previous three-second and ten-request defaults, so no input, acceptance boundary or assertion was removed. Re-read keepaliveLoop, connectedSession.restart, negotiatePhases, negotiateLCP and the RFC Section 4.1 table and Section 4.3 implementation note. The changed unit still owes its observed-red record retake.",
+  "code": {
+    "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition": "5d8dbd54e9961d01",
+    "internal/component/l2tp/ppp/session_run.go::handleLCPPacket": "e6d18268699bada3",
+    "internal/component/l2tp/pppoeclient/connected_session.go::connectedSession.restart": "50bdbcf67cfb9108",
+    "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop": "1c0cb6ce12dcab33",
+    "internal/component/l2tp/pppoeclient/phases.go::negotiatePhases": "318da5d6e462a076"
+  },
+  "note": "Re-read Section 4.3's immediate-renegotiation sentence, the Section 4.1 Opened RCR+/RCR- table, and all six tagged units. The server tests require exact tld/scr/sca or tld/scr/scn actions, Ack-Sent for an acceptable request, actual Configure-Request and Ack output, and no session-down event; the distinct Echo control retains Opened without scr or tld. Client Auth, IPCP and Network probes require their own Configure-Request immediately before an exact peer Ack with Identifier 0x73 and Magic 0x55667788; Auth additionally requires the second CHAP Response. The request is structurally valid, so malformed-option discard cannot satisfy these assertions. The changed network fixture and shared exchange helper now explicitly supply Max-Failure five, preserving their prior packets and assertions. Current mutant records address phase dispatch; producer-disable records establish reachability only. The semantic assertions and current reentry/phase producer chain, not the record routes alone, ground this judgment.",
   "requirement_sha": "f615a6f02dc3c0c1",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "480d72ff3c4dac57",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "86bc304723db0e98",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "86bc304723db0e98",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "1bf710e06a6535c6",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "1bf710e06a6535c6",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "1bf710e06a6535c6"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "a1d8f8274d199376",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "a1d8f8274d199376",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "8a4a42a539b82f1c",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "8a4a42a539b82f1c",
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "8a4a42a539b82f1c"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "10e4e2442df38e91",
@@ -15,7 +22,7 @@
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "75ec212ec74da79a",
     "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringAuth": "a6780bab10270238",
     "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPDuringIPCP": "6f9ee50d166516f3",
-    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "03dc9f9e628e6a8a"
+    "internal/component/l2tp/pppoeclient/rfc1661_renegotiation_test.go::TestRFC1661ClientRenegotiatesLCPInNetworkPhase": "e46066da96375d93"
   },
   "verdict": "enforced"
 }

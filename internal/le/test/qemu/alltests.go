@@ -329,6 +329,7 @@ var integrationPackages = []string{
 	"./internal/component/ike/engine",
 	"./internal/component/l2tp",
 	"./internal/component/l2tp/ppp",
+	"./internal/component/l2tp/pppoe",
 	"./internal/component/l2tp/pppoeclient",
 	"./internal/test/pppoeac",
 	"./internal/component/telemetry/collector",

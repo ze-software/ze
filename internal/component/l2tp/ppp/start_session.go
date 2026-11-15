@@ -15,6 +15,9 @@ import (
 // PPP manager. It closes them on refusal, stopped-queue drain, or session
 // teardown. Producers MUST stop sending before stopping the manager.
 type StartSession struct {
+	// LCP is an immutable snapshot. The transport MUST construct it with
+	// NewLCPConfig; the driver MUST reject an invalid snapshot before I/O.
+	LCP LCPConfig
 	// Identification. Opaque to ppp; used only as a key for routing
 	// events back to the caller and for log fields.
 	TunnelID  uint16

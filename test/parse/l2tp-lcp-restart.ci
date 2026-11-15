@@ -1,0 +1,18 @@
+# Question: Can an operator configure every shared LCP setting through the CLI?
+# Parser units cannot prove the registered config-validation command accepts it.
+# PREVENTS: a declared leaf that the operator cannot reach.
+stdin=config:terminator=END_CONFIG
+l2tp {
+    enabled true
+    lcp {
+        restart-timer 500
+        max-terminate 4
+        max-configure 3
+        max-failure 2
+    }
+}
+END_CONFIG
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

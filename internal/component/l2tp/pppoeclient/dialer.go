@@ -91,7 +91,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if err != nil {
 		return iface.PPPoESession{}, err
 	}
-	// The iface parse validates the LCP, keepalive and reconnect leaves; this is
+	// The iface parse validates the LCP, IPv6CP, keepalive and reconnect leaves; this is
 	// the second check of the pair, before any socket opens.
 	if err := cfg.Timing.Validate(); err != nil {
 		return iface.PPPoESession{}, err
@@ -210,9 +210,15 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	}
 	discoveryDone := make(chan struct{})
 	go watchPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link, stopCh, discoveryDone, logger)
+	// ipv6 remains nil when IPv6 is disabled. Cleanup MUST stop its timer even
+	// when negotiation fails before a connected worker takes over.
+	var ipv6 *clientIPv6CP
 	var cleanupOnce sync.Once
 	cleanup := func() {
 		cleanupOnce.Do(func() {
+			if ipv6 != nil {
+				ipv6.restart.Stop()
+			}
 			_ = link.Close() //nolint:errcheck // shutdown; descriptors are released once
 			// The reader MUST exit before its discovery fd can be closed or reused.
 			<-discoveryDone
@@ -237,10 +243,10 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		keepaliveFailures: cfg.Timing.KeepaliveFailures,
 		lcpRestartTimer:   cfg.Timing.LCPRestartTimer,
 		lcpMaxConfigure:   cfg.Timing.LCPMaxConfigure,
+		lcpMaxFailure:     cfg.Timing.LCPMaxFailure,
 	}
 	// ipv6 stays nil, the guard negotiateIPCP and keepaliveLoop read as "no
 	// IPv6CP", when the pppoe-client configures no ipv6.
-	var ipv6 *clientIPv6CP
 	if cfg.IPv6.Enabled {
 		// RFC 1661 Section 3.6: "Any supported network-layer protocol packets
 		// received when the corresponding NCP is not in the Opened state MUST
@@ -252,7 +258,11 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		}
 		// RFC 5072 Section 4.1: the tentative identifier comes from the
 		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
-		ipv6 = newClientIPv6CP(source.HWAddr[:], 0)
+		ipv6, err = newClientIPv6CP(source.HWAddr[:], 0, cfg.Timing.IPv6CPRestartTimer)
+		if err != nil {
+			cleanup()
+			return iface.PPPoESession{}, err
+		}
 	}
 	result, negErr := negotiateSession(link, reader, unitFD, unitNum, sessCfg, link.stopped, logger, ipv6)
 	if negErr != nil {
