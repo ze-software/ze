@@ -8,7 +8,7 @@
 | Release reason | 58 findings of the full lint in the test harness, `le` and the chaos tooling; the full lint holds the release (`plan/release/validation/spec-lint-backlog-0-umbrella.md`) |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 5/5: closure resumed in session `49765d8f`; batches 1, 2 and 3 and change 4 committed (`d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459`); next the spec's own scoped lint on a still tree (see "Remaining closure work") |
+| Phase | 5/5: closure resumed in session `49765d8f`; batches 1, 2 and 3, change 4 and batch 5 committed (`d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459`, `066a8e1097`, `0e84b30083`); next the spec's own scoped lint on a still tree (see "Remaining closure work") |
 | Handoff | - |
 | Updated | 2026-11-12 |
 
@@ -25,6 +25,18 @@ Status" message in `MetadataStatus`. No lint run has judged those four
 candidates yet. Five items remain: a to c in order, e whenever a quiet
 machine allows, and d last.
 
+**Batch 5 (2026-11-12), the preview-bundle package `internal/le/build/preview`.**
+Two commits. `066a8e1097` is the form fixes, twelve files, reviewed clean in
+the one round the owner granted. `0e84b30083` adds a size bound to
+`checkArchiveWithin` (`check.go`) with `check_archive_limit_test.go`, after
+three granted rounds: the first found a blocker, the second two test gaps, the
+third was clean. The blocker was a sparse tar entry whose zero-filled holes
+never pass through the limited reader; the sparse case was observed red before
+the fix. The guarded lines were then broken in turn, and each break turned its
+own cases red: removing the post-hash budget check, changing `>` to `>=`, and
+removing the declared-size check. The code was restored and the package is
+green after.
+
 **a. The spec's own scoped lint, on a still tree.** The command is
 `./le go lint run scope "./internal/test/... ./internal/le/... ./internal/chaos/... ./tools/freertr-entrypoint/..."`.
 The lint planner refuses when a reached input changes while it plans
@@ -32,8 +44,14 @@ The lint planner refuses when a reached input changes while it plans
 `internal/le/go/lint/verifylint.go`). Planning takes about 3.5 minutes, and
 other sessions write into its trees continuously, so in this checkout the lint
 has not planned once this session. The owner ran the equivalent lint for
-another spec on his Mac. Clears when: the lint plans and runs to its end over
-a tree that holds still.
+another spec on his Mac. He then ran this spec's scoped lint on his Mac at
+`c775845457`: it planned and showed 228 findings in the host build, with
+repeated literals capped at 50 and identical messages at 10, so more are
+hidden. About 167 remain after batch 5. Its Linux build judged nothing,
+because `internal/test/editorcase/parent_test.go` calls `syscall.Dup2`, which
+linux/arm64 lacks, so that test package does not compile on the arm64 host;
+that compile failure is being fixed in other work. Clears when: the lint plans
+and runs to its end over a tree that holds still, in both builds.
 
 **b. Fix what that lint shows in committed code, in batches.** Under the
 owner's AC-1 ruling ("Owner decisions", decision i), each finding on a line
@@ -41,8 +59,10 @@ of committed code in scope is this spec's, whoever wrote the line; a finding
 only in another session's uncommitted or untracked file is listed by file.
 `.golangci.yml` sets `max-same-issues: 10`, so golangci-lint reports at most
 ten findings with the same text and hides the rest (batch 2 met six hidden
-ST1005 findings). After each batch the lint runs again. Clears when: the lint
-reports no finding on a line of committed code in scope.
+ST1005 findings). After each batch the lint runs again. Skip the files of
+`internal/le/interoplab/ipsec`, `internal/le/test/qemu` and
+`internal/test/runner` while other sessions hold uncommitted edits there.
+Clears when: the lint reports no finding on a line of committed code in scope.
 
 The four fixture files `4c05449c18` committed
 (`internal/test/fixture/deployment_quickstart.go`,
@@ -77,7 +97,8 @@ not the logs'. A quiet-machine run of the package took 1168 s before this
 session, so the run needs a machine that other sessions are not loading. The
 targeted tests over the functions this spec's commits touched in that package
 pass ("Closure batch-1 evidence"). Clears when: `./le test unit pkg path ./internal/le/rfc/`
-passes on a quiet machine.
+passes on a quiet machine. The owner ran it on his Mac at `c775845457`: ok.
+The scratch record of that run is not in this checkout.
 
 **Owner decisions: (i) decided, (ii) rounds granted, record open.**
 
@@ -875,8 +896,9 @@ sites declare 97 message expectations, and one site is grounded, by
 `TestRenderedRuleNeedleMatchesProducer`. It is not journaled yet: its row
 belongs in `plan/journal/negative-test-asserts-the-verdict-not-the-reason.md`,
 and the spec whose mechanism fits cannot take it until it has an Existing
-Mechanisms section, so the owner decides the owner. The handover
-`plan/handover/2026-11-10-close-open-specs.md` carries it.
+Mechanisms section, so the owner decides the owner. The closed handover that
+carried it is in history:
+`git show c7fc597965:plan/handover/2026-11-10-close-open-specs.md`.
 
 ### Documentation Updates
 
@@ -1106,7 +1128,7 @@ under race in 297.40s in `job-lint3-focused-corpus-5e2a0f64.log` (exit 0).
 ### Files Exist
 | File | Exists | Evidence |
 |------|--------|----------|
-| Implementation files | Yes | Committed file lists in `5c403f0234`, `bf7d87359f`, `726855e9be`, `9fffb6b1b3`, `d2c19eae5c`, `fc62fd18ec`, `d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459` |
+| Implementation files | Yes | Committed file lists in `5c403f0234`, `bf7d87359f`, `726855e9be`, `9fffb6b1b3`, `d2c19eae5c`, `fc62fd18ec`, `d3b523bb85`, `0b446895a2`, `c9f53eb9de`, `fead89c459`, `066a8e1097`, `0e84b30083` |
 
 ### AC Verified
 | AC ID | Claim | Fresh Evidence |

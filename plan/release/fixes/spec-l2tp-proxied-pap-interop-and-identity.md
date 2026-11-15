@@ -392,7 +392,7 @@ and proxied PAP is proven against a real client.
 ## Design Insights
 
 - The seeding is documented as intended behavior in three places: `docs/guide/l2tp.md`, `docs/architecture/l2tp/subscriber-session-model.md`, and the behavior-to-preserve list of `spec-home-cpe-15-lns-lcp-renegotiation`. This spec overrides them, on the commissioning brief's finding and on `ai/rules/principles.md` (a silently wrong value). Thomas decided the LAC's name stays in accounting, so the override separates identity from claim and leaves accounting carrying the claim where nothing authenticated.
-- Handover item 20 (`plan/handover/2026-11-06-unpushed-review-findings.md`) reads as a stall, and `926f01f732` already fixed it. What remains is the proof.
+- Item 20 of the 2026-11-06 review read as a stall, and `926f01f732` already fixed it. What remains is the proof.
 - No real LAC in the lab can carry this case, so the scenario proves the client half only. Reading freeRtr's and accel-ppp's LAC for proxy AVPs is the way to a whole-LAC proof, and neither is in this lab today.
 
 ## Owned journal rows
