@@ -91,9 +91,13 @@ spins for ever on darwin. The full account, with line references at
    cites tip at `840c8327` (2026-11-14); if master moved in that function,
    rerun the test and correct the references.
 3. Post only the approved text, through `gh`, on Thomas's order. The first
-   line of `issue.md` is the title. If he wants the CL, the commit message is
+   line of `issue.md` is the title. The issue carries no patch: Go's bug form
+   says "Do not post patches in the issue tracker, patches must be sent in a
+   CL / PR with a signed CLA". If he wants to send the fix, it goes after the
+   issue exists, as a GitHub pull request (GerritBot mirrors it to Gerrit) or
+   a Gerrit CL under his account, with "Fixes #NNNNN". The commit message is
    `report/cl-commit-message.txt` and the change is the working tree of
-   `go-tip/`; it goes to Gerrit under his account.
+   `go-tip/`.
 4. After posting, update the patch header's "Upstream status" line and its
    "inferred, not traced" sentence, and the doc page, with the issue link,
    through `./le commit create`. Then close this handover.
