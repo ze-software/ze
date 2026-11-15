@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	Register("reload/igp-runtime-rollback", uiDriver(runIGPRuntimeRollback))
+	Register("reload/igp-runtime-rollback", uiDriver(runIGPRuntimeRollback), StopsDaemon)
 }
 
 // runIGPRuntimeRollback proves that a failed daemon transaction restores both

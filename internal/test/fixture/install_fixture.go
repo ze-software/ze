@@ -37,6 +37,8 @@ func init() {
 		os.Exit(installGRUBStub(os.Args[1:]))
 	case "xorriso":
 		os.Exit(installXorrisoStub(os.Args[1:]))
+	case "tar":
+		os.Exit(installWorkerTarStub(os.Args[1:]))
 	}
 
 	Register("appliance/appliance-iso-arm64/prepare", isoARM64Prepare)
@@ -1323,7 +1325,10 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 	work := filepath.Join(root, "work")
 	build := filepath.Join(root, "build")
 	out := filepath.Join(root, "out")
-	tree := filepath.Join(build, "linux-7.1.1-"+modules)
+	// The worker owns a fresh private workspace. The synthetic tar producer
+	// must extract into the destination it requests, rather than pre-seeding
+	// a shared build tree that the worker must never reuse.
+	tree := filepath.Join(root, "source", "linux-7.1.1")
 	fragment := filepath.Join(root, "custom.config")
 	for _, dir := range []string{work, filepath.Join(tree, "scripts", "kconfig"), filepath.Join(tree, "scripts"), filepath.Join(tree, "arch", "x86", "boot"), out} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -1337,7 +1342,6 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 		filepath.Join(tree, "arch", "x86", "boot", "bzImage"): "kernel",
 		fragment: "CONFIG_REQUIRED=y\n",
 		strings.TrimSuffix(fragment, filepath.Ext(fragment)) + ".require": "CONFIG_REQUIRED\nCONFIG_EQUALS=y\n",
-		filepath.Join(work, "linux-7.1.1-"+modules+".built.tar.part"):     "",
 	}
 	for path, data := range files {
 		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
@@ -1358,7 +1362,11 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 	if err := os.Symlink("/bin/echo", filepath.Join(bin, "make")); err != nil {
 		return "", err
 	}
-	if err := os.Symlink(noop, filepath.Join(bin, "tar")); err != nil {
+	self, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	if err := os.Symlink(self, filepath.Join(bin, "tar")); err != nil {
 		return "", err
 	}
 	restore := setFixtureEnv("PATH", bin)
@@ -1370,6 +1378,41 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 		Fragments: []string{fragment}, Stdout: &output, Stderr: &output,
 	})
 	return output.String(), err
+}
+
+// installWorkerTarStub realizes the synthetic source in the worker's actual
+// extraction destination. It accepts only the archive operations RunWorker
+// uses; the worker still owns extraction, rename, configuration and cleanup.
+func installWorkerTarStub(args []string) int {
+	if len(args) == 2 {
+		if args[0] == "-tJf" {
+			fmt.Println("linux-7.1.1/")
+			return 0
+		}
+	}
+	if len(args) == 4 {
+		if args[0] == "-xJf" {
+			if args[2] == "-C" {
+				source := filepath.Join(filepath.Dir(filepath.Dir(args[1])), "source")
+				if err := copyTree(source, args[3]); err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					return 1
+				}
+				return 0
+			}
+		}
+	}
+	if len(args) == 3 {
+		if args[0] == "-cf" {
+			if err := os.WriteFile(args[1], nil, 0o600); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			return 0
+		}
+	}
+	fmt.Fprintf(os.Stderr, "unexpected synthetic worker tar arguments: %q\n", args)
+	return 2
 }
 
 // fixtureSourceTarball stands in for the worker fixture's pre-downloaded kernel
