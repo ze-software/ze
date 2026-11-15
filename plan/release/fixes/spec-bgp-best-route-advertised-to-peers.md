@@ -12,7 +12,7 @@
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-15 |
 
 Bucket: `plan/release/fixes/`. `plan/README.md` puts incorrect shipped
 behaviour there, routing defects named, and `post-release/features/` holds
@@ -58,6 +58,147 @@ Existing Mechanisms and keeps it as an open question.
 | the user guide | "When `bgp-rs` is not loaded, received routes are not forwarded to other peers. The `bgp-rib` plugin stores routes and performs best-path selection, but does not re-advertise them." | `docs/guide/route-reflection.md`, "Without Route Reflection" |
 | the architecture page | "`bgp-rib` forwards nothing between peers" | `docs/architecture/core-design.md`, the paragraph on a changed grant on a route-consuming process |
 
+### Selected-route investigation, 2026-11-15
+
+This investigation adds learned-BGP defect probes only. The spec remains a
+skeleton; neither the advertiser design nor API/redistribution arbitration is
+approved by these tests. The main-thread run below reproduces the missing
+initial advertisement; no discrimination result is claimed.
+
+| Finding | Producer or contract | Consequence for the design |
+|---------|----------------------|----------------------------|
+| Selection reaches shared routing state and best-change publication, but supplies no ordinary send | `rib_bestchange.go` `checkRouteBestChange`, `publishBestChanges`; the latter emits `ribevents.BestChange` and the redistribution bridge. A source search of `rs` and `rr` finds no best-change consumer; `bmp_locrib.go` `startLocRIB` subscribes for monitoring | The missing connection is an ordinary advertiser, not another best-path selector |
+| Retained received routes already have an owned wire representation with ingress provenance | `rib_recovery.go` `recoveryCandidate` owns attributes, NLRI and next hop and carries source, message ID, source-policy epoch and ADD-PATH framing; `sdk_engine.go` `RelayStoredRoute` reaches the typed bridge or external RPC | Reuse this representation and the existing egress rail. Ordinary export denial of the global winner must withdraw the previous advertisement, without electing a lower per-recipient candidate through `recoveryRoutes` |
+| A Loc-RIB forwarding handle cannot be the advertisement carrier | `docs/architecture/rib/forward-handle.md`, "The decisions": a control-plane re-election can carry no handle, and the handle is state-tracker infrastructure. A received handle can contain several NLRIs, including losing candidates | Read the selected retained path; never forward a whole received UPDATE merely because one NLRI became best |
+| Writer coexistence and startup remain design work | `reactor_api_relay.go` `RelayStoredRoute` already enforces sender permission and source-dependent egress | Derive default loading and bindings, one opaque forwarding-role claim per destination beside RS/RR, replay and withdrawal ownership. Do not hardcode plugin names in the engine |
+
+The four new probes are in
+`internal/component/bgp/reactor/rfc4271_selected_advertisement_test.go`.
+They run the current RIB and Adj-RIB-In SDK consumers with established
+`net.Pipe` sessions and no RS/RR process or client role. Real terminal host
+routes in the admission Loc-RIB resolve both source next hops. Candidate
+storage, reachability and the selected Loc-RIB path must succeed before a
+missing recipient advertisement can fail the test. The export-denial case
+uses a compiled library policy that accepts LOCAL_PREF 100 and rejects 200.
+Later source markers bound the unchanged-route observations.
+
+| Probe | Assertion after the positive selection control | Evidence state |
+|-------|-----------------------------------------------|----------------|
+| `TestRFC4271OrdinarySelectedWinnerReachesPeer` | Two received candidates yield only the selected path at the ordinary recipient | Compiled; initial recipient advertisement absent after successful selection. Later marker and history assertions not reached |
+| `TestRFC4271OrdinarySelectedReplacementLifecycle` | A better winner replaces the earlier route, withdrawal restores the retained fallback, and the last withdrawal reaches the socket once | Compiled; initial recipient advertisement absent. Replacement, fallback and withdrawal assertions not reached |
+| `TestRFC4271OrdinaryUnchangedWinnerIsNotReadvertised` | An identical receipt and a lower candidate's receipt/removal send no duplicate or withdrawal | Compiled; initial recipient advertisement absent. Repeated receipt and duplicate-suppression assertions not reached |
+| `TestRFC4271OrdinarySelectedExportDenialWithdraws` | Excluding the selected winner withdraws the earlier route and never re-advertises the lower retained candidate | Compiled; initial exportable recipient advertisement absent. Selected export denial and withdrawal assertions not reached |
+
+The main thread compiled and ran all four probes on 2026-11-15. Each reached
+its first recipient-wire wait after actual next-hop resolution, source storage
+and Loc-RIB selection succeeded, then failed with `timed out waiting for
+ordinary selected route on recipient socket`. The missing prefixes were
+`198.19.241.0/24` through `198.19.244.0/24`. This reproduces the initial
+advertisement gap; it does not yet show that replacement, duplicate suppression
+or export-denial handling is defective, because those assertions were not
+reached. The minimal producer cause is `publishBestChanges`: it emits the
+best-change batch and redistribution event, without an ordinary peer sender.
+
+Retain
+`tmp/session/2026-11-14-210034/scratch/job-core-bgp-lifecycle-advertisement-bdcd2163.log`
+as the observed baseline, specifically its four `TestRFC4271Ordinary` failure
+blocks. Remove this spec's retention claim after an implemented advertiser
+has been rerun against all four probes and the owning evidence records the
+outcomes of their later assertions; another finding may still require the
+shared log. No new temporary evidence copy is needed.
+
+#### Q-3: local and learned routes for the same prefix
+
+The owner's pending question, "What do BIRD and FRR do?", was investigated
+against the lab versions on 2026-11-15: FRR 10.7.1, pinned by digest in
+`internal/le/interoplab/discover.go`, and BIRD 3.4.0, selected by
+`test/interop/Dockerfile.bird`. The local reference checkouts are FRR 10.5.3
+and BIRD 2.19 development, so they were not used as evidence for these version
+specific decisions. The primary source links below name the release tags.
+
+RFC 4271 Section 9.1.1 says: "The exact nature of this policy information,
+and the computation involved, is a local matter." Section 9.1.3 separately
+requires: "All routes in the Loc-RIB are processed into Adj-RIBs-Out according
+to configured policy." These clauses do not establish a universal preference
+for every route described as local. Origination, cross-protocol selection and
+recipient export policy must be distinguished.
+
+| Route form or boundary | FRR 10.7.1 | BIRD 3.4.0 |
+|------------------------|------------|------------|
+| Explicit BGP origination | `bgp_static_update` creates a self-owned `BGP_ROUTE_STATIC` candidate for a network statement; import-check validity and the network route-map still apply. This is distinct from a system static route. [Source](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_route.c) | `static_announce_rte` inserts an `RTS_STATIC` route into the configured shared table. An inactive unicast next hop suppresses it. Exporting it to BGP does not first turn it into another imported BGP candidate. [Source](https://github.com/CZ-NIC/bird/blob/v3.4.0/proto/static/static.c) |
+| Redistributed route versus learned BGP | `bgp_path_info_cmp` first calls `bgp_path_info_cmp_distance` when a self-owned `BGP_ROUTE_REDISTRIBUTE` path competes with a zebra-installable path: lower administrative distance wins; equality continues through BGP comparison. Its comment says, "Prefer the path with a lower admin distance." [Source](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_route.c) | `rte_better` compares shared-table preference first, higher winning. Only tied routes of the same owner class reach its protocol-specific comparator; a cross-class tie uses class-address ordering, not BGP LOCAL_PREF. [Source](https://github.com/CZ-NIC/bird/blob/v3.4.0/nest/rt-table.c) |
+| Explicit origination versus learned BGP | Outside that redistribution comparison, weight and LOCAL_PREF precede the local-route tie-break. Local defaults include weight 32768, so ordinary network origination normally wins but is policy-sensitive. [Defaults](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.c), [constant](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.h) | Static preference 200 and Direct preference 240 exceed BGP preference 100. Import filters or channel configuration can change preference. [Constants](https://github.com/CZ-NIC/bird/blob/v3.4.0/nest/route.h), [Direct producer](https://github.com/CZ-NIC/bird/blob/v3.4.0/nest/rt-dev.c) |
+| Merely present in the kernel | Presence alone creates no BGP origination; network or redistribution admission is a separate step. | `krt_got_route` / `krt_learn_scan` admit kernel or alien routes only under the configured learning mode. The Kernel protocol uses inherited preference 10; it is not Static 200 or Direct 240. OS-created connected routes need `learn all` on that import path. [Source](https://github.com/CZ-NIC/bird/blob/v3.4.0/sysdep/unix/krt.c), [guide](https://bird.nic.cz/doc/bird-3.4.0.html#kernel) |
+| Selection versus ordinary export | `bgp_process_main_one` passes the selected path to `group_announce_route`; `subgroup_announce_check` applies recipient admission, with FIB-pending suppression an additional configured constraint. | `channel_notify_optimal_req` supplies the selected route to `rt_notify_basic`; `export_filter` applies protocol preexport and the configured filter. `bgp_preexport` accepts non-BGP routes for this next filter stage; `bgp_update_attrs` then supplies missing BGP attributes. It is not an unconditional export grant. [Table source](https://github.com/CZ-NIC/bird/blob/v3.4.0/nest/rt-table.c), [BGP source](https://github.com/CZ-NIC/bird/blob/v3.4.0/proto/bgp/attrs.c) |
+
+The following outcomes assume both candidates are valid and admitted into the
+same relevant table, ordinary single-path advertisement, accepting export
+policy, default distances/preferences, and no policy overrides. FRR's source
+distance is carried by `bgp_redistribute_add`; `bgp_distance_apply` resolves
+the learned BGP distance. Defaults are static 1, OSPF 110, eBGP 20 and iBGP 200
+([constants](https://github.com/FRRouting/frr/blob/frr-10.7.1/lib/frrdistance.h)).
+BIRD's corresponding preferences are Static 200, OSPF 150 and BGP 100.
+These are source-derived outcomes, not new interop measurements.
+
+| Competing inputs for the same prefix | FRR default winner | BIRD default winner |
+|--------------------------------------|--------------------|---------------------|
+| Admitted explicit BGP network origination / BIRD Static, versus learned BGP | Network candidate | Static candidate |
+| System static redistributed into BGP / BIRD Static, versus learned eBGP or iBGP | Static candidate | Static candidate |
+| OSPF redistributed into BGP / BIRD OSPF, versus learned eBGP | Learned eBGP: 20 is lower than 110 | OSPF: 150 is higher than 100 |
+| The same OSPF input, versus learned iBGP | OSPF: 110 is lower than 200 | OSPF: 150 is higher than 100 |
+| A route imported by BIRD Kernel, versus learned BGP | Depends on its source and how it was admitted into BGP; not the explicit-network case | Learned BGP: 100 is higher than inherited 10 |
+
+An export filter rejecting the winner does not by default promote the loser
+for that recipient. BIRD's `secondary` option explicitly changes this and
+defaults off; ADD-PATH also changes the output population. Those configured
+roles are separate from the ordinary selected-route contract
+([BIRD guide](https://bird.nic.cz/doc/bird-3.4.0.html#bgp)).
+
+Ze already has two relevant mechanisms, but their existence does not settle
+Q-3. `internal/core/rib/locrib/entry.go` `selectBest` ranks system candidates
+by administrative distance then metric. In contrast,
+`internal/component/bgp/redistribute/consumer.go` `BGPConsumer.InjectRoute`
+dispatches an originated `UpdateRoute` command, and
+`reactor_api_batch.go` `announceTarget.initBatchOwner` preserves that local
+authority. `session_ownership.go` `adjOutContests` detects competing writer
+identities; it does not compare route preferences. The source-bound
+`oweAnnouncement` path can defer a contest to recovery, whose
+`rib_recovery.go` `recoveryCandidate` supplies retained received-BGP bytes.
+This is not yet a demonstrated election spanning explicit API origination,
+redistribution and learned BGP.
+
+The implementations therefore answer the comparison question differently for
+some inputs, notably OSPF versus eBGP. Q-3 remains a design choice about Ze's
+origin forms and selection boundary, not an unanswered request for source
+research. No universal local-versus-learned precedence is chosen here, and no
+new advertiser or product change is implied. The four learned-only regression
+probes above remain valid and do not depend on resolving mixed-origin policy.
+
+The next fix work, after design review, is:
+
+1. Read FRR's and BIRD's deciding functions and settle the advertiser's owning
+   component, default startup and derived bindings within the plugin boundary.
+   Keep the pending API/redistribution arbitration question open.
+2. Feed the global selected path to the existing stored-route relay using
+   owned route bytes and original source, message ID and source-policy epoch.
+   Add an opaque destination forwarding-role claim so ordinary, RS and RR
+   writers cannot duplicate ownership. Do not use `ForwardHandle` or a
+   plugin-name check in the engine.
+3. Carry replacement, final withdrawal and replay through that ownership
+   model. Apply recipient export policy to the global winner; when it is
+   excluded, withdraw the prior advertisement without selecting a lower
+   candidate for that destination.
+4. Rerun package `./internal/component/bgp/reactor` with selector
+   `^TestRFC4271Ordinary`, the native runner's complete feature tags,
+   `CGO_ENABLED=0` and `-count=1` through `./le job run`, then assess every later assertion. Add RFC tags
+   only after their claims pass and have recorded discrimination proof.
+
+The probes carry untagged `VALIDATES` comments, and no RFC gap row or
+conformance count changes. The fixture starts the two existing RIB consumers
+explicitly: a future separate default advertiser will also need its normal
+startup discovery represented. Default autoload, forked transport, late-peer
+replay and kernel forwarding remain unproven.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -66,7 +207,7 @@ Existing Mechanisms and keeps it as an open question.
   → Constraint: the engine holds no policy and no Loc-RIB (`ai/doors/bgp-engine.md`, "Where it sits"); a design that moves best path into the reactor departs from that page and needs a discussion with Thomas first
 - [ ] `docs/architecture/core-design.md` - "Forwarding Path", "BGP RIB Best-Path Tracking", "The Two Deliveries a Redistribution Rule Derives"
   → Constraint: three forwarding paths exist today (the reactor RS fast path, the text `cached` path, the typed `ForwardCached` path), and the last two end in the shared `ForwardUpdate` core
-- [ ] `docs/architecture/rib/forward-handle.md` - the zero-copy handle a Loc-RIB change carries, whose intended consumer is an RS/RR fast path
+- [ ] `docs/architecture/rib/forward-handle.md` - optional state-tracker bytes; re-election can carry no handle, and RS/RR never use it
 - [ ] `docs/guide/route-reflection.md` - "Forwarding and Destination Election", "Plugin Bindings", "Without Route Reflection"
 - [ ] `docs/architecture/plugin/plugin-system.md` - the process boundary: any design must work with the deciding plugin forked
 
@@ -98,7 +239,7 @@ Existing Mechanisms and keeps it as an open question.
 
 **Source files read:**
 - [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go` - `publishBestChanges` emits the elected-route changes as one batch on the event bus, then calls the BGP redistribution bridge directly
-- [ ] `internal/component/bgp/plugins/rib/forward_tracker.go` - `forwardStateTracker` records the prefixes whose Loc-RIB best is a BGP path and reads the `ForwardHandle` bytes; it sends nothing, and its comment names the RS/RR fast path as the intended consumer
+- [ ] `internal/component/bgp/plugins/rib/forward_tracker.go` - `forwardStateTracker` records the prefixes whose Loc-RIB best is a BGP path and reads optional `ForwardHandle` bytes; it sends nothing
 - [ ] `internal/component/bgp/plugins/rs/server_forward.go` - `batchForwardUpdateSkipped` batches cached message ids toward the peers the reactor fast path did not serve
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - the forward loop suppresses an iBGP source toward an iBGP destination unless one of them is a reflector client (`isReflected`)
 - [ ] `internal/component/bgp/reactor/session_ownership.go` - `oweAnnouncement` and `adjOutContests`: the destination writer detects a second owner for a key and, while a recovery owner receives the source's UPDATEs, owes the key to the RIB election
@@ -123,7 +264,7 @@ last column is an open design question, not a choice.
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | `bgp-rib` election and best-change batch | `rib/rib_bestchange.go` `publishBestChanges`; `core-design.md` "BGP RIB Best-Path Tracking" | elects the best path per prefix and publishes the changes; subscribers include BMP Loc-RIB monitoring (`bmp/bmp_locrib.go`) and flow-export enrichment (`flowexport/enrichbgp.go`), and the BGP redistribution bridge is called directly; neither `bgp-rs` nor `bgp-rr` subscribes | open: extend it as the source of what is advertised (Loc-RIB driven, RFC 4271 Section 9.1.3), or keep forwarding UPDATE driven and only defer to it |
-| Loc-RIB mirror and `ForwardHandle` | `rib/forward_tracker.go` `forwardStateTracker`; `docs/architecture/rib/forward-handle.md` | carries the elected route's received wire bytes zero-copy to a change subscriber; the tracker only records state, behind `request bgp rib fastpath enable` | open: candidate carrier for advertising the elected route's bytes without re-encoding; its comment already names an RS/RR fast path as the intended consumer |
+| Loc-RIB mirror and `ForwardHandle` | `rib/forward_tracker.go` `forwardStateTracker`; `docs/architecture/rib/forward-handle.md` | carries optional received UPDATE bytes to state trackers; control-plane re-election can carry nil, and a received UPDATE can contain several NLRIs | does not apply as the advertisement carrier: the documented contract is state tracking, and received bytes do not identify only the selected path |
 | `bgp-rs` forwarding | `rs/server_forward.go` `batchForwardUpdateSkipped`; `docs/guide/route-reflection.md` "Forwarding and Destination Election" | forwards each received UPDATE by cache id to the other peers it is attached to; a destination without ADD-PATH defers to the `bgp-rib` election only where sources contest a prefix | open: make the default advertiser a mode of it, keep it as the RFC 7947 role only, or replace its transit use; it must keep working for route servers |
 | Reactor RS fast path | `reactor/forward_rs.go` `reactorForwardRS`; `core-design.md` "Forwarding Path" | forwards inline on the read goroutine for peers with `rs-fast-path`, handing back to `bgp-rs` what it cannot serve | open: whether a default advertiser reuses this rail; preserve it for route servers |
 | Forward loop rules | `reactor/reactor_api_forward.go` (`isReflected`, the eBGP AS_PATH prepend, the egress chain) | applies iBGP split horizon, reflector rules, AS_PATH prepend and egress policy per destination | extends: any advertiser reaches the destination through these rules, never a second copy of them |
@@ -142,7 +283,7 @@ last column is an open design question, not a choice.
 |---|--------|---------------------|---------------------|
 | Q-1 | Which component advertises the elected route | `bgp-rib` itself; `bgp-rs` in a new mode; a new advertiser plugin; the reactor (departs from `rib-transition.md`) | FRR's and BIRD's deciding functions, read and quoted at the lab's versions |
 | Q-2 | How it relates to `bgp-rs` and `bgp-rr`, which must keep working | the default yields to an attached route server or reflector per peer; both coexist under one arbiter; one replaces the other | the config forms in the repository that attach each today |
-| Q-3 | Arbitration between an elected BGP route and a redistributed route for the same prefix toward the same peer | the destination writer's ownership check; the daemon Loc-RIB's cross-protocol selection; an explicit precedence | a trace of `adjOutContests` with a locally originated owner |
+| Q-3 | Arbitration between an elected BGP route and a redistributed route for the same prefix toward the same peer | the destination writer's ownership check; the daemon Loc-RIB's cross-protocol selection; an explicit precedence | a trace of `adjOutContests` with a locally originated owner; pinned FRR/BIRD source comparison and default counterexamples are recorded under Selected-route investigation, "Q-3: local and learned routes for the same prefix". Choose Ze's origin/selection semantics at design; the implementations do not supply one universal precedence |
 | Q-4 | iBGP split horizon and route reflection under the default | the forward loop's existing `isReflected` rule; a rule in the advertiser | none beyond reading the chosen advertiser |
 | Q-5 | RFC 8212 export default toward eBGP | refuse without an explicit export policy, as the RFC says; a configuration option, which RFC 8212 Section 3 permits ("A BGP speaker MAY provide a configuration option to deviate from the following updated behaviors.") | how Ze enforces RFC8212-3-2 today, read at the producer |
 | Q-6 | What happens to configs that attach `bgp-rs` for plain transit today (the netlab render, guides, `.ci` bodies, interop scenarios) | convert them in the same work, as the pre-release rule on behaviour changes requires; leave route-server configs as they are | a census of the repository's users |
