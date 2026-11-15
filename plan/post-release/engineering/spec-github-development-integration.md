@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | tooling, docs |
 | Priority | P2 |
 | Release reason | Owner-requested development integration; this adds no first-release prerequisite or product-support claim. |
@@ -42,11 +42,15 @@ Existing-owner search: CI coverage and peer-harness specs concern different test
 
 ## Blocker
 
-Thomas reserved review of messaging. The exact AI contribution paragraph and both exact maintainer alert templates are approved; other contribution/form wording remains available for review. He selected the existing GitHub activity feed and authorized installation of the result-only notifier and schedule on `claude`. Its identity was verified read-only without retaining credentials. Explicit initialization/delivery and bounded polling are implemented and undergoing scoped tests and independent review. Installation and AC-9 operational evidence are not yet claimed complete. The portable installation guide is part of this continuation.
+The exact AI contribution paragraph and both exact maintainer alert templates are approved. Thomas selected the existing GitHub activity feed and authorized notifier/schedule installation on `claude`; these decisions need no renewed approval. Source and portable installation documentation are committed in `0320acf1ed73fe29efa2d2b6a1b6aefd8efc83aa`, following descriptor hardening in `27023312aeca32fb288cb2db78b294845f604124`. Independent source review found no remaining product issue in the reviewed delta. Installation is not complete.
+
+Private source integration is blocked by the branch-integration restriction in `ai/rules/git-safety.md`. The latest main-thread preflight observed clean server `main` at `914b25449dd030fd98f2fd5b75a9229abe1e9d4e`, with server-only commits and concurrent sessions advancing it. A narrow owner exception for private branch integration was requested asynchronously and remains unanswered. Authorization to install does not resolve that separate restriction. Clear it through the owner's explicit answer or owner-performed integration, then refresh both branches and working-tree state before acting; do not overwrite, stash, change branches or integrate on inferred permission.
+
+The verified 88 KiB private bundle is retained at `/home/thomas/tmp/ze-github-notifier-01a1a3ac/notifier-install.bundle`, SHA-256 `ecc92956a7dcd9aeda8dfd5a7647a744ae83993f46a7df412c34b3541a804235`. It carries committed inputs without public publication. Its owning session record retains the transfer, verification and removal condition. No notifier account, binary, unit, private configuration or schedule has been installed.
 
 Canonical contribution HTML and Markdown have been regenerated through the native docs producer and checked. No site artifact was committed or deployed. Publication must preserve the requested source/artifact identities and obtain an explicit owner push instruction for the exact shared-branch ancestry; unrelated README changes remain excluded from this task's authorization.
 
-The native session state owns the complete wording review, rendered candidate example, token-free destination identity, test logs, and publication ancestry snapshot. Alert template, destination and host decisions are settled. Complete activation and independent operational review now; source and website publication remain withheld for Thomas's later step 3 decision. AC-6 live deployment confirmation and final spec closure remain owned here until that publication occurs. A source-review result must not be described as completed publication.
+The native session state owns the complete wording review, paired-identity preview, token-free destination identity, scoped test logs and publication ancestry snapshot. After private integration is permitted, finish the existing Linux installation and operational proof described in `docs/contributing/github-notifier.md`. Source and website publication remain withheld for Thomas's later step 3 decision. AC-9 live installation evidence, AC-6 deployment confirmation and final closure remain owned here. A source-review result must not be described as an installed notifier or completed publication.
 
 ## Implementation Evidence
 
@@ -54,7 +58,11 @@ The native session state owns the complete wording review, rendered candidate ex
 |-------|------------------|---------------|
 | GitHub revision/run and local readiness reports | Registered-action, pagination, identity, state, bounds and machine-input tests pass; live CodeQL run 43726804487 report and preview succeed | API observations do not certify native test or release results. No remote machine execution was added. |
 | Publication receipt and confirmation mechanics | Registered positive/negative tests cover source races, changed bytes, raw committed blobs, index/filter/replacement tricks, live mismatches and zero-network refusal | Actual deployment confirmation waits for an approved artifact commit and publication. |
-| Notification preparation | Lifecycle/store/sender, scope/recovery, ambiguous-send and approval-binding tests pass; real candidate artifact is preview-only | The sender is dormant; no credential, delivery workflow or activation caller is installed. |
+| Notification activation and polling | Committed explicit initialization/delivery, private authority, workflow-filtered polling and durable receipts; 41 named notification bodies and six terminal-state subcases passed; scoped GitHub lint passed on host and Linux | These are local source proofs. No notifier is installed and no real message was sent. |
+| Descriptor refusal discrimination | Native FIFO test passed clean, then failed in 10 seconds under the overlay removing only `O_NONBLOCK`, with its own blocked-reader diagnostic; no source was changed | Proves the receipt acquisition regression; not a whole-tree or installed-host certificate. |
+| Approved destination preview | Real paired-identity preview succeeded with approval binding `c9f08a1bed9cc3cedd3b85143f89f4913ac79dbb82fcaca6d5594cbd940d76e0` | Preview-only, no send and no credential read. |
+| Portable installation documentation | `docs/contributing/github-notifier.md` and versioned installer, shared leaf guards, isolated refusal proof and systemd units committed; all three shell syntax checks passed | Actual Linux leaf-guard execution, native build, installation, service poll and enabled schedule remain owed after private integration. |
+| Full documentation check | Completed with exit 1 and 720 pre-existing published website/wiki catalog-drift findings; no notifier-guide match in the failure log | Not an all-documentation pass. Existing catalog publication responsibility remains with `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md`. |
 | Contribution policy and intake | Exact approved AI policy guard and canonical-link render guards pass; issue/PR sources prepared | Non-AI messaging and online publication remain subject to owner review. |
 | Installed command paths | Both new UI carriers passed 80 actual named invocations under load and passed again in the live suite | The full UI suite also found 15 other failures and 20 skips; it is not a broad green certificate. |
 | Canonical review site | Native docs-producer render and site check pass with 1118 claimed routes; both contribution HTML/Markdown pairs contain the policy link | Rendering grants no approval or publication authority. |
@@ -282,7 +290,7 @@ Boundary inputs: require a full 40-character commit ID and positive run/attempt 
 | Discovery | Index and code/doc maps resolve the new owner and every action. |
 | Drift prevention | Registered action tables, authoritative API job states and one final artifact digest; no copied suite or feature inventory. |
 | Correctness | Each AC has a positive path and its near-miss negative; skipped/unknown/shard results never become full passes. |
-| Authorization | Machine commands obey current owner policy; notification remains preview-only; site receipt grants no push approval. |
+| Authorization | Machine commands obey current owner policy; approved notifier activation uses private operator authority; installation awaits the separate private-integration exception; site receipt grants no push approval. |
 | Credential security | No candidate execution with a webhook; least-privilege trusted workflow; secrets stay out of reports, logs and site bytes. |
 | Retention | CI preview reports use 14-day retention. Keep current publication receipt and prior recovery identity in the existing owning record; no accumulating dated archives. |
 | Delivery | Main-thread scoped tests run once in main after job-capacity review; inspect named test output. No `./le verify` action is owed. |
@@ -299,9 +307,11 @@ Boundary inputs: require a full 40-character commit ID and positive run/attempt 
 
 ## Known Limitations and Review Gate
 
-Implementation started after the owner's continuation instruction. Every AC requires implementation evidence. There are no delegated journal rows or transferred obligations. Thomas selected the existing GitHub activity feed, whose webhook and channel identity were verified read-only; delivery remains preview-only until exact template approval is bound to that destination. Item 5 and public news wording stay excluded.
+Implementation and portable documentation are committed; the existing feed, exact alert templates and installation host are approved. Independent security/correctness and Go-style/test-discrimination review covered the initial integration source and subsequent fixes. Receipt FIFO acquisition, leaf/ancestor alias refusal, recovery scope, quiet-workflow liveness, installer leaves and regression cleanup findings were corrected. The current source-only delta has no remaining product finding; no operational CLEAN artifact or closure was recorded.
 
-Design hand-back owes no executable test or verification command. At implementation closure, append the closure template, prove the entry points, run the scoped owed tests in main, and obtain an independent review before the two-commit closure.
+This is a blocked hand-back, not a reduced scope or closure. After the private branch-integration restriction is resolved, main must run the actual sourced leaf-guard proof on Linux, build and identify the clean reviewed native executable, install it outside the checkout, provision approved private authority, initialize each workflow explicitly, demonstrate a service-account poll and preserved receipts, and enable/check the fifteen-minute timer. Preserve any unresolved attempted delivery; no implicit reset or retry is permitted. Record observed real transitions, or qualify quiet-only evidence accurately. Final source-pinned review and closure remain owed after the operational work and owner-approved publication.
+
+AC-6 remains deliberately pending Thomas's separate step 3 decision. No source/site push or live Pages confirmation is authorized by this hand-back. There are no delegated journal rows or transferred obligations. Item 5 remains excluded, and public news retains its separate exact-text approval process.
 
 ## Critical Review Checklist
 
