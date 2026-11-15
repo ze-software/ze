@@ -264,6 +264,7 @@ example, `source-address 10.10.10.1/30` is refused because it matches the networ
 `source-address 10.10.10.0/30`. The same rule applies to IPv6. To match one host,
 use `/32` for IPv4 or `/128` for IPv6. Named-set references such as
 `source-address @trusted-hosts` keep their existing behavior.
+<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
 
 Offline validation, startup and configuration verify apply this check before
 the firewall changes. A refused reload keeps the active configuration and rules.

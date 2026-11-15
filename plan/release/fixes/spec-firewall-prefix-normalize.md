@@ -6,7 +6,7 @@
 | Priority | P1 |
 | Release reason | Existing accepted firewall prefixes produce incorrect config diffs and non-idempotent reconciliation; installed match semantics are not claimed broken. |
 | Depends | - |
-| Phase | 4/4 - independent closure ready |
+| Phase | 4/4 - independent review clean; closure commits pending |
 | Updated | 2026-11-15 |
 
 ## Post-Compaction Recovery
@@ -96,8 +96,8 @@ The owner subsequently approved the full presented designs with "go" on
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config ↔ firewall model | `parseAddressMatch` refuses host bits | Source read; execution owed |
-| Offline and live config ↔ parser | `VerifyConfig`, startup and transaction verify | Source read; entry-point tests owed |
+| Config ↔ firewall model | `parseAddressMatch` refuses host bits | Source read; full package PASS and changed outcomes counted |
+| Offline and live config ↔ parser | `VerifyConfig`, startup and transaction verify | Source read; named real-CLI and own-system live cases PASS |
 | Model ↔ dataplane | Existing canonical matches and backend masking | Preserved; no backend change |
 
 ### Changed-wire census
@@ -170,12 +170,12 @@ operator-facing inputs. Backend lowering and non-Go protocol consumers are uncha
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseAddressMatchRejectsHostBits` | `internal/component/firewall/config_prefix_test.go` | Both families and both leaf directions; AC-1, AC-2 | owed |
-| `TestParseAddressMatchPreservesCanonical` | `internal/component/firewall/config_prefix_test.go` | AC-3, unchanged types and values | owed |
-| `TestParseAddressMatchPreservesNamedSet` | `internal/component/firewall/config_prefix_test.go` | AC-5, unchanged set field and name | owed |
-| `TestParseAddressMatchKeepsUnsupportedFormsRejected` | `internal/component/firewall/config_prefix_test.go` | AC-4 | owed |
-| `TestParseFirewallConfigPrefixErrorContext` | `internal/component/firewall/config_prefix_test.go` | AC-7, operator error type and final statement | owed |
-| `TestVerifyConfigRejectsPrefixHostBits` | `internal/component/firewall/config_prefix_test.go` | Full verifier registration input refuses both leaf directions before backend apply | owed |
+| `TestParseAddressMatchRejectsHostBits` | `internal/component/firewall/config_prefix_test.go` | Both families and both leaf directions; AC-1, AC-2 | PASS |
+| `TestParseAddressMatchPreservesCanonical` | `internal/component/firewall/config_prefix_test.go` | AC-3, unchanged types and values | PASS |
+| `TestParseAddressMatchPreservesNamedSet` | `internal/component/firewall/config_prefix_test.go` | AC-5, unchanged set field and name | PASS |
+| `TestParseAddressMatchKeepsUnsupportedFormsRejected` | `internal/component/firewall/config_prefix_test.go` | AC-4 | PASS |
+| `TestParseFirewallConfigPrefixErrorContext` | `internal/component/firewall/config_prefix_test.go` | AC-7, operator error type and final statement | PASS |
+| `TestVerifyConfigRejectsPrefixHostBits` | `internal/component/firewall/config_prefix_test.go` | Full verifier registration input refuses both leaf directions before backend apply | PASS |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -186,9 +186,9 @@ operator-facing inputs. Backend lowering and non-Go protocol consumers are uncha
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `firewall-prefix-host-bits-rejected` | `test/parse/firewall-prefix-host-bits-rejected.ci` | AC-1, AC-2, offline registration and correction text | owed |
-| `firewall-prefix-canonical-accepted` | `test/parse/firewall-prefix-canonical-accepted.ci` | AC-3, AC-5, positive offline path | owed |
-| `firewall-prefix-host-bits-keeps-active` | `test/reload/firewall-prefix-host-bits-keeps-active.ci` | AC-6, refused transaction, unchanged persisted and installed state, successful corrected reload | owed; Linux kernel backend required |
+| `firewall-prefix-host-bits-rejected` | `test/parse/firewall-prefix-host-bits-rejected.ci` | AC-1, AC-2, offline registration and correction text | PASS; promoted |
+| `firewall-prefix-canonical-accepted` | `test/parse/firewall-prefix-canonical-accepted.ci` | AC-3, AC-5, positive offline path | PASS; promoted |
+| `firewall-prefix-host-bits-keeps-active` | `test/reload/firewall-prefix-host-bits-keeps-active.ci` | AC-6, refused transaction, unchanged persisted and installed state, successful corrected reload | PASS; Ze own-system kernel, zero skips |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -262,14 +262,15 @@ these configured leaves, while direct model producers retain their existing cont
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | malformed prefixes still rejected by `ParsePrefix` |
-| Correctness | No invalid candidate reaches apply and no silent replacement of operator input occurs |
+| Input validation | Confirmed: malformed prefixes still return the `netip.ParsePrefix` error before the new guard |
+| Correctness | Confirmed: the guard returns no match; startup and transaction callbacks return its error before applying or changing pending state |
 
 ## Mistake Log
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | Four selected reload invocations could share one guest kernel safely | The reload suite declares serial guest-root execution, and each copy owns the same nft table name | Invocation 3 of the first selected stress failed after another copy completed; `selectedStressPhase`, `flushOnStop` and nft `shouldDeleteTable` expose the collision | Preserve assertions; run selected guest-root stress serially under CPU burners. This is test admission, not a parser behavior change |
+| A paragraph block's final anchors were enough | Each factual paragraph needs its own immediate source anchor | Independent documentation review | Added the parser anchor after the first new guide paragraph; no behavior change |
 
 ## Design Insights
 <!-- LIVE -->
@@ -312,8 +313,8 @@ The three cases were promoted unchanged to their planned `test/parse/` and
 `test/reload/` paths after 80-invocation stress and producer-cut red/restored-green
 proof. Their draft copies no longer exist. The repository config compatibility
 result for the affected firewall inputs is recorded below; the overall corpus
-is RED. Final promoted parse checks, the equivalent typed-error assertion's
-unit/lint checks and independent closure review remain outstanding. The
+is RED. Final promoted parse checks and the equivalent typed-error assertion's
+unit check subsequently passed; independent review is recorded below. The
 operator-facing news fragment is prepared at
 `website/changes/fragments/firewall-prefix-normalize.md`; no closure is claimed.
 
@@ -386,6 +387,48 @@ and the implementing agent does not mark closure complete. Per-spec state
 carries exact paths, earlier run receipts, retained evidence and cleanup
 conditions. The agent releases its claim for the supervising closure thread.
 
+### Bugs Found/Fixed
+- Literal prefixes with host bits are now refused at `parseAddressMatch`;
+  `TestParseAddressMatchRejectsHostBits` covers both directions and families.
+- Independent closure found a missing paragraph-local source anchor in the
+  guide. The closure added the existing parser anchor immediately after that
+  paragraph. This is a documentation NOTE, with no behavior or assertion change.
+
+### Documentation Updates
+- `2e68f799f4` updates both address-leaf descriptions in
+  `yang/ze-firewall-conf.yang`, the literal-prefix paragraph in
+  `docs/guide/firewall.md`, and the parser contract in
+  `docs/architecture/core-design.md`. The guide and design anchors name
+  `config.go` `parseAddressMatch` and `engine.go` `VerifyConfig`,
+  `parseConfigSections`, and `runEngine`.
+- Closure adds the guide's paragraph-local parser anchor through the single
+  hunk in `firewall-guide-provenance.patch`. Main's final `./le doc check all`
+  returned exit 1 with four anchors in other IRR pages; none names this work's
+  guide, architecture paragraph or YANG descriptions. The complete output is
+  retained in `job-firewall-closure-doc-check-f119ecea.log` under the main
+  session's scratch. This result supersedes the earlier truncated receipt.
+
+### Deviations from Plan
+- A seventh unit control, `TestParseFirewallConfigCanonicalPrefix`, verifies the
+  full parser accepts the valid contextual fixture. No planned assertion was removed.
+- Selected guest-root reload stress uses serial admission under CPU burners,
+  matching the existing suite contract; the failed parallel experiment is not
+  counted as accepted proof.
+
+### Risks and observations
+- R-1 remains intentional: a previously accepted host-bit literal is now refused;
+  the error supplies its effective network and exact replacement statement.
+- R-2 and R-3 are covered by canonical, named-set and wrapped-error controls.
+- The full Darwin config corpus remains RED on unrelated interface, host and
+  DDOS findings. Final scoped lint has no finding in the owned parser, unit test
+  or observer, but is RED on other fixture files. Neither is a whole-tree pass.
+- This changes only config acceptance, not RFC-level protocol behavior or RFC
+  tags; no RFC stem or discrimination record changes. Interop is not applicable.
+- Light checks remain RED on three foreign IRR numeric-parse findings, six
+  foreign test-weakening findings, and four foreign IRR documentation anchors.
+  The exact findings and owners' retained output are in the per-spec state.
+  No such finding names this change's code, tests or documentation.
+
 ## Review Gate
 
 <!-- BLOCKING (ai/rules/planning.md Review Gate). Filled by /ze-implement's /ze-review gate: -->
@@ -394,22 +437,44 @@ conditions. The agent releases its claim for the supervising closure thread.
 <!-- Loop until the review returns 0 BLOCKER/0 ISSUE (only NOTEs, or nothing). Paste the final clean run. -->
 <!-- NOTE-only findings do not block — record them and proceed. -->
 
-### Run 1 (initial)
+### Run 1 (independent closure)
+Scope declared before review: the complete eleven-file implementation in
+`2e68f799f4` and `2c5fc3d689`, including all seven reviewable Go, YANG and CI
+paths. Lenses: logic and wiring; security and boundary cases; Go style and
+simplicity. Historical owned documentation hunks are reviewed independently of
+the current foreign IRR edits. No product change is authorized by this review.
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | - | Review not started | - | Owed after implementation |
+| 1 | NOTE | Guide paragraph lacked its immediate parser source anchor | `docs/guide/firewall.md`, literal prefixes | Added one source anchor; no code change |
 
 ### Fixes applied
-- None; implementation has not started.
+- Documentation provenance only; no BLOCKER or ISSUE found and no production or test edit.
 
-### Run 2+ (re-runs until clean)
-<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+### Final clean result
+All three lenses found **0 BLOCKER, 0 ISSUE** over the full implementation.
+The guard fails closed with no match; its input is exercised through the real
+offline CLI and live transaction. Existing canonical and named-set paths remain
+reachable. The observer fences reload completion before comparing running,
+persisted and installed state. All changed Go files received the full style
+pass: no reachable panic, no new goroutine, bounded polling and fixed tree walk,
+closed read-only store, meaningful constants and no new lifecycle API.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/firewall-prefix-normalize-01a1df4b-40c0-7350-819b-b5f74e6b5a86.md` |
+| `./le spec review check` | OK: 7 code files, clean, hashes match |
+| Rounds | 1; documentation NOTE does not reopen a round |
+| Reviewer lenses used | Logic/wiring; security/boundaries; Go style/simplicity |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | - | No BLOCKER or ISSUE | Complete historical implementation | No code fix required |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` final run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above
 
 ## Checklist
 
@@ -427,7 +492,122 @@ conditions. The agent releases its claim for the supervising closure thread.
 
 ### TDD
 - [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [ ] Tests FAIL (recorded above)
+- [ ] Tests PASS (recorded above)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional tests for end-to-end behavior
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Refuse host-bit literals without changing input | Done | `config.go`, `parseAddressMatch` | IPv4/IPv6; both leaves |
+| Preserve context and corrected statement | Done | `config.go`, `ParseFirewallConfig`, `parseTable`, `parseChain`, `parseTerm`, `parseFromBlock` | `%w` keeps typed error and final repair line |
+| Preserve active state and permit corrected reload | Done | `engine.go`, `runEngine`; `firewall_prefix_reload.go`, `firewallPrefixReload` | Live kernel/config/persistence proof |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestParseAddressMatchRejectsHostBits`, `TestVerifyConfigRejectsPrefixHostBits`, refusal CLI case | Both IPv4 leaves |
+| AC-2 | Done | Same tests and refusal CLI case | Both IPv6 leaves |
+| AC-3 | Done | `TestParseAddressMatchPreservesCanonical`, `TestParseFirewallConfigCanonicalPrefix`, positive CLI case | Defaults and host routes preserved |
+| AC-4 | Done | `TestParseAddressMatchKeepsUnsupportedFormsRejected` | Empty, malformed, bare, range, negation and invalid lengths |
+| AC-5 | Done | `TestParseAddressMatchPreservesNamedSet`, positive CLI and existing kernel named-set control | Existing resolution unchanged |
+| AC-6 | Done | `firewallPrefixReload`, promoted reload case | Refusal preserves running/persisted/kernel; corrected reload advances active pointer |
+| AC-7 | Done | `TestParseFirewallConfigPrefixErrorContext` | Wrapped `opererr.Error`, configured names and final statement |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestParseAddressMatchRejectsHostBits` | Done | `config_prefix_test.go` | Matrix rejects both directions/families |
+| `TestParseAddressMatchPreservesCanonical` | Done | `config_prefix_test.go` | Exact typed prefix equality |
+| `TestParseAddressMatchPreservesNamedSet` | Done | `config_prefix_test.go` | Exact set name and field |
+| `TestParseAddressMatchKeepsUnsupportedFormsRejected` | Done | `config_prefix_test.go` | Existing refusal controls |
+| `TestParseFirewallConfigPrefixErrorContext` | Done | `config_prefix_test.go` | Typed error and exact final line |
+| `TestParseFirewallConfigCanonicalPrefix` | Done | `config_prefix_test.go` | Additional full-parser positive control |
+| `TestVerifyConfigRejectsPrefixHostBits` | Done | `config_prefix_test.go` | Registered verifier entry |
+| `firewall-prefix-host-bits-rejected` | Done | `test/parse/firewall-prefix-host-bits-rejected.ci` | Promoted CLI case PASS |
+| `firewall-prefix-canonical-accepted` | Done | `test/parse/firewall-prefix-canonical-accepted.ci` | Promoted CLI case PASS |
+| `firewall-prefix-host-bits-keeps-active` | Done | `test/reload/firewall-prefix-host-bits-keeps-active.ci` | Promoted own-system kernel case PASS |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/firewall/config.go` | Done | `2e68f799f4` |
+| `internal/component/firewall/config_prefix_test.go` | Done | Both implementation commits |
+| `internal/component/firewall/yang/ze-firewall-conf.yang` | Done | `2e68f799f4` |
+| `docs/guide/firewall.md` | Done | `2e68f799f4`; closure anchor hunk |
+| `docs/architecture/core-design.md` | Done | `2e68f799f4` |
+| `internal/test/fixture/firewall_prefix_reload.go` | Done | `2c5fc3d689` |
+| `test/parse/firewall-prefix-host-bits-rejected.ci` | Done | `2c5fc3d689` |
+| `test/parse/firewall-prefix-canonical-accepted.ci` | Done | `2c5fc3d689` |
+| `test/reload/firewall-prefix-host-bits-keeps-active.ci` | Done | `2c5fc3d689` |
+| `website/changes/fragments/firewall-prefix-normalize.md` | Done | `2c5fc3d689`; six headings and Firewall topic |
+| This spec | Done | Implementation evidence and independent closure record |
+
+### Audit Summary
+- Total items: 31 (3 Task requirements, 7 ACs, 10 tests, 11 files).
+- Done: 31.
+- Partial: 0.
+- Skipped: 0.
+- Changed: one additional positive unit control; no planned item removed.
+
+## Goal Validation (BLOCKING)
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Refuse host bits without silently changing input | Functional | Promoted negative CLI case PASS for both leaves/families; positive CLI case PASS. Guard cut made negative validation return exit 0; restoration returned PASS |
+| Name configured context, effective network and corrected statement | Functional and unit | CLI case asserts rendered corrections; full-package PASS includes wrapped-error test with exact final line and `errors.AsType` |
+| Preserve active state on refused reload and accept correction | Functional | Promoted live case PASS 1/1, zero skips on Ze 7.3.0-ze; observer compares all state surfaces and checks corrected install. Guard cut changed active pointer and failed this same observer |
+
+## Work Not Done
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| None | All agreed Task and AC items implemented and demonstrated | No destination required |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/test/fixture/firewall_prefix_reload.go` | Yes | `git ls-files` printed this exact tracked path |
+| `test/parse/firewall-prefix-host-bits-rejected.ci` | Yes | `git ls-files` printed this exact tracked path |
+| `test/parse/firewall-prefix-canonical-accepted.ci` | Yes | `git ls-files` printed this exact tracked path |
+| `test/reload/firewall-prefix-host-bits-keeps-active.ci` | Yes | `git ls-files` printed this exact tracked path |
+| `website/changes/fragments/firewall-prefix-normalize.md` | Yes | `git ls-files` printed this exact tracked path |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | IPv4 refusal | Read `parseFromBlock` calls for both leaves and `parseAddressMatch` non-masked comparison; full firewall package `ok .../firewall 2.228s` |
+| AC-2 | IPv6 refusal | Same shared comparison; both IPv6 correction assertions in actual negative CLI file |
+| AC-3 | Canonical values preserved | Parser returns original typed prefix when equal to `Masked`; exact equality controls present; positive CLI selection PASS |
+| AC-4 | Unsupported forms refused | `ParsePrefix` error returned before comparison; unit matrix includes both prefix-length boundaries |
+| AC-5 | Named sets preserved | Existing `@` branch returns before literal parse; positive CLI case and existing kernel set case PASS |
+| AC-6 | Failed transaction leaves active state | Read `runEngine` before pending mutation and `liveStagesReload` generation fence; promoted own-system reload PASS 1/1 |
+| AC-7 | Context and repair survive wrappers | Read `%w` chain and `opererr.Error.Error`; full-package PASS includes exact final repair assertion |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` | `test/parse/firewall-prefix-host-bits-rejected.ci` | Four real invocations assert exit 1 and corrected source/destination statements; registered `VerifyConfig` reaches parser |
+| Valid config correction | `test/parse/firewall-prefix-canonical-accepted.ci` | Real CLI returns exit 0 and `configuration valid`, including named sets/defaults/host routes |
+| Live SIGHUP transaction | `test/reload/firewall-prefix-host-bits-keeps-active.ci` | Actual external observer invokes reload, waits for processed generation, compares three state surfaces and proves correction commits |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Recorded owner answer B and approved refusal design |
+| A-2 | confirmed | `parseFromBlock` routes both leaves through one guard; offline/startup/live paths read at producer; entry-point cases passed |
+| A-3 | confirmed for affected firewall inputs | Corpus refusal/verifier loop triage above, full firewall package and existing parse/kernel controls; overall Darwin corpus RED and skipped inputs not claimed validated |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| User guide and config acceptance: Yes | Guide literal-prefix paragraph and both YANG descriptions match `parseAddressMatch`; source anchors verified; one missing paragraph-local anchor added | Yes |
+| Architecture contract: Yes | `2e68f799f4` core-design hunk matches parser, `VerifyConfig`, `parseConfigSections`, `runEngine` | Yes |
+| Existing examples: Yes, revalidated | Parser-backed corpus triage and existing positive CLI/kernel controls; no affected firewall refusal; corpus skips remain excluded | Yes, scoped |
+| Feature level/scope and comparison: No | Existing `features/firewall.md` declares address matching; no new feature, backend or supported match type added | No declaration change needed |
+| CLI/API/RPC/plugin SDK/wire/RFC/route metadata/metrics: No | Complete diff adds no command, schema path, RPC, event, SDK type, packet encoding or counter; existing source anchors outside literal input contract remain valid | No corresponding update needed |
+| Test infrastructure/agent discovery/doctor: No | Observer registers in existing fixture registry and uses existing kernel/store/RPC dependencies; no runtime dependency or harness API added | No corresponding update needed |
+| Final `./le doc check all` | Main retained exit 1: four foreign IRR anchors (`resolve.md` Open, `irr-filtering.md` clearResolverCache/readmitRetryInterval, `plugins.md` ConfigReads); all other stages pass | Owned documentation verified; no whole-tree green claimed |
