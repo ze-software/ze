@@ -1389,14 +1389,19 @@ For external plugins that connect over TLS (non-internal mode), configure the hu
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 0;                               # auto-assign port
             secret change-this-token-to-at-least-32-chars;  # TLS auth token
         }
     }
 }
 ```
-<!-- source: internal/component/hub/yang/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -->
+
+Ze validates an explicit hub configuration before starting its components.
+An invalid block stops startup with its name, the reason and a repair command.
+Removing the hub settings selects automatic local transport when a plugin needs it.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 ## Writing External Plugins
 

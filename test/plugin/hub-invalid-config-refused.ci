@@ -1,0 +1,30 @@
+# QUESTION: does the daemon CLI refuse an invalid explicit hub configuration
+# without a BGP configuration, rather than continuing startup?
+# Extractor units cannot prove the linked CLI propagates that error before
+# component startup. Existing external BMP and forked watchdog cases provide
+# the valid configured-hub and omitted-hub startup controls.
+
+option=timeout:value=30s
+
+stdin=ze-bgp:refused=config-hub-invalid:terminator=EOF_CONF
+plugin {
+    hub {
+        server invalid-hub {
+            ip 127.0.0.1
+            port $PORT
+            secret bmp-bind-reload-test-0123456789
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+
+expect=stderr:contains=hub server "invalid-hub"
+expect=stderr:contains=secret too short: minimum 32 characters, got 31
+expect=stderr:contains=startup failed
+expect=stderr:contains=plugin hub config
+expect=stderr:contains=fix: delete plugin hub
+expect=exit:code=1
+reject=stdout:pattern=Ze running\.
+reject=stderr:pattern=panic

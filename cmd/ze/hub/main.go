@@ -50,6 +50,7 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/reboot"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
@@ -466,6 +467,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		loadResult = recovered
 	}
 
+	// An invalid explicit hub must not become absent transport configuration.
+	// Validate once before component setup and keep that value for its consumers.
+	hubConfig, hubErr := zeconfig.ExtractHubConfig(loadResult.Tree)
+	if hubErr != nil {
+		refusal := opererr.Wrap(hubErr,
+			"plugin hub configuration is invalid",
+			"the configured transport cannot start; correct the named settings, or remove the hub settings to use automatic local transport when needed",
+			"delete plugin hub")
+		fmt.Fprintln(os.Stderr, "startup failed:", refusal)
+		slogutil.Logger("hub").LogAttrs(context.Background(), slog.LevelError, refusal.Problem(), refusal.LogAttrs(
+			slog.String("code", diagnostic.CodeConfigHubInvalid),
+			slog.String("stage", "plugin hub config"))...)
+		return 1
+	}
+
 	// A configuration that uses a subsystem this kernel cannot carry starts a
 	// daemon that comes up and does not work: IPsec that negotiates and encrypts
 	// nothing, MPLS that programs labels the kernel refuses. Refuse instead, and
@@ -866,12 +882,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	pm.SetHubAuthority(caRoot)
 
 	// Wire hub config into process manager for external plugin startup.
-	if hubCfg, hubErr := zeconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
-		if len(hubCfg.Servers) > 1 {
-			slog.Warn("plugin hub: only first server listener is used, extra listeners ignored", "configured", len(hubCfg.Servers))
-		}
-		pm.SetHubConfig(&hubCfg)
+	if len(hubConfig.Servers) > 1 {
+		slog.Warn("plugin hub: only first server listener is used, extra listeners ignored", "configured", len(hubConfig.Servers))
 	}
+	pm.SetHubConfig(&hubConfig)
 
 	// Convert explicit plugin configs from reactor format to plugin server format.
 	var explicitPlugins []zePlugin.PluginConfig
@@ -886,12 +900,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			StageTimeout:  pc.StageTimeout,
 			Internal:      pc.Internal,
 		})
-	}
-
-	// Extract hub TLS config for external plugin connect-back.
-	var hubConfig *zePlugin.HubConfig
-	if hubCfg, hubErr := zeconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
-		hubConfig = &hubCfg
 	}
 
 	serverConfig := &pluginserver.ServerConfig{
@@ -909,7 +917,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// same tree.
 		ConfigNeedHolds: zeconfig.ConfigNeedHolds(loadResult.Tree.ToMap()),
 		Plugins:         explicitPlugins,
-		Hub:             hubConfig,
+		Hub:             &hubConfig,
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {
@@ -1559,7 +1567,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// config-fetch, pushes config-changed). No-op unless a server block has client
 	// entries and storage is blob-backed. Independent of the outbound managed client.
 	// A live config restore targets a served client through this server only.
-	if managedServer := startManagedServer(managedCtx, store, hubConfig); managedServer != nil && dataTarget != nil {
+	if managedServer := startManagedServer(managedCtx, store, &hubConfig); managedServer != nil && dataTarget != nil {
 		serving := *dataTarget
 		serving.ServesClient = managedServer.Serves
 		storagecli.InstallDataRPC(&serving)
