@@ -120,6 +120,11 @@ Run `ze config cat ze.conf` before and after these commands to review the stored
 
 Set `session { irr { as-set AS-CUSTOMER; } }` when you know the correct AS-SET. This is the most predictable production configuration.
 
+Tab completes the name. On the peer's `session irr as-set`, on the firewall's AS-SET leaves, and after `update irr as-set` and `clear irr as-set`, Ze offers every AS-SET the `irr` plugin knows: each name a consumer references and each name it has stored, in upper case, marked "AS-SET with a stored IRR dataset" or "AS-SET a consumer references, nothing stored yet". The suggestion refuses nothing, so an AS-SET nothing references yet stays valid: writing it is how you ask for it.
+<!-- source: internal/plugins/irr/completion.go -- knownASSets -->
+<!-- source: internal/plugins/irr/register_completion.go -- asSetHelp -->
+<!-- source: internal/plugins/irr/register_commands.go -- completeASSetArgument -->
+
 If you omit `as-set`, Ze queries PeeringDB with the remote ASN. It uses the registered `irr_as_set` value when one exists, then falls back to the origin object `AS<number>` if PeeringDB does not return an AS-SET.
 
 For a peer that must bypass this policy, set:
