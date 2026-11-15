@@ -3,7 +3,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- exact negotiated selectors.
 // Related: rfc4301_espform_policy_integration_linux_test.go -- private Ze/peer namespaces and authenticated ESP sender.
 // Related: child.go -- childPairPolicy converts IKE's MH high octet at the XFRM boundary.
-// RFC naming: untagged -- investigate actual inbound and forward MH classification on Ze's kernel.
+// Investigate actual inbound and forward MH classification on Ze's kernel.
 
 package engine
 

@@ -3,7 +3,7 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- SPD dispositions and Child SA selectors.
 // Related: rfc4301_espform_policy_integration_linux_test.go -- isolated namespaces and authenticated sender.
 // Related: rfc4301_fragment_linux_test.go -- the ordinary UDP packet and fragment builders.
-// RFC naming: untagged -- packet-level conformance probes awaiting observation on Ze's kernel.
+// Packet-level conformance probes awaiting observation on Ze's kernel.
 
 package engine
 
