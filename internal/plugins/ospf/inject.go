@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -44,8 +45,12 @@ const (
 )
 
 var (
-	errDebugInjectDisabled = errors.New("debug injection not enabled (run `debug ospf inject enable`)")
-	errNoRouterID          = errors.New("cannot inject: OSPF router-id is not set")
+	// errDebugInjectDisabled is the runtime half of the double gate, shared by both families'
+	// inject commands; the IPv6 command answers it before it reads the address family.
+	errDebugInjectDisabled = opererr.New("debug injection is not enabled",
+		"injection stays refused until an operator arms it, so a crafted LSA cannot reach a router nobody armed",
+		cmdDebugInjectEnable)
+	errNoRouterID = errors.New("cannot inject: OSPF router-id is not set")
 )
 
 // injectResult is the typed JSON payload of an inject/withdraw action.

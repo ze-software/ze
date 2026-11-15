@@ -7,8 +7,11 @@
 // the LSDB (the authoritative store), never a separate cache, so a received RI LSA is
 // rendered as stored (AC-13). The TLV walk is the bound-checked ext-1 iterator, so a
 // truncated/malformed body renders what it can and never crashes (AC-14). Multiple instances
-// of the same (af, scope, area, router) collapse to the smallest Instance ID for the
-// effective capabilities (RFC 7770 sec 3), while every instance's TLVs are still listed.
+// of the same (af, OSPFv3 instance, scope, area, router) collapse to the smallest RI Instance
+// ID for the effective capabilities (RFC 7770 sec 3), while every instance's TLVs are still
+// listed. The OSPFv3 part reads every running RFC 5838 address-family engine, or the one the
+// address-family keyword names, and each OSPFv3 entry names its address-family and
+// instance-id (docs/architecture/ospf/ospf-ext-15-multi-af.md).
 
 package ospf
 
@@ -32,9 +35,11 @@ var riInfoBitNames = map[uint]string{
 }
 
 // riObservation is one RI LSA read from an LSDB store, address-family neutral, ready to be
-// grouped and decoded for display.
+// grouped and decoded for display. ospfv3 is the OSPFv3 instance whose LSDB held it, nil for
+// an OSPFv2 LSA.
 type riObservation struct {
 	af        string
+	ospfv3    *riOSPFv3Instance
 	scope     string
 	area      string
 	advRouter string
@@ -42,16 +47,27 @@ type riObservation struct {
 	body      []byte
 }
 
-// riDatabaseView is the `show ospf database router-information` payload: one entry per
-// (af, scope, area, advertising-router) group.
+// riOSPFv3Instance names the RFC 5838 address-family instance an OSPFv3 RI entry came from.
+// Its instance-id is the OSPFv3 Instance ID of that address family, not the RI LSA Instance
+// ID of RFC 7770, which the entry carries as effective-instance and instances.
+type riOSPFv3Instance struct {
+	AddressFamily string `json:"address-family"`
+	InstanceID    uint8  `json:"instance-id"`
+}
+
+// riDatabaseView is the payload of both RI views: one entry per (af, OSPFv3 instance, scope,
+// area, advertising-router) group.
 type riDatabaseView struct {
 	RouterInformation []riRouterEntry `json:"router-information"`
 }
 
 // riRouterEntry is one router's RI advertisement in one scope/area/af: the effective
 // capabilities (from the smallest Instance ID, RFC 7770 sec 3) plus every instance's TLVs.
+// An OSPFv3 entry follows af with its address-family and instance-id; the embedded pointer
+// is nil for an OSPFv2 entry, so encoding/json writes neither key there.
 type riRouterEntry struct {
-	AF                string          `json:"af"`
+	AF string `json:"af"`
+	*riOSPFv3Instance
 	Scope             string          `json:"scope"`
 	Area              string          `json:"area,omitempty"`
 	AdvertisingRouter string          `json:"advertising-router"`
@@ -75,11 +91,32 @@ type riTLVRow struct {
 	Name   string `json:"name,omitempty"`
 }
 
-// riDatabaseSnapshot renders `show ospf database router-information` for both address
-// families: OSPFv2 RI opaque LSAs (Opaque type 4) from the IPv4 engine and OSPFv3 native RI
-// LSAs (function code 12) from the IPv6 engine. It returns the single-element wrapping the
-// other `show ospf ...` commands use.
-func riDatabaseSnapshot(v4, v6 *engine) []any {
+// routerInformationView answers `show ospf database router-information`: the OSPFv2 RI
+// opaque LSAs of the base engine v2, whole, and the OSPFv3 RI LSAs of each address-family
+// engine cmdArgs selects. The address-family keyword narrows only the OSPFv3 part.
+func routerInformationView(set *v6EngineSet, v2 *engine, command string, cmdArgs []string) (any, error) {
+	instances, err := set.selectInstances(command, cmdArgs)
+	if err != nil {
+		return nil, err
+	}
+	return riDatabaseSnapshot(v2, instances), nil
+}
+
+// v3RouterInformationView answers `show ospf ipv6 database router-information`: the OSPFv3
+// RI LSAs of each address-family engine cmdArgs selects, and no OSPFv2 LSA.
+func v3RouterInformationView(set *v6EngineSet, _ *engine, command string, cmdArgs []string) (any, error) {
+	instances, err := set.selectInstances(command, cmdArgs)
+	if err != nil {
+		return nil, err
+	}
+	return riDatabaseSnapshot(nil, instances), nil
+}
+
+// riDatabaseSnapshot renders the RI database view: the OSPFv2 RI opaque LSAs (Opaque type 4)
+// of the IPv4 engine v4 when v4 is not nil, and the OSPFv3 native RI LSAs (function code 12)
+// of each OSPFv3 address-family instance in v3, each entry naming its instance. It returns
+// the single-element wrapping the other `show ospf ...` commands use.
+func riDatabaseSnapshot(v4 *engine, v3 []afInstance) []any {
 	var obs []riObservation
 	if v4 != nil && v4.lsdb != nil {
 		for _, v := range v4.lsdb.OpaqueLSAsByType(packet.RIOpaqueType) {
@@ -89,21 +126,29 @@ func riDatabaseSnapshot(v4, v6 *engine) []any {
 			})
 		}
 	}
-	if v6 != nil && v6.lsdb != nil {
+	for _, inst := range v3 {
+		if inst.eng.lsdb == nil {
+			continue
+		}
+		// RFC 5838 Section 2: each Instance ID has its own link state database, so the RI
+		// LSAs of one address family are read from its engine alone and named after it.
+		identity := &riOSPFv3Instance{AddressFamily: inst.af.String(), InstanceID: inst.instanceID}
 		for _, sc := range riV3Scopes {
-			for _, v := range v6.lsdb.LSAViewsByType(sc.typ) {
-				obs = append(obs, riObsFromNativeView(v, sc.scope))
+			for _, v := range inst.eng.lsdb.LSAViewsByType(sc.typ) {
+				obs = append(obs, riObsFromNativeView(v, sc.scope, identity))
 			}
 		}
 	}
 	return []any{buildRIView(obs)}
 }
 
-// riObsFromNativeView converts a stored OSPFv3 RI LSA (function code 12) into a display
-// observation. RFC 7770 sec 2.2: the 32-bit Link State ID is the Instance ID.
-func riObsFromNativeView(v ospflsdb.NativeLSAView, scope OpaqueScope) riObservation {
+// riObsFromNativeView converts a stored OSPFv3 RI LSA (function code 12), read from the LSDB
+// of the instance identity names, into a display observation. RFC 7770 sec 2.2: the 32-bit
+// Link State ID is the Instance ID.
+func riObsFromNativeView(v ospflsdb.NativeLSAView, scope OpaqueScope, identity *riOSPFv3Instance) riObservation {
 	return riObservation{
 		af:        "v3",
+		ospfv3:    identity,
 		scope:     scope.String(),
 		area:      riAreaLabel(scope, v.Area),
 		advRouter: v.AdvertisingRouter.String(),
@@ -128,24 +173,67 @@ func riInstanceOf(id types.LinkStateID) uint32 {
 }
 
 // riGroupKey groups RI observations for the same advertisement (RFC 7770 sec 3 multi-instance
-// applies within one af/scope/area/router).
+// applies within one af/OSPFv3 instance/scope/area/router). ospfv3 is the zero value for
+// every OSPFv2 observation, which belongs to no OSPFv3 instance: it only groups and orders,
+// is never rendered, and cannot collide with an OSPFv3 instance, whose address-family is
+// never empty.
 type riGroupKey struct {
-	af, scope, area, advRouter string
+	af          string
+	ospfv3      riOSPFv3Instance
+	scope, area string
+	advRouter   string
+}
+
+// riGroupKeyOf answers the advertisement o belongs to.
+func riGroupKeyOf(o riObservation) riGroupKey {
+	k := riGroupKey{af: o.af, scope: o.scope, area: o.area, advRouter: o.advRouter}
+	if o.ospfv3 != nil {
+		k.ospfv3 = *o.ospfv3
+	}
+	return k
+}
+
+// riGroupKeyLess orders RI groups for a stable render: by af, then OSPFv3 Instance ID (RFC
+// 5838 range order, so ipv6-unicast first), scope, area and router. OSPFv2 groups all carry
+// the zero OSPFv3 identity, so among them the order falls through to scope, area and router.
+func riGroupKeyLess(a, b riGroupKey) bool {
+	if a.af != b.af {
+		return a.af < b.af
+	}
+	if a.ospfv3.InstanceID != b.ospfv3.InstanceID {
+		return a.ospfv3.InstanceID < b.ospfv3.InstanceID
+	}
+	if a.scope != b.scope {
+		return a.scope < b.scope
+	}
+	if a.area != b.area {
+		return a.area < b.area
+	}
+	return a.advRouter < b.advRouter
 }
 
 // buildRIView groups observations and, per group, selects the smallest Instance ID for the
-// effective capabilities (RFC 7770 sec 3) while listing every instance's TLVs. Groups and
-// instances are sorted for a stable render.
+// effective capabilities (RFC 7770 sec 3) while listing every instance's TLVs. Groups are
+// rendered in riGroupKeyLess order and instances by Instance ID.
 func buildRIView(obs []riObservation) riDatabaseView {
 	groups := map[riGroupKey][]riObservation{}
 	for _, o := range obs {
-		k := riGroupKey{af: o.af, scope: o.scope, area: o.area, advRouter: o.advRouter}
+		k := riGroupKeyOf(o)
 		groups[k] = append(groups[k], o)
 	}
+	keys := make([]riGroupKey, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return riGroupKeyLess(keys[i], keys[j]) })
 	view := riDatabaseView{}
-	for k, list := range groups {
+	for _, k := range keys {
+		list := groups[k]
 		sort.Slice(list, func(i, j int) bool { return list[i].instance < list[j].instance })
-		entry := riRouterEntry{AF: k.af, Scope: k.scope, Area: k.area, AdvertisingRouter: k.advRouter}
+		entry := riRouterEntry{
+			AF: k.af, riOSPFv3Instance: list[0].ospfv3,
+			Scope: k.scope, Area: k.area, AdvertisingRouter: k.advRouter,
+		}
 		entry.EffectiveInstance = list[0].instance
 		// RFC 7770 sec 3: the numerically smallest Instance ID wins for the informational
 		// capabilities (an unspecified-multi-instance TLV); later instances are ignored for it.
@@ -157,19 +245,6 @@ func buildRIView(obs []riObservation) riDatabaseView {
 		}
 		view.RouterInformation = append(view.RouterInformation, entry)
 	}
-	sort.Slice(view.RouterInformation, func(i, j int) bool {
-		a, b := view.RouterInformation[i], view.RouterInformation[j]
-		if a.AF != b.AF {
-			return a.AF < b.AF
-		}
-		if a.Scope != b.Scope {
-			return a.Scope < b.Scope
-		}
-		if a.Area != b.Area {
-			return a.Area < b.Area
-		}
-		return a.AdvertisingRouter < b.AdvertisingRouter
-	})
 	return view
 }
 

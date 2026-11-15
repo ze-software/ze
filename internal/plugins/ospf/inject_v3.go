@@ -3,12 +3,13 @@
 // rfc/short/rfc2328.md (Section 14 MaxAge withdraw; Section 9.5 MinLSInterval pacing).
 //
 // `debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link|area|as>]
-// [hex <body> ...] [withdraw]` originates a crafted OSPFv3 LSA into THIS router's
-// LSDB through the base OriginateSelf (area/AS) / OriginateLinkSelf (link-local)
-// seam. The flooding scope is DERIVED from the LS Type S2/S1 bits (a reserved
-// scope, S2/S1 = 11, is rejected: AC-18); the optional scope keyword is
-// cross-checked against it. Same double gate as IPv4 (AC-16/AC-17). Withdraw
-// MaxAge-flushes via WithdrawSelf/WithdrawLinkSelf (AC-15).
+// [hex <body> ...] [withdraw] [address-family <af>]` originates a crafted OSPFv3 LSA into
+// the LSDB of one of THIS router's OSPFv3 address-family instances (RFC 5838; ipv6-unicast
+// when the keyword is absent) through the base OriginateSelf (area/AS) / OriginateLinkSelf
+// (link-local) seam. The flooding scope is DERIVED from the LS Type S2/S1 bits (a reserved
+// scope, S2/S1 = 11, is rejected: AC-18); the optional scope keyword is cross-checked
+// against it. Same double gate as IPv4 (AC-16/AC-17), checked before the address family is
+// read. Withdraw MaxAge-flushes via WithdrawSelf/WithdrawLinkSelf (AC-15).
 
 package ospf
 
@@ -18,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
@@ -42,8 +44,72 @@ type v3InjectParams struct {
 	withdraw    bool
 }
 
+// injectAFUsage is the inject command with the address-family keyword in place, the fix a
+// refusal of that keyword names.
+const injectAFUsage = cmdDebugInjectLSA + " type <ls-type> id <link-state-id> address-family <family>"
+
+// debugInjectIntoAF serves `debug ipv6 ospf inject lsa`: it injects or withdraws a crafted
+// OSPFv3 LSA in the LSDB of the address family cmdArgs names with `address-family <af>`,
+// or of ipv6-unicast when it names none, by handing the other arguments to that engine's
+// debugInjectV3. The enablement is checked first, so a disarmed router refuses the command
+// whatever family it names, an unknown or idle one included: the double gate never depends
+// on the family. Safe for concurrent use (it reads the set under its lock).
+func (m *v6EngineSet) debugInjectIntoAF(cmdArgs []string) (v3InjectResult, error) {
+	if !debugInjectIsEnabled() {
+		return v3InjectResult{}, errDebugInjectDisabled
+	}
+	af, rest, err := splitInjectAddressFamily(cmdArgs)
+	if err != nil {
+		return v3InjectResult{}, err
+	}
+	// RFC 5838 Section 2: each address family's instance has its own link state database.
+	inst, ok := m.instanceFor(af)
+	if !ok {
+		return v3InjectResult{}, afNotRunningError(af, m.runningAFs())
+	}
+	return inst.eng.debugInjectV3(rest)
+}
+
+// splitInjectAddressFamily takes the `address-family <af>` pair out of the inject arguments,
+// wherever it stands among the other keywords, and answers the family it names
+// (ipv6-unicast when none) with the arguments left for debugInjectV3. The registry does not
+// validate the value of this modifier, so an unknown word, a missing value and a repeated
+// keyword are refused here. No other inject value can spell the keyword: type and hex take
+// hex digits, id a number and scope one of three words (ze-ospf-cmd.yang). The loop is
+// bounded by the argument count.
+func splitInjectAddressFamily(cmdArgs []string) (addressFamily, []string, error) {
+	af := afIPv6Unicast
+	named := false
+	rest := make([]string, 0, len(cmdArgs))
+	i := 0
+	for i < len(cmdArgs) {
+		if cmdArgs[i] != keywordAddressFamily {
+			rest = append(rest, cmdArgs[i])
+			i++
+			continue
+		}
+		if named {
+			return 0, nil, opererr.New(keywordAddressFamily+" is given more than once",
+				"the LSA goes into the LSDB of one address family, so the keyword is given once",
+				injectAFUsage)
+		}
+		if i+1 == len(cmdArgs) {
+			return 0, nil, opererr.New(keywordAddressFamily+" has no value",
+				"the keyword is followed by one of "+afNameList(afRangeOrder),
+				injectAFUsage)
+		}
+		parsed, ok := afFromCanonicalName(cmdArgs[i+1])
+		if !ok {
+			return 0, nil, unknownAFError(cmdArgs[i+1])
+		}
+		af, named, i = parsed, true, i+2
+	}
+	return af, rest, nil
+}
+
 // debugInjectV3 validates and (if debug is enabled) originates or withdraws a crafted
-// OSPFv3 LSA through the base origination seam.
+// OSPFv3 LSA in this engine's LSDB through the base origination seam. The arguments carry
+// no address-family keyword: debugInjectIntoAF took it out to choose this engine.
 func (e *engine) debugInjectV3(args []string) (v3InjectResult, error) {
 	if !debugInjectIsEnabled() {
 		return v3InjectResult{}, errDebugInjectDisabled

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -33,6 +34,7 @@ func init() {
 	Register("ospf/ospf-ldp-sync-show", routingObserver("ospf-ldp-sync-show", ospfLDPSyncShowScenario), StopsDaemon)
 	Register("ospf/ospf-multiaf-reconcile", routingObserver("ospf-multiaf-reconcile", ospfMultiAFReconcileScenario), StopsDaemon)
 	Register("ospf/ospf-multiaf-show", routingObserver("ospf-multiaf-show", ospfMultiAFShowScenario), StopsDaemon)
+	Register("ospf/ospf-multiaf-views", routingObserver("ospf-multiaf-views", ospfMultiAFViewsScenario), StopsDaemon)
 	Register("plugin/redistribute-chain-static-ospf", routingObserver("redistribute-chain-static-ospf", ospfRedistChainStaticScenario), StopsDaemon)
 	Register("ospf/ospf-multiaf-v4-route", routingObserver("ospf-multiaf-v4-route", ospfMultiAFV4RouteScenario), StopsDaemon)
 	Register("ospf/ospf-multiaf", routingObserver("ospf-multiaf", ospfMultiAFScenario), StopsDaemon)
@@ -608,13 +610,180 @@ func ospfMultiAFShowScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// ospfMultiAFViewsIPv4Unicast is the RFC 5838 address family test/ospf/ospf-multiaf-views.ci
+// runs beside IPv6 unicast, the one every narrowed view names.
+const ospfMultiAFViewsIPv4Unicast = "ipv4-unicast"
+
+// ospfMultiAFViewsInstances is the Instance ID of each address family
+// test/ospf/ospf-multiaf-views.ci configures. A row naming any other family, or
+// this family with another Instance ID, did not come from the engine it names.
+var ospfMultiAFViewsInstances = map[string]float64{"ipv6-unicast": 0, ospfMultiAFViewsIPv4Unicast: 64}
+
+// ospfMultiAFViewsRouterID is the router-id the .ci configures, so the
+// advertising router of every LSA this router originated.
+const ospfMultiAFViewsRouterID = "10.0.0.1"
+
+// ospfMultiAFViewsScenario: spec-ospfv3-views-every-address-family AC-1, AC-2,
+// AC-4, AC-5, AC-6, through the daemon command path an operator uses.
+//
+// The database answers one record per address family, so the narrowed and the
+// whole answer are both judged on records. One router with no neighbor computes
+// no route and forms no adjacency, so the route and neighbor rows are judged for
+// their tags only: those two views prove the command reaches the plugin and the
+// keyword narrows, and the unit tests prove the rows of a second family.
+func ospfMultiAFViewsScenario(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := ospfMultiAFViewsDatabase(ctx, plugin); err != nil {
+		return err
+	}
+	narrowed, err := routingRows(ctx, plugin, "show ospf ipv6 database address-family ipv4-unicast", false)
+	if err != nil {
+		return err
+	}
+	if err := ospfMultiAFViewsTagged("show ospf ipv6 database address-family ipv4-unicast", narrowed, ospfMultiAFViewsIPv4Unicast); err != nil {
+		return err
+	}
+	if len(narrowed) != 1 {
+		return fmt.Errorf("show ospf ipv6 database address-family ipv4-unicast: want the one ipv4-unicast record, got %#v", narrowed)
+	}
+	for _, view := range []string{"show ospf ipv6 route", "show ospf ipv6 neighbor"} {
+		rows, err := routingRows(ctx, plugin, view, true)
+		if err != nil {
+			return err
+		}
+		if err := ospfMultiAFViewsTagged(view, rows, ""); err != nil {
+			return err
+		}
+		command := view + " address-family ipv4-unicast"
+		rows, err = routingRows(ctx, plugin, command, true)
+		if err != nil {
+			return err
+		}
+		if err := ospfMultiAFViewsTagged(command, rows, ospfMultiAFViewsIPv4Unicast); err != nil {
+			return err
+		}
+	}
+	// AC-5: a family the config does not run is refused by the plugin, naming the
+	// running ones and the listing that shows them.
+	if err := ospfMultiAFViewsRefused(ctx, plugin, "show ospf ipv6 neighbor address-family ipv4-multicast",
+		"ipv6-unicast", ospfMultiAFViewsIPv4Unicast, "show ospf ipv6 instance"); err != nil {
+		return err
+	}
+	// AC-6: a word the enumeration does not hold is refused by the registry,
+	// naming the four the model admits.
+	if err := ospfMultiAFViewsRefused(ctx, plugin, "show ospf ipv6 neighbor address-family bogus",
+		"ipv6-unicast", "ipv6-multicast", ospfMultiAFViewsIPv4Unicast, "ipv4-multicast"); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "OK: OSPFv3 views answer every address family and address-family narrows them")
+	return nil
+}
+
+// ospfMultiAFViewsDatabase waits for show ospf ipv6 database to hold a record
+// for each configured family, the ipv4-unicast one holding an LSA this router
+// originated. The engines originate after startup, so one early read would
+// judge a database that is still being built.
+func ospfMultiAFViewsDatabase(ctx context.Context, plugin *sdk.Plugin) error {
+	const command = "show ospf ipv6 database"
+	var records []map[string]any
+	var lastErr error
+	if Poll(ctx, 40, 200*time.Millisecond, func() bool {
+		records, lastErr = routingRows(ctx, plugin, command, false)
+		if lastErr != nil {
+			return false
+		}
+		lastErr = ospfMultiAFViewsTagged(command, records, "")
+		if lastErr != nil {
+			return false
+		}
+		lastErr = ospfMultiAFViewsSelfOriginated(records)
+		return lastErr == nil
+	}) {
+		var tb textbuf.Buffer
+		tb.Str("OK: ").Str(command).Str(" holds ").Int(int64(len(records))).Str(" records, the ipv4-unicast one with this router's LSAs\n")
+		return tb.StdErr()
+	}
+	return fmt.Errorf("%s: %w", command, lastErr)
+}
+
+// ospfMultiAFViewsSelfOriginated requires one record per configured family and
+// an LSA in the ipv4-unicast record that this router originated.
+func ospfMultiAFViewsSelfOriginated(records []map[string]any) error {
+	seen := make(map[string]bool, len(records))
+	for _, record := range records {
+		seen[routingString(record, "address-family")] = true
+	}
+	for family := range ospfMultiAFViewsInstances {
+		if !seen[family] {
+			return fmt.Errorf("no %s record in %#v", family, records)
+		}
+	}
+	for _, record := range records {
+		if routingString(record, "address-family") != ospfMultiAFViewsIPv4Unicast {
+			continue
+		}
+		lsas, _ := record["lsas"].([]any)
+		for _, entry := range lsas {
+			lsa, _ := entry.(map[string]any)
+			if !routingBool(lsa, "local-originated") {
+				continue
+			}
+			if routingString(lsa, "advertising-router") == ospfMultiAFViewsRouterID {
+				return nil
+			}
+		}
+		return fmt.Errorf("the ipv4-unicast record holds no LSA %s originated: %#v", ospfMultiAFViewsRouterID, record)
+	}
+	return errors.New("no ipv4-unicast record")
+}
+
+// ospfMultiAFViewsTagged requires every row of command to name a configured
+// family and that family's Instance ID, and, when only is not empty, that one
+// family alone.
+func ospfMultiAFViewsTagged(command string, rows []map[string]any, only string) error {
+	for _, row := range rows {
+		family := routingString(row, "address-family")
+		instance, configured := ospfMultiAFViewsInstances[family]
+		if !configured {
+			return fmt.Errorf("%s: a row names address-family %#v, not a configured family: %#v", command, row["address-family"], row)
+		}
+		if routingNumber(row, "instance-id") != instance {
+			return fmt.Errorf("%s: %s row has instance-id %#v, want %v: %#v", command, family, row["instance-id"], instance, row)
+		}
+		if only == "" {
+			continue
+		}
+		if family != only {
+			return fmt.Errorf("%s: answered a %s row, want %s alone: %#v", command, family, only, row)
+		}
+	}
+	return nil
+}
+
+// ospfMultiAFViewsRefused dispatches command and requires a refusal whose text
+// names every one of names.
+func ospfMultiAFViewsRefused(ctx context.Context, plugin *sdk.Plugin, command string, names ...string) error {
+	var value any
+	status, err := Dispatch(ctx, plugin, command, &value)
+	if err == nil {
+		return fmt.Errorf("%s: expected a refusal, got status=%s data=%v", command, status, value)
+	}
+	for _, name := range names {
+		if !strings.Contains(err.Error(), name) {
+			return fmt.Errorf("%s: the refusal does not name %q: %w", command, name, err)
+		}
+	}
+	var tb textbuf.Buffer
+	tb.Str("OK: ").Str(command).Str(" refused: ").Str(err.Error()).Byte('\n')
+	return tb.StdErr()
+}
+
 func ospfMultiAFV4RouteScenario(ctx context.Context, plugin *sdk.Plugin) error {
 	rows, err := ospfMultiAFRows(ctx, plugin)
 	if err != nil {
 		return err
 	}
 	if !routingAny(rows, func(row map[string]any) bool {
-		return routingString(row, "address-family") == "ipv4-unicast" && routingNumber(row, "instance-id") == 64
+		return routingString(row, "address-family") == ospfMultiAFViewsIPv4Unicast && routingNumber(row, "instance-id") == 64
 	}) {
 		return fmt.Errorf("IPv4-unicast-over-OSPFv3 instance not running at instance 64: %#v", rows)
 	}

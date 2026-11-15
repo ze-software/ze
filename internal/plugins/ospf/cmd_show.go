@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -81,12 +82,19 @@ const (
 	cmdShowIPv6InterfaceDetail        = "show ospf ipv6 interface detail"
 	cmdShowIPv6SPF                    = "show ospf ipv6 spf"
 	cmdShowIPv6SPFDetail              = "show ospf ipv6 spf detail"
+	cmdShowIPv6Route                  = "show ospf ipv6 route"
 
 	cmdDebugInjectOpaque  = "debug ip ospf inject opaque"
 	cmdDebugInjectLSA     = "debug ipv6 ospf inject lsa"
 	cmdDebugInjectEnable  = "debug ospf inject enable"
 	cmdDebugInjectDisable = "debug ospf inject disable"
 )
+
+// keywordAddressFamily is the optional selector every OSPFv3 view takes
+// (yang/ze-ospf-cmd.yang, grouping ospfv3-address-family). afViewForwarder
+// hands it to the plugin as this keyword followed by one of the four afName*
+// spellings, and OnExecuteCommand reads it in that one shape.
+const keywordAddressFamily = "address-family"
 
 // The names OSPF uses for one concept across its metric labels, its YANG leaves
 // and its CLI keywords. One spelling each, so a metric and the leaf it reports
@@ -117,7 +125,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-instance", Handler: forwardShowOSPFInstance, PluginCommand: cmdShowInstance},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-neighbor", Handler: forwardShowOSPFNeighbor, PluginCommand: cmdShowNeighbor},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-interface", Handler: forwardShowOSPFInterface, PluginCommand: cmdShowInterface},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ipv6-interface", Handler: forwardShowOSPFIPv6Interface, PluginCommand: cmdShowIPv6Interface},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ipv6-interface", Handler: afViewForwarder(cmdShowIPv6Interface), PluginCommand: cmdShowIPv6Interface},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database", Handler: forwardShowOSPFDatabase, PluginCommand: cmdShowDatabase},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-route", Handler: forwardShowOSPFRoute, PluginCommand: cmdShowRoute},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-route-fast-reroute", Handler: forwardShowOSPFRouteFastReroute, PluginCommand: cmdShowRouteFastReroute},
@@ -126,9 +134,9 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-spf", Handler: forwardShowOSPFSPF, PluginCommand: cmdShowSPF},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ldp-sync", Handler: forwardShowOSPFLDPSync, PluginCommand: cmdShowLDPSync},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-graceful-restart", Handler: forwardShowOSPFGracefulRestart, PluginCommand: cmdShowGracefulRestart},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ipv6-graceful-restart", Handler: forwardShowOSPFIPv6GracefulRestart, PluginCommand: cmdShowIPv6GracefulRestart},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ipv6-graceful-restart", Handler: afViewForwarder(cmdShowIPv6GracefulRestart), PluginCommand: cmdShowIPv6GracefulRestart},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-segment-routing", Handler: forwardShowOSPFSegmentRouting, PluginCommand: cmdShowSegmentRouting},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ipv6-segment-routing", Handler: forwardShowOSPFIPv6SegmentRouting, PluginCommand: cmdShowIPv6SegmentRouting},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ipv6-segment-routing", Handler: afViewForwarder(cmdShowIPv6SegmentRouting), PluginCommand: cmdShowIPv6SegmentRouting},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-router", Handler: dbSubviewForwarder(cmdShowDatabaseRouter), PluginCommand: cmdShowDatabaseRouter},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-network", Handler: dbSubviewForwarder(cmdShowDatabaseNetwork), PluginCommand: cmdShowDatabaseNetwork},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-summary", Handler: dbSubviewForwarder(cmdShowDatabaseSummary), PluginCommand: cmdShowDatabaseSummary},
@@ -138,7 +146,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-opaque-link", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueLink), PluginCommand: cmdShowDatabaseOpaqueLink},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-opaque-area", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueArea), PluginCommand: cmdShowDatabaseOpaqueArea},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-opaque-as", Handler: dbSubviewForwarder(cmdShowDatabaseOpaqueAS), PluginCommand: cmdShowDatabaseOpaqueAS},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-router-information", Handler: dbSubviewForwarder(cmdShowDatabaseRI), PluginCommand: cmdShowDatabaseRI},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-database-router-information", Handler: afViewForwarder(cmdShowDatabaseRI), PluginCommand: cmdShowDatabaseRI},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-te-database", Handler: dbSubviewForwarder(cmdShowTEDatabase), PluginCommand: cmdShowTEDatabase},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:clear-process", Handler: forwardClearOSPFProcess, PluginCommand: cmdClearProcess},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:clear-neighbor", Handler: forwardClearOSPFNeighbor, PluginCommand: cmdClearNeighbor},
@@ -155,21 +163,22 @@ func init() {
 
 		// spec-ospf-ext-14 IPv6 (OSPFv3) deep-introspection views. Distinct ze-ospf:show-ospfv3-*
 		// wire methods so the v4 and v6 surfaces cannot collide (AC-26, R-9).
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database", Handler: dbSubviewForwarder(cmdShowIPv6Database), PluginCommand: cmdShowIPv6Database},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-detail", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseDetail), PluginCommand: cmdShowIPv6DatabaseDetail},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-router-detail", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseRouterDetail), PluginCommand: cmdShowIPv6DatabaseRouterDetail},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-scope-link", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseScopeLink), PluginCommand: cmdShowIPv6DatabaseScopeLink},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-scope-area", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseScopeArea), PluginCommand: cmdShowIPv6DatabaseScopeArea},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-scope-as", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseScopeAS), PluginCommand: cmdShowIPv6DatabaseScopeAS},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-router-information", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseRI), PluginCommand: cmdShowIPv6DatabaseRI},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-extended", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseExtended), PluginCommand: cmdShowIPv6DatabaseExtended},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-segment-routing", Handler: dbSubviewForwarder(cmdShowIPv6DatabaseSegmentRouting), PluginCommand: cmdShowIPv6DatabaseSegmentRouting},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database", Handler: afViewForwarder(cmdShowIPv6Database), PluginCommand: cmdShowIPv6Database},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-detail", Handler: afViewForwarder(cmdShowIPv6DatabaseDetail), PluginCommand: cmdShowIPv6DatabaseDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-router-detail", Handler: afViewForwarder(cmdShowIPv6DatabaseRouterDetail), PluginCommand: cmdShowIPv6DatabaseRouterDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-scope-link", Handler: afViewForwarder(cmdShowIPv6DatabaseScopeLink), PluginCommand: cmdShowIPv6DatabaseScopeLink},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-scope-area", Handler: afViewForwarder(cmdShowIPv6DatabaseScopeArea), PluginCommand: cmdShowIPv6DatabaseScopeArea},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-scope-as", Handler: afViewForwarder(cmdShowIPv6DatabaseScopeAS), PluginCommand: cmdShowIPv6DatabaseScopeAS},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-router-information", Handler: afViewForwarder(cmdShowIPv6DatabaseRI), PluginCommand: cmdShowIPv6DatabaseRI},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-extended", Handler: afViewForwarder(cmdShowIPv6DatabaseExtended), PluginCommand: cmdShowIPv6DatabaseExtended},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-database-segment-routing", Handler: afViewForwarder(cmdShowIPv6DatabaseSegmentRouting), PluginCommand: cmdShowIPv6DatabaseSegmentRouting},
 		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-instance", Handler: dbSubviewForwarder(cmdShowIPv6Instance), PluginCommand: cmdShowIPv6Instance},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-neighbor", Handler: dbSubviewForwarder(cmdShowIPv6Neighbor), PluginCommand: cmdShowIPv6Neighbor},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-neighbor-detail", Handler: dbSubviewForwarder(cmdShowIPv6NeighborDetail), PluginCommand: cmdShowIPv6NeighborDetail},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-interface-detail", Handler: dbSubviewForwarder(cmdShowIPv6InterfaceDetail), PluginCommand: cmdShowIPv6InterfaceDetail},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-spf", Handler: dbSubviewForwarder(cmdShowIPv6SPF), PluginCommand: cmdShowIPv6SPF},
-		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-spf-detail", Handler: dbSubviewForwarder(cmdShowIPv6SPFDetail), PluginCommand: cmdShowIPv6SPFDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-neighbor", Handler: afViewForwarder(cmdShowIPv6Neighbor), PluginCommand: cmdShowIPv6Neighbor},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-neighbor-detail", Handler: afViewForwarder(cmdShowIPv6NeighborDetail), PluginCommand: cmdShowIPv6NeighborDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-interface-detail", Handler: afViewForwarder(cmdShowIPv6InterfaceDetail), PluginCommand: cmdShowIPv6InterfaceDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-spf", Handler: afViewForwarder(cmdShowIPv6SPF), PluginCommand: cmdShowIPv6SPF},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-spf-detail", Handler: afViewForwarder(cmdShowIPv6SPFDetail), PluginCommand: cmdShowIPv6SPFDetail},
+		pluginserver.RPCRegistration{WireMethod: "ze-ospf:show-ospfv3-route", Handler: afViewForwarder(cmdShowIPv6Route), PluginCommand: cmdShowIPv6Route},
 
 		// spec-ospf-ext-14 guarded LSA injection (both families). The inject proxies pass the
 		// trailing keyword-value tokens through as args; the read-only authz `deny debug`
@@ -229,11 +238,6 @@ func forwardShowOSPFInterface(ctx *pluginserver.CommandContext, validated comman
 	return forwardToOSPF(ctx, cmdShowInterface, args)
 }
 
-func forwardShowOSPFIPv6Interface(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return forwardToOSPF(ctx, cmdShowIPv6Interface, args)
-}
-
 func forwardShowOSPFDatabase(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowDatabase, args)
@@ -274,19 +278,9 @@ func forwardShowOSPFGracefulRestart(ctx *pluginserver.CommandContext, validated 
 	return forwardToOSPF(ctx, cmdShowGracefulRestart, args)
 }
 
-func forwardShowOSPFIPv6GracefulRestart(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return forwardToOSPF(ctx, cmdShowIPv6GracefulRestart, args)
-}
-
 func forwardShowOSPFSegmentRouting(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	return forwardToOSPF(ctx, cmdShowSegmentRouting, args)
-}
-
-func forwardShowOSPFIPv6SegmentRouting(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	return forwardToOSPF(ctx, cmdShowIPv6SegmentRouting, args)
 }
 
 func forwardClearOSPFProcess(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
@@ -319,6 +313,52 @@ func dbSubviewForwarder(pluginCommand string) pluginserver.Handler {
 		args := validated.Tokens()
 		return forwardToOSPF(ctx, pluginCommand, args)
 	}
+}
+
+// afViewForwarder builds the handler of one OSPFv3 view that takes the optional
+// address-family keyword. The registry has already judged the value against the
+// enumeration the model declares (yang/ze-ospf-cmd.yang, grouping
+// ospfv3-address-family). Which families answer is the plugin's decision, because
+// only the plugin knows which engines run, so the handler forwards and chooses
+// nothing.
+func afViewForwarder(pluginCommand string) pluginserver.Handler {
+	return func(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+		args, refusal := addressFamilyArgs(pluginCommand, validated)
+		if refusal != nil {
+			return plugin.OperatorErrorResponse(refusal), nil
+		}
+		return forwardToOSPFArgs(ctx, pluginCommand, args)
+	}
+}
+
+// addressFamilyArgs answers the tokens an OSPFv3 view hands the plugin: none, or
+// keywordAddressFamily followed by the value the registry judged. The plugin then
+// reads one shape however the operator typed the line: a bare family name the
+// validator bound positionally is forwarded behind its keyword.
+//
+// A token no leaf took is refused rather than forwarded or dropped. Forwarded, the
+// plugin would have to guess what it means; dropped, the view would answer a
+// question the operator did not ask, every family where one was meant.
+// `show ospf ipv6 neighbor ipv4-unicast detail` is that line: two spare tokens, so
+// the validator binds neither to the leaf.
+func addressFamilyArgs(pluginCommand string, validated command.ValidatedArgs) ([]string, *opererr.Error) {
+	spare := validated.PositionalTokens()
+	if len(spare) > 0 {
+		// A lone spare token the validator bound to the leaf is the family itself.
+		if _, bound := validated.Positional(keywordAddressFamily); !bound {
+			var problem, fix textbuf.Buffer
+			problem.Str("unexpected words ").Quoted(textbuf.Join(spare, " ")).Str(" for ").Str(pluginCommand)
+			fix.Str(pluginCommand).Str(" address-family <family>")
+			return nil, opererr.New(problem.String(),
+				"the command takes one optional keyword, address-family, and show ospf ipv6 instance lists the running families",
+				fix.String())
+		}
+	}
+	family, found := validated.Value(keywordAddressFamily)
+	if !found {
+		return nil, nil
+	}
+	return []string{keywordAddressFamily, family}, nil
 }
 
 // forwardToOSPF routes a fixed plugin command to the OSPF engine. The proxied commands

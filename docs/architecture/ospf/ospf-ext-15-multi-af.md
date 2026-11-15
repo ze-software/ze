@@ -25,6 +25,26 @@ re-opened. See `docs/architecture/wire/ospfv3.md` for the wire view.
   backward compatibility.
   <!-- source: internal/plugins/ospf/v3/types/options.go -- Options -->
 
+- **Every OSPFv3 view answers for each running address family.** One helper on
+  the engine set selects the engines a view reads: every running AF in RFC 5838
+  range order, or the one an `address-family <af>` argument names. An AF that is
+  not running is refused as an operator error naming the running AFs and
+  `show ospf ipv6 instance`. Each row is led by its instance's `address-family`
+  and `instance-id`, written when the row is marshalled, because the row types
+  are shared with OSPFv2 and its answers must not change. The instance ID is the
+  engine's own (its dispatcher's), never the interface's: the v6 interface detail
+  carries 0. The database and SPF-explain views already answer one record per AF
+  led by the same two keys. The Router Information views put the two keys in
+  each OSPFv3 entry after its `af`, and the shared `show ospf database
+  router-information` keeps its OSPFv2 entries whole and untagged. The AF
+  listings (`show ospf ipv6`, `show ospf ipv6 instance`) list the instances
+  themselves. `debug ipv6 ospf inject lsa` takes the same keyword to choose the
+  LSDB, `ipv6-unicast` when absent, after the debug enablement is checked
+  (`ospf-ext-14-debug-introspection.md`).
+  <!-- source: internal/plugins/ospf/register_multiaf.go -- selectInstances, afTaggedRow -->
+  <!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views -->
+  <!-- source: internal/plugins/ospf/inject_v3.go -- debugInjectIntoAF -->
+
 ## Constraints on callers
 
 - A per-address-family feature attaches to the engine SET, never to a single v6

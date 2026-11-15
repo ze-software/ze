@@ -74,7 +74,7 @@ func TestOSPFRI6OriginateFunctional(t *testing.T) {
 	eng.v6OriginateRIScope(router, OpaqueScopeArea, types.BackboneArea, keep)
 	eng.v6OriginateRIScope(router, OpaqueScopeAS, types.BackboneArea, keep)
 
-	view := riShowView(t, riDatabaseSnapshot(nil, eng))
+	view := riShowView(t, riDatabaseSnapshot(nil, riIPv6UnicastInstances(t, eng)))
 	var area, as bool
 	for _, e := range view.RouterInformation {
 		if e.AF != "v3" {
@@ -189,7 +189,7 @@ func TestOSPFRI6ReceiveFunctional(t *testing.T) {
 	if _, ok := eng.lsdb.LookupLSA(area, v6RIKey(peer, ospfv3types.LSTypeRouterInformationArea, 0)); !ok {
 		t.Fatalf("received OSPFv3 RI LSA from 2.2.2.2 not stored in area 0")
 	}
-	view := riShowView(t, riDatabaseSnapshot(nil, eng))
+	view := riShowView(t, riDatabaseSnapshot(nil, riIPv6UnicastInstances(t, eng)))
 	var found bool
 	for _, e := range view.RouterInformation {
 		if e.AF == "v3" && e.Scope == OpaqueScopeArea.String() && e.AdvertisingRouter == "2.2.2.2" && containsStubRouter(e.Capabilities) {
@@ -216,7 +216,7 @@ func TestOSPFRIShowFunctional(t *testing.T) {
 	v6.setConfig(v6RIConfig(t, "area"))
 	v6.v6OriginateRIScope(types.RouterID{1, 1, 1, 1}, OpaqueScopeArea, types.BackboneArea, map[ospflsdb.SelfLSARef]struct{}{})
 
-	view := riShowView(t, riDatabaseSnapshot(v4, v6))
+	view := riShowView(t, riDatabaseSnapshot(v4, riIPv6UnicastInstances(t, v6)))
 	var v2Caps, v3 bool
 	for _, e := range view.RouterInformation {
 		if e.AF == "v2" && containsStubRouter(e.Capabilities) {

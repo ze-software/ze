@@ -1,0 +1,74 @@
+# Test: every OSPFv3 view answers for every running address family (spec-ospfv3-views-every-address-family).
+#
+# VALIDATES: AC-1, AC-2, AC-4, AC-5, AC-6 -- with ipv6-unicast (Instance ID 0) and
+# ipv4-unicast (Instance ID 64) configured, `show ospf ipv6 database` answers a record
+# for each family, the ipv4-unicast one holding the LSAs this router originated, and
+# `address-family ipv4-unicast` narrows it to that record alone. `show ospf ipv6 route`
+# and `show ospf ipv6 neighbor` reach the plugin with and without the keyword, and every
+# row they answer names its address-family and instance-id. A family the config does not
+# run is refused by the plugin naming the running ones; a word outside the enumeration is
+# refused by the registry naming the four.
+# PREVENTS: an OSPFv3 view reading only the IPv6-unicast engine (RFC 5838 instances
+# invisible to the operator), and the keyword being ignored on the way to the plugin.
+# WHY A .ci: the question is whether the daemon command path, the builtin proxy and the
+# plugin together answer per family; the unit tests judge each half alone. One router
+# with no neighbor computes no route and forms no adjacency, so the route and neighbor
+# rows are judged for their tags; their per-family content is the unit tests'.
+
+# The daemon opens raw IPv6 sockets to run the OSPFv3 engines; darwin lacks that path, so
+# this runs under the Linux/QEMU functional harness.
+option=needs-linux:caps=net-admin
+# OSPFv3 opens raw proto-89 sockets on eth0/eth1 (IPv6 link-local, auto on link-up);
+# provision the dummy links inside the per-test netns. eth1 carries the IPv4 prefix the
+# ipv4-unicast instance advertises.
+option=netns-link:name=eth0
+option=netns-link:name=eth1:address=10.0.2.1/24
+
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospf-multiaf-views {
+		run "le test fixture ospf/ospf-multiaf-views"
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	address-family {
+		ipv6-unicast {
+			instance-id 0
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth0 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+		ipv4-unicast {
+			instance-id 64
+			areas {
+				area 0.0.0.0 {
+					area-type normal
+				}
+			}
+			interfaces {
+				interface eth1 {
+					area 0.0.0.0
+					network-type point-to-point
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: show ospf ipv6 database holds 2 records, the ipv4-unicast one with this router's LSAs
+expect=stderr:contains=OK: OSPFv3 views answer every address family and address-family narrows them

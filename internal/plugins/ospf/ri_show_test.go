@@ -1,17 +1,23 @@
 // VALIDATES: spec-ospf-ext-3 AC-12/AC-13/AC-14 -- `show ospf database router-information`
 // decodes the stored RI LSA bodies for both address families into named capability bits and a
-// TLV list, and a truncated/malformed body renders what it can without crashing.
-// PREVENTS: a show that shows only one address family, hides the capability bits, or panics on
-// a hostile received RI LSA.
+// TLV list, and a truncated/malformed body renders what it can without crashing. Both RI views
+// read every running OSPFv3 address-family engine and name each OSPFv3 entry's instance
+// (spec-ospfv3-views-every-address-family A-4, AC-3).
+// PREVENTS: a show that shows only one address family or one OSPFv3 instance, merges two
+// instances' advertisements, hides the capability bits, or panics on a hostile received RI LSA.
 package ospf
 
 import (
+	"encoding/json"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
 func riShowView(t *testing.T, rows []any) riDatabaseView {
@@ -26,13 +32,38 @@ func riShowView(t *testing.T, rows []any) riDatabaseView {
 	return view
 }
 
-func TestRIShowRender(t *testing.T) {
-	resetOpaqueConsumers()
-	t.Cleanup(resetOpaqueConsumers)
-	resetRITLVs()
-	t.Cleanup(resetRITLVs)
+// riViewOf answers an RI view through view, the producer its OnExecuteCommand arm calls
+// (routerInformationView for cmdShowDatabaseRI, v3RouterInformationView for
+// cmdShowIPv6DatabaseRI).
+func riViewOf(t *testing.T, view v3ViewFunc, set *v6EngineSet, v2 *engine, command string, cmdArgs []string) riDatabaseView {
+	t.Helper()
+	answer, err := view(set, v2, command, cmdArgs)
+	if err != nil {
+		t.Fatalf("%s %v: %v", command, cmdArgs, err)
+	}
+	rows, ok := answer.([]any)
+	if !ok {
+		t.Fatalf("%s answered %T, want []any", command, answer)
+	}
+	return riShowView(t, rows)
+}
 
-	// v2 engine: RI enabled with max-metric so the stub-router bit is advertised.
+// riIPv6UnicastInstances answers the OSPFv3 instances an RI view reads when e is the only
+// address-family engine, running as ipv6-unicast, selected the way the views select them.
+func riIPv6UnicastInstances(t *testing.T, e *engine) []afInstance {
+	t.Helper()
+	set := &v6EngineSet{engines: map[addressFamily]*engine{afIPv6Unicast: e}}
+	instances, err := set.selectInstances(cmdShowIPv6DatabaseRI, nil)
+	if err != nil {
+		t.Fatalf("select the ipv6-unicast instance: %v", err)
+	}
+	return instances
+}
+
+// newRIv2Engine builds an OSPFv2 engine that has originated its area-scope RI opaque LSA,
+// with max-metric configured so the stub-router bit is advertised.
+func newRIv2Engine(t *testing.T) *engine {
+	t.Helper()
 	v4, _ := newRedistEngine(t, `{"ospf":{"router-id":"1.1.1.1","opaque":true,`+
 		`"max-metric":{"router-lsa":{"always":"true"}},`+
 		`"router-information":{"enabled":true,"scope":"area"},`+
@@ -42,13 +73,24 @@ func TestRIShowRender(t *testing.T) {
 		t.Fatalf("registerRIConsumer: %v", err)
 	}
 	v4.originateSelfLSAs()
+	return v4
+}
+
+func TestRIShowRender(t *testing.T) {
+	resetOpaqueConsumers()
+	t.Cleanup(resetOpaqueConsumers)
+	resetRITLVs()
+	t.Cleanup(resetRITLVs)
+
+	v4 := newRIv2Engine(t)
 
 	// v3 engine: RI enabled at area scope.
 	v6 := newV6RIEngine(t)
 	v6.setConfig(v6RIConfig(t, "area"))
 	v6.v6OriginateRIScope(types.RouterID{1, 1, 1, 1}, OpaqueScopeArea, types.BackboneArea, map[ospflsdb.SelfLSARef]struct{}{})
+	set := &v6EngineSet{engines: map[addressFamily]*engine{afIPv6Unicast: v6}}
 
-	view := riShowView(t, riDatabaseSnapshot(v4, v6))
+	view := riViewOf(t, routerInformationView, set, v4, cmdShowDatabaseRI, nil)
 	var haveV2, haveV3 bool
 	for _, e := range view.RouterInformation {
 		switch e.AF {
@@ -67,6 +109,102 @@ func TestRIShowRender(t *testing.T) {
 	if !haveV2 || !haveV3 {
 		t.Fatalf("RI view missing an address family: v2=%v v3=%v (%+v)", haveV2, haveV3, view.RouterInformation)
 	}
+}
+
+// TestRIViewOverEveryV6Engine proves both RFC 7770 RI views read every running OSPFv3
+// address-family engine. The same router's area-scope RI LSA, held by the ipv6-unicast
+// (Instance ID 0) and the ipv4-unicast (Instance ID 64) LSDBs with different capability
+// bits, renders as two entries, each naming its own address-family and instance-id and
+// carrying its own engine's bits. The address-family keyword narrows the OSPFv3 part to one
+// instance; on the shared view it leaves the OSPFv2 part whole, and an OSPFv2 entry carries
+// neither identity key. Method: twoAFIdleSet plus one RI LSA per engine, read through the
+// v3Views entries OnExecuteCommand serves, compared as one summary line per entry.
+func TestRIViewOverEveryV6Engine(t *testing.T) {
+	resetOpaqueConsumers()
+	t.Cleanup(resetOpaqueConsumers)
+	resetRITLVs()
+	t.Cleanup(resetRITLVs)
+
+	v4 := newRIv2Engine(t)
+	set := twoAFIdleSet(t)
+	router := types.RouterID{10, 0, 0, 1}
+	originateV6RIArea(t, set, afIPv6Unicast, router, packet.RIInfoBitStubRouter)
+	originateV6RIArea(t, set, afIPv4Unicast, router, packet.RIInfoBitGracefulRestart)
+	v3Unicast6 := "v3 ipv6-unicast 0 stub-router"
+	v3Unicast4 := "v3 ipv4-unicast 64 graceful-restart-capable"
+	narrowTo4 := []string{keywordAddressFamily, afNameIPv4Unicast}
+
+	every := riEntrySummaries(riViewOf(t, v3RouterInformationView, set, v4, cmdShowIPv6DatabaseRI, nil))
+	if want := []string{v3Unicast6, v3Unicast4}; !slices.Equal(every, want) {
+		t.Fatalf("%s = %q, want %q", cmdShowIPv6DatabaseRI, every, want)
+	}
+	narrowed := riEntrySummaries(riViewOf(t, v3RouterInformationView, set, v4, cmdShowIPv6DatabaseRI, narrowTo4))
+	if want := []string{v3Unicast4}; !slices.Equal(narrowed, want) {
+		t.Fatalf("%s %q = %q, want %q", cmdShowIPv6DatabaseRI, narrowTo4, narrowed, want)
+	}
+
+	shared := riEntrySummaries(riViewOf(t, routerInformationView, set, v4, cmdShowDatabaseRI, nil))
+	var ospfv2 []string
+	for _, line := range shared {
+		if line == "v2" {
+			ospfv2 = append(ospfv2, line)
+		}
+	}
+	if len(ospfv2) == 0 {
+		t.Fatalf("%s has no OSPFv2 entry: %q", cmdShowDatabaseRI, shared)
+	}
+	if want := append(slices.Clone(ospfv2), v3Unicast6, v3Unicast4); !slices.Equal(shared, want) {
+		t.Fatalf("%s = %q, want %q", cmdShowDatabaseRI, shared, want)
+	}
+	sharedNarrowed := riViewOf(t, routerInformationView, set, v4, cmdShowDatabaseRI, narrowTo4)
+	if got, want := riEntrySummaries(sharedNarrowed), append(slices.Clone(ospfv2), v3Unicast4); !slices.Equal(got, want) {
+		t.Fatalf("%s %q = %q, want the whole OSPFv2 part then %q", cmdShowDatabaseRI, narrowTo4, got, want)
+	}
+
+	for _, entry := range sharedNarrowed.RouterInformation {
+		text, err := json.Marshal(entry)
+		if err != nil {
+			t.Fatalf("marshal RI entry: %v", err)
+		}
+		if entry.AF == "v2" {
+			if strings.Contains(string(text), `"address-family"`) || strings.Contains(string(text), `"instance-id"`) {
+				t.Errorf("OSPFv2 RI entry carries an OSPFv3 identity key: %s", text)
+			}
+			continue
+		}
+		if lead := `{"af":"v3","address-family":"ipv4-unicast","instance-id":64,"scope":`; !strings.HasPrefix(string(text), lead) {
+			t.Errorf("OSPFv3 RI entry = %s, want it to start %s", text, lead)
+		}
+	}
+}
+
+// originateV6RIArea originates, in the LSDB of set's af engine, an area-scope OSPFv3 RI LSA
+// (RI Instance 0) advertised by router whose informational capabilities carry bit alone.
+func originateV6RIArea(t *testing.T, set *v6EngineSet, af addressFamily, router types.RouterID, bit uint) {
+	t.Helper()
+	e, ok := set.engineFor(af)
+	if !ok {
+		t.Fatalf("no %s engine in the set", af)
+	}
+	body := packet.EncodeRITLVs([]packet.RITLV{{
+		Type:  packet.RITLVInformationalCapabilities,
+		Value: packet.RICapabilitiesValue(packet.RIInfoBitMask(bit)),
+	}})
+	originateV6Raw(t, e, ospfv3types.LSTypeRouterInformationArea, router, types.BackboneArea, body)
+}
+
+// riEntrySummaries renders each RI entry as one line: "v2" for an OSPFv2 entry, and
+// "v3 <address-family> <instance-id> <capabilities>" for an OSPFv3 one.
+func riEntrySummaries(view riDatabaseView) []string {
+	out := make([]string, 0, len(view.RouterInformation))
+	for _, e := range view.RouterInformation {
+		if e.riOSPFv3Instance == nil {
+			out = append(out, e.AF)
+			continue
+		}
+		out = append(out, e.AF+" "+e.AddressFamily+" "+strconv.Itoa(int(e.InstanceID))+" "+strings.Join(e.Capabilities, ","))
+	}
+	return out
 }
 
 func TestRIShowMalformedTLV(t *testing.T) {

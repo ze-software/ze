@@ -1194,16 +1194,44 @@ plus TE links with their Link ID, local/remote address, link type, TE metric,
 bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR.
 **`show ospf database router-information`** decodes the RFC 7770 Router Information
 LSAs for both address families (OSPFv2 Opaque type 4 and OSPFv3 function code 12) into
-the advertised informational capability bits and the TLV list.
+the advertised informational capability bits and the TLV list. Its OSPFv3 entries come
+from every running OSPFv3 instance, and each one names its `address-family` and
+`instance-id` after `af`; **`show ospf ipv6 database router-information`** shows those
+OSPFv3 entries alone.
 
 **`show ospf segment-routing`** and **`show ospf ipv6 segment-routing`** render the
 RFC 8665 / RFC 8666 Segment Routing state for each address family: the configured
 SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and
 the Adjacency-SIDs allocated per adjacency.
 
+OSPFv3 runs one instance per configured address family (RFC 5838), and every
+`show ospf ipv6` view answers for all of them: **`neighbor`**, **`neighbor detail`**,
+**`interface`**, **`interface detail`**, **`spf`**, **`spf detail`**,
+**`graceful-restart`**, **`segment-routing`**, **`route`** and every **`database`**
+view. Each row names its `address-family` and `instance-id`, so the rows of the
+IPv6-unicast and IPv4-unicast instances can be told apart in `| json` and `| table`.
+**`show ospf ipv6 route`** lists the routes each OSPFv3 instance computed;
+`show ospf route` lists the OSPFv2 ones. Each of these views, and **`show ospf database
+router-information`** for its OSPFv3 part, takes an optional `address-family` keyword
+followed by `ipv6-unicast`, `ipv6-multicast`, `ipv4-unicast` or `ipv4-multicast`, which
+narrows the answer to that instance:
+
+```
+show ospf ipv6 neighbor address-family ipv4-unicast
+```
+
+Any other word is refused with the four accepted names. A family the config does not run
+is refused with the running ones named; **`show ospf ipv6 instance`** lists them.
+**`debug ipv6 ospf inject lsa`** takes the same keyword to choose which instance's LSDB
+receives the LSA, and without it injects into the IPv6-unicast instance. Until `debug ospf
+inject enable` arms injection, the command is refused whatever family it names.
+
+<!-- source: internal/plugins/ospf/yang/ze-ospf-cmd.yang -- grouping ospfv3-address-family, container route -->
+<!-- source: internal/plugins/ospf/cmd_show.go -- afViewForwarder, addressFamilyArgs -->
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/te_show.go -- teDatabaseSnapshot, teDecodeOpaqueLSA -->
-<!-- source: internal/plugins/ospf/ri_show.go -- riDatabaseSnapshot, decodeRIBody -->
+<!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, v3RouterInformationView, riDatabaseSnapshot, decodeRIBody -->
+<!-- source: internal/plugins/ospf/inject_v3.go -- debugInjectIntoAF, splitInjectAddressFamily -->
 <!-- source: internal/plugins/ospf/show_database.go -- dbSubviewType opaque-link/opaque-area/opaque-as -->
 <!-- source: internal/plugins/ospf/spf/route.go -- RouteSnapshotEntry -->
 <!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshotEntry -->

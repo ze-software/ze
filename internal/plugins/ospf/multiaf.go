@@ -193,11 +193,24 @@ func (e *engine) afHelloAccepted(h types.Hello) bool { return e.afBitAccepted(h.
 // §2.5/§2.6 defense-in-depth beyond the Hello gate).
 func (e *engine) afDBDescAccepted(d types.DBDesc) bool { return e.afBitAccepted(d.AFBit) }
 
-// afFromName maps a configured address-family name to its AF. The bare "ipv6" spelling is
-// the IPv6-unicast default AF. ok is false for an unknown name.
+// afFromName maps a configured address-family name to its AF: the four canonical names, and
+// the bare "ipv6" spelling the config also takes for the IPv6-unicast default AF. ok is false
+// for an unknown name. An operator command reads afFromCanonicalName instead.
 func afFromName(name string) (addressFamily, bool) {
+	if name == afNameIPv6 {
+		return afIPv6Unicast, true
+	}
+	return afFromCanonicalName(name)
+}
+
+// afFromCanonicalName maps one of the four canonical address-family names to its AF. ok is
+// false for any other word, the config's bare "ipv6" included: an operator command takes
+// exactly the names the ospfv3-address-family-name enumeration in ze-ospf-cmd.yang lists, so
+// the plugin refuses what the registry refuses on a view, and the inject keyword, whose
+// modifier-group leaf the registry does not validate, refuses it too.
+func afFromCanonicalName(name string) (addressFamily, bool) {
 	switch name {
-	case afNameIPv6, afNameIPv6Unicast:
+	case afNameIPv6Unicast:
 		return afIPv6Unicast, true
 	case afNameIPv6Multicast:
 		return afIPv6Multicast, true

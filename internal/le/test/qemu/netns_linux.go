@@ -53,7 +53,7 @@ var netnsSelections = map[string][]string{
 	},
 	netnsOSPF: {
 		"ospf-instance-demux", "ospf-multiaf", "ospf-multiaf-reconcile", "ospf-multiaf-show",
-		"ospf-multiaf-v4-route", "ospf-nbma", "ospf-ptmp", "ospf-show",
+		"ospf-multiaf-v4-route", "ospf-multiaf-views", "ospf-nbma", "ospf-ptmp", "ospf-show",
 	},
 	netnsOSPFv3: {"ospfv3-vlink", "ospfv3-nbma", "ospfv3-ptmp"},
 	netnsPPPoE: {

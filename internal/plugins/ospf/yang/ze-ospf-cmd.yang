@@ -11,10 +11,16 @@ module ze-ospf-cmd {
          object-rooted (no shared `ip` container); see
          docs/architecture/cli/command-namespacing.md and
          ai/rules/plugin-self-containment.md.";
+    revision 2026-11-15 {
+        description "Every OSPFv3 view answers for every running address family and takes an optional
+             address-family keyword that narrows it to one (RFC 5838); add show ospf ipv6 route; debug
+             ipv6 ospf inject lsa takes the same keyword.";
+    }
     revision 2026-10-17 {
         description "clear ospf neighbor and clear ospf process alone are refused; clear ospf neighbor all
              tears down every adjacency, and clear ospf process all also re-runs SPF.";
     }
+
     revision 2026-07-02 {
         description "Add the `request ospf graceful-restart` operator action (RFC 3623 planned
              restart trigger, spec-ospf-ext-9); add `show ospf instance` for OSPFv2
@@ -27,6 +33,28 @@ module ze-ospf-cmd {
         description "Initial revision: show ip ospf neighbor/interface/database/route/border-routers/spf (spec-ospf-13).";
     }
 
+    typedef ospfv3-address-family-name {
+        type enumeration {
+            enum ipv6-unicast { ze:help "The IPv6-unicast instance (RFC 5838 Instance ID 0-31)."; }
+            enum ipv6-multicast { ze:help "The IPv6-multicast instance (Instance ID 32-63)."; }
+            enum ipv4-unicast { ze:help "The IPv4-unicast instance (Instance ID 64-95)."; }
+            enum ipv4-multicast { ze:help "The IPv4-multicast instance (Instance ID 96-127)."; }
+        }
+        description "The four OSPFv3 address families, spelled as the ospf address-family config
+                     spells them (RFC 5838 Section 2.1).";
+    }
+
+    grouping ospfv3-address-family {
+        description "The optional address-family keyword every OSPFv3 view takes.";
+        leaf address-family {
+            type ospfv3-address-family-name;
+            description "Without it the view answers for every running OSPFv3 address family, and
+each row names its address-family and instance-id. With it the view answers for that one
+family. A family that is not running is refused, and the refusal names the running ones;
+show ospf ipv6 instance lists them too.";
+            ze:help "Limit the answer to one OSPFv3 address family.";
+        }
+    }
     container show {
         config false;
         ze:help "Read-only commands to inspect system, protocol, and network state.";
@@ -77,12 +105,14 @@ distinguishable.";
                     description "Returns per interface whether IPsec is configured, the protocol (ah/esp) and
 SPI, and whether the kernel SA is installed. The key is never shown.";
                     ze:help "Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.";
+                    uses ospfv3-address-family;
                     container detail {
                         config false;
                         ze:command "ze-ospf:show-ospfv3-interface-detail";
                         description "Returns the ISM state, the DR and BDR by Router ID, the timers, the
 local Interface ID, and the Instance ID.";
                         ze:help "Show the full per-interface OSPFv3 state (spec-ospf-ext-14).";
+                        uses ospfv3-address-family;
                     }
                 }
                 container graceful-restart {
@@ -92,6 +122,7 @@ local Interface ID, and the Instance ID.";
 per-neighbor helper sessions (which neighbors are being helped and their
 remaining grace).";
                     ze:help "Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187).";
+                    uses ospfv3-address-family;
                 }
                 container segment-routing {
                     config false;
@@ -99,6 +130,7 @@ remaining grace).";
                     description "The configured SRGB/SRLB label ranges, the advertised SR-Algorithm,
 this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
                     ze:help "Show OSPFv3 (IPv6) Segment Routing state (RFC 8666).";
+                    uses ospfv3-address-family;
                 }
                 container database {
                     config false;
@@ -106,6 +138,7 @@ this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
                     description "Base types decode into named fields; unknown function codes fall back to a
 scope-aware header + body-hex view (spec-ospf-ext-14).";
                     ze:help "Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340).";
+                    uses ospfv3-address-family;
                     container detail {
                         config false;
                         ze:command "ze-ospf:show-ospfv3-database-detail";
@@ -113,6 +146,7 @@ scope-aware header + body-hex view (spec-ospf-ext-14).";
 every LSA body. An unknown function code then arrives as a scope-aware header
 beside its body hex, rather than as a named record.";
                         ze:help "Decode every OSPFv3 LSA body with its scope-aware header (RFC 5340 section A.4.2.1).";
+                        uses ospfv3-address-family;
                     }
                     container router {
                         config false;
@@ -128,6 +162,7 @@ Interface ID, the neighbor Interface ID and the neighbor Router ID. RFC 5340
 Section 2.2 states that a Router-LSA no longer contains a network address and
 expresses topology only.";
                             ze:help "Decode each OSPFv3 Router-LSA body.";
+                            uses ospfv3-address-family;
                         }
                     }
                     container scope {
@@ -144,6 +179,7 @@ three commands below read one scope each.";
 Link-LSA appears here beside its interface. RFC 5340 Section 2.3 states that a
 link-local LSA is flooded on the local link and no further.";
                             ze:help "Show only link-local (S2/S1 = 00) LSAs, including the per-interface Link-LSA store.";
+                            uses ospfv3-address-family;
                         }
                         container area {
                             config false;
@@ -152,6 +188,7 @@ link-local LSA is flooded on the local link and no further.";
 the inter-area-prefix-LSA, the inter-area-router-LSA and the
 intra-area-prefix-LSA. Ze reads the per-area store for them.";
                             ze:help "Show only area-scope (S2/S1 = 01) LSAs.";
+                            uses ospfv3-address-family;
                         }
                         container as {
                             config false;
@@ -160,6 +197,7 @@ intra-area-prefix-LSA. Ze reads the per-area store for them.";
 routing domain, and that a router which originates one is an AS Boundary
 Router. Ze reads the AS-wide store for it, and no area appears in the answer.";
                             ze:help "Show only AS-scope (S2/S1 = 10) LSAs.";
+                            uses ospfv3-address-family;
                         }
                     }
                     container router-information {
@@ -168,6 +206,7 @@ Router. Ze reads the AS-wide store for it, and no area appears in the answer.";
                         description "The LSA carries function code 12. Each one decodes into its
 capability bits and its TLVs.";
                         ze:help "Show the OSPFv3 Router Information LSAs (RFC 7770).";
+                        uses ospfv3-address-family;
                     }
                     container extended {
                         config false;
@@ -175,6 +214,7 @@ capability bits and its TLVs.";
                         description "Covers E-Router, E-Network, E-Inter-Area, E-AS-External, E-Link and
 E-Intra-Area-Prefix. Each LSA decodes into named TLVs.";
                         ze:help "Show the extended OSPFv3 LSAs (RFC 8362).";
+                        uses ospfv3-address-family;
                     }
                     container segment-routing {
                         config false;
@@ -183,6 +223,7 @@ E-Intra-Area-Prefix. Each LSA decodes into named TLVs.";
 the Router Information LSA and in the extended LSAs, and the two commands
 above decode those LSAs in full.";
                         ze:help "Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs.";
+                        uses ospfv3-address-family;
                     }
                 }
                 container instance {
@@ -198,28 +239,42 @@ count, and its neighbor count.";
                     description "Each neighbor carries the link-local address as its identity, the
 adjacency state, the DR and BDR by Router ID, and the dead time.";
                     ze:help "Show the OSPFv3 (IPv6) neighbors.";
+                    uses ospfv3-address-family;
                     container detail {
                         config false;
                         ze:command "ze-ospf:show-ospfv3-neighbor-detail";
                         description "Returns the advertised Interface ID, the DD sequence, the decoded
 Options (R/V6/E/N/AF), the list sizes, the last NSM event, and the timers.";
                         ze:help "Show the full per-neighbor OSPFv3 state (spec-ospf-ext-14).";
+                        uses ospfv3-address-family;
                     }
                 }
                 container spf {
                     config false;
                     ze:command "ze-ospf:show-ospfv3-spf";
-                    description "The history is read from the IPv6 unicast engine alone. Another
-                                 address family is not covered here. A router that runs no OSPFv3
-                                 engine answers an empty list rather than an error. That reads the
-                                 same as a router whose engine has run no SPF yet.";
+                    description "The history is read from every running OSPFv3 address family, and
+                                 each run names its address-family and instance-id. A router that
+                                 runs no OSPFv3 engine answers an empty list rather than an error.
+                                 That reads the same as a router whose engines have run no SPF yet.";
                     ze:help "Show the OSPFv3 (IPv6) per-area SPF run history.";
+                    uses ospfv3-address-family;
                     container detail {
                         config false;
                         ze:command "ze-ospf:show-ospfv3-spf-detail";
                         description "The command is read-only.";
                         ze:help "Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged.";
+                        uses ospfv3-address-family;
                     }
+                }
+                container route {
+                    config false;
+                    ze:command "ze-ospf:show-ospfv3-route";
+                    description "Lists each prefix an OSPFv3 SPF run computed, with its path type, cost,
+next-hops and area. Each row names the address-family and instance-id of the
+engine that computed it, so an IPv4-unicast instance's routes sit beside the
+IPv6-unicast ones. show ospf route answers the OSPFv2 routes.";
+                    ze:help "Show the OSPFv3-computed routes of every address family (RFC 5838).";
+                    uses ospfv3-address-family;
                 }
             }
 
@@ -370,8 +425,10 @@ generic type, length and hex view (spec-ospf-ext-14).";
                     config false;
                     ze:command "ze-ospf:show-database-router-information";
                     description "OSPFv2 opaque type 4 and OSPFv3 function code 12, decoded into the
-advertised informational capability bits and the TLV list.";
+advertised informational capability bits and the TLV list. The address-family keyword
+narrows the OSPFv3 part to one address family and leaves the OSPFv2 part whole.";
                     ze:help "Show the Router Information LSAs (RFC 7770) for both address families.";
+                    uses ospfv3-address-family;
                 }
             }
 
@@ -746,6 +803,21 @@ separator. Ze decodes it and appends the octets to the LSA body, which is refuse
 remove it. A link-local LSA is withdrawn from the per-interface store, and any
 other scope is withdrawn from the backbone area store.";
                             ze:help "MaxAge-flush the LSA instead of originating it.";
+                        }
+                        container address-family {
+                            config false;
+                            ze:modifier "once";
+                            description "Without it the LSA goes to the IPv6-unicast engine. With it the LSA goes
+to the named address family's engine, which must be running: a family that is not running
+is refused, and the refusal names the running ones.";
+                            ze:help "The OSPFv3 address family whose LSDB takes the LSA.";
+                            leaf address-family {
+                                type ospfv3-address-family-name;
+                                mandatory true;
+                                description "The value is one of the four address families the ospf config
+names. Ze refuses any other word with the four accepted names in the message.";
+                                ze:help "IPv6 or IPv4, unicast or multicast, as the config spells it.";
+                            }
                         }
                     }
                 }

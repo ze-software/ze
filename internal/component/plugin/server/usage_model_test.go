@@ -119,7 +119,8 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		{
 			"debug ipv6 ospf inject lsa",
 			"debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> " +
-				"[scope <link|area|as>] [hex <body> ...] [withdraw]",
+				"[scope <link|area|as>] [hex <body> ...] [withdraw] " +
+				"[address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
 		},
 		{"show policy chain peer", "show policy chain peer <selector> [import|export]"},
 		{"show bgp peer rib", "show bgp peer <selector> rib [sent|advertised|received|sent-received]"},

@@ -170,7 +170,9 @@ func waitVirtualLink(ctx context.Context, lab interoplab.CheckerLab, remote stri
 func readVirtualLink(ctx context.Context, lab interoplab.CheckerLab, remote string, v6 bool) (virtualLinkObservation, error) {
 	neighborCommand := "show ospf neighbor detail"
 	if v6 {
-		neighborCommand = "show ospf ipv6 neighbor detail"
+		// The virtual link is the IPv6-unicast instance's; another address family's row
+		// for the same router would be a second backbone neighbor below.
+		neighborCommand = "show ospf ipv6 neighbor detail address-family ipv6-unicast"
 	}
 	command := zeCommand(neighborCommand)
 	answer, err := lab.Query(ctx, "ze", command, queryEnvironment("ze", command))

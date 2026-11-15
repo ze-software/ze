@@ -304,6 +304,7 @@ ze-ospf:show-ospfv3-instance
 ze-ospf:show-ospfv3-interface-detail
 ze-ospf:show-ospfv3-neighbor
 ze-ospf:show-ospfv3-neighbor-detail
+ze-ospf:show-ospfv3-route
 ze-ospf:show-ospfv3-spf
 ze-ospf:show-ospfv3-spf-detail
 ze-ospf:show-route

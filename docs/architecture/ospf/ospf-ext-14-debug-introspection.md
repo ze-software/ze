@@ -17,6 +17,21 @@ change to the computation.
   <!-- source: internal/plugins/ospf/decode_view.go -- registerOpaqueDetailDecoder, lookupOpaqueDetailDecoder -->
   <!-- source: internal/plugins/ospf/decode_view_v3.go -- registerV3DetailDecoder, registerV3BaseDecoders -->
   <!-- source: internal/plugins/ospf/debug_wiring.go -- v6DatabaseDetail, v6DatabaseExtended -->
+- **The IPv6 deep views read every running address family.** The database,
+  neighbor detail, interface detail and SPF-explain views answer one record or
+  row per AF instance, each led by its `address-family` and `instance-id`, and
+  take `address-family <af>` to read one (`ospf-ext-15-multi-af.md`). With no
+  OSPFv3 AF configured, a database view answers the empty `ipv6-unicast` record.
+  Both Router Information views (`show ospf database router-information` and
+  `show ospf ipv6 database router-information`) read every running AF the same
+  way: each OSPFv3 entry carries its `address-family` and `instance-id` after
+  `af`, and the same router's RI LSA in two AF instances stays two entries. On
+  the shared view the keyword narrows only the OSPFv3 part; the OSPFv2 entries
+  stay whole and carry neither key. The entry's `instance-id` is the RFC 5838
+  OSPFv3 Instance ID, not the RFC 7770 RI LSA instance, which stays
+  `effective-instance` and `instances`.
+  <!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views -->
+  <!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, v3RouterInformationView, riDatabaseSnapshot, riOSPFv3Instance -->
 - **Injection is DOUBLE-GATED and fails closed.** The authorization profile
   denies the `debug` prefix, and an engine enablement flag defaults to off and
   is not persisted. Both are required. The enable toggle is itself
@@ -26,6 +41,16 @@ change to the computation.
   <!-- source: internal/plugins/ospf/debug_enable.go -- setDebugInjectEnabled, debugInjectIsEnabled -->
   <!-- source: internal/plugins/ospf/inject.go -- debugInjectOpaque, parseOpaqueInject -->
   <!-- source: internal/plugins/ospf/inject_v3.go -- debugInjectV3, parseV3Inject -->
+- **The IPv6 inject chooses its address family after the enablement.**
+  `debug ipv6 ospf inject lsa` takes an optional `address-family <af>` among
+  its keywords and injects into that AF's LSDB, or the `ipv6-unicast` one when
+  the keyword is absent. The registry does not check the value of this
+  modifier, so the plugin refuses an unknown word (naming the four families), a
+  family that is not running (naming the running ones and `show ospf ipv6
+  instance`), a repeated keyword and a missing value. The enablement is checked
+  first: a disarmed router refuses the command whatever family it names, an
+  unknown or idle one included, so the keyword adds no path around the gate.
+  <!-- source: internal/plugins/ospf/inject_v3.go -- debugInjectIntoAF, splitInjectAddressFamily -->
   <!-- source: internal/plugins/ospf/doctor_debug.go -- checkOSPFDebugEnabled -->
 - **The compute explanation is READ-ONLY.** The computer retains its last
   candidate set and a run counter, both set only in the compute path. The

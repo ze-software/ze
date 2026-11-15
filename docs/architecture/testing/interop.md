@@ -1622,6 +1622,13 @@ config, and takes FRR's host 3, so a scenario carrying both `frr.conf` and
 `ze-peer.conf` is refused.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers, scenarioRendering, renderScenario -->
 
+The `ospf-multiaf-v4-frr` checker reads the peer Ze's own views: its address-family
+listing names `ipv4-unicast` at Instance ID 64, its `show ospf ipv6 neighbor
+address-family ipv4-unicast` holds the Ze under test (router-id 172.30.0.2) Full,
+tagged with that address family, and its kernel then holds Ze's redistributed
+10.99.0.0/24 through Ze's lab address.
+<!-- source: internal/le/interoplab/bgp/checkers.go -- scenarioOperations ospf-multiaf-v4-frr -->
+
 **A scenario directory is NAMED, never numbered** (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
 The rule and its reasoning live in `ai/rules/interop-and-goal-validation.md`,
@@ -4586,7 +4593,9 @@ passive interface `backbone0`, so the IPv4 host prefix is the interface's primar
 address rather than an unadvertised secondary beside `127.0.0.1` on `lo`.
 
 The checker requires the far endpoint's address in Ze's Full backbone neighbor
-record and an OSPF route at the independent endpoint for Ze's backbone host prefix. Changing the transit egress
+record and an OSPF route at the independent endpoint for Ze's backbone host prefix. The OSPFv3 record
+comes from `show ospf ipv6 neighbor detail address-family ipv6-unicast`, the instance the virtual
+link runs in, since an OSPFv3 view without the keyword answers every running address family. Changing the transit egress
 cost from 10 to 30 must change the virtual cost from 20 to 40 without changing
 the database-exchange identity or persistent adjacency-reset counters. Taking
 that data interface down must withdraw the route and virtual reachability;

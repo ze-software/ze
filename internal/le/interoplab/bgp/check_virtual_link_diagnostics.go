@@ -50,7 +50,7 @@ func virtualLinkFailureDiagnostics(ctx context.Context, lab interoplab.CheckerLa
 			query(peerFRR, []string{cmdVtysh, "-c", command})
 		}
 	}
-	for _, command := range []string{ospf + " interface detail", ospf + " neighbor detail", ospf + " database", "show ospf route", "show rib"} {
+	for _, command := range []string{ospf + " interface detail", ospf + " neighbor detail", ospf + " database", ospf + " route", "show rib"} {
 		query("ze", zeCommand(command))
 	}
 	query("ze", []string{"ip", "-j", family, ipObjectAddress, ipActionShow, ipOptionDevice, "backbone0"})

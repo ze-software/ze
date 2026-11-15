@@ -424,7 +424,7 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 30 * time.Second},
 	},
 	"ospfv3-debug-decode-frr": {
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 database detail"), contains: []string{"\"router\"", "\"scope\"", "\"decoded\""}},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 database detail address-family ipv6-unicast"), contains: []string{"\"router\"", "\"scope\"", "\"decoded\""}},
 	},
 	// ospf-ext-prefix-link-frr is a bespoke checker (check_ospf_ext_prefix_link.go):
 	// it binds each Extended LSA type to its advertising router, which a substring
@@ -495,7 +495,7 @@ var scenarioExtras = map[string][]operation{
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	"ospfv3-sr-frr": {
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 segment-routing"), contains: []string{"16000"}},
+		{kind: opRequireContains, peer: "ze", command: zeCommand("show ospf ipv6 segment-routing address-family ipv6-unicast"), contains: []string{"16000"}},
 		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-f", ipFamilyMPLS, ipObjectRoute, ipActionShow, "16100"}, contains: []string{"16100"}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},

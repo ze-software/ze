@@ -685,13 +685,6 @@ func runOSPFEngine(conn net.Conn) int {
 		case "show ospf ipv6":
 			// RFC 5838 §2: identify each OSPFv3 address-family instance (AF + Instance ID).
 			return statusDone, v6set.afSummary(), nil
-		case "show ospf ipv6 interface":
-			// RFC 4552 (spec-ospf-ext-16): the default IPv6-unicast AF engine's per-interface
-			// IPsec status (protocol/SPI/installed), never the key. Empty when that AF is idle.
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.ipsecInterfaceSnapshot(), nil
-			}
-			return statusDone, []any{}, nil
 		case "show ospf instance":
 			return statusDone, instances.instanceSnapshot(), nil
 		case "show ospf neighbor":
@@ -713,11 +706,14 @@ func runOSPFEngine(conn net.Conn) int {
 			out := eng.databaseOpaqueWithTEDecode(dbSubviewType[command], OpaqueScopeAS)
 			return statusDone, eng.appendExtOpaqueDecode(out, OpaqueScopeAS), nil
 		case cmdShowDatabaseRI:
-			// RFC 7770: decode the RI LSA bodies for both address families (OSPFv2 opaque
-			// type 4 from eng, OSPFv3 function code 12 from the default IPv6-unicast AF
-			// engine) into capability bits + TLVs. The v6 engine is nil when no v6 AF runs.
-			v6ri, _ := v6set.engineFor(afIPv6Unicast)
-			return statusDone, riDatabaseSnapshot(eng, v6ri), nil
+			// RFC 7770: the RI LSAs of eng (OSPFv2 opaque type 4), whole, and of each OSPFv3
+			// address family `address-family <af>` selects (function code 12), decoded into
+			// capability bits + TLVs.
+			answer, err := routerInformationView(v6set, eng, command, cmdArgs)
+			if err != nil {
+				return statusError, "", err
+			}
+			return statusDone, answer, nil
 		case "show ospf te-database":
 			return statusDone, eng.teDatabaseSnapshot(), nil
 		case "show ospf route":
@@ -736,22 +732,9 @@ func runOSPFEngine(conn net.Conn) int {
 		case cmdShowGracefulRestart:
 			// RFC 3623: OSPFv2 Graceful Restart state (restarter + helper) from the base engine.
 			return statusDone, eng.grSnapshot(), nil
-		case cmdShowIPv6GracefulRestart:
-			// RFC 5187: OSPFv3 Graceful Restart state from the default IPv6-unicast AF engine.
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.grSnapshot(), nil
-			}
-			return statusDone, grShowSnapshot{Family: interfaceFamilyIPv6, Helpers: []grHelperView{}}, nil
 		case cmdShowSegmentRouting:
 			// RFC 8665: OSPFv2 Segment Routing state (SRGB/SRLB, Prefix-SIDs, Adj-SIDs).
 			return statusDone, eng.srSnapshot(interfaceFamilyIPv4), nil
-		case cmdShowIPv6SegmentRouting:
-			// RFC 8666: OSPFv3 Segment Routing state. The RI capabilities are shared with
-			// the IPv4 family (RFC 8666 §4); render them keyed to the same Router ID.
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.srSnapshot(interfaceFamilyIPv6), nil
-			}
-			return statusDone, eng.srSnapshot(interfaceFamilyIPv6), nil
 		case cmdClearProcess:
 			return statusDone, clearResult{Action: cmdClearProcess, Cleared: eng.clearProcess()}, nil
 		case cmdClearNeighbor:
@@ -778,54 +761,16 @@ func runOSPFEngine(conn net.Conn) int {
 		case cmdShowInterfaceDetail:
 			return statusDone, eng.interfaceDetailSnapshot(), nil
 
-		// spec-ospf-ext-14 IPv6 deep-introspection views (routed to the v6 engine instance).
-		case cmdShowIPv6Database, cmdShowIPv6DatabaseDetail:
-			return statusDone, v6DatabaseDetail(v6set, "", ""), nil
-		case cmdShowIPv6DatabaseRouterDetail:
-			return statusDone, v6DatabaseDetail(v6set, "router", ""), nil
-		case cmdShowIPv6DatabaseScopeLink:
-			return statusDone, v6DatabaseDetail(v6set, "", extRegistryLink), nil
-		case cmdShowIPv6DatabaseScopeArea:
-			return statusDone, v6DatabaseDetail(v6set, "", scopeAreaName), nil
-		case cmdShowIPv6DatabaseScopeAS:
-			return statusDone, v6DatabaseDetail(v6set, "", scopeASName), nil
+		// spec-ospf-ext-14 IPv6 deep-introspection views. Every other OSPFv3 view answers
+		// for each running address family through v3Views (default arm).
 		case cmdShowIPv6DatabaseRI:
-			v6ri, _ := v6set.engineFor(afIPv6Unicast)
-			return statusDone, riDatabaseSnapshot(nil, v6ri), nil
-		case cmdShowIPv6DatabaseExtended:
-			return statusDone, v6DatabaseExtended(v6set), nil
-		case cmdShowIPv6DatabaseSegmentRouting:
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.srSnapshot(interfaceFamilyIPv6), nil
+			answer, err := v3RouterInformationView(v6set, eng, command, cmdArgs)
+			if err != nil {
+				return statusError, "", err
 			}
-			return statusDone, eng.srSnapshot(interfaceFamilyIPv6), nil
+			return statusDone, answer, nil
 		case cmdShowIPv6Instance:
 			return statusDone, v6set.instanceListing(), nil
-		case cmdShowIPv6Neighbor:
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.neighborSnapshot(), nil
-			}
-			return statusDone, []any{}, nil
-		case cmdShowIPv6NeighborDetail:
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.v3NeighborDetailSnapshot(), nil
-			}
-			return statusDone, []any{}, nil
-		case cmdShowIPv6InterfaceDetail:
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.v3InterfaceDetailSnapshot(), nil
-			}
-			return statusDone, []any{}, nil
-		case cmdShowIPv6SPF:
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.spfSnapshot(), nil
-			}
-			return statusDone, []any{}, nil
-		case cmdShowIPv6SPFDetail:
-			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
-				return statusDone, v6eng.spfExplainSnapshot(), nil
-			}
-			return statusDone, []any{}, nil
 
 		// spec-ospf-ext-14 guarded LSA injection (both families) + the shared enablement.
 		case cmdDebugInjectEnable:
@@ -841,17 +786,24 @@ func runOSPFEngine(conn net.Conn) int {
 			}
 			return statusDone, res, nil
 		case cmdDebugInjectLSA:
-			v6eng, ok := v6set.engineFor(afIPv6Unicast)
-			if !ok {
-				return statusError, "", errNoV6Engine
-			}
-			res, err := v6eng.debugInjectV3(cmdArgs)
+			// RFC 5838 Section 2: the LSA goes to one address family's LSDB. The enablement is
+			// checked before the family is read, so a disarmed router refuses any family.
+			res, err := v6set.debugInjectIntoAF(cmdArgs)
 			if err != nil {
 				return statusError, "", err
 			}
 			return statusDone, res, nil
 
 		default:
+			// RFC 5838 Section 2: every OSPFv3 view in v3Views (debug_wiring.go) answers for
+			// each running address family, or the one `address-family <af>` names.
+			if view, ok := v3Views[command]; ok {
+				answer, err := view(v6set, eng, command, cmdArgs)
+				if err != nil {
+					return statusError, "", err
+				}
+				return statusDone, answer, nil
+			}
 			return statusError, "", fmt.Errorf("unknown command: %s", command)
 		}
 	})
@@ -943,6 +895,7 @@ func commandDecls() []sdk.CommandDecl {
 		{Name: cmdShowIPv6InterfaceDetail},
 		{Name: cmdShowIPv6SPF},
 		{Name: cmdShowIPv6SPFDetail},
+		{Name: cmdShowIPv6Route},
 		// spec-ospf-ext-14 guarded LSA injection (both families) + shared enablement.
 		{Name: cmdDebugInjectEnable},
 		{Name: cmdDebugInjectDisable},

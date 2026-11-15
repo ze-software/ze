@@ -75,7 +75,8 @@ func (h *OSPFHandlers) HandleOSPFOpaqueDatabaseSSE() http.HandlerFunc {
 	return h.views().sse(ospfOpaqueDatabaseView)
 }
 
-// HandleOSPFv3Database serves GET /ospfv3/database: the read-only OSPFv3 (IPv6) LSDB.
+// HandleOSPFv3Database serves GET /ospfv3/database: the read-only OSPFv3 LSDB, one record per
+// running address family, each naming its address-family and instance-id.
 func (h *OSPFHandlers) HandleOSPFv3Database() http.HandlerFunc {
 	return h.views().handleView(ospfV3DatabaseView)
 }

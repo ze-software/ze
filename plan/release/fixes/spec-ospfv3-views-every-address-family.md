@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P1 |
 | Release reason | Shipped RFC 5838 multi-AF: an operator, or an interop checker, cannot see the neighbors, LSDB or routes of an OSPFv3 instance other than IPv6 unicast, so `show ospf ipv6 neighbor` answers an empty list while an IPv4-unicast adjacency is Full |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 |
 | Handoff | - |
-| Updated | 2026-11-02 |
+| Updated | 2026-11-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -113,7 +113,7 @@ operator command runs through the daemon on every command surface").
 | AF-aware listings | `instance_view.go` `instanceListing`, `register_multiaf.go` `afSummary` | Iterate every running AF and tag each row with `address-family` and `instance-id` | Extends: the same iteration and the same two keys for every other view |
 | Per-engine snapshots | `instance_snapshots.go` (`neighborSnapshot`, `routeSnapshot`), `v3NeighborDetailSnapshot`, `v3InterfaceDetailSnapshot`, `spfSnapshot`, `spfExplainSnapshot`, `v3DatabaseDetailSnapshot`, `grSnapshot`, `srSnapshot`, `ipsecInterfaceSnapshot` | Answer one engine's state | Extends: called once per AF; unchanged inside |
 | Plugin-proxied builtin RPCs | `cmd_show.go` `RegisterRPCs`, `forwardToOSPF`, `forwardToOSPFArgs` | The daemon serves each `ze-ospf:*` method and forwards to the plugin | Extends: the views that gain the keyword forward their validated tokens; `show ospf ipv6 route` is one more registration of the same shape |
-| AF name mapping | `multiaf.go` `afFromName`, `afName*` | Maps the four config spellings (and bare `ipv6`) to an AF | Extends: the plugin parses the keyword's value through it; the YANG enumeration lists the four canonical names |
+| AF name mapping | `multiaf.go` `afFromName`, `afName*` | Maps the four config spellings (and bare `ipv6`) to an AF | Extends: split into `afFromCanonicalName` (the four names, which the keyword parsers `selectInstances` and `splitInjectAddressFamily` use) and `afFromName` (those plus bare `ipv6`, the config's); the YANG enumeration lists the four canonical names |
 | Typed selector leaf on a show command | `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang` `leaf family`, `ze-cli-announce-cmd.yang` `leaf family` | A typed optional filter on a `show` command | Extends the pattern: an `address-family` leaf, enumerated, on each OSPFv3 view |
 | Surface parity | `internal/component/command/surface.go` `command.AnswerSurface`, `TestEveryCommandOnEverySurface` | One predicate decides which surfaces offer a command | Applies unchanged: a daemon RPC is offered on every surface |
 | Interop lab checker | `internal/le/interoplab/bgp/checkers.go`, `ospf-multiaf-v4-frr` | Reads Ze's AF listing and the peer kernel route | Extends: also waits on Ze's own view of the IPv4-unicast adjacency |
@@ -197,6 +197,7 @@ operator command runs through the daemon on every command surface").
 | AC-8 | `debug ipv6 ospf inject lsa ... address-family ipv4-unicast` with the enablement on | The LSA lands in the IPv4-unicast engine's LSDB; with the enablement off it is refused whatever AF is named |
 | AC-9 | The same views over REST, MCP and `ze cli` | The same rows (`TestEveryCommandOnEverySurface` green; one `.ci` drives `ze cli`) |
 | AC-10 | `| table` and `| json` on a multi-AF answer | The same rows; the table shows the `address-family` column |
+| AC-11 | `docs/guide/ospf.md`, multi-AF section | States the IPv4-unicast next hop as the neighbor's Link-LSA IPv4 address (RFC 5838 §2.5), as `v6NextHop` computes it |
 
 ## 🧪 TDD Test Plan
 
@@ -205,9 +206,11 @@ operator command runs through the daemon on every command surface").
 |------|------|-----------|--------|
 | `TestOSPFv3ViewsAnswerEveryAddressFamily` | `internal/plugins/ospf/instance_view_test.go` | AC-1, AC-3, A-1: two engines, every view tags rows from both | |
 | `TestOSPFv3ViewsNarrowToOneAddressFamily` | `internal/plugins/ospf/instance_view_test.go` | AC-2, AC-5: narrowing and the refusal text | |
+| `TestOSPFv3ViewsKeepTheRowsOfOneAddressFamily` | `internal/plugins/ospf/instance_view_test.go` | AC-3 single-AF half: today's row byte for byte behind the two keys | |
 | `TestOSPFv3RouteViewPerAddressFamily` | `internal/plugins/ospf/instance_view_test.go` | AC-4 | |
 | `TestRIViewOverEveryV6Engine` | `internal/plugins/ospf/ri_show_test.go` | A-4 and the RI half of AC-3 | |
 | `TestDebugInjectLSATargetsTheNamedAddressFamily` | `internal/plugins/ospf/inject_v3_test.go` | AC-8 and R-4 | |
+| `TestDebugInjectLSARefusesAnAddressFamilyItCannotUse` | `internal/plugins/ospf/inject_v3_test.go` | AC-5 for inject: unknown word, AF not running, repeated keyword, no value; nothing injected | |
 | `TestOSPFCommandSchemaCarriesAddressFamily` | `internal/plugins/ospf/yang/cmd_schema_test.go` | AC-6: the leaf on every view, enumerated | |
 
 ### Boundary Tests (numeric inputs)
@@ -325,6 +328,12 @@ operator command runs through the daemon on every command surface").
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+- Phase B: one registry, `v3Views` (`debug_wiring.go`), maps each per-AF OSPFv3 view to its producer; `OnExecuteCommand`'s default arm serves it, so the views are declared once. Selection is `v6EngineSet.selectInstances`, tagging `afTaggedRow.MarshalJSON` (`register_multiaf.go`).
+- Phase B: `graceful-restart` and `segment-routing` (a single object each before) now answer a list, one record per AF; with no OSPFv3 AF the GR view answers `[]` and the SR view keeps its OSPFv2-Router-ID IPv6 record (one untagged list entry). Naming an AF when none runs is refused.
+- Phase B: a row key that repeats `address-family` or `instance-id` is dropped for the engine's own value: `show ospf ipv6 interface detail` carried `instance-id` 0 on every v6 engine (`instanceIDForV4`).
+- Phase C: the RI views keep their record shape; each OSPFv3 entry carries `address-family` and `instance-id` after `af` (`riOSPFv3Instance`, embedded pointer, nil for OSPFv2), and the group key holds the OSPFv3 identity so the same router's RI LSA in two AF instances stays two entries. They are not in `v3Views`: `TestOSPFv3ViewsAnswerEveryAddressFamily` requires every `v3Views` row to lead with the identity, which an RI record does not; their arms call `routerInformationView` / `v3RouterInformationView` (`ri_show.go`).
+- Phase C: `debug ipv6 ospf inject lsa` checks the enablement first, then takes the `address-family` pair out (`debugInjectIntoAF`, `splitInjectAddressFamily`, `inject_v3.go`); `errNoV6Engine` is gone, an idle default AF is refused by `afNotRunningError`. `errDebugInjectDisabled` became an `opererr` (fix: `debug ospf inject enable`), and the two AF refusals Phase B wrote no longer say "view", since inject shares them.
+- Phase B: `docs/guide/ospf.md` said the IPv4-AF next hop came from the IPv6 link-local adjacency; the code (`v6NextHop`, `TestRFC5838IPv4NextHopFromNeighborLinkLSA`) takes the Link-LSA's IPv4 address (RFC 5838 §2.5). Corrected (AC-11).
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |
