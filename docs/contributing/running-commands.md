@@ -1000,7 +1000,7 @@ a name of your own.
 <!-- source: internal/le/hookruntime/session.go -- bashAgentIdentity, identityLine, commandOutsideReaders, changesEnvironment -->
 <!-- source: internal/le/hookruntime/readers.go -- readerCommands, readerCommand, readReads -->
 <!-- source: internal/le/hookruntime/readerline.go -- judgeReaderLine, readerWalk, afterIdentityLine -->
-<!-- source: internal/le/hookruntime/afterline.go -- takesAnotherIdentity, identityWrappers, toolChangesEnvironment, setChangesNothing -->
+<!-- source: internal/le/hookruntime/afterline.go -- takesAnotherIdentity, identityWrapper, commandWordAt, toolChangesEnvironment, setChangesNothing -->
 <!-- source: internal/le/hookruntime/shellparse.go -- parseCommandLine, commandParse -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSubagentContext -->
 <!-- source: internal/le/test/weakened/approve.go -- ApprovalPath, approveAnswer -->

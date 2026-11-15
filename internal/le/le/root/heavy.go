@@ -129,9 +129,13 @@ func heavyOf(line typedLine) (string, bool) {
 
 // typedLine is a typed le line as dispatch resolves it: the area, the words
 // after its name, and the table the area registered, when it registered one.
+// end is the index, in the words resolveLine read, just past the last word of
+// rest, so rest is words[end-len(rest):end]: the launcher words before the
+// area and the pipe chain after rest are no part of it.
 type typedLine struct {
 	area     string
 	rest     []string
+	end      int
 	list     leaction.List
 	declared bool
 }
@@ -146,7 +150,8 @@ type typedLine struct {
 // or a help word as asksForUsage reads it), a retired spelling and an unknown
 // word, which dispatch refuses, and a namespace, which prints its members.
 func resolveLine(words []string) (typedLine, bool) {
-	own, _ := splitChain(withoutLauncherWords(words))
+	launched := withoutLauncherWords(words)
+	own, _ := splitChain(launched)
 	if len(own) == 0 {
 		return typedLine{}, false
 	}
@@ -167,7 +172,10 @@ func resolveLine(words []string) (typedLine, bool) {
 		return typedLine{}, false
 	}
 	list, declared := ActionsOf(name)
-	return typedLine{area: name, rest: rest, list: list, declared: declared}, true
+	// withoutLauncherWords answers a suffix of words, splitChain a prefix of
+	// that, and resolve a suffix of own, so rest ends where own ends.
+	end := len(words) - len(launched) + len(own)
+	return typedLine{area: name, rest: rest, end: end, list: list, declared: declared}, true
 }
 
 // RegisterCarrier records a pass-through area (RegisterForwarding) that runs
@@ -300,6 +308,105 @@ func CarrierLine(words []string) bool {
 		}
 	}
 	return false
+}
+
+// CarriedArgv answers where, in words, the words typed after `le`, the
+// program a carrier line runs lies: from start to before end. A carrier area
+// (RegisterCarrier) runs every word after its name. An action row that
+// declares a parameter of kind leaction.KindArgv runs every word after its
+// verb for a positional argv, and otherwise every word after the argv
+// keyword, found where the row's own parser reads that keyword (argvOffset),
+// so a value that spells the keyword (`label command command go`) stays a
+// value. le's pipe word ends the span, because the words after it are the
+// renderer's chain (splitChain).
+//
+// The worktree-copy guard of the Bash hook asks it: le runs the carried
+// program on the host the line runs on, `le exec` in the line's directory and
+// `le job run` at the checkout root, so the guard judges those words as a
+// command of that host, never as words of le.
+//
+// words MUST hold command words only, and it MUST be called after every
+// area's init has run, as CarrierLine is. It answers false wherever
+// CarrierLine does, and for a carrier line that names no program: a carrier
+// area given no word, and an argv keyword that is the last word or that the
+// row's parser does not read as the keyword.
+func CarriedArgv(words []string) (start, end int, carried bool) {
+	line, runs := resolveLine(words)
+	if !runs {
+		return 0, 0, false
+	}
+	if Carries(line.area) {
+		if len(line.rest) == 0 {
+			return 0, 0, false
+		}
+		return line.end - len(line.rest), line.end, true
+	}
+	if !line.declared {
+		return 0, 0, false
+	}
+	if line.list.PassesWords {
+		return 0, 0, false
+	}
+	verbs := line.list.AtVerb(line.rest)
+	if len(verbs) == 0 {
+		return 0, 0, false
+	}
+	at := rowIndex(line.list, verbs[0])
+	if at < 0 {
+		// The line opens with no action of the table, and the area refuses it.
+		return 0, 0, false
+	}
+	// AtVerb answers rest, or rest behind the verb it supplies, so the words
+	// after the verb end where rest ends.
+	arguments := verbs[1:]
+	offset, found := argvOffset(line.list, line.list.Actions[at], arguments)
+	if !found {
+		return 0, 0, false
+	}
+	return line.end - len(arguments) + offset, line.end, true
+}
+
+// argvOffset answers the index, in arguments, the words after row's verb, of
+// the first word of the argv row declares (leaction.KindArgv): 0 for a
+// positional argv, which takes every word, and otherwise the word after the
+// first argv keyword the row's own parser reads as that keyword. The parser
+// takes the words before it, so the keyword stands where a keyword stands
+// and not in a value slot, and it takes the keyword with one word after it,
+// so the keyword is live and given once. It answers false for a row that
+// declares no argv and a line that names no program. The loop is bounded by
+// the words, and each step parses at most all of them.
+func argvOffset(list leaction.List, row leaction.Row, arguments []string) (int, bool) {
+	keyword, declared := argvKeyword(row)
+	if !declared {
+		return 0, false
+	}
+	if keyword == "" {
+		return 0, len(arguments) != 0
+	}
+	for index := 0; index+1 < len(arguments); index++ {
+		if arguments[index] != keyword {
+			continue
+		}
+		if list.Accepts(row.Verb, arguments[:index]) != nil {
+			continue
+		}
+		if list.Accepts(row.Verb, arguments[:index+2]) != nil {
+			continue
+		}
+		return index + 1, true
+	}
+	return 0, false
+}
+
+// argvKeyword answers the keyword of the argv parameter row declares, empty
+// for a positional one, and false for a row that declares none.
+func argvKeyword(row leaction.Row) (string, bool) {
+	for _, parameter := range row.Parameters {
+		if parameter.Kind == leaction.KindArgv {
+			return parameter.Keyword, true
+		}
+	}
+	return "", false
 }
 
 // heavyByName reports whether the area registered its whole name as admitted,

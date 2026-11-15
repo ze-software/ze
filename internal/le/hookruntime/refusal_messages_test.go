@@ -84,8 +84,11 @@ func TestIdentityRefusalEndsWithTheFixingLine(t *testing.T) {
 //
 // VALIDATES: AC-1 and AC-2: the copy exits 2, the text names the commit route
 // and the user's `git rebase <branch>`, its last line is the commit route, and
-// it names neither cherry-pick nor merging as the remedy.
-// PREVENTS: a refusal whose remedy is itself a banned verb.
+// it names neither cherry-pick nor merging as the remedy. It also names the
+// file the line writes and the worktree file it writes it from, and where a
+// run's output may go instead.
+// PREVENTS: a refusal whose remedy is itself a banned verb, and one that does
+// not say which write of the line it refused.
 func TestWorktreeCopyRefusalNamesTheRouteThatWorks(t *testing.T) {
 	const command = "cp .claude/worktrees/a/x.go internal/x.go"
 	code, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
@@ -95,10 +98,19 @@ func TestWorktreeCopyRefusalNamesTheRouteThatWorks(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("code = %d, want 2 for %q: %s", code, command, message)
 	}
-	for _, want := range []string{"./le commit create", "git" + " rebase <branch>"} {
+	for _, want := range []string{
+		"./le commit create", "git" + " rebase <branch>",
+		"It writes internal/x.go from .claude/worktrees/a/x.go.",
+		"To keep a run's output, write it inside the worktree, under the checkout's tmp/, or outside the checkout.",
+	} {
 		if !strings.Contains(message, want) {
 			t.Errorf("the refusal does not name %q: %s", want, message)
 		}
+	}
+	// internal/x.go is placed in the main tree, so the refusal does not say
+	// the hook could not place it (TestWorktreeCopyRefusalSaysWhenItCouldNotPlaceTheDestination).
+	if strings.Contains(message, worktreeUnplacedText) {
+		t.Errorf("the refusal says the hook could not place internal/x.go, which it placed in the main tree: %s", message)
 	}
 	trimmed := strings.TrimRight(message, "\n")
 	last := trimmed[strings.LastIndex(trimmed, "\n")+1:]
@@ -108,6 +120,30 @@ func TestWorktreeCopyRefusalNamesTheRouteThatWorks(t *testing.T) {
 	for _, banned := range []string{"cherry-pick", "Use git" + " merge"} {
 		if strings.Contains(message, banned) {
 			t.Errorf("the refusal names the banned remedy %q: %s", banned, message)
+		}
+	}
+}
+
+// TestWorktreeCopyRefusalSaysWhenItCouldNotPlaceTheDestination asks
+// bashWorktreeCopy alone for its refusal of a copy out of a worktree to a
+// destination that starts with `$X`, which the hook cannot place.
+//
+// VALIDATES: the refusal names the destination as typed and the source, and
+// says that a destination the hook cannot place counts as the main tree.
+// PREVENTS: a refusal that leaves the reader to guess why a destination that
+// may lie outside the checkout was refused.
+func TestWorktreeCopyRefusalSaysWhenItCouldNotPlaceTheDestination(t *testing.T) {
+	const command = "cp .claude/worktrees/a/x.go $X/internal/x.go"
+	result := guardVerdict(bashWorktreeCopy, t.TempDir(), command)
+	if result == nil || result.code != 2 {
+		t.Fatalf("%q: verdict %+v, want exit 2: its destination may be the main tree", command, result)
+	}
+	for _, want := range []string{
+		"It writes $X/internal/x.go from .claude/worktrees/a/x.go.",
+		"A destination the hook cannot place, such as one that starts with a `$VAR` the hook cannot read, counts as the main tree.",
+	} {
+		if !strings.Contains(result.message, want) {
+			t.Errorf("the refusal does not name %q: %s", want, result.message)
 		}
 	}
 }

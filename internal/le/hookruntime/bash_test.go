@@ -988,6 +988,13 @@ func guardVerdict(check hookCheck, root, command string) *verdict {
 	return check(context{root: root, input: map[string]any{"command": command}})
 }
 
+// guardVerdictIn is guardVerdict for a tool call the session runs in cwd, the
+// directory the hook envelope names.
+func guardVerdictIn(check hookCheck, root, cwd, command string) *verdict {
+	recordCorpusLine(command)
+	return check(context{root: root, input: map[string]any{"command": command}, payload: Payload{Cwd: cwd}})
+}
+
 // goBuildTree writes a module under a fresh root: two library packages and one
 // main package, the packages the go build tests name.
 func goBuildTree(t *testing.T) string {

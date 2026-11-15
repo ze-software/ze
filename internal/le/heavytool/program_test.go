@@ -55,6 +55,15 @@ func TestStartedReadsThroughWhatStandsInFrontOfTheProgram(t *testing.T) {
 		{"builtin gofmt -l .", "gofmt", true},
 		{"exec -a name go test ./x", "go test", true},
 		{"exec -cl go build ./x", "go build", true},
+		// The process-state launchers run the program after their options.
+		{"nohup go test ./x", "go test", true},
+		{"setsid -f go test ./x", "go test", true},
+		{"stdbuf -o0 go test ./x", "go test", true},
+		{"stdbuf -o L go vet ./x", "go vet", true},
+		{"ionice -c 3 go vet ./x", "go vet", true},
+		{"taskset 0x3 go test ./x", "go test", true},
+		{"taskset -c 0-3 go test ./x", "go test", true},
+		{"doas -u u go test ./x", "go test", true},
 		{"command -v go test", "", false},
 		{"command -pV gofmt", "", false},
 		// Light programs behind the same words stay light.
@@ -160,6 +169,10 @@ func TestShellCommandFindsTheLineHandedToAShell(t *testing.T) {
 		{[]string{"bash", "-o", "pipefail", "-c", "a | b"}, "a | b", true},
 		{[]string{"timeout", "60", "bash", "-c", "go vet"}, "go vet", true},
 		{[]string{"FOO=1", "sh", "-c", "x"}, "x", true},
+		{[]string{"zsh", "-c", "go test"}, "go test", true},
+		{[]string{"dash", "-ec", "go test"}, "go test", true},
+		{[]string{"ksh", "-c", "go test"}, "go test", true},
+		{[]string{"nohup", "sh", "-c", "go test"}, "go test", true},
 		{[]string{"bash", "script.sh"}, "script.sh", false},
 		{[]string{"bash", "--norc", "x"}, "x", false},
 		{[]string{"env", "-c", "x"}, "x", false},
@@ -247,6 +260,35 @@ func TestAssignmentReadsOnlyAShellName(t *testing.T) {
 	} {
 		if got := Assignment(row.word); got != row.assignment {
 			t.Errorf("Assignment(%q) = %v, want %v", row.word, got, row.assignment)
+		}
+	}
+}
+
+// TestStdinShellReadsTheScriptFromItsInput asks StdinShell about shells that
+// read their script from their input and shells that do not. Its method: one
+// row per shape.
+//
+// VALIDATES: a shell with no `-c` line and no script file, or with `-s`,
+// reads its script from its input, behind a launcher too; a shell handed a
+// `-c` line or a script file, and a program that is no shell, do not.
+// PREVENTS: a here-document or a pipe into a shell read as data, so the line
+// the shell runs is never judged (the Bash hook's worktree copy guard).
+func TestStdinShellReadsTheScriptFromItsInput(t *testing.T) {
+	for _, row := range []struct {
+		words []string
+		stdin bool
+	}{
+		{[]string{"bash"}, true},
+		{[]string{"sh", "-e"}, true},
+		{[]string{"bash", "-s", "x"}, true},
+		{[]string{"nohup", "zsh"}, true},
+		{[]string{"bash", "-c", "x"}, false},
+		{[]string{"bash", "script.sh"}, false},
+		{[]string{"python3", "-"}, false},
+		{[]string{"env"}, false},
+	} {
+		if got := StdinShell(row.words); got != row.stdin {
+			t.Errorf("StdinShell(%q) = %v, want %v", row.words, got, row.stdin)
 		}
 	}
 }

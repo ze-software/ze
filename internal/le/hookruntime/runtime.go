@@ -51,12 +51,15 @@ type Payload struct {
 	ToolResponse   json.RawMessage `json:"tool_response"`
 	ToolUseID      string          `json:"tool_use_id"`
 	TranscriptPath string          `json:"transcript_path"`
-	AgentID        string          `json:"agent_id"`
-	AgentType      string          `json:"agent_type"`
-	StopHookActive bool            `json:"stop_hook_active"`
-	Prompt         string          `json:"prompt"`
-	LastMessage    string          `json:"last_assistant_message"`
-	Reason         string          `json:"reason"`
+	// Cwd is the directory the session runs the tool call in, where a Bash
+	// command line starts.
+	Cwd            string `json:"cwd"`
+	AgentID        string `json:"agent_id"`
+	AgentType      string `json:"agent_type"`
+	StopHookActive bool   `json:"stop_hook_active"`
+	Prompt         string `json:"prompt"`
+	LastMessage    string `json:"last_assistant_message"`
+	Reason         string `json:"reason"`
 }
 
 type verdict struct {
@@ -65,13 +68,12 @@ type verdict struct {
 }
 
 type context struct {
-	root       string
-	tool       string
-	input      map[string]any
-	path       string
-	content    string
-	transcript string
-	payload    Payload
+	root    string
+	tool    string
+	input   map[string]any
+	path    string
+	content string
+	payload Payload
 	// call is the state the checks of one hook call share. Every check
 	// receives a copy of the context, and the copies share this pointer.
 	// It is one pointer rather than a field per fact, so the context stays
@@ -178,14 +180,13 @@ func newContext(payload Payload, root string) (context, bool) {
 		root = resolved
 	}
 	return context{
-		root:       root,
-		tool:       payload.ToolName,
-		input:      payload.ToolInput,
-		path:       stringInput(payload.ToolInput, "file_path"),
-		content:    standardContent(payload.ToolInput),
-		transcript: payload.TranscriptPath,
-		payload:    payload,
-		call:       &callState{},
+		root:    root,
+		tool:    payload.ToolName,
+		input:   payload.ToolInput,
+		path:    stringInput(payload.ToolInput, "file_path"),
+		content: standardContent(payload.ToolInput),
+		payload: payload,
+		call:    &callState{},
 	}, true
 }
 

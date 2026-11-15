@@ -463,7 +463,7 @@ func hookStop(ctx context, errOut io.Writer) int {
 func hookRuleCoverage(ctx context, errOut io.Writer) int {
 	id := resolvedSessionID(ctx)
 	report, code := airules.RunSessionCoverage(ctx.root, airules.SessionCoverageOptions{
-		Quiet: true, Transcript: ctx.transcript, Session: id,
+		Quiet: true, Transcript: ctx.payload.TranscriptPath, Session: id,
 	}, airules.NativeTranscriptSource{}, time.Now, errOut)
 	if report == nil {
 		return min(code, 1)

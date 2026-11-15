@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/heavytool"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -116,12 +117,6 @@ func joinedTools(tools, more map[string]bool) map[string]bool {
 	return tools
 }
 
-// The wrappers that run the command after their options and arguments.
-const (
-	niceCommand    = "nice"
-	timeoutCommand = "timeout"
-)
-
 // textReservedWords are the shell's reserved words that run the word after
 // them as a command. Only the text route reads them (changesEnvironment): a
 // remainder that does not parse has no tree to carry them as structure.
@@ -135,12 +130,16 @@ var textReservedWords = map[string]bool{
 // in. An assignment in front of the command word whose name is not a plain
 // name (a quote, a backslash, an expansion or a subscript in it) or that
 // makes bash run code (startupVariable) is refused. Past the reserved words
-// and the wrappers, each wrapper with its declared value options, counts and
-// operands (identityWrappers), the command word is judged by its base name
-// (toolChangesEnvironment), and `set` is refused with any option, because no
-// tree shows what follows it. A plain `FOO=bar ./le x` passes.
+// and the wrappers, each wrapper with the value options, count and operands
+// heavytool declares for it and reads (identityWrapper, heavytool's
+// Launcher.Option, Count and Operands), the command word is judged by its
+// base name (toolChangesEnvironment), and `set` is refused with any option,
+// because no tree shows what follows it. A wrapper that runs its program
+// under another environment or user (env, exec, sudo, doas, su) is refused
+// by its name, as an option that does (strace `-E`) is. A plain `FOO=bar
+// ./le x` passes.
 func changesEnvironment(raw, words []string) bool {
-	var wrapper identityWrapper
+	var wrapper heavytool.Launcher
 	wrapped, operands := false, 0
 	for index := 0; index < len(words); index++ {
 		word := words[index]
@@ -161,12 +160,15 @@ func changesEnvironment(raw, words []string) bool {
 		if !wrapped && textReservedWords[word] {
 			continue
 		}
-		if next, isWrapper := identityWrappers[path.Base(word)]; isWrapper {
-			wrapper, wrapped, operands = next, true, next.operands
+		if next, isWrapper := identityWrapper(word); isWrapper {
+			if next.ChangesIdentity() {
+				return true
+			}
+			wrapper, wrapped, operands = next, true, next.Operands()
 			continue
 		}
 		if wrapped && strings.HasPrefix(word, "-") && word != "-" {
-			next, changes := wrapperOption(wrapper, word)
+			next, changes := wrapper.Option(word)
 			if changes {
 				return true
 			}
@@ -175,7 +177,7 @@ func changesEnvironment(raw, words []string) bool {
 			}
 			continue
 		}
-		if wrapped && wrapper.counts && wrapperNumber(word) {
+		if wrapped && wrapper.Count(word) {
 			continue
 		}
 		if wrapped && operands > 0 {
@@ -205,19 +207,6 @@ func textToolChangesEnvironment(tool string, words []string) bool {
 		return testEvaluatesSubscript(arguments, true)
 	}
 	return toolChangesEnvironment(tool, arguments)
-}
-
-// wrapperNumber reports whether a word after a wrapper is a count or a
-// duration the walk skips (`nice 10`, `timeout 1.5s`): made only of digits,
-// `.` and the unit letters `smhd`, and holding a digit. A word with no digit
-// is the command word the wrapper runs, so a lone `.` is the source builtin
-// and `time . ./env.sh` is judged as `.` (spec-agent-economy-6-shell-parser
-// AC-26).
-func wrapperNumber(word string) bool {
-	if strings.Trim(word, "0123456789.smhd") != "" {
-		return false
-	}
-	return strings.ContainsAny(word, "0123456789")
 }
 
 // plainAssignment reports whether a word typed in front of a command assigns

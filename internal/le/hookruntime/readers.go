@@ -85,7 +85,7 @@ var readerCommands = map[string]readerJudge{
 	"egrep":     nil,
 	"fgrep":     nil,
 	"find":      findReads,
-	"git":       gitReads,
+	gitCommand:  gitReads,
 	"gopls":     goplsReads,
 	"grep":      nil,
 	"head":      nil,

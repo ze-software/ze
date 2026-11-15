@@ -436,11 +436,3 @@ func shellWord(value string) (string, bool) {
 
 // literalWord matches a word the shell reads as it is written.
 var literalWord = regexp.MustCompile(`^[A-Za-z0-9_./:@%+=,-]+$`)
-
-// Launchers the shared reading of a command's words reads through
-// (heavytool.Split) that other tables of the package name too
-// (environmentTools, identityWrappers).
-const (
-	sudoCommand = "sudo"
-	timeCommand = "time"
-)

@@ -9,8 +9,10 @@
 //
 // The package also holds the one reading of a command's words down to its
 // program (Split, Program, Started): the assignments and launchers in front
-// of it (launcherValueOptions) and the Go toolchain's flag in front of its
-// verb. Three callers read the definition through it. The Bash hook hands
+// of it, read through the one declaration of the launchers (launchers,
+// launcher.go, which the identity guard and the worktree copy guard read
+// too), and the Go toolchain's flag in front of its verb. Three callers read
+// the definition through it. The Bash hook hands
 // back a subagent's line whose words Started names (internal/le/hookruntime,
 // heavyTool). The main thread's raw-job guard refuses a narrower set on
 // purpose, because it advises a short form, and reads the words in front of

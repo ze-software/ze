@@ -19,8 +19,10 @@ import (
 var heavyProbes sync.Once
 
 // registerHeavyProbes registers the probe areas. `probe-heavy-rows` holds a
-// heavy row, light rows, a forwarding row, two rows of a sweep and two rows
-// that take a command as an argv parameter, one heavy and one light.
+// heavy row, light rows, a forwarding row, two rows of a sweep and four rows
+// that take a command as an argv parameter: one heavy and one light with the
+// argv keyword alone, one light behind a value and a switch, as `job run`
+// declares it, and one light whose whole line is the command.
 // `probe-heavy-default` gives its bare line to a heavy default action.
 // `probe-heavy-area`, `probe-heavy-plain` and `probe-heavy-carrier` hold no
 // rows and pass their words on; a test registers the first as heavy and the
@@ -42,6 +44,12 @@ func registerHeavyProbes() {
 			Parameters: probeArgv(), AnswerArgs: carried},
 		leaction.Action{Verb: "carry", Summary: "run a command", Why: "A light row that carries a command.",
 			Parameters: probeArgv(), AnswerArgs: carried},
+		leaction.Action{Verb: "ship", Summary: "run a named command", Why: "A light row that takes a value and a switch before its command.",
+			Parameters: probeLabelledArgv(), AnswerArgs: carried},
+		leaction.Action{Verb: "send", Summary: "run the whole line", Why: "A light row whose whole line is its command.",
+			Parameters: []leaction.Parameter{{Kind: leaction.KindArgv, Value: "argv", Requirement: leaction.Required,
+				Help: "the command to run: every word after the verb"}},
+			AnswerArgs: carried},
 	)
 	Register("probe-heavy-rows", GroupGate, answer, probeMeta("a probe with a heavy row"))
 	RegisterActions("probe-heavy-rows", rows.Actions)
@@ -71,6 +79,18 @@ func registerHeavyProbes() {
 // one argv keyword, the declaration `job run` makes for its `command`.
 func probeArgv() []leaction.Parameter {
 	return []leaction.Parameter{
+		{Keyword: "command", Kind: leaction.KindArgv, Value: "argv", Requirement: leaction.Required,
+			Help: "the command to run: every word after this keyword"},
+	}
+}
+
+// probeLabelledArgv answers the parameter table `job run` declares: a label
+// value, a switch, and the argv keyword last.
+func probeLabelledArgv() []leaction.Parameter {
+	return []leaction.Parameter{
+		{Keyword: "label", Kind: leaction.KindLabel, Value: "label", Requirement: leaction.Required,
+			Help: "the name the command runs under"},
+		{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "keep the command's output out of the terminal"},
 		{Keyword: "command", Kind: leaction.KindArgv, Value: "argv", Requirement: leaction.Required,
 			Help: "the command to run: every word after this keyword"},
 	}
@@ -346,6 +366,58 @@ func TestHeavyRegistrationIsReadOnlyWhileItStands(t *testing.T) {
 		}
 		if HeavyLine(strings.Fields(line)) {
 			t.Errorf("HeavyLine(%q) = true with nothing registered, want false", line)
+		}
+	}
+}
+
+// TestCarriedArgvFindsTheProgramTheRowDeclares asks where, in a typed le
+// line, the program a carrier runs lies. Its method: the probe areas, with
+// `probe-heavy-carrier` registered as a carrier, one row per shape of line,
+// each naming the span of words it wants, or none.
+//
+// VALIDATES: the span starts after the argv keyword where the row's own
+// parser reads that keyword, past a value and a switch, and past a value
+// that spells the keyword; at the first word after the verb for a positional
+// argv; at the first word after the name of a carrier area; past the
+// launcher words; and it ends at le's pipe word. A row with no argv, an
+// argv keyword with no program after it, a line the parser refuses, a
+// pass-through area that is no carrier and a line that reaches no handler
+// carry nothing.
+// PREVENTS: the worktree-copy guard reading `le job run`'s command as words
+// of le, or a value that spells `command` as the start of the program.
+func TestCarriedArgvFindsTheProgramTheRowDeclares(t *testing.T) {
+	heavyProbes.Do(registerHeavyProbes)
+	holdHeavyRegistrations(t)
+	RegisterCarrier("probe-heavy-carrier")
+
+	for _, row := range []struct {
+		line       string
+		start, end int
+		carried    bool
+	}{
+		{"probe-heavy-rows ship label t quiet command go test ./x", 6, 9, true},
+		{"probe-heavy-rows ship label command command go test", 5, 7, true},
+		{"probe-heavy-rows ship quiet label t command cp a b", 6, 9, true},
+		{"probe-heavy-rows ship label t command go test | count", 5, 7, true},
+		{"--name probe probe-heavy-rows haul command go test ./x", 5, 8, true},
+		{"probe-heavy-rows carry command sh -c x", 3, 6, true},
+		{"probe-heavy-rows send go version", 2, 4, true},
+		{"probe-heavy-carrier go version", 1, 3, true},
+		// Nothing carried.
+		{"probe-heavy-rows ship label t", 0, 0, false},
+		{"probe-heavy-rows ship label t quiet command", 0, 0, false},
+		{"probe-heavy-rows ship label t bogus command go", 0, 0, false},
+		{"probe-heavy-rows send", 0, 0, false},
+		{"probe-heavy-rows list", 0, 0, false},
+		{"probe-heavy-rows pass go test ./x", 0, 0, false},
+		{"probe-heavy-plain go version", 0, 0, false},
+		{"probe-heavy-carrier", 0, 0, false},
+		{"help probe-heavy-rows haul command x", 0, 0, false},
+		{"", 0, 0, false},
+	} {
+		start, end, carried := CarriedArgv(strings.Fields(row.line))
+		if carried != row.carried || start != row.start || end != row.end {
+			t.Errorf("CarriedArgv(%q) = %d, %d, %v, want %d, %d, %v", row.line, start, end, carried, row.start, row.end, row.carried)
 		}
 	}
 }

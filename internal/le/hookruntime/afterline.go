@@ -1,6 +1,7 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 // Related: readerline.go -- the reader-line walk this one skips admitted readers with
 // Related: session.go -- bashAgentIdentity, the caller, and the text route for a line that does not parse
+// Related: ../heavytool/launcher.go -- launchers, the one declaration of the wrappers this walk reads past
 package hookruntime
 
 import (
@@ -9,69 +10,34 @@ import (
 	"strings"
 
 	"mvdan.cc/sh/v3/syntax"
+
+	"github.com/ze-software/ze/internal/le/heavytool"
 )
 
-// identityWrapper declares one wrapper that runs the command after its
-// options: the options that take one value as the next word, whether a count
-// or a duration may stand before the command, how many operands stand
-// between the options and the command, and the options that change the
-// command's environment or user, which make the wrapper itself refused.
-type identityWrapper struct {
-	values   []string
-	counts   bool
-	operands int
-	changes  []string
+// identityWrapper answers the launcher a command word names, matched by its
+// base name, when the identity walk reads past it: one whose next word after
+// its own arguments is a program it runs (Launcher.RunsNamedProgram: nice,
+// timeout, xargs, the tracers), or one that may run its program as another
+// user or under another environment, which the walk refuses whatever follows
+// (Launcher.ChangesIdentity: env, exec, sudo, doas, su). The launchers and
+// their arguments are declared once, in heavytool (heavytool.LauncherNamed),
+// which the heavy reading and the worktree copy guard read too. A shell or
+// an interpreter is a command word here: what it runs is a line or a script,
+// never a program word. Both routes read it: the tree route (commandWordAt)
+// and the text route of a remainder that does not parse (changesEnvironment).
+func identityWrapper(word string) (heavytool.Launcher, bool) {
+	launcher, found := heavytool.LauncherNamed(word)
+	if !found {
+		return heavytool.Launcher{}, false
+	}
+	if launcher.ChangesIdentity() {
+		return launcher, true
+	}
+	return launcher, launcher.RunsNamedProgram()
 }
 
-// identityWrappers are the commands that run the word after their options
-// as a command, each with the options its manual gives a separate value.
-// `time` is here as the external program, which `command time` and
-// `/usr/bin/time` reach: the reserved word is structure in the tree, but a
-// word after a wrapper is not. setsid, flock, strace and ltrace read their
-// options from util-linux setsid(1) and flock(1), strace(1) 6.8 and ltrace(1)
-// 0.7.3 (spec-agent-economy-6-shell-parser, phase 3). flock takes its lock
-// file before the command, and strace's `-E` and `-u` and ltrace's `-u` set
-// the command's environment or user, as env and sudo do. A long option is
-// listed only when its manual gives it a required value, which getopt takes
-// from the next word too (`--output out`); one whose value is optional
-// (xargs `--max-lines[=N]`, strace `--quiet[=set]`) takes it only after `=`
-// and is not listed. timeout takes one duration operand before the command,
-// spelled any way (`5`, `1.5s`, `inf`, `1e3`), so it is an operand rather
-// than a count (review I3).
-//
-// textChangesEnvironment, the judgment of a remainder that does not parse,
-// reads this table too, so the two paths skip the same option values.
-var identityWrappers = map[string]identityWrapper{
-	"builtin": {},
-	"command": {},
-	"flock":   {values: []string{"-c", "--command", "-E", "--conflict-exit-code", "-w", "--wait", "--timeout"}, operands: 1},
-	"ltrace": {values: []string{
-		"-a", "-A", "-D", "-e", "-F", "-l", "-n", "-o", "-p", "-s", "-u", "-w", "-x",
-		"--align", "--config", "--debug", "--indent", "--library", outputOption, "--where",
-	}, changes: []string{"-u"}},
-	niceCommand: {values: []string{"-n", "--adjustment"}, counts: true},
-	"nohup":     {},
-	"setsid":    {},
-	"stdbuf":    {values: []string{"-i", "-o", "-e", "--input", outputOption, "--error"}},
-	"strace": {values: []string{
-		"-a", "-b", "-e", "-E", "-I", "-o", "-O", "-p", "-P", "-s", "-S", "-u", "-U", "-X",
-		"--abbrev", "--attach", "--columns", "--const-print-style", "--detach-on", "--fault", "--inject",
-		"--interruptible", "--kvm", outputOption, "--raw", "--read", signalOption, "--stack-trace-frame-limit",
-		"--status", "--string-limit", "--summary-columns", "--summary-sort-by", "--summary-syscall-overhead",
-		"--syscall-limit", "--trace", "--trace-fds", "--trace-path", "--verbose", "--write",
-	}, changes: []string{"-E", "--env", "-u", "--user"}},
-	timeCommand:    {values: []string{"-f", "-o", "--format", outputOption}},
-	timeoutCommand: {values: []string{"-s", "-k", signalOption, "--kill-after"}, operands: 1},
-	"xargs": {values: []string{
-		"-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s",
-		"--arg-file", "--delimiter", "--max-args", "--max-procs", "--max-chars", "--process-slot-var",
-	}},
-}
-
-// The words more than one wrapper or judge of this walk names.
+// The words more than one judge of this walk names.
 const (
-	outputOption  = "--output"
-	signalOption  = "--signal"
 	setBuiltin    = "set"
 	printfBuiltin = "printf"
 )
@@ -434,90 +400,40 @@ func unquotedExpansion(words []*syntax.Word) bool {
 	return false
 }
 
-// commandWordAt answers the index of the command word past every wrapper:
-// after a wrapper the walk skips an option, the one value of a value-taking
-// option (wrapperOption), a count for a wrapper that takes one
-// (wrapperNumber, which requires a digit, so a lone `.` is a command word),
-// and the wrapper's operands. A wrapper is matched by its base name. It
-// answers len(words) when the words end before a command word, never more,
-// and true when a wrapper option changes the command's environment or user.
+// commandWordAt answers the index of the command word past every wrapper
+// (identityWrapper): after a wrapper the walk skips the wrapper's own
+// arguments as heavytool declares and reads them (heavytool's
+// Launcher.Arguments: its options, as getopt reads them, each value an
+// option takes, a count for a wrapper that takes one, which is digits alone
+// so a lone `.` is a command word, and its operands). It answers len(words)
+// when the words end before a command word, never more: an option whose
+// value the words do not hold ends them (review B1). It answers true for a
+// wrapper that runs its program under another environment or user, by its
+// name (env, sudo, doas, su, exec) or by an option (strace `-E`, `-u`).
 func commandWordAt(words []wordValue) (int, bool) {
+	texts := make([]string, 0, len(words))
+	for _, word := range words {
+		texts = append(texts, word.text)
+	}
 	index := 0
 	for index < len(words) {
 		if words[index].expands {
 			return index, false
 		}
-		wrapper, isWrapper := identityWrappers[path.Base(words[index].text)]
+		wrapper, isWrapper := identityWrapper(words[index].text)
 		if !isWrapper {
 			return index, false
 		}
-		end, changes := wrapperArgumentsEnd(wrapper, words, index+1)
-		if changes {
-			return end, true
+		if wrapper.ChangesIdentity() {
+			return index, true
 		}
-		index = end
+		count, changes := wrapper.Arguments(texts[index+1:])
+		if changes {
+			return index, true
+		}
+		index += 1 + count
 	}
 	return index, false
-}
-
-// wrapperArgumentsEnd answers the index of the first word after a wrapper's
-// options, values, counts and operands, starting at index, and whether one
-// of its options changes the command's environment or user. An option whose
-// value the words do not hold ends them: the answer is len(words) at most
-// (review B1).
-func wrapperArgumentsEnd(wrapper identityWrapper, words []wordValue, index int) (int, bool) {
-	operands := wrapper.operands
-	for index < len(words) {
-		word := words[index].text
-		if strings.HasPrefix(word, "-") && word != "-" {
-			next, changes := wrapperOption(wrapper, word)
-			if changes {
-				return index, true
-			}
-			index++
-			if next {
-				index++
-			}
-			continue
-		}
-		if wrapper.counts && wrapperNumber(word) {
-			index++
-			continue
-		}
-		if operands > 0 {
-			operands--
-			index++
-			continue
-		}
-		return index, false
-	}
-	return min(index, len(words)), false
-}
-
-// wrapperOption reads one option word of a wrapper, as getopt reads it:
-// whether the next word is its value, and whether it changes the command's
-// environment or user. A long option is named whole and takes the next word
-// unless its value follows `=`. A short word is a cluster (`-fo`, `-0n`) read
-// letter by letter: a letter that takes a value takes the rest of the
-// cluster, or the next word when it ends the cluster (review I3).
-func wrapperOption(wrapper identityWrapper, word string) (next, changes bool) {
-	if strings.HasPrefix(word, "--") {
-		name, _, valued := strings.Cut(word, "=")
-		if oneOf(name, wrapper.changes...) {
-			return false, true
-		}
-		return !valued && oneOf(name, wrapper.values...), false
-	}
-	for index := 1; index < len(word); index++ {
-		letter := "-" + word[index:index+1]
-		if oneOf(letter, wrapper.changes...) {
-			return false, true
-		}
-		if oneOf(letter, wrapper.values...) {
-			return index == len(word)-1, false
-		}
-	}
-	return false, false
 }
 
 // toolChangesEnvironment judges the command word past the wrappers, by its

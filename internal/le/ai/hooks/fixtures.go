@@ -559,11 +559,29 @@ var (
 	// independent reviews: one round for the move, two for the notice, four
 	// for the record and three for the reaper, whose three changed test
 	// inputs an independent judge approved.
+	//
+	// Re-sealed 2026-11-15 for the worktree-copy guard. bashWorktreeCopy
+	// judges the commands a line runs rather than its text (worktreecopy.go,
+	// worktreeplace.go, worktreehanded.go, worktreeprograms.go,
+	// worktreebind.go): a write counts as into the main tree only when its
+	// destination resolves inside the main checkout outside .claude/worktrees
+	// and tmp/, an unplaceable destination counts as main, a session rooted
+	// in a worktree is judged against the main checkout, and remote lines
+	// (ssh, rex) and le carriers (leroot.CarriedArgv) are judged where they
+	// run. By the owner's ruling it targets an honest agent's mistake, never
+	// deliberate evasion, and its known limits are listed on
+	// bashWorktreeCopy. One launcher declaration (heavytool launchers)
+	// replaces heavytool's launcher tables and afterline's identityWrappers,
+	// matched by base name and read as getopt reads options. Payload carries
+	// the session cwd, and context drops its transcript copy. Sealed after
+	// four independent reviews (the last limited to the final round's fixes
+	// by the owner's cap) and three test-judge rounds approving five changed
+	// test units.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xf5, 0xd2, 0x69, 0xf5, 0xe7, 0xe6, 0xb2, 0xef,
-		0xae, 0x4b, 0xd2, 0xab, 0x95, 0x5c, 0x40, 0x7a,
-		0x6f, 0x68, 0x4c, 0xeb, 0xf0, 0x31, 0x15, 0xf7,
-		0xe2, 0xf0, 0x77, 0x92, 0x3b, 0xf2, 0x96, 0x63,
+		0x38, 0x8e, 0x0d, 0xb5, 0x4f, 0x7c, 0x39, 0x45,
+		0x23, 0xc0, 0x4c, 0x50, 0xd4, 0xa5, 0xe4, 0xd7,
+		0x02, 0x3c, 0xac, 0x98, 0x44, 0xeb, 0x9a, 0x8f,
+		0xd8, 0x96, 0xa7, 0x9b, 0x29, 0x12, 0x7a, 0x4e,
 	}
 )
 

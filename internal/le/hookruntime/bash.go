@@ -19,6 +19,10 @@ import (
 // filter, a search command, a whole-document read and a reader command.
 const catCommand = "cat"
 
+// gitCommand is the command word `git`, which several checks name: a search
+// command, a reader command and a program that applies a patch.
+const gitCommand = "git"
+
 var (
 	goBuildCall      = regexp.MustCompile(`(^|[^A-Za-z0-9_])go\s+build([^A-Za-z0-9_]|$)`)
 	goBuildBin       = regexp.MustCompile(`-o\s+bin/`)
@@ -65,26 +69,106 @@ var (
 // A worktree agent lands its work by committing, and a direct copy overwrites
 // whatever another session left uncommitted at the destination.
 //
-// It judges the commands the line runs (worktreeCopyLine), never its text: a
-// copy verb counts only where it runs as a command, and a copy or a
-// redirection only when its source is under .claude/worktrees and its
-// destination is not. The worktree work ai/owner/machines.md requires of
-// cross-machine work (`git worktree add` and `remove`, a test run inside the
-// worktree with its log there, `scp` of a bundle, a page whose prose names a
-// worktree) copies nothing out of one, and passes.
+// Scope, the owner's ruling: the guard stops an honest agent's mistake,
+// never a deliberate evasion, and it must not refuse normal work. It reads
+// the line as text, so a form it does not follow passes, and a form it
+// cannot place is refused only where the line also reads a worktree file.
+//
+// The main checkout is the session's root, or, for a session started inside
+// one of its worktrees, the checkout that holds .claude/worktrees
+// (worktreeMainCheckout). The guard reads a line that starts under that
+// checkout's .claude/ (the session's cwd) or a word of which may name a path
+// under .claude/worktrees (worktreeLineConcerns), and judges the commands the
+// line runs from where it starts (worktreeCopyLine): a copy verb counts only
+// where it runs as a command, and a copy, a redirection or a program that
+// writes what it reads only when its source is under a worktree, or may be,
+// and its destination is in the main tree, or may be. A write is into the
+// main tree only when its destination resolves inside the main checkout and
+// outside .claude/worktrees and its gitignored tmp/; a destination the hook
+// cannot place counts as the main tree. `~`, `$HOME` and `$PWD` are the
+// directories they name unless the line assigns HOME or PWD, a variable the
+// line assigns once by a bare assignment outside a loop or a function is its
+// value, also at the head of a word that expands more, and a destination
+// that starts with a variable bound only to worktree paths stays under them
+// when the write runs from the directory a relative value was bound in. The
+// program an le carrier runs (`./le job run ... command <argv>`, `./le exec
+// <argv>`), found where the registry declares it (leroot.CarriedArgv), runs
+// on this host and is judged as a command of the line, from the directory
+// the line runs in. `le exec` runs it there; `le job run` runs it at the
+// checkout root, so that reading is right when the line runs from a
+// checkout root, which is how agents run ./le. A line another host runs
+// (`ssh`, or a shell a later word of a remote runner such as `rex -S host
+// run -- sh -c` is handed) writes there: its absolute paths and its `~` and
+// `$HOME` paths are outside the checkout, a `cd` whose target names
+// .claude/worktrees/<name> places the relative paths after it in that
+// worktree while they stay inside it, a relative path that climbs from
+// that worktree into the remote checkout's tmp/ is outside its main tree,
+// and any other relative path stays unplaced. A line is judged by its text
+// only when the parser cannot read it, when it is handed to a shell in a word whose value the hook cannot
+// build, or when an expansion of the line that hands it names its program. The worktree work ai/owner/machines.md requires
+// of cross-machine work (`git worktree add` and `remove`, a test run inside
+// the worktree with its log there, `scp` or `rsync` of a bundle to another
+// host, a page whose prose names a worktree, a remote run whose output lands
+// outside the checkout, a log under `~/tmp`) copies nothing into the main
+// tree, and passes.
+//
+// Known limits, forms a text-reading guard does not follow: eval, source or
+// `.` changing the directory; a bare `exec` redirection; PWD, HOME, CDPATH or
+// a bound variable assigned by read, printf -v or mapfile; a value assigned
+// in a branch that may not run (an `if`, a side of `&&` or `||`, a subshell,
+// a pipeline stage), which is taken as holding; a link created on
+// the same line, or a /proc path; a two-step copy through tmp/ or outside the
+// checkout; a copy verb's option values after its operands; interpreters and
+// writers it does not enumerate (awk, sed's w, python, busybox, su -c,
+// script); a worktree reached by a `cd` the hook cannot name; and an le
+// carrier typed from a checkout subdirectory, judged from that subdirectory
+// although `le job run` runs its argv at the checkout root.
 func bashWorktreeCopy(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if !strings.Contains(command, worktreesDirectory) {
+	session := filepath.Clean(ctx.root)
+	root := worktreeMainCheckout(session)
+	cwd := worktreeLineStart(session, ctx.payload.Cwd)
+	parse := ctx.commandParse()
+	if !worktreeLineConcerns(command, parse, root, cwd) {
 		return nil
 	}
-	if !worktreeCopyLine(command, ctx.commandParse(), worktreeStart) {
+	switch finding := worktreeCopyLine(command, parse, root, cwd).(type) {
+	case worktreeCopyNone:
 		return nil
+	case worktreeCopyFound:
+		return &verdict{2, worktreeCopyRefusal(worktreeCopyFoundText(finding))}
+	case worktreeCopyUnread:
+		return &verdict{2, worktreeCopyRefusal("The hook could not read this line, and its text may copy a file out of a worktree.\n")}
 	}
-	return &verdict{2, "❌ Blocked: copying files out of a worktree into the main tree\n" +
+	panic("BUG: worktreeCopyLine answered a finding of no known kind")
+}
+
+// worktreeUnplacedText is the line a refusal adds when its destination counts
+// as the main tree only because the hook could not place it.
+const worktreeUnplacedText = "A destination the hook cannot place, such as one that starts with a `$VAR` the hook cannot read, counts as the main tree.\n"
+
+// worktreeCopyFoundText says what a refused copy writes and from where, and,
+// only when the destination counts as the main tree because the hook could
+// not place it, says so.
+func worktreeCopyFoundText(found worktreeCopyFound) string {
+	text := "It writes " + found.target + " from " + found.source + ".\n"
+	if !found.unplaced {
+		return text
+	}
+	return text + worktreeUnplacedText
+}
+
+// worktreeCopyRefusal is the refusal of a copy out of a worktree: what the
+// line writes and from where (copied), why that is refused, where a run's
+// output may go, and the commit route, last.
+func worktreeCopyRefusal(copied string) string {
+	return "❌ Blocked: copying files out of a worktree into the main tree\n" +
+		copied +
 		"A direct copy overwrites the uncommitted work other sessions left in the main checkout.\n" +
 		"A worktree agent commits on its own branch, and the user lands that branch on main with `git rebase <branch>`.\n" +
+		"To keep a run's output, write it inside the worktree, under the checkout's tmp/, or outside the checkout.\n" +
 		"Commit your work on the worktree branch with:\n" +
-		"./le commit create subject \"<subject>\" file <path>"}
+		"./le commit create subject \"<subject>\" file <path>"
 }
 
 // shellInvoker matches a command that hands a quoted string to another shell to
@@ -658,7 +742,7 @@ func bashRawHeavy(ctx context) *verdict {
 func bashPollLoop(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	locations := waitKeyword.FindAllStringIndex(command, -1)
-	searches := map[string]bool{"grep": true, "egrep": true, "fgrep": true, "rg": true, "ag": true, "git": true, "sed": true, "awk": true, catCommand: true, "echo": true, "printf": true}
+	searches := map[string]bool{"grep": true, "egrep": true, "fgrep": true, "rg": true, "ag": true, gitCommand: true, "sed": true, "awk": true, catCommand: true, "echo": true, "printf": true}
 	for _, location := range locations {
 		head := command[:location[0]]
 		cut := 0
