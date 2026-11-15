@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	normalizedenv "github.com/ze-software/ze/internal/core/env"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 
 	// Dependencies register other areas. Link their real parent namespaces, as
@@ -198,11 +198,11 @@ type workflowStep struct {
 
 func workflowSteps(t *testing.T) []workflowStep {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("locate the workflow fixture source")
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
 	}
-	path := filepath.Join(filepath.Dir(file), "../../../..", ".github/workflows/codeql.yml")
+	path := filepath.Join(root, ".github/workflows/codeql.yml")
 	source, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

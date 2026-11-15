@@ -5,11 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/go/stdpatch/gen"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestCodeQLInitializationSeesSelectedToolchain keeps CodeQL's Go-path capture
@@ -134,11 +134,11 @@ func TestCodeQLBootstrapGo(t *testing.T) {
 
 func codeqlCacheLauncher(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("locate the CodeQL bootstrap fixture")
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
 	}
-	source, err := os.ReadFile(filepath.Join(filepath.Dir(file), "../../../..", "le"))
+	source, err := os.ReadFile(filepath.Join(root, "le"))
 	if err != nil {
 		t.Fatal(err)
 	}
