@@ -66,7 +66,16 @@ var actions = leaction.New(area,
 			{Keyword: keywordProducer, Kind: leaction.KindLabel, Help: "render only this producer's pages over the artifact", Value: "name", Requirement: leaction.Optional, Repeat: true, Source: producerCandidates},
 		}, AnswerArgs: runBuild},
 	leaction.Action{Verb: "check", Summary: "check the Pages artifact holds no source inputs", Why: "verify that the Pages artifact contains no source-only website inputs",
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the Pages artifact directory to check", Value: valueDirectory, Requirement: leaction.Optional}}, AnswerArgs: runCheck},
+		Parameters: []leaction.Parameter{
+			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the Pages artifact directory to check", Value: valueDirectory, Requirement: leaction.Optional},
+			{Keyword: publicationReceiptKeyword, Kind: leaction.KindSwitch, Help: "verify the saved source and reviewed artifact bytes"},
+			{Keyword: publicationDeploymentKeyword, Kind: leaction.KindRevision, Help: "confirm the artifact commit and live website bytes", Value: "commit", Requirement: leaction.Optional},
+		}, AnswerArgs: runCheck},
+	leaction.Action{Verb: "record", Heavy: true, Writes: true, Summary: "record the checked website publication bytes", Why: "record the full build's observed source and the reviewed artifact bytes outside the served site; this neither approves nor publishes them",
+		Parameters: []leaction.Parameter{
+			{Keyword: publicationSourceKeyword, Kind: leaction.KindRevision, Help: "the full source commit ID observed by the full build", Value: "commit", Requirement: leaction.Required},
+			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the checked Pages artifact directory", Value: valueDirectory, Requirement: leaction.Optional},
+		}, AnswerArgs: runPublicationRecord},
 	leaction.Action{Verb: "bundle", Does: doesRender, Summary: "turn one deck into a self-contained HTML file", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: keywordInput, Kind: leaction.KindPath, Help: "the presentation deck to bundle", Value: "html-file", Requirement: leaction.Required}}, AnswerArgs: runBundle},
 	leaction.Action{Verb: "activity", Does: doesRender, Summary: "render repository activity as an HTML page", Why: "render repository line and commit activity as a presentation-ready HTML page", Writes: true,
@@ -141,7 +150,7 @@ func runProducerBuild(root string, arguments leaction.Arguments) (any, int) {
 			"./le site build refresh"))
 		return nil, 2
 	}
-	report, err := BuildProducers(ProducerBuildOptions{
+	report, err := buildProducers(producerBuildOptions{
 		Repository: root, Output: arguments.One(keywordOutput), Producers: arguments.Values(keywordProducer),
 	})
 	if err != nil {
@@ -165,8 +174,9 @@ type checkReport struct {
 	PlainFigures []plainFigure `json:"plain-figures,omitempty"`
 	// StaleRatchet names each page website/data/plain-figure-ratchet.json
 	// lists that no longer shows a plain figure, so its entry is owed removal.
-	StaleRatchet []string `json:"stale-ratchet,omitempty"`
-	Coverage     Coverage `json:"coverage"`
+	StaleRatchet []string           `json:"stale-ratchet,omitempty"`
+	Coverage     Coverage           `json:"coverage"`
+	Publication  *publicationReport `json:"publication,omitempty"`
 }
 
 // exit answers the status one check reports. An artifact is refused when it
@@ -207,31 +217,56 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report := checkReport{Output: paths.Output}
-	report.SourceOnly, err = publishedSourceOnly(paths.Output)
+	report, err := checkSiteArtifact(paths)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
+	}
+	if code := report.exit(); code != 0 {
+		return report, code
+	}
+	if arguments.Has(publicationReceiptKeyword) || arguments.Has(publicationDeploymentKeyword) {
+		receipt, err := checkPublication(context.Background(), paths)
+		if err != nil {
+			return publicationFailure(err)
+		}
+		publication := publicationAnswer(paths, receipt, "checked")
+		if arguments.Has(publicationDeploymentKeyword) {
+			publication, err = confirmPublication(context.Background(), paths, receipt, arguments.One(publicationDeploymentKeyword))
+			if err != nil {
+				return publicationFailureWithFix(err, "./le site check deployment "+arguments.One(publicationDeploymentKeyword))
+			}
+		}
+		report.Publication = &publication
+	}
+	return report, report.exit()
+}
+
+// checkSiteArtifact keeps one check population for normal checks and receipt
+// creation. A failed check never writes a publication receipt.
+func checkSiteArtifact(paths Paths) (checkReport, error) {
+	report := checkReport{Output: paths.Output}
+	var err error
+	report.SourceOnly, err = publishedSourceOnly(paths.Output)
+	if err != nil {
+		return report, err
 	}
 	report.MissingArtifacts = checkNamedArtifacts(paths.Output)
 	report.MissingMirrors, err = checkPageMirrors(paths.Output)
 	if err != nil {
-		leaction.ReportError(err)
-		return nil, 2
+		return report, err
 	}
 	plain, err := checkPlainFigures(paths.Source, paths.Output)
 	if err != nil {
-		leaction.ReportError(err)
-		return nil, 2
+		return report, err
 	}
 	report.PlainFigures = plain.Figures
 	report.StaleRatchet = plain.StaleRatchet
 	report.Coverage, err = checkCoverage(paths)
 	if err != nil {
-		leaction.ReportError(err)
-		return nil, 2
+		return report, err
 	}
-	return report, report.exit()
+	return report, nil
 }
 
 func runBundle(arguments leaction.Arguments) (any, int) {

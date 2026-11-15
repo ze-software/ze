@@ -160,7 +160,7 @@ func TestReadmeDemoRefreshesDuringOtherProducerBuild(t *testing.T) {
 	paths := Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output}
 	installReadmeDemo(t, paths)
 	for _, names := range [][]string{{"guides"}, {"readme-demo", "guides"}} {
-		report, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: names})
+		report, err := buildProducers(producerBuildOptions{Repository: root, Output: output, Producers: names})
 		if err != nil {
 			t.Fatal(err)
 		}

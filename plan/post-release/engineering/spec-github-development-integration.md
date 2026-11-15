@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | blocked |
 | Scope | tooling, docs |
 | Priority | P2 |
 | Release reason | Owner-requested development integration; this adds no first-release prerequisite or product-support claim. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | design |
+| Phase | owner-review |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -16,7 +16,7 @@
 
 ## Task
 
-Connect GitHub results, development-machine work, requested website publication, and Discord notifications through exact revision and artifact identities. This is a design for owner review, not an approved implementation or a completion record.
+Connect GitHub results, development-machine work, requested website publication, and Discord notifications through exact revision and artifact identities. Implementation is authorized; notification activation and publication retain the owner's review gates.
 
 Task source, Thomas, 2026-11-03: "Can you please look at how we set up the GitHub online and see if there is things we should do to better integrate our development and make what we do clearer to end users, and automation we could do between the repository and the server. Do not change anything locally because the code is currently being edited on another machine."
 
@@ -24,11 +24,38 @@ Clarification, Thomas, 2026-11-03: "dev macine(s), discord and the web server."
 
 Scope authorization, Thomas, 2026-11-15: "ok you can do all improvement but 5 - I wish to review any change to messaging myself"
 
+Continuation, Thomas, 2026-11-15: "Okay, complete the work."
+
+The latest AI-contribution paragraph reviewed in this chat is approved for application. Continue the integration work within the existing scope. Item 5 remains excluded. Public news retains its exact-text approval requirement, and Discord activation requires an identified destination. Publication must not silently include unrelated changes on the shared branch.
+
 Item 5 is the GitHub front-door proposal: organization profile, repository description, README and roadmap presentation. It is excluded. Report templates, contribution instructions and notification text remain drafts until Thomas approves them. This spec adds no automatic release announcement.
 
 Goals: G-1, show what GitHub actually tested for a revision; G-2, carry committed work between the two machines through the existing permitted routes; G-3, publish the exact requested and reviewed website artifact; G-4, prepare and, only after separate approval, deliver failure/recovery messages without repeated unchanged alerts.
 
+The continuation also completes the existing contribution-guide and issue/PR-template work. The approved AI wording states a preference for capable recent models, never a model eligibility requirement. The canonical examples live in `CONTRIBUTING.md`; website contribution pages link that policy.
+
+Machine integration adds identity and readiness reporting around the existing main-thread test workflow, not an automatic test runner. This task obeys the user's supplied AGENTS hard bans and creates no worktree or source copy, runs no remote test, and changes neither machine's policy. A report grants no permission to use a transport or execution context. An earlier native test result is not certified against current inputs unless an existing record actually binds them.
+
 Existing-owner search: CI coverage and peer-harness specs concern different test mechanisms; `spec-site-rfc-recorded-data` owns RFC snapshot production, not deployment. `spec-publish-the-regenerated-command-catalog` retains its website/wiki drift and publication-responsibility obligation. This spec neither duplicates that obligation nor closes it. The browser-lab umbrella and release-distribution spec retain their separate product and release contracts.
+
+## Blocker
+
+Thomas reserved review of messaging. The exact AI contribution paragraph is approved and applied; the other contribution/form wording and maintainer templates still need his review. He selected the existing GitHub activity feed for maintainer alerts, and its webhook/channel identity was verified by read-only requests without retaining credentials. `notification_actions.go` exposes preview only. The tested private delivery/store/transport code has no activation caller, so this spec does not claim an installed notifier or complete AC-9 operational delivery. Approved activation remains work owned by this spec.
+
+Canonical contribution HTML and Markdown have been regenerated through the native docs producer and checked. No site artifact was committed or deployed. Publication must preserve the requested source/artifact identities and obtain an explicit owner push instruction for the exact shared-branch ancestry; unrelated README changes remain excluded from this task's authorization.
+
+The native session state owns the current review index, rendered candidate example, token-free destination identity, test logs, and publication ancestry snapshot. Resume this spec after the remaining wording decision; complete activation and approved publication, then run the independent closure gate. The destination choice is settled. No operational CLEAN closure artifact has been recorded.
+
+## Implementation Evidence
+
+| Scope | Current evidence | Qualification |
+|-------|------------------|---------------|
+| GitHub revision/run and local readiness reports | Registered-action, pagination, identity, state, bounds and machine-input tests pass; live CodeQL run 43726804487 report and preview succeed | API observations do not certify native test or release results. No remote machine execution was added. |
+| Publication receipt and confirmation mechanics | Registered positive/negative tests cover source races, changed bytes, raw committed blobs, index/filter/replacement tricks, live mismatches and zero-network refusal | Actual deployment confirmation waits for an approved artifact commit and publication. |
+| Notification preparation | Lifecycle/store/sender, scope/recovery, ambiguous-send and approval-binding tests pass; real candidate artifact is preview-only | The sender is dormant; no credential, delivery workflow or activation caller is installed. |
+| Contribution policy and intake | Exact approved AI policy guard and canonical-link render guards pass; issue/PR sources prepared | Non-AI messaging and online publication remain subject to owner review. |
+| Installed command paths | Both new UI carriers passed 80 actual named invocations under load and passed again in the live suite | The full UI suite also found 15 other failures and 20 skips; it is not a broad green certificate. |
+| Canonical review site | Native docs-producer render and site check pass with 1118 claimed routes; both contribution HTML/Markdown pairs contain the policy link | Rendering grants no approval or publication authority. |
 
 ## Required Reading
 
@@ -127,8 +154,8 @@ The new report area registers through the existing development action tables. Ma
 |----|------------|-------|----------|------------|--------|
 | A-1 | The two documented machine routes remain usable | `ai/owner/machines.md` | Coordination stops | Check connection only as part of an authorized feature test | Not probed; no remote service changes authorized by this design. |
 | A-2 | Pages continues serving `gh-pages` | Live read-only Pages settings during review | Confirmation needs a different deployment identity | Read settings before publication | Confirmed for review; recheck at use. |
-| A-3 | A maintainer channel and template can be approved | Current owner request reserves messaging review | Alert delivery remains preview-only | Thomas approves exact template and destination | Owner choice pending. |
-| A-4 | Public Actions reads suffice initially | Repository is public | Rate-limited results become unknown | API failure fixtures and actual read-only report | To validate in implementation. |
+| A-3 | A maintainer channel and template can be approved | Current owner request reserves messaging review | Alert delivery remains preview-only | Thomas approves exact template and destination | Existing GitHub activity feed selected and identity verified; exact template review remains pending. |
+| A-4 | Public Actions reads suffice initially | Repository is public | Rate-limited results become unknown | API failure fixtures and actual read-only report | Confirmed: native report and preview read run 43726804487 without credentials; bounded failure fixtures pass. |
 
 | ID | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
@@ -161,7 +188,7 @@ The new report area registers through the existing development action tables. Ma
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | Revision has several paginated runs and shards | Report includes every API result with SHA, attempt, job state and links | Pending/skipped/cancelled results remain visible; they are not passing tests. |
 | AC-2 | Wrong SHA, unknown status or API failure | Report states the unresolved identity/data and returns a nonzero result | Previously known results may be shown only with their own identity and incomplete qualification. |
-| AC-3 | Requested machine holds the matching clean revision and has capacity | Existing native scoped test runs in main and yields machine/command/input-qualified evidence | The other architecture owes no duplicate run. |
+| AC-3 | Requested machine holds the matching clean revision and has capacity | The existing main-thread scoped-test workflow and registered machine report provide command/result evidence plus actual HEAD, input, machine and capacity facts; inability to bind an earlier result to those inputs is explicit | The report starts no test or remote work. The other architecture owes no duplicate run. |
 | AC-4 | Destination is dirty, mismatched or unreachable | Preflight reports the exact stop reason and executes no test or destructive git command | Existing unrelated work stays intact. |
 | AC-5 | Owner requests site generation and approves final pages | Canonical artifact passes existing checks and gains an exact source/final-byte receipt | Local review renders stay unpublished until an explicit push instruction. |
 | AC-6 | Approved publication reaches Pages | Confirmation matches the artifact commit and verifies changed live routes/assets | Unchanged routes may retain their existing publication identity. |
@@ -169,6 +196,8 @@ The new report area registers through the existing development action tables. Ma
 | AC-8 | Preview requested before messaging approval | Preview artifact contains rendered candidate messages, selected run identity and proposed destination; its delivery state is preview-only | Existing approved weekly/manual notifications remain unchanged. Preview delivery stays inactive until the exact template and destination are approved. |
 | AC-9 | Approved notifier sees failure, repeated failure, then recovery | Sends one failure transition and one recovery with exact GitHub links | Unchanged failures produce no extra message. |
 | AC-10 | Transport result is ambiguous or template changes | Delivery report names the attempted event, destination and unresolved result; a changed template produces a fresh identified preview for approval | Confirmed earlier deliveries remain recorded; ambiguity does not authorize a retry or a success claim. |
+| AC-11 | Contributor reads the guide or website contribution pages | The approved AI paragraph is present verbatim in the canonical guide, with a nonmandatory model preference; website contribution pages link the canonical examples | Item 5's profile, README, tagline and roadmap wording remain outside this task. |
+| AC-12 | Contributor opens an issue or prepares a PR | Structured bug, migration and documentation forms and the PR template request relevant evidence and preserve the private security route and existing contribution obligations | Blank issue reports remain permitted; questions can use the existing Discord link. |
 
 ## 🧪 TDD Test Plan
 
@@ -268,9 +297,21 @@ Boundary inputs: require a full 40-character commit ID and positive run/attempt 
 
 ## Known Limitations and Review Gate
 
-No implementation has started. Every AC remains outstanding in this spec. There are no delegated journal rows or transferred obligations. The main session must present the complete design and alternatives to Thomas before moving to ready. The unresolved owner choice is the maintainer notification destination and exact approved text; until then, notification implementation remains preview-only. Item 5 and public news wording stay excluded.
+Implementation started after the owner's continuation instruction. Every AC requires implementation evidence. There are no delegated journal rows or transferred obligations. Thomas selected the existing GitHub activity feed, whose webhook and channel identity were verified read-only; delivery remains preview-only until exact template approval is bound to that destination. Item 5 and public news wording stay excluded.
 
 Design hand-back owes no executable test or verification command. At implementation closure, append the closure template, prove the entry points, run the scoped owed tests in main, and obtain an independent review before the two-commit closure.
+
+## Critical Review Checklist
+
+| Surface | What to verify |
+|---------|----------------|
+| GitHub report | Registered entry points read every required page; revision, attempt and workflow/job identity remain explicit; unknown or incomplete results cannot become success. |
+| Machine evidence | The actual tested inputs, command and machine qualify the result. Existing transport and current owner rules govern execution; no permanent worker or arbitrary remote shell action is introduced. |
+| Website publication | The checked artifact, source identity and final digest match the reviewed receipt. Deployment confirmation checks the exact commit and live changed routes/assets. Site generation stays on request. |
+| Discord | Preview has a positive output and sends nothing. Approved delivery binds template and destination, suppresses repeated unchanged failures, reports recovery once, and refuses ambiguous retries. |
+| Credentials | Untrusted workflow payloads execute no code and acquire no webhook secret. Logs and receipts contain no credentials. |
+| CLI and source ownership | Commands register through the existing action and rendering systems; every library feature has a production caller and entry-point test. |
+| Tests and documentation | Positive and near-miss negative cases cover the complete accepted behavior; the phase updates its owning pages without weakening existing proofs. |
 
 ## Checklist
 

@@ -362,6 +362,7 @@ disagree, the manifest is right and the row is stale.
 | `./le go extract` | `internal/le/go/extract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
 | `./le go version-pin` | `internal/le/go/versionpin.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it (`run`), and show the slots, their holders and waiters, and the machine's load, memory and free disk before starting one (`report`) |
+| `./le github` | `internal/le/github.Answer` | report GitHub workflow evidence for an exact revision or run, qualify local machine readiness, and prepare notification previews; see `docs/contributing/github-integration.md` |
 | `./le spec journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
 | `./le go module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
 | `./le mock` | `internal/le/mock/<server>`, one package per member | stand-in servers a test starts (`mock cymru`, `dns`, `httpd`, `irr`, `lg`, `peeringdb`, `radius`, `rpki`, `rtr`, `syslog`, `tacacs`), and hidden plugin stand-ins a `.ci` execs, such as `mock engine-steps` and `mock plugin-external` |

@@ -1,0 +1,17 @@
+{
+  "status": {
+    "queued": 1,
+    "in_progress": 1,
+    "requested": 1,
+    "waiting": 1,
+    "pending": 1,
+    "completed": 2
+  },
+  "conclusion": [
+    "success", "failure", "neutral", "cancelled", "skipped", "timed_out",
+    "action_required", "stale", "startup_failure"
+  ],
+  "deployment": [
+    "error", "failure", "inactive", "pending", "success", "queued", "in_progress"
+  ]
+}

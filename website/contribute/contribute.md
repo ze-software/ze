@@ -2,6 +2,10 @@
 
 Contributions to Ze can be code, documentation, bug reports, or results from trying it with other routers. Development happens in the public repository and issue tracker.
 
+AI-assisted contributions are welcome. We prefer recent, capable models, and this
+is a recommendation. The [contribution policy](https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#ai-assisted-contributions)
+lists example models and explains the requirements that apply to every contribution.
+
 <div class="contribute-intro">
   <article class="contribute-route cat-meta">
     <span class="contribute-route-kicker">Code</span>
@@ -26,7 +30,7 @@ Contributions to Ze can be code, documentation, bug reports, or results from try
   <div>
     <span class="contribute-label">Hard requirement</span>
     <h3>Every contribution requires a sign-off.</h3>
-    <p>Contributions require signing off commits with <code>git commit -s</code>, which signifies agreement to Ze's <a href="https://github.com/ze-software/ze/blob/main/CLA.md">Contributor License Agreement</a>.</p>
+    <p>Each contribution commit requires a <code>Signed-off-by</code> line, which signifies agreement to Ze's <a href="https://github.com/ze-software/ze/blob/main/CLA.md">Contributor License Agreement</a>. The <a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#commits-and-license">commit preparation guide</a> explains how to add it through the repository's commit-script process.</p>
     <p>You keep your copyright. What you grant is a broad, non-exclusive license for the Maintainer to use your contribution, including the right to relicense it, alone or combined with the rest of the project, under different license terms.</p>
   </div>
   <aside>

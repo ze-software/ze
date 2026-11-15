@@ -88,7 +88,7 @@ func TestAProducerRunRendersOnlyTheNamedProducer(t *testing.T) {
 	labsBefore := readArtifact(t, output, "labs/index.html")
 	stubBuildClock(t, producerRunNow)
 
-	report, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
+	report, err := buildProducers(producerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestAProducerRunRunsTheFinishedPassAfterThePages(t *testing.T) {
 	root, output := fullArtifactFixture(t, []Claim{{Route: "/guides/", Producers: []string{"guides"}}})
 	stubBuildClock(t, producerRunNow)
 
-	report, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"finder", "guides"}})
+	report, err := buildProducers(producerBuildOptions{Repository: root, Output: output, Producers: []string{"finder", "guides"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestAProducerRunRefusesANameTheRegistryDoesNotHold(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides", "guide"}})
+	_, err = buildProducers(producerBuildOptions{Repository: root, Output: output, Producers: []string{"guides", "guide"}})
 	if err == nil {
 		t.Fatal("an unknown producer name was accepted")
 	}
@@ -241,14 +241,14 @@ func TestAProducerRunRefusesAnOutputNoFullBuildWrote(t *testing.T) {
 	}})
 	root, output := siteFixture(t)
 
-	_, err := BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
+	_, err := buildProducers(producerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
 	if err == nil || !strings.Contains(err.Error(), "does not exist") || !strings.Contains(err.Error(), "run ./le site build output "+output) {
 		t.Fatalf("an absent artifact was answered %v, want a refusal naming the full build", err)
 	}
 	if err := os.MkdirAll(output, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	_, err = BuildProducers(ProducerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
+	_, err = buildProducers(producerBuildOptions{Repository: root, Output: output, Producers: []string{"guides"}})
 	if err == nil || !strings.Contains(err.Error(), "no record of a full build") || !strings.Contains(err.Error(), "./le site build") {
 		t.Fatalf("an artifact with no record was answered %v, want a refusal naming the full build", err)
 	}

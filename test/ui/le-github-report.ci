@@ -1,0 +1,60 @@
+# Test: the built le entry point exposes GitHub reporting/preview and refuses ambiguous inputs.
+# QUESTION: does the developer's le binary link the GitHub owner, publish its
+# declared help, and return the usage code for absent, conflicting and malformed
+# selectors before any API request? A package unit cannot decide whether the
+# product composition root linked this owner or whether its public parser and
+# shared renderer route the words to the same handler.
+# VALIDATES: github-development-integration AC-1/2/8 entry-point registration and
+# input refusal. Successful paginated API reads and shared formats are exercised
+# through the same production action factory with a fixture transport in the
+# github package; this functional test adds no API-origin override.
+# PREVENTS: an unlinked report owner, help-only stub, or malformed selector
+# falling through to network work or a successful empty response.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le help github report:exit=0
+expect=exit:code=0
+expect=stdout:contains=revision
+expect=stdout:contains=run
+expect=stdout:contains=machine
+
+cmd=foreground:seq=2:exec=le github report:exit=2
+expect=exit:code=2
+expect=stderr:contains=exactly one selector
+expect=stderr:contains=fix:
+
+cmd=foreground:seq=3:exec=le github report revision short:exit=2
+expect=exit:code=2
+expect=stderr:contains=full 40-character commit ID
+reject=stderr:contains=HTTP
+
+cmd=foreground:seq=4:exec=le github report revision 0123456789abcdef0123456789abcdef01234567 run 7:exit=2
+expect=exit:code=2
+expect=stderr:contains=exactly one selector
+
+cmd=foreground:seq=5:exec=le github report run 0:exit=2
+expect=exit:code=2
+expect=stderr:contains=must be positive
+
+cmd=foreground:seq=6:exec=le github report machine run 7:exit=2
+expect=stderr:contains=cannot select a GitHub run
+expect=exit:code=2
+
+cmd=foreground:seq=7:exec=le help github preview:exit=0
+expect=exit:code=0
+expect=stdout:contains=run
+expect=stdout:contains=destination
+expect=stdout:contains=preview
+
+cmd=foreground:seq=8:exec=le github preview run 0 destination pending-owner-approval:exit=2
+expect=exit:code=2
+expect=stderr:contains=invalid GitHub report selector
+expect=stderr:contains=No message was sent
+reject=stderr:contains=HTTP
+
+cmd=foreground:seq=9:exec=le github preview run malformed destination pending-owner-approval:exit=2
+expect=exit:code=2
+expect=stderr:contains=cannot take "malformed" as run <run-id>
+expect=stderr:contains=unsigned decimal integer
+reject=stderr:contains=HTTP

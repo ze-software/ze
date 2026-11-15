@@ -7,37 +7,46 @@ funded and what its Contributor License Agreement grants.
 Everyone taking part is expected to follow the
 [Code of Conduct](../../code-of-conduct/).
 
+## AI-assisted contributions
+
+AI-assisted contributions are welcome. We recommend recent, capable models.
+The [contribution policy](https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#ai-assisted-contributions)
+gives the current model examples and the same requirements for specifications,
+tests, documentation, and independent review that apply to every contribution.
+
 ## How work gets in
 
-For a contribution beyond a small fix, we agree on a spec before implementation
-so that the expected behavior and tests are clear to both author and reviewer.
+An agreed spec records the expected behavior and tests before implementation,
+so the author and reviewer can check the change against the same requirements.
 
 1. **Open an issue** describing what you want to change or fix, on the
    [tracker](https://github.com/ze-software/ze/issues). Start here even for
    a fix, so the work is visible and nobody doubles up.
-2. **Agree on a spec.** For anything beyond a small fix, the maintainer turns
-   the issue into a spec that says what the change should do and how it will
-   be tested. Specs keep the project coherent and stop work drifting.
+2. **Agree on a spec.** The maintainer turns the issue into a spec that says
+   what the change should do and how it will be tested.
 3. **Implement the spec**, starting with tests for the behavior it requires.
-4. **Sign your commits** with `git commit -s`. That sign-off certifies you
-   accept the [CLA](../). Every merged contribution requires that sign-off.
-5. **Open a pull request.** The maintainer reviews it, often with AI
-   assistance, the same way the rest of the project is built (the
-   [FAQ](../../faq/#ai-development) explains how).
+4. **Arrange independent deep review.** The reviewer uses a context that did
+   not produce the change. The [repository guide](https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#review-and-submission)
+   links the review workflow.
+5. **Prepare signed-off commits** through the
+   [commit-script process](https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#commits-and-license).
+   Each contribution commit requires a `Signed-off-by` line accepting the
+   [CLA](https://github.com/ze-software/ze/blob/main/CLA.md).
+6. **Open a pull request** linking the agreed spec and giving the resulting
+   behavior, scoped test results, documentation changes, and independent review.
 
 ## Setting up a build
 
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-go build -o bin/ze ./cmd/ze
-bin/ze init         # set up local credentials
-bin/ze cli          # connect to the CLI
+./ze --help
 ```
 
-The [quickstart](../../guides/quickstart/) takes this further and gets two
-BGP peers talking. For the full developer setup, including the test
-dependencies, see
+On a fresh checkout, the launcher builds Ze with the checkout's feature selection
+before running the command. Later invocations reuse the existing binary.
+The [quickstart](../../guides/quickstart/) covers credentials and gets
+two BGP peers talking. For the full developer setup, including test dependencies, see
 [developer-setup.md](https://github.com/ze-software/ze/blob/main/docs/guide/developer-setup.md)
 in the repository.
 
@@ -57,7 +66,7 @@ in the repository.
 
 ## Good first paths
 
-There is no formal "good first issue" label yet. The most useful things an
+There is no formal good-first-issue program yet. The most useful things an
 outside contributor can do right now are the ones that need real routing
 experience: run a lab peer, migrate an [ExaBGP config](../../use-cases/exabgp-migration/),
 stand up a looking glass, or run the [interop labs](../../labs/) and report

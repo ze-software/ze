@@ -66,6 +66,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	_ "github.com/ze-software/ze/internal/le/exec"
 	_ "github.com/ze-software/ze/internal/le/feature"
+	_ "github.com/ze-software/ze/internal/le/github"
 	_ "github.com/ze-software/ze/internal/le/go"
 	_ "github.com/ze-software/ze/internal/le/go/extract"
 	_ "github.com/ze-software/ze/internal/le/go/lint"

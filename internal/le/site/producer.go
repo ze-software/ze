@@ -220,7 +220,7 @@ func renderProducers(paths Paths) ([]Claim, error) {
 
 // RenderProducer runs one registered producer over explicit source and artifact
 // paths. The caller supplies its recorded prerequisites. This operation writes
-// only that producer's pages; Build and BuildProducers own complete-artifact
+// only that producer's pages; Build and buildProducers own complete-artifact
 // validation, claims, trimming and publication stamps.
 func RenderProducer(paths Paths, name string) ([]string, error) {
 	for _, producer := range allProducers() {
@@ -316,6 +316,9 @@ func producerRecordPath(paths Paths) string {
 type producerRecord struct {
 	Artifact string  `json:"artifact"`
 	Claims   []Claim `json:"claims"`
+	// Provenance is absent after a partial render or in a legacy record.
+	// Only a completed full build can bind its source to final artifact bytes.
+	Provenance *publicationProvenance `json:"publication-provenance,omitempty"`
 }
 
 // writeProducerRecord states which producer wrote which route of one artifact.

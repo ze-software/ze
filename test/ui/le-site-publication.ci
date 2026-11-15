@@ -1,0 +1,39 @@
+# Test: does the built le personality expose the site publication grammar?
+# VALIDATES: the installed composition root discovers record/source and
+# check/receipt/deployment, and rejects incomplete selectors before the
+# action body can read an artifact or contact a public service.
+# A package unit test cannot prove the binary imports the site registration.
+# Positive receipt and deployment behavior has registered-action Go fixtures;
+# this carrier asks only whether the shipped command path is discoverable.
+
+option=timeout:value=60s
+
+cmd=foreground:seq=1:exec=le help site record:exit=0
+expect=exit:code=0
+expect=stdout:contains=source <commit>
+expect=stdout:contains=the full source commit ID observed by the full build
+
+cmd=foreground:seq=2:exec=le help site check:exit=0
+expect=exit:code=0
+expect=stdout:contains=[receipt]
+expect=stdout:contains=[deployment <commit>]
+
+cmd=foreground:seq=3:exec=le site record:exit=2
+expect=exit:code=2
+expect=stderr:contains=requires source <commit>
+reject=stderr:contains=Could not verify the website publication
+
+cmd=foreground:seq=4:exec=le site record source:exit=2
+expect=exit:code=2
+expect=stderr:contains=argument keyword "source" requires <commit>
+reject=stderr:contains=Could not verify the website publication
+
+cmd=foreground:seq=5:exec=le site check deployment:exit=2
+expect=exit:code=2
+expect=stderr:contains=argument keyword "deployment" requires <commit>
+reject=stderr:contains=Could not verify the website publication
+
+cmd=foreground:seq=6:exec=le site check receipt unexpected-publication-argument:exit=2
+expect=exit:code=2
+expect=stderr:contains=unexpected-publication-argument
+reject=stderr:contains=Could not verify the website publication

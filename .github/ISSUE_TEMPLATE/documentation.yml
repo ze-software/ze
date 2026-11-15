@@ -1,0 +1,22 @@
+name: Documentation correction
+description: Report inaccurate, missing, or unclear documentation.
+labels: [documentation]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page URL or repository path
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or unclear
+      description: The passage or missing information, and what you were trying to do.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Correction or supporting evidence
+      description: Suggested wording, the relevant Ze commit or build, or redacted output that shows the difference. Include what you know.

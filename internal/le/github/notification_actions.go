@@ -1,0 +1,67 @@
+// Design: docs/contributing/github-integration.md -- preview is a registered read-only action.
+package github
+
+import (
+	"context"
+	"net/http"
+	"strconv"
+
+	"github.com/ze-software/ze/internal/core/opererr"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+)
+
+type notificationRunReader func(context.Context, uint64) (Report, error)
+
+func notificationActions() []leaction.Action {
+	return []leaction.Action{notificationPreviewAction(readNotificationRun)}
+}
+
+func notificationPreviewAction(read notificationRunReader) leaction.Action {
+	return leaction.Action{Verb: "preview", Summary: "render candidate maintainer messages without delivery",
+		Why: "Read one identified trusted main-branch workflow run and render unapproved candidate messages. This action sends nothing, records no approval and changes no delivery state; the common output pipe can retain the preview for review.",
+		Parameters: []leaction.Parameter{
+			{Keyword: "run", Kind: leaction.KindUint, Value: "run-id", Requirement: leaction.Required, Help: "the positive GitHub Actions run ID to preview"},
+			{Keyword: "destination", Kind: leaction.KindLabel, Value: "label", Requirement: leaction.Required, Help: "the proposed token-free destination label"},
+		}, AnswerArgs: func(args leaction.Arguments) (any, int) { return answerNotificationPreview(args, read) }}
+}
+
+func readNotificationRun(ctx context.Context, id uint64) (Report, error) {
+	client, err := NewClient(http.DefaultTransport)
+	if err != nil {
+		return Report{}, err
+	}
+	return client.reportRun(ctx, id)
+}
+
+func answerNotificationPreview(args leaction.Arguments, read notificationRunReader) (any, int) {
+	id, err := strconv.ParseUint(args.One("run"), 10, 64)
+	if err != nil {
+		return notificationPreviewError(err, 2)
+	}
+	if id == 0 {
+		return notificationPreviewError(errInput, 2)
+	}
+	destination, err := newNotificationDestination(args.One("destination"), "", "")
+	if err != nil {
+		return notificationPreviewError(err, 2)
+	}
+	template, err := candidateNotificationTemplate()
+	if err != nil {
+		return notificationPreviewError(err, 3)
+	}
+	report, err := read(context.Background(), id)
+	if err != nil {
+		return notificationPreviewError(err, 1)
+	}
+	preview, err := buildNotificationPreview(report, template, destination)
+	if err != nil {
+		return notificationPreviewError(err, 1)
+	}
+	return preview, 0
+}
+
+func notificationPreviewError(err error, code int) (any, int) {
+	leaction.ReportError(opererr.Wrap(err, "GitHub notification preview could not be prepared",
+		"No message was sent and no approval or delivery state was recorded.", "./le help github preview"))
+	return nil, code
+}

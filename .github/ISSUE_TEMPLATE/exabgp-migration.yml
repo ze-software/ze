@@ -1,0 +1,43 @@
+name: ExaBGP migration report
+description: Report a configuration or process-script difference when moving from ExaBGP.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [migration guide](https://github.com/ze-software/ze/blob/main/docs/exabgp/exabgp-migration.md) describes the migration and known differences.
+        Please redact credentials and private network details. Possible security vulnerabilities use [SECURITY.md](https://github.com/ze-software/ze/blob/main/SECURITY.md).
+  - type: input
+    id: versions
+    attributes:
+      label: ExaBGP version and Ze commit or build
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and migration path
+      description: OS, architecture, relevant peer software, and whether the problem occurs during configuration migration or when using the process-script bridge.
+    validations:
+      required: true
+  - type: textarea
+    id: original
+    attributes:
+      label: Redacted ExaBGP example
+      description: The smallest configuration and process-script input that demonstrates the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and Ze output
+      description: Commands used, converted configuration where relevant, and the observed result or error.
+    validations:
+      required: true
+  - type: textarea
+    id: comparison
+    attributes:
+      label: ExaBGP behavior and expected Ze behavior
+      description: What ExaBGP does with the same input, and what you expected Ze to do. Include relevant redacted peer or route output if available.
+    validations:
+      required: true

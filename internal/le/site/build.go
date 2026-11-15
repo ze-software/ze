@@ -93,6 +93,10 @@ func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 	if err != nil {
 		return BuildReport{}, err
 	}
+	sourceObservation, err := publicationBuildStart(ctx, paths, digest)
+	if err != nil {
+		return BuildReport{}, err
+	}
 
 	// The artifact as it was last published both seeds this build and answers
 	// which pages the build left alone. Take it before any file is replaced.
@@ -105,6 +109,9 @@ func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 	if options.Partial {
 		if info, statErr := os.Stat(paths.Output); statErr != nil || !info.IsDir() {
 			return BuildReport{}, fmt.Errorf("partial build requires an existing full artifact: %s", paths.Output)
+		}
+		if err := publicationPartial(paths); err != nil {
+			return BuildReport{}, err
 		}
 	} else if err := seedArtifact(paths, previous); err != nil {
 		return BuildReport{}, err
@@ -156,6 +163,11 @@ func Build(ctx context.Context, options BuildOptions) (BuildReport, error) {
 	coverage, err := coverageOf(paths.Output, claims)
 	if err != nil {
 		return BuildReport{}, err
+	}
+	if !options.Partial {
+		if err := publicationBuildFinish(ctx, paths, sourceObservation); err != nil {
+			return BuildReport{}, err
+		}
 	}
 
 	return BuildReport{

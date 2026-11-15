@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Private security report
+    url: https://github.com/ze-software/ze/blob/main/SECURITY.md
+    about: Use the private contact in the security policy for possible vulnerabilities.
+  - name: Questions about using Ze
+    url: https://discord.gg/T8s7CjPDne
+    about: Ask the community on Discord.

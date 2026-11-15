@@ -17,9 +17,9 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
-// ProducerBuildOptions controls one run of named producers over an existing
+// producerBuildOptions controls one run of named producers over an existing
 // full artifact.
-type ProducerBuildOptions struct {
+type producerBuildOptions struct {
 	Repository string
 	Output     string
 	// Producers names the producers to run, as Producer.Name spells them. Each
@@ -28,12 +28,12 @@ type ProducerBuildOptions struct {
 	Producers []string
 }
 
-// ProducerBuildReport identifies what one producer run wrote.
+// producerBuildReport identifies what one producer run wrote.
 //
 // Routes names every route the producers answered, so a reader finds the page
 // under review. Coverage is the artifact's coverage after the run, read from the
 // record the run merged, so it is what `./le site check` answers next.
-type ProducerBuildReport struct {
+type producerBuildReport struct {
 	Output    string   `json:"output"`
 	Producers []string `json:"producers"`
 	Routes    []string `json:"routes"`
@@ -43,7 +43,7 @@ type ProducerBuildReport struct {
 	Coverage  Coverage `json:"coverage"`
 }
 
-// BuildProducers re-renders the pages of the named producers over an existing
+// buildProducers re-renders the pages of the named producers over an existing
 // full artifact, so a page under review is published in seconds rather than
 // with the whole site. Producers marked AlwaysOnPartial refresh their shared
 // artifacts on this path too.
@@ -73,62 +73,65 @@ type ProducerBuildReport struct {
 // producer's claims stand. A record of this run alone would read every other
 // page as unclaimed, and `./le site check` would refuse an artifact that is
 // whole.
-func BuildProducers(options ProducerBuildOptions) (ProducerBuildReport, error) {
+func buildProducers(options producerBuildOptions) (producerBuildReport, error) {
 	selection, err := selectProducers(options.Producers)
 	if err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	paths, err := buildPaths(options.Repository, options.Output)
 	if err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	recorded, err := fullArtifactClaims(paths, options.Output)
 	if err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
+	}
+	if err := publicationPartial(paths); err != nil {
+		return producerBuildReport{}, err
 	}
 	if err := derived.EnsureAll(paths.Repository); err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 
 	// The pages as they were published, read before any producer writes, so a
 	// page this run rewrote to the same bytes keeps its publication stamp.
 	previous, err := claimedPages(paths.Output, recorded, selection.names)
 	if err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	byRoute := make(map[string][]string)
 	if err := renderInto(byRoute, selection.pages, paths); err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	if err := renderInto(byRoute, selection.finished, paths); err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	claims := mergeClaims(recorded, selection.names, byRoute)
 	if err := writeProducerRecord(paths, claims); err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	if err := removeSourceOnly(paths.Output); err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	if err := writeArtifactIgnore(paths.Output); err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 
 	pages, err := pageRegistry(paths.Output)
 	if err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	published := buildClock()
 	stamps, err := stampWritten(paths.Output, pages, byRoute, previous, published)
 	if err != nil {
-		return ProducerBuildReport{}, err
+		return producerBuildReport{}, err
 	}
 	routes := make([]string, 0, len(byRoute))
 	for route := range byRoute {
 		routes = append(routes, route)
 	}
 	slices.Sort(routes)
-	return ProducerBuildReport{
+	return producerBuildReport{
 		Output:    paths.Output,
 		Producers: selection.names,
 		Routes:    routes,

@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a problem in Ze's behavior.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove passwords, keys, tokens, and private network details from examples and logs.
+        For a possible security vulnerability, use the private contact in [SECURITY.md](https://github.com/ze-software/ze/blob/main/SECURITY.md).
+  - type: input
+    id: build
+    attributes:
+      label: Ze commit or build
+      description: The commit ID or build information for the Ze instance that failed.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and architecture, kernel version, enabled build features, and relevant peer software or lab setup. Include what you know.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen, and the relevant documentation or protocol requirement if known.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: What happened, including the error or unexpected state.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and redacted example
+      description: The smallest configuration and command sequence that reproduces the problem. Say if it occurs intermittently.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted logs or other evidence
+      description: Relevant output, packet details, or a link to an existing report. Review attachments for private information before posting.

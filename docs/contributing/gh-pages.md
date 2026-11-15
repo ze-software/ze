@@ -308,7 +308,7 @@ lists the producer names from the registry. Edit, run it, look at the page, and
 repeat; the tests and the commit come once the owner approves the pages. What
 the run keeps and skips, and why, is in `website/AI.md`, "Reviewing a page
 while you edit it".
-<!-- source: internal/le/site/buildproducer.go -- BuildProducers -->
+<!-- source: internal/le/site/buildproducer.go -- buildProducers -->
 
 `./le site check` also refuses a page that shows a value of
 `data/site-facts.json` as plain text, outside its `data-ze-stat` or
@@ -348,6 +348,56 @@ The file's checks and the snapshot keys are in
 
 Local regeneration does not authorize a push or deployment. Never push without
 owner instruction.
+
+### Record and confirm reviewed publication bytes
+
+After the owner approves the pages, complete a full `./le site build` and the
+existing `./le site check`. Then run `./le site record source <full-source-sha>`
+with the full source commit ID observed by that build. The command retains all
+existing artifact checks before it records anything. Its receipt lives under
+the source checkout's `tmp/site/`, keyed by the artifact directory, outside
+the served website. Recording neither grants approval nor commits or pushes.
+<!-- source: internal/le/site/publication_actions.go -- runPublicationRecord, recordPublication -->
+
+A full build records its observed source HEAD, the existing website-source
+digest and its scope, dirty-path qualification, and the final artifact file
+hashes. The source digest covers tracked and nonignored untracked files under
+`website/`; it does not hash native generator code, command/catalog inputs or
+RFC caches. Dirty paths disclose working-tree inputs rather than proving their
+contents. The reviewed artifact bytes are the publication authority, not a
+claim that HEAD alone reproduces the site. A partial producer render invalidates
+whole-build provenance before replacing any page. Missing, legacy, mixed or
+raced provenance requires a fresh full build instead of a guessed source.
+<!-- source: internal/le/site/publication.go -- publicationSourceScope, publicationBuildStart, publicationBuildFinish, publicationPartial -->
+
+`./le site check receipt` checks that the observed source identity and reviewed
+artifact bytes still match. Commit only the reviewed artifact through the
+normal `./le commit` flow, and push only on the owner's instruction. After
+Pages reports completion, `./le site check deployment <full-artifact-sha>`
+requires that artifact checkout to be clean at the exact commit, with the same
+tracked file set as the receipt. An old HEAD with matching but uncommitted
+working-tree bytes is refused. Tracked ignored files cannot hide outside the
+reviewed file set. The check reads the selected commit's raw blobs, without Git
+filters or replacement objects, and compares every file's size and SHA-256 with
+the receipt. Index flags cannot hide a difference. Regular file modes 100644
+and 100755 are permitted because the receipt identifies served bytes, not the
+executable bit; symlinks and gitlinks are refused. Receipt changes are derived
+from raw baseline commit bytes, so index flags cannot omit a changed asset.
+<!-- source: internal/le/site/actions.go -- runCheck -->
+<!-- source: internal/le/site/publication_actions.go -- checkPublication, publicationCommit -->
+<!-- source: internal/le/site/publication_tree.go -- publicationCommittedFiles, publicationTreeEntries -->
+
+Deployment confirmation reads the newest `github-pages` deployment and its
+newest status; an older success never replaces a newer pending or failed run.
+It requires the exact artifact SHA, `gh-pages` ref, successful status and
+`https://ze-software.net/` origin, then checks the homepage and changed public
+routes/assets against the reviewed file hashes. Deleted public files must
+answer 404 or 410. Probes use fixed origins, no redirects, byte limits and a
+deadline. A failed or incomplete probe is not confirmation. The commands do
+not generate the website in CI, start a review server, send messages or perform
+an automatic recovery. Recovery uses a new normal commit of an approved prior
+artifact.
+<!-- source: internal/le/site/publication_deployment.go -- confirmPublication, publicationProbe, publicationProbeFile -->
 
 Before it builds, `./le site build` warns on stderr, and lists under
 `stale-supported` in its report, every feature held at Supported whose recorded
