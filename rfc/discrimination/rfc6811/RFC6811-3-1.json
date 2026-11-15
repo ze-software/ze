@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6811-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction",
+    "unit-sha": "a2a8eecf0c2db362",
+    "claim-sha": "3219e253beeab038",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::buildDecisions",
+    "producer-sha": "a37847bb7d668b33",
+    "break": "line 1135: \"reject = originInvalidAction == ASPAPolicyReject\" -\u003e \"reject = true\""
+  },
+  {
+    "rid": "RFC6811-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction",
+    "unit-sha": "a2a8eecf0c2db362",
+    "claim-sha": "c77df423db50f2f8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/rpki.go::buildDecisions",
+    "producer-sha": "a37847bb7d668b33",
+    "break": "line 1134: \"case ValidationInvalid:\" -\u003e \"case ValidationInvalid, ValidationValid:\""
+  }
+]

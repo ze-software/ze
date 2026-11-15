@@ -1,0 +1,13 @@
+{
+  "note": "RFC 6811 Section 2 states: 'An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so.' TestBuildDecisionsOriginInvalidAction always assigns an explicit accept or reject action before calling buildDecisions. Its negative tests explicit acceptance, not the absence of explicit configuration. It asserts typed Accept results and preserves the accepted Invalid state, not installed Adj-RIB-In or BGP route-selection state. parseRPKIConfig initializes OriginInvalidAction to ASPAPolicyReject even for a cache-only configuration, and buildDecisions converts that implicit action to Accept=false and Ineligible=true for Invalid routes. The separate untagged TestRPKIInvalidExclusionRequiresExplicitConfiguration exposes that defect with cache-only input and preserves explicit-reject and Valid controls; a failing probe is not conformance proof. This bounded decision-builder evidence cannot justify the whole requirement as enforced.",
+  "requirement_sha": "3c8c7bbe16751954",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction": "9903ab59f055ac0c",
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction#2": "9903ab59f055ac0c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction": "b1ce1d5a00cc514d",
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction#2": "b1ce1d5a00cc514d"
+  },
+  "verdict": "weak"
+}

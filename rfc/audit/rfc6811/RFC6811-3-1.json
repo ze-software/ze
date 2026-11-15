@@ -1,0 +1,13 @@
+{
+  "note": "RFC 6811 Section 3 states: 'An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function.' TestBuildDecisionsOriginInvalidAction directly initializes the Invalid disposition, supplies preexisting Invalid and Valid validation states, and calls buildDecisions. It proves explicit accept/reject actions alter typed Accept results, a Valid control remains accepted, and accepting Invalid preserves its existing ValState. The native positive break rejects Invalid regardless of the stated accept action; the negative applies the Invalid action to Valid too. Both produce the intended named assertion failures. Neither test input contains a policy that assigns a new validation state, and buildDecisions copies req.state into ValState rather than this test exercising a policy set operation. No configured policy entry point or installed-route policy result is asserted here. The bounded disposition proofs do not prove the whole match-and-set requirement. This is an evidence finding, not a claim that no implementation of the missing behavior exists elsewhere; no whole-row or whole-RFC credit is justified.",
+  "requirement_sha": "4cadb60feaaef7d9",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction": "9903ab59f055ac0c",
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction#2": "9903ab59f055ac0c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction": "b1ce1d5a00cc514d",
+    "internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go::TestBuildDecisionsOriginInvalidAction#2": "b1ce1d5a00cc514d"
+  },
+  "verdict": "weak"
+}

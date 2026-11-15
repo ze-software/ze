@@ -102,16 +102,10 @@ func TestBuildDecisionsASPAOverride(t *testing.T) {
 // TestBuildDecisionsOriginInvalidAction verifies the RFC 6811 origin-validation disposition is an
 // operator-configurable, per-state policy choice rather than an automatic side effect.
 //
-// RFC requirement: RFC6811-2-2 positive -- exclusion of an Invalid route is explicitly configured:
-// with invalid-action=reject the Invalid route is excluded (Accept=false).
-// RFC requirement: RFC6811-2-2 negative -- absent that configuration the route is NOT excluded as
-// a side effect of its state: with invalid-action=accept the Invalid route stays in the
-// Adj-RIB-In (Accept=true), still marked with its Invalid validation state.
-// RFC requirement: RFC6811-3-1 positive -- the operator can match a validation state and set its
-// disposition: the configured invalid-action determines whether the Invalid route is rejected or
-// accepted, and the accepted route retains its Invalid state marker.
-// RFC requirement: RFC6811-3-1 negative -- the action is state-specific, not a blanket rule: a
-// Valid route is accepted regardless of the invalid-action, so the policy is keyed on the state.
+// RFC requirement: RFC6811-2-2 positive -- explicit invalid-action=reject produces a typed Accept=false decision for the Invalid input; the Valid control remains accepted.
+// RFC requirement: RFC6811-2-2 negative -- explicit invalid-action=accept produces Accept=true and retains ValState=Invalid in the typed decision; this does not test missing configuration or installed RIB state.
+// RFC requirement: RFC6811-3-1 positive -- the configured Invalid-state action selects its typed acceptance disposition; this does not prove policy assignment of a validation state.
+// RFC requirement: RFC6811-3-1 negative -- the Invalid-state rejection action leaves the Valid control accepted, rather than rejecting every validation state.
 func TestBuildDecisionsOriginInvalidAction(t *testing.T) {
 	newRP := func(action uint8) *rPKIPlugin {
 		rp := &rPKIPlugin{cache: newROACache(), aspaCache: newASPACache(), stopCh: make(chan struct{})}
