@@ -136,6 +136,7 @@ func domainGroupSetFor(ctx context.Context, group string) (string, error) {
 // domainGroupSetForHolds reports whether one group's IPv4 set holds address.
 func domainGroupSetForHolds(ctx context.Context, group, address string) bool {
 	out, err := domainGroupSetFor(ctx, group)
+	// refuse-by-default: guards Poll -- an unreadable set cannot satisfy the positive address prerequisite; exhaustion fails the scenario.
 	if err != nil {
 		return false
 	}
@@ -205,10 +206,18 @@ func domainGroupRestartKeepsAnswers(ctx context.Context, args []string) error {
 	first.stop()
 	stoppedAt := time.Now()
 
+	var removalErr error
 	if !Poll(ctx, domainGroupRestartPollAttempts, netfilterPollDelay, func() bool {
-		_, readErr := domainGroupSetFor(ctx, domainGroupRestartLong)
-		return readErr != nil
+		var absent bool
+		absent, removalErr = domainGroupTableAbsent(ctx, domainGroupTablePrefix+domainGroupRestartTable)
+		if removalErr != nil {
+			return false
+		}
+		return absent
 	}) {
+		if removalErr != nil {
+			return fmt.Errorf("could not confirm the stopped daemon removed its table: %w", removalErr)
+		}
 		return errors.New("the stopped daemon left its table in the kernel, so the second start's set could not be told from the first's")
 	}
 

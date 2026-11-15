@@ -371,15 +371,22 @@ func domainGroupClear(ctx context.Context, args []string) error {
 	// (buildGroupSets, internal/component/firewall/plugins/domain/sets.go), and
 	// dropTablesMissingAProvidedSet (internal/component/firewall/registry.go)
 	// then holds back the operator's table whose term names it.
-	var remaining string
+	var absenceErr error
 	if !Poll(ctx, domainGroupPollAttempts, netfilterPollDelay, func() bool {
-		out, readErr := netfilterCommandOutput(ctx, "nft", "list", "table", "inet", domainGroupTablePrefix+domainGroupTableClear)
-		if readErr != nil {
-			return true
+		var absent bool
+		absent, absenceErr = domainGroupTableAbsent(ctx, domainGroupTablePrefix+domainGroupTableClear)
+		if absenceErr != nil {
+			return false
 		}
-		remaining = out
-		return false
+		return absent
 	}) {
+		if absenceErr != nil {
+			return fmt.Errorf("could not confirm the domain group's table was removed: %w", absenceErr)
+		}
+		remaining, readErr := netfilterCommandOutput(ctx, "nft", "list", "table", "inet", domainGroupTablePrefix+domainGroupTableClear)
+		if readErr != nil {
+			return fmt.Errorf("the table remained after the clear, but its contents could not be read: %w", readErr)
+		}
 		// Printed on purpose: a table still carrying the addresses is exactly
 		// what the `.ci` file's absence assertions are written to catch, and
 		// this is the evidence they read.
