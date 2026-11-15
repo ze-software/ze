@@ -1276,8 +1276,9 @@ var scenarioOperations = map[string][]operation{
 		// The peer's own view of the route it installed: routeSnapshot reads the routes the
 		// IPv4-unicast engine's last SPF run selected, the same set that run handed the
 		// installer (spf.Computer.Run, c.last), so the AS-External 10.99.0.0/24 the kernel
-		// holds above is a row here. Read from the IPv6-unicast engine alone, as every OSPFv3
-		// view was before, the answer is empty and this step stays red.
+		// holds above is a row here. A route view that read the IPv6-unicast engine alone would
+		// answer only that engine's routes, none of them 10.99.0.0/24 or tagged ipv4-unicast,
+		// so this step would stay red.
 		{kind: opWaitContains, peer: peerZePeer, command: zeCommand("show ospf ipv6 route address-family ipv4-unicast"), contains: []string{`"address-family": "ipv4-unicast"`, `"instance-id": 64`, `"prefix": "10.99.0.0/24"`}, timeout: 60 * time.Second},
 	},
 	"ospf-multiarea-frr": {

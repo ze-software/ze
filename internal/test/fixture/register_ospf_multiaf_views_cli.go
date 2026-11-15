@@ -20,7 +20,7 @@ func init() {
 	Register("ospf/ospf-multiaf-views-cli", ospfMultiAFViewsCLIReady)
 }
 
-// ospfMultiAFViewsCLIReady is the barrier test/draft/ospf/ospf-multiaf-views-cli.ci runs
+// ospfMultiAFViewsCLIReady is the barrier test/ospf/ospf-multiaf-views-cli.ci runs
 // before its `ze cli -c` steps. It asserts nothing about the client: those steps are the
 // proof, and the runner runs them as the daemon's own user, as an operator on the box.
 //

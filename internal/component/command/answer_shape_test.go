@@ -2,8 +2,11 @@ package command
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func decode(t *testing.T, payload string) any {
@@ -334,5 +337,57 @@ func TestEmptyKeyedEnvelopeStaysZeroRows(t *testing.T) {
 	}
 	if taken != input {
 		t.Errorf("first changed the empty keyed answer: got %s, want %s", taken, input)
+	}
+}
+
+// TestPluginShapesFromDeclsConvertsEachShapedDeclaration checks the one conversion from a
+// plugin's Stage 1 command declarations to the shapes RegisterPluginShapes writes.
+//
+// Method: three declarations go in. One names no shape and must be skipped, and two name
+// shapes and must come out in order, each carrying its command, its parsed shape, its
+// columns and its address fields. A fourth declaration with a misspelled shape must be
+// refused, naming the command, the spelling and the spellings a declaration may use, and
+// never read as a document.
+func TestPluginShapesFromDeclsConvertsEachShapedDeclaration(t *testing.T) {
+	decls := []rpc.CommandDecl{
+		{Name: "show thing"},
+		{Name: "show thing rows", Shape: rpc.AnswerTypeTable, Columns: []string{"name", "state"}, AddressFields: []string{"peer"}},
+		{Name: "show thing summary", Shape: "doc"},
+	}
+	got, err := PluginShapesFromDecls(decls)
+	if err != nil {
+		t.Fatalf("PluginShapesFromDecls: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("PluginShapesFromDecls answered %d shapes, want 2 (the shapeless one skipped): %+v", len(got), got)
+	}
+	if got[0].Command != "show thing rows" {
+		t.Errorf("first shape is for %q, want %q", got[0].Command, "show thing rows")
+	}
+	if got[0].Shape != ShapeTab {
+		t.Errorf("first shape = %v, want %v", got[0].Shape, ShapeTab)
+	}
+	if !slices.Equal(got[0].Columns, ColumnOrder{"name", "state"}) {
+		t.Errorf("first shape columns = %v, want [name state]", got[0].Columns)
+	}
+	if !slices.Equal(got[0].AddressFields, []string{"peer"}) {
+		t.Errorf("first shape address fields = %v, want [peer]", got[0].AddressFields)
+	}
+	if got[1].Command != "show thing summary" {
+		t.Errorf("second shape is for %q, want %q", got[1].Command, "show thing summary")
+	}
+	if got[1].Shape != ShapeDoc {
+		t.Errorf("second shape = %v, want %v", got[1].Shape, ShapeDoc)
+	}
+
+	misspelled := append(slices.Clone(decls), rpc.CommandDecl{Name: "show thing typo", Shape: "Doc"})
+	refused, err := PluginShapesFromDecls(misspelled)
+	if err == nil {
+		t.Fatalf("a misspelled shape was accepted as %+v", refused)
+	}
+	for _, want := range []string{`"show thing typo"`, `"Doc"`, AnswerShapeSpellings()} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not name %s", err, want)
+		}
 	}
 }

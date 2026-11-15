@@ -3417,6 +3417,9 @@ nothing.
 `registerPluginShapes` then writes under `startupRegistrationMu`, between the
 pipe aliases and the runtime families, and joins the same unwind.
 `UnregisterPluginShapes` takes the whole declaration back when the plugin stops.
+The conversion from a `CommandDecl` to what the registries hold is one function,
+`command.PluginShapesFromDecls`. A test that renders a plugin's answers under the
+plugin's own declarations calls it too, so it registers the same shapes as Stage 1.
 
 **A plugin can never panic the daemon with a declaration.** The three registries
 keep the panic on `declare`, which only Go compiled into the daemon reaches. The
@@ -3436,7 +3439,7 @@ table above records, for the same reason.
 
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, registerPluginShapes -->
-<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
+<!-- source: internal/component/command/answer_shape.go -- PluginShapesFromDecls, RegisterPluginShapes, UnregisterPluginShapes -->
 <!-- source: internal/component/command/column_order.go -- declarationRegistry, declare, declareFor, withdraw -->
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->

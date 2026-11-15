@@ -12,6 +12,8 @@ import (
 	"testing/synctest"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -95,27 +97,15 @@ func TestOSPFv3ViewDeclsMatchV3Views(t *testing.T) {
 // ospfShapeOwner is the owner the test declares this plugin's answer shapes under.
 const ospfShapeOwner = "ospf-shape-test"
 
-// declareOSPFShapes registers this plugin's answer shapes the way Stage 1 does
-// (registerPluginShapes, internal/component/plugin/server/startup.go), so a chain renders
-// against what the plugin itself declares, and withdraws them when the test ends.
+// declareOSPFShapes registers this plugin's answer shapes through the conversion Stage 1
+// calls (command.PluginShapesFromDecls, from registerPluginShapes in
+// internal/component/plugin/server/startup.go), so a chain renders against what the plugin
+// itself declares, and withdraws them when the test ends.
 func declareOSPFShapes(t *testing.T) {
 	t.Helper()
-	decls := commandDecls()
-	declared := make([]command.PluginShape, 0, len(decls))
-	for i := range decls {
-		if decls[i].Shape == "" {
-			continue
-		}
-		shape, known := command.ParseAnswerShape(decls[i].Shape)
-		if !known {
-			t.Fatalf("%s declares shape %q, which Stage 1 refuses", decls[i].Name, decls[i].Shape)
-		}
-		declared = append(declared, command.PluginShape{
-			Command:       decls[i].Name,
-			Shape:         shape,
-			Columns:       command.ColumnOrder(decls[i].Columns),
-			AddressFields: decls[i].AddressFields,
-		})
+	declared, err := command.PluginShapesFromDecls(commandDecls())
+	if err != nil {
+		t.Fatalf("Stage 1 refuses the OSPF answer shapes: %v", err)
 	}
 	if err := command.RegisterPluginShapes(ospfShapeOwner, declared); err != nil {
 		t.Fatalf("register the OSPF answer shapes: %v", err)
@@ -243,6 +233,65 @@ func TestOSPFv3ViewTableLeadsWithTheInstance(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestRIViewTableLeadsWithTheVersion checks that `| table` over a Router Information view
+// puts `af`, `address-family` and `instance-id` first in the header of its entries (the
+// columns riViewColumns declares).
+//
+// Method: an OSPFv2 engine and two OSPFv3 address-family engines (ipv6-unicast, ipv4-unicast)
+// each hold an RI LSA, and `show ospf database router-information` is answered through its
+// producer (routerInformationView) and rendered by the CLI's pipe chain under the plugin's
+// own declarations. The answer wraps its entries in a router-information list, so their
+// header is a nested table line, found as the line whose cells name both `af` and
+// `advertising-router`. Sorted by name, that header starts `address-family`,
+// `advertising-router`, `af`; declared, it must start `af`, `address-family`, `instance-id`.
+func TestRIViewTableLeadsWithTheVersion(t *testing.T) {
+	declareOSPFShapes(t)
+	resetOpaqueConsumers()
+	t.Cleanup(resetOpaqueConsumers)
+	resetRITLVs()
+	t.Cleanup(resetRITLVs)
+
+	v4 := newRIv2Engine(t)
+	set := twoAFIdleSet(t)
+	router := types.RouterID{10, 0, 0, 1}
+	originateV6RIArea(t, set, afIPv6Unicast, router, packet.RIInfoBitStubRouter)
+	originateV6RIArea(t, set, afIPv4Unicast, router, packet.RIInfoBitGracefulRestart)
+
+	answer, err := routerInformationView(set, v4, cmdShowDatabaseRI, nil)
+	if err != nil {
+		t.Fatalf("%s: %v", cmdShowDatabaseRI, err)
+	}
+	payload, err := json.Marshal(answer)
+	if err != nil {
+		t.Fatalf("%s: marshal: %v", cmdShowDatabaseRI, err)
+	}
+	table := renderV3View(t, cmdShowDatabaseRI+" | table", payload)
+
+	var header []string
+	for line := range strings.SplitSeq(table, "\n") {
+		var cells []string
+		for part := range strings.SplitSeq(line, "│") {
+			if cell := strings.TrimSpace(part); cell != "" {
+				cells = append(cells, cell)
+			}
+		}
+		if slices.Contains(cells, "af") && slices.Contains(cells, "advertising-router") {
+			header = cells
+			break
+		}
+	}
+	if header == nil {
+		t.Fatalf("`| table` rendered no header for the Router Information entries:\n%s", table)
+	}
+	lead := []string{"af", keywordAddressFamily, fieldInstanceID}
+	if len(header) < len(lead) {
+		t.Fatalf("`| table` entries header %v, want it to start %v:\n%s", header, lead, table)
+	}
+	if !slices.Equal(header[:len(lead)], lead) {
+		t.Fatalf("`| table` entries header %v, want it to start %v:\n%s", header, lead, table)
+	}
 }
 
 // jsonString spells a decoded JSON scalar as a table cell spells it.

@@ -1824,24 +1824,15 @@ func clampDeclared(value string) string {
 //
 // The plugin name is what UnregisterPluginShapes takes the declaration back
 // under, on the rollback path and when the plugin stops.
+//
+// The conversion from a declaration to a shape is command.PluginShapesFromDecls,
+// the one function a test that renders a plugin's answers under its own
+// declarations calls too. validateShapeDecls has refused every shape spelling
+// that conversion would refuse, so its error is not expected here.
 func registerPluginShapes(owner string, commands []rpc.CommandDecl) error {
-	declared := make([]command.PluginShape, 0, len(commands))
-	for i := range commands {
-		c := &commands[i]
-		if c.Shape == "" {
-			continue
-		}
-		shape, known := command.ParseAnswerShape(c.Shape)
-		if !known {
-			return fmt.Errorf("command %q declares answer shape %q, which is not %s",
-				clampDeclared(c.Name), clampDeclared(c.Shape), command.AnswerShapeSpellings())
-		}
-		declared = append(declared, command.PluginShape{
-			Command:       c.Name,
-			Shape:         shape,
-			Columns:       command.ColumnOrder(c.Columns),
-			AddressFields: c.AddressFields,
-		})
+	declared, err := command.PluginShapesFromDecls(commands)
+	if err != nil {
+		return err
 	}
 	if len(declared) == 0 {
 		return nil

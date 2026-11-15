@@ -1110,7 +1110,7 @@ contract is in `docs/architecture/api/commands.md`.
 
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, clampDeclared, registerPluginShapes -->
-<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
+<!-- source: internal/component/command/answer_shape.go -- PluginShapesFromDecls, RegisterPluginShapes, UnregisterPluginShapes -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 
 ### Query Mode: Stage 1 and No Stage 2

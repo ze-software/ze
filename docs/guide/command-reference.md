@@ -1210,6 +1210,9 @@ OSPFv3 runs one instance per configured address family (RFC 5838), and every
 **`graceful-restart`**, **`segment-routing`**, **`route`** and every **`database`**
 view. Each row names its `address-family` and `instance-id`, so the rows of the
 IPv6-unicast and IPv4-unicast instances can be told apart in `| json` and `| table`.
+The two segment-routing views, `segment-routing` and `database segment-routing`, are
+the exception: they answer one record, the IPv6 Segment Routing state of the OSPFv2
+Router ID, which belongs to no OSPFv3 instance and carries neither key.
 **`show ospf ipv6 route`** lists the routes each OSPFv3 instance computed;
 `show ospf route` lists the OSPFv2 ones. Each of these views, and **`show ospf database
 router-information`** for its OSPFv3 part, takes an optional `address-family` keyword
@@ -1228,6 +1231,7 @@ inject enable` arms injection, the command is refused whatever family it names.
 
 <!-- source: internal/plugins/ospf/yang/ze-ospf-cmd.yang -- grouping ospfv3-address-family, container route -->
 <!-- source: internal/plugins/ospf/cmd_show.go -- afViewForwarder, addressFamilyArgs -->
+<!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v3SegmentRoutingView -->
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/te_show.go -- teDatabaseSnapshot, teDecodeOpaqueLSA -->
 <!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, v3RouterInformationView, riDatabaseSnapshot, decodeRIBody -->

@@ -44,10 +44,6 @@ type v3InjectParams struct {
 	withdraw    bool
 }
 
-// injectAFUsage is the inject command with the address-family keyword in place, the fix a
-// refusal of that keyword names.
-const injectAFUsage = cmdDebugInjectLSA + " type <ls-type> id <link-state-id> address-family <family>"
-
 // debugInjectIntoAF serves `debug ipv6 ospf inject lsa`: it injects or withdraws a crafted
 // OSPFv3 LSA in the LSDB of the address family cmdArgs names with `address-family <af>`,
 // or of ipv6-unicast when it names none, by handing the other arguments to that engine's
@@ -94,12 +90,15 @@ func splitInjectAddressFamily(cmdArgs []string) (addressFamily, []string, error)
 		if named {
 			return 0, nil, opererr.New(keywordAddressFamily+" is given more than once",
 				"the LSA goes into the LSDB of one address family, so the keyword is given once",
-				injectAFUsage)
+				injectCommandNamingOnce(af, cmdArgs))
 		}
 		if i+1 == len(cmdArgs) {
+			// Which families run is this router's state, so the fix lists them rather
+			// than guess one for the operator.
 			return 0, nil, opererr.New(keywordAddressFamily+" has no value",
-				"the keyword is followed by one of "+afNameList(afRangeOrder),
-				injectAFUsage)
+				"the keyword is followed by one of "+afNameList(afRangeOrder)+
+					", and the command below lists the ones running here",
+				cmdShowIPv6Instance)
 		}
 		parsed, ok := afFromCanonicalName(cmdArgs[i+1])
 		if !ok {
@@ -108,6 +107,33 @@ func splitInjectAddressFamily(cmdArgs []string) (addressFamily, []string, error)
 		af, named, i = parsed, true, i+2
 	}
 	return af, rest, nil
+}
+
+// injectCommandNamingOnce spells the inject command the operator typed with one
+// address-family pair: the family the first pair named, then every other argument in the
+// order given. Every address-family keyword is dropped, and so is the word after one when
+// that word is an address family name, so a word that belongs to another keyword stays. It
+// is the fix a repeated keyword's refusal names (splitInjectAddressFamily), a line the
+// operator can run as it stands. The loop is bounded by the argument count.
+func injectCommandNamingOnce(af addressFamily, cmdArgs []string) string {
+	words := make([]string, 0, len(cmdArgs)+3)
+	words = append(words, cmdDebugInjectLSA, keywordAddressFamily, af.String())
+	i := 0
+	for i < len(cmdArgs) {
+		if cmdArgs[i] != keywordAddressFamily {
+			words = append(words, cmdArgs[i])
+			i++
+			continue
+		}
+		i++
+		if i == len(cmdArgs) {
+			break
+		}
+		if _, isFamily := afFromCanonicalName(cmdArgs[i]); isFamily {
+			i++
+		}
+	}
+	return strings.Join(words, " ")
 }
 
 // debugInjectV3 validates and (if debug is enabled) originates or withdraws a crafted

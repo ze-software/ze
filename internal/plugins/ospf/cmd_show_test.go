@@ -73,6 +73,15 @@ func TestAddressFamilyArgsForwardOneShape(t *testing.T) {
 				if !strings.Contains(refusal.Error(), "show ospf ipv6 instance") {
 					t.Fatalf("refusal %q does not name show ospf ipv6 instance", refusal.Error())
 				}
+				// The fix is the bare view, which answers every running family; a
+				// placeholder or any other line would not run as typed.
+				if refusal.Fix() != cmdShowIPv6Neighbor {
+					t.Fatalf("refusal fix = %q, want exactly %q", refusal.Fix(), cmdShowIPv6Neighbor)
+				}
+				lines := strings.Split(refusal.Error(), "\n")
+				if last := lines[len(lines)-1]; last != "fix: "+cmdShowIPv6Neighbor {
+					t.Fatalf("refusal ends %q, want the fix line %q", last, "fix: "+cmdShowIPv6Neighbor)
+				}
 				return
 			}
 			if refusal != nil {

@@ -67,7 +67,8 @@ func TestDebugInjectLSATargetsTheNamedAddressFamily(t *testing.T) {
 // TestDebugInjectLSARefusesAnAddressFamilyItCannotUse proves an armed injection refuses an
 // address-family keyword it cannot act on, and injects nothing: an unknown word (naming the
 // four families), a family that is not running (naming the running ones and the command
-// that lists them), a repeated keyword and a keyword with no value.
+// that lists them), a repeated keyword (whose fix is the operator's own command with the
+// keyword once) and a keyword with no value (whose fix lists the running families).
 func TestDebugInjectLSARefusesAnAddressFamilyItCannotUse(t *testing.T) {
 	injectEnabled(t)
 	set := twoAFIdleSet(t)
@@ -84,10 +85,15 @@ func TestDebugInjectLSARefusesAnAddressFamilyItCannotUse(t *testing.T) {
 			[]string{strconv.Quote(afNameIPv6), afNameIPv6Unicast, afNameIPv6Multicast, afNameIPv4Unicast, afNameIPv4Multicast}},
 		{"not running", append([]string{keywordAddressFamily, afNameIPv4Multicast}, v3InjectRouterLSA...),
 			[]string{afNameIPv6Unicast, afNameIPv4Unicast, cmdShowIPv6Instance}},
+		// The fix is the operator's own command with the keyword once, so it runs as typed.
 		{"repeated", append([]string{keywordAddressFamily, afNameIPv4Unicast, keywordAddressFamily, afNameIPv4Unicast}, v3InjectRouterLSA...),
-			[]string{"more than once"}},
+			[]string{"more than once", "\nfix: " + cmdDebugInjectLSA + " " + keywordAddressFamily + " " + afNameIPv4Unicast + " " + strings.Join(v3InjectRouterLSA, " ")}},
+		// A repeated keyword followed by another keyword keeps that keyword in the fix.
+		{"repeated before id", []string{keywordAddressFamily, afNameIPv4Unicast, "type", "0x2001", keywordAddressFamily, "id", "1", "hex", "00000000"},
+			[]string{"more than once", "\nfix: " + cmdDebugInjectLSA + " " + keywordAddressFamily + " " + afNameIPv4Unicast + " " + strings.Join(v3InjectRouterLSA, " ")}},
+		// The fix lists the running families, the value the keyword is missing.
 		{"no value", append(slices.Clone(v3InjectRouterLSA), keywordAddressFamily),
-			[]string{"no value"}},
+			[]string{"no value", "\nfix: " + cmdShowIPv6Instance}},
 	}
 	for _, tc := range cases {
 		_, err := set.debugInjectIntoAF(tc.args)

@@ -22,7 +22,12 @@
 
 package command
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
 
 // shapeRegistry holds the answer shape each command declares. The value is a
 // slice so that an EMPTY declaration is expressible: registering no shape marks
@@ -138,6 +143,43 @@ type PluginShape struct {
 	// AddressFields are the answer's JSON keys whose value holds an IP address.
 	// Empty declares none, which refuses the address operators by name.
 	AddressFields []string
+}
+
+// PluginShapesFromDecls answers the PluginShape each command declaration names,
+// in declaration order: the one conversion from what a plugin sends at Stage 1
+// to what RegisterPluginShapes writes. The daemon's Stage 1 (registerPluginShapes,
+// internal/component/plugin/server/startup.go) and a test that renders a
+// plugin's answers under its own declarations both call it, so neither carries a
+// copy that could drift from the other.
+//
+// A declaration that names no shape declares none and is skipped. A shape
+// spelling ParseAnswerShape does not know is refused, never read as a document.
+// The daemon has already refused such a declaration with its names clamped
+// (validateShapeDecls), so this refusal reaches only a caller that skipped that
+// check, and it bounds each echoed name to 64 runes for the same reason.
+//
+// Columns and AddressFields are carried as given; RegisterPluginShapes stores
+// its own normalized copy of each.
+func PluginShapesFromDecls(commands []rpc.CommandDecl) ([]PluginShape, error) {
+	declared := make([]PluginShape, 0, len(commands))
+	for i := range commands {
+		c := &commands[i]
+		if c.Shape == "" {
+			continue
+		}
+		shape, known := ParseAnswerShape(c.Shape)
+		if !known {
+			return nil, fmt.Errorf("command %.64q declares answer shape %.64q, which is not %s",
+				c.Name, c.Shape, AnswerShapeSpellings())
+		}
+		declared = append(declared, PluginShape{
+			Command:       c.Name,
+			Shape:         shape,
+			Columns:       ColumnOrder(c.Columns),
+			AddressFields: c.AddressFields,
+		})
+	}
+	return declared, nil
 }
 
 // RegisterPluginShapes declares the answer shapes of a caller outside this

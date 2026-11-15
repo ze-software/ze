@@ -261,7 +261,7 @@ of the OSPFv2 Router ID, which belongs to no OSPFv3 instance and so carries neit
 `address-family` nor `instance-id`.
 <!-- source: internal/plugins/ospf/register_multiaf.go -- selectInstances, afTaggedRow -->
 <!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v6DatabaseDetail, v3SegmentRoutingView -->
-<!-- source: internal/plugins/ospf/register.go -- v3ViewDecls, v3ViewColumns -->
+<!-- source: internal/plugins/ospf/register.go -- commandDecls, v3ViewColumns -->
 <!-- source: internal/plugins/ospf/multiaf.go -- afFromCanonicalName -->
 <!-- source: internal/plugins/ospf/inject_v3.go -- splitInjectAddressFamily -->
 
@@ -529,6 +529,7 @@ those three first, and an OSPFv2 entry leaves the two OSPFv3 cells empty. RI act
 <!-- source: internal/plugins/ospf/ri.go -- registerRIConsumer, deriveRICapabilities, riScopeHasTE, buildRIInstances, riMetrics -->
 <!-- source: internal/plugins/ospf/ri_registry.go -- registerRITLV, riTLVBuildersForScope -->
 <!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, riDatabaseSnapshot, riOSPFv3Instance -->
+<!-- source: internal/plugins/ospf/register.go -- commandDecls, riViewColumns -->
 <!-- source: internal/plugins/ospf/origination_v6_ri.go -- v6OriginateRI, v6RILSType -->
 <!-- source: internal/plugins/ospf/packet/ri_tlv.go -- RITLV, EncodeRITLVs, DecodeRITLVStream, RICapabilitiesValue -->
 

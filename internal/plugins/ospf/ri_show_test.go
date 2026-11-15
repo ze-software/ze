@@ -229,3 +229,33 @@ func TestRIShowMalformedTLV(t *testing.T) {
 func containsStubRouter(capabilities []string) bool {
 	return slices.Contains(capabilities, "stub-router")
 }
+
+// TestRIGroupOrderBreaksAnInstanceIDTieByAddressFamily pins the address-family step of
+// riGroupKeyLess: two OSPFv3 RI groups with the same Instance ID in different address
+// families render ordered by address family, before scope decides anything.
+//
+// Method: buildRIView over two observations of one router at OSPFv3 Instance ID 0, one
+// tagged ipv6-unicast at area scope and one tagged ipv4-unicast at link scope, given in
+// both input orders. The address-family step puts ipv4-unicast first; an order that skipped
+// it would fall through to scope and put the ipv6-unicast (area) group first.
+func TestRIGroupOrderBreaksAnInstanceIDTieByAddressFamily(t *testing.T) {
+	body := packet.EncodeRITLVs([]packet.RITLV{{
+		Type:  packet.RITLVInformationalCapabilities,
+		Value: packet.RICapabilitiesValue(packet.RIInfoBitMask(packet.RIInfoBitStubRouter)),
+	}})
+	unicast6 := riObservation{
+		af: "v3", ospfv3: &riOSPFv3Instance{AddressFamily: afNameIPv6Unicast, InstanceID: 0},
+		scope: "area", area: "0.0.0.0", advRouter: "10.0.0.1", body: body,
+	}
+	unicast4 := riObservation{
+		af: "v3", ospfv3: &riOSPFv3Instance{AddressFamily: afNameIPv4Unicast, InstanceID: 0},
+		scope: "link", area: "0.0.0.0", advRouter: "10.0.0.1", body: body,
+	}
+	want := []string{"v3 ipv4-unicast 0 stub-router", "v3 ipv6-unicast 0 stub-router"}
+	for _, obs := range [][]riObservation{{unicast6, unicast4}, {unicast4, unicast6}} {
+		if got := riEntrySummaries(buildRIView(obs)); !slices.Equal(got, want) {
+			t.Errorf("RI groups from %s then %s render %q, want %q",
+				obs[0].ospfv3.AddressFamily, obs[1].ospfv3.AddressFamily, got, want)
+		}
+	}
+}

@@ -183,7 +183,7 @@ operator command runs through the daemon on every command surface").
 | `show ospf ipv6 database address-family ipv4-unicast` from an observer plugin | → | `OnExecuteCommand` AF selection over `v6EngineSet` | `test/ospf/ospf-multiaf-views.ci` |
 | `show ospf ipv6 neighbor address-family ipv4-unicast` against a second Ze | → | per-AF `neighborSnapshot` | interop `ospf-multiaf-v4-frr` checker |
 | `show ospf ipv6 route address-family ipv4-unicast` on a second Ze that learned an AS-External route | → | per-AF `routeSnapshot` | interop `ospf-multiaf-v4-frr` checker, the route step on `peerZePeer` (`10.99.0.0/24` tagged `ipv4-unicast`, 64); `ospf-multiaf-views.ci` proves only the tag and the keyword, one router computing no route |
-| `ze cli -c` with `show ospf ipv6 database address-family ipv4-unicast`, rendered as JSON and as a table | → | SSH session, builtin proxy, plugin, pipe renderer | `test/draft/ospf/ospf-multiaf-views-cli.ci` (runner `ze cli -c` steps, after the `ospf/ospf-multiaf-views-cli` readiness barrier), promoted to `test/ospf/` after its draft run |
+| `ze cli -c` with `show ospf ipv6 database address-family ipv4-unicast`, rendered as JSON and as a table | → | SSH session, builtin proxy, plugin, pipe renderer | `test/ospf/ospf-multiaf-views-cli.ci` (runner `ze cli -c` steps, after the `ospf/ospf-multiaf-views-cli` readiness barrier), promoted from `test/draft/ospf/` after its draft run |
 
 ## Acceptance Criteria
 
@@ -215,6 +215,10 @@ operator command runs through the daemon on every command surface").
 | `TestDebugInjectLSARefusesAnAddressFamilyItCannotUse` | `internal/plugins/ospf/inject_v3_test.go` | AC-5 for inject: unknown word, AF not running, repeated keyword, no value; nothing injected | |
 | `TestOSPFCommandSchemaCarriesAddressFamily` | `internal/plugins/ospf/yang/cmd_schema_test.go` | AC-6: the leaf on every view, enumerated | |
 | `TestOSPFv3ViewTableLeadsWithTheInstance` | `internal/plugins/ospf/v3_view_shape_test.go` | AC-10: under the plugin's own declarations, `show ospf ipv6 route | table` over two AFs leads with `address-family`, `instance-id`, then `area`, and its rows match `| json` row for row | |
+| `TestOSPFv3ViewDeclsMatchV3Views` | `internal/plugins/ospf/v3_view_shape_test.go` | AC-10: `commandDecls` declares every `v3Views` key exactly once as a table led by `address-family`, `instance-id`, both RI views as `af`, `address-family`, `instance-id`, no other command with both identity columns, and no shared columns slice | |
+| `TestRIViewTableLeadsWithTheVersion` | `internal/plugins/ospf/v3_view_shape_test.go` | AC-10 for RI: under the plugin's own declarations, `show ospf database router-information | table` over an OSPFv2 and two OSPFv3 engines heads its entries `af`, `address-family`, `instance-id` | |
+| `TestRIGroupOrderBreaksAnInstanceIDTieByAddressFamily` | `internal/plugins/ospf/ri_show_test.go` | The address-family step of `riGroupKeyLess`: two OSPFv3 RI groups at one Instance ID render ipv4-unicast before ipv6-unicast in either input order, before scope decides | |
+| `TestPluginShapesFromDeclsConvertsEachShapedDeclaration` | `internal/component/command/answer_shape_test.go` | The one `CommandDecl`-to-`PluginShape` conversion Stage 1 and the OSPF shape tests call: a shapeless declaration skipped, each shaped one carried in order, a misspelled shape refused by name | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -226,7 +230,7 @@ operator command runs through the daemon on every command surface").
 |------|----------|-------------------|--------|
 | `ospf-multiaf-views` | `test/ospf/ospf-multiaf-views.ci` | Two AFs configured; an observer reads the database, route and neighbor views with and without `address-family` and logs the tagged rows (`needs-linux`) | |
 | `ospf-multiaf-show` | `test/ospf/ospf-multiaf-show.ci` | Unchanged listing still passes | |
-| `ospf-multiaf-views-cli` | `test/draft/ospf/ospf-multiaf-views-cli.ci`, then `test/ospf/` | Two AFs configured; `ze cli -c` over SSH reads the database view narrowed and whole as JSON, and as a table (`needs-linux`) | |
+| `ospf-multiaf-views-cli` | `test/ospf/ospf-multiaf-views-cli.ci`, promoted from `test/draft/ospf/` | Two AFs configured; `ze cli -c` over SSH reads the database view narrowed and whole as JSON, and as a table (`needs-linux`) | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -234,7 +238,11 @@ operator command runs through the daemon on every command surface").
 | `ospf-multiaf-v4-frr` | `test/interop/scenarios/` | a second Ze (FRR ospf6d has no IPv4-unicast AF) | Ze's own view shows the IPv4-unicast adjacency Full (AC-7) | |
 
 ## Files to Modify
-- `internal/plugins/ospf/register.go` - the view arms iterate the selected AFs; `show ospf ipv6 route`; the inject target; `commandDecls` declares each per-AF view's leading columns (`v3ViewDecls`, `riViewDecl`)
+- `internal/plugins/ospf/register.go` - the view arms iterate the selected AFs; `show ospf ipv6 route`; the inject target; `commandDecls` declares each per-AF view's leading columns (`v3ViewColumns`) and both RI views' (`riViewColumns`)
+- `internal/plugins/ospf/inject_v3.go` - `splitInjectAddressFamily` refuses a repeated keyword with the operator's own command naming the family once (`injectCommandNamingOnce`), and a keyword with no value with `show ospf ipv6 instance`
+- `internal/component/command/answer_shape.go` - `PluginShapesFromDecls`, the one conversion from a `CommandDecl` to a `PluginShape`
+- `internal/component/plugin/server/startup.go` - `registerPluginShapes` calls `PluginShapesFromDecls`
+- `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md` - name the conversion
 - `internal/plugins/ospf/register_multiaf.go` - the one helper that answers the selected running engines from an optional AF name
 - `internal/plugins/ospf/debug_wiring.go` - `v6DatabaseDetail` over the selected engines
 - `internal/plugins/ospf/ri_show.go` - `riDatabaseSnapshot` over several v6 engines
@@ -283,7 +291,7 @@ operator command runs through the daemon on every command surface").
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc5838.md` debugging row, with a source anchor |
 | 10 | Test infrastructure changed? | No | |
 | 11 | Affects daemon comparison? | No | |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/ospf/ospf-ext-15-multi-af.md` |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/ospf/ospf-ext-15-multi-af.md`, `docs/architecture/ospf/ospf-ext-14-debug-introspection.md`, `docs/architecture/testing/interop.md` and `docs/functional-tests.md` updated. Unaffected, read against the change: `docs/architecture/ospf/ospf-13-cli-diag-interop.md` (describes the OSPFv2 `show ospf` forwarding, names no OSPFv3 view), `docs/architecture/ospf/ospf-4-component-config.md` (config and the engine lifecycle, no command declaration), `docs/architecture/ospf/ospf-ext-3-router-information.md` (the RI LSA wire format and reception, not the show view) |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` if it lists OSPF commands |
@@ -343,8 +351,10 @@ operator command runs through the daemon on every command surface").
 - Phase C: `debug ipv6 ospf inject lsa` checks the enablement first, then takes the `address-family` pair out (`debugInjectIntoAF`, `splitInjectAddressFamily`, `inject_v3.go`); `errNoV6Engine` is gone, an idle default AF is refused by `afNotRunningError`. `errDebugInjectDisabled` became an `opererr` (fix: `debug ospf inject enable`), and the two AF refusals Phase B wrote no longer say "view", since inject shares them.
 - Phase D: the keyword takes the four canonical names only. `afFromName` also maps the config's bare `ipv6`, which the views' YANG enumeration refuses but the inject modifier (not validated by the registry) let through; `afFromCanonicalName` (`multiaf.go`) is the keyword's mapper for `selectInstances` and `splitInjectAddressFamily`, and `afFromName` stays the config parser's.
 - Phase D: R-1 is met by narrowing every interop step that means one AF (`check_extras.go`, `check_virtual_link.go`: `address-family ipv6-unicast`). `server.TestUsageRendersTheDeclaredValues` changed its expected inject usage line in place to carry Phase A's `[address-family <...>]` group, a judge unit.
-- Review fix: `| table` sorts keys by name unless a command declares columns (`pipe_table.go` `declaredKeys`), and `| json` sorts every key, so the order `afTaggedRow.MarshalJSON` writes reaches no rendering. Each `v3Views` command is now declared in `commandDecls` from the registry itself (`v3ViewDecls`, shape `tab`, columns `address-family`, `instance-id`), and both RI views declare `af`, `address-family`, `instance-id` (`riViewDecl`); without its own declaration the IPv6 RI view would inherit `show ospf ipv6 database`'s.
+- Review fix: `| table` sorts keys by name unless a command declares columns (`pipe_table.go` `declaredKeys`), and `| json` sorts every key, so the order `afTaggedRow.MarshalJSON` writes reaches no rendering. Each `v3Views` command is now declared in `commandDecls` with shape `tab` and columns `address-family`, `instance-id` (`v3ViewColumns`), and both RI views declare `af`, `address-family`, `instance-id` (`riViewColumns`); without its own declaration the IPv6 RI view would inherit `show ospf ipv6 database`'s. How those entries are written is the next point.
 - Review fix: `./le cli dispatch check` reads every `CommandDecl` `Name:` from the source (`pluginCommandDecls`, `internal/le/cli/dispatch/resolver.go`) and refused the loop in `v3ViewDecls` and the parameter of `riViewDecl`. Both helpers are gone: `commandDecls` lists each `v3Views` key and both RI views as literal entries whose columns come from `v3ViewColumns()` / `riViewColumns()`, each a fresh slice. `v3Views` stays the source, and `TestOSPFv3ViewDeclsMatchV3Views` (`v3_view_shape_test.go`) compares the copy against it in both directions.
+- Review fix (round 2): the OSPF shape tests registered the plugin's declarations through a copy of Stage 1's `CommandDecl`-to-`PluginShape` loop. That loop is now one exported function, `command.PluginShapesFromDecls` (`internal/component/command/answer_shape.go`), which `registerPluginShapes` (`internal/component/plugin/server/startup.go`) and `declareOSPFShapes` both call (`ai/rules/testing.md`, one function per rule). `internal/component/bgp/plugins/adj_rib_in/rib_shape_test.go` still carries its own copy: BGP plugins were outside this round by the owner's constraint.
+- Review fix (round 2): the inject refusals for a repeated `address-family` and for one with no value named a fix line of placeholders. A repeated keyword now names the operator's own command with the keyword once (`injectCommandNamingOnce`, `inject_v3.go`), and a missing value names `show ospf ipv6 instance`, which lists the running families (`ai/rules/user-facing-errors.md`).
 - Review fix: the route Wiring Test row moved to the interop `ospf-multiaf-v4-frr` route step: `routeSnapshot` reads `spf.Computer`'s `c.last`, the set `Run` handed the installer, so the AS-External `10.99.0.0/24` the peer's kernel holds is a row of the peer's IPv4-unicast view.
 - Phase B: `docs/guide/ospf.md` said the IPv4-AF next hop came from the IPv6 link-local adjacency; the code (`v6NextHop`, `TestRFC5838IPv4NextHopFromNeighborLinkLSA`) takes the Link-LSA's IPv4 address (RFC 5838 §2.5). Corrected (AC-11).
 
