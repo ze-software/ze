@@ -328,6 +328,25 @@ watches that package, not the generator around it.
 <!-- source: internal/le/ai/rules/artifacts.go -- Payload, readAgentRuleSet, agentRuleSetParts -->
 <!-- source: internal/le/ai/rules/ruleset/ruleset.go -- HardBans, AgentDecisions, DecisionsAgentPartHeading, DecisionsMainPartHeading -->
 
+The decisions file has a third part, after the main-session part: `Rules for
+one kind of work`. Each section under its heading binds only an agent doing
+the work the section's first paragraph names, and that paragraph opens
+`Read before: `. `SituationalDecisions` answers every such section, found by
+heading level and never by a list of names: its heading, its situation and its
+line range. The start hook lists each one to every agent that omits the
+instruction files, after the every-agent range, so an agent reads a section
+only before the work it names. The payload report measures these sections on
+a line of their own, outside the agent rule set's total and budget, because no
+agent always loads them. The situation may start on the `Read before:` line or
+wrap onto the next. A third part that is absent, repeated, placed before the
+main-session part, empty, not running to the end of the file, holding a bullet
+or a deeper heading before its first section, or holding a section with no
+situation is an error: the hook then tells the agent to read the whole
+decisions file, and the report marks the sections missing and exits nonzero.
+<!-- source: internal/le/ai/rules/ruleset/ruleset.go -- SituationalDecisions, DecisionsSituationalPartHeading, SituationPrefix -->
+<!-- source: internal/le/ai/rules/artifacts.go -- SituationalSet, measureSituational -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- agentRuleSet -->
+
 ## Binding a check to a point
 
 Two kinds of native check bind points: the hook checks `./le ai hooks` runs,

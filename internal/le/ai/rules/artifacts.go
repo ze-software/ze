@@ -599,27 +599,66 @@ type PayloadSet struct {
 
 // PayloadReport describes what a session loads, the instructions, the routing
 // index and the always-on core, and beside it the agent rule set a phase agent
-// starts with.
+// starts with and the decisions sections it reads only before one kind of work.
 type PayloadReport struct {
 	PayloadSet
-	Agent PayloadSet `json:"agent-rule-set"`
+	Agent       PayloadSet     `json:"agent-rule-set"`
+	Situational SituationalSet `json:"situational-decisions"`
 }
 
-// Failed reports whether either measurement is missing one of the parts it
+// SituationalSet measures the sections of ai/META-DECISIONS.md an agent reads
+// only before the work each one names. It has no budget and is no part of the
+// agent rule set's total, because no agent always loads it; a main session
+// does, inside the whole file the always-loaded payload measures.
+type SituationalSet struct {
+	Parts  []PayloadPart `json:"parts"`
+	Chars  int           `json:"chars"`
+	Tokens int           `json:"tokens"`
+	// Missing names why the sections cannot be read. The start hook then tells
+	// an agent to read the whole decisions file, so the agent rule set's total
+	// understates what that agent reads.
+	Missing []string `json:"missing"`
+}
+
+// Failed reports whether any measurement is missing one of the parts it
 // measures.
 //
 // The script always answers 0, and an absent file contributes zero characters.
 // Thus, deletion of CORE.md makes the budget look MET. An absent payload is not
 // a smaller payload.
-func (r PayloadReport) Failed() bool { return len(r.Missing) > 0 || len(r.Agent.Missing) > 0 }
+func (r PayloadReport) Failed() bool {
+	if len(r.Missing) > 0 {
+		return true
+	}
+	if len(r.Agent.Missing) > 0 {
+		return true
+	}
+	return len(r.Situational.Missing) > 0
+}
 
 // Text renders the report: the main payload in the shape the script printed,
-// then the agent rule set in the same shape.
+// then the agent rule set in the same shape, then the situational sections.
 func (r PayloadReport) Text() string {
 	var tb textbuf.Buffer
 	r.PayloadSet.text(&tb, "always-loaded payload", "what a session loads")
 	r.Agent.text(&tb, "agent rule set", "what a phase agent starts with")
+	r.Situational.text(&tb)
 	return tb.String()
+}
+
+// text renders the situational sections, one line each, and their total on a
+// line of its own.
+func (s SituationalSet) text(tb *textbuf.Buffer) {
+	tb.Str("situational decisions (read before the work each names, outside the agent rule set):\n")
+	for _, part := range s.Parts {
+		tb.Str("  ").Str(part.File).Str(" (").Str(part.Part).Str("): ").
+			Int(int64(part.Chars)).Str(" chars (").Int(int64(part.Tokens)).Str(" tokens)\n")
+	}
+	tb.Str("  TOTAL: ").Int(int64(s.Chars)).Str(" chars (").Int(int64(s.Tokens)).Str(" tokens)\n")
+	if len(s.Missing) > 0 {
+		tb.Str("WARNING: the situational decisions cannot be read, so an agent is told to read the whole decisions file: ").
+			Join(s.Missing, ", ").Byte('\n')
+	}
 }
 
 // text renders one measured set under its title. What names what the set
@@ -724,5 +763,40 @@ func Payload(tree string) (PayloadReport, error) {
 	if err := countable(agent); err != nil {
 		return PayloadReport{}, err
 	}
-	return PayloadReport{PayloadSet: measure(session, tokenBudget), Agent: measure(agent, agentTokenBudget)}, nil
+	situational, err := measureSituational(tree)
+	if err != nil {
+		return PayloadReport{}, err
+	}
+	return PayloadReport{
+		PayloadSet:  measure(session, tokenBudget),
+		Agent:       measure(agent, agentTokenBudget),
+		Situational: situational,
+	}, nil
+}
+
+// measureSituational counts each section ruleset.SituationalDecisions answers.
+// A part or section it cannot place is answered Missing with its reason, never
+// as an empty set; any other failure stops the report, because the set cannot
+// be measured.
+func measureSituational(tree string) (SituationalSet, error) {
+	sections, err := ruleset.SituationalDecisions(tree)
+	if err != nil {
+		reason, absent := ruleset.MissingReason(err, ruleset.DecisionsFile)
+		if !absent {
+			return SituationalSet{}, err
+		}
+		return SituationalSet{Missing: []string{reason}}, nil
+	}
+	set := SituationalSet{Parts: make([]PayloadPart, 0, len(sections))}
+	for _, section := range sections {
+		if err := countable([]ruleset.Part{section.Part}); err != nil {
+			return SituationalSet{}, err
+		}
+		part := PayloadPart{File: section.File, Part: section.Heading, Chars: runeLen(section.Text)}
+		part.Tokens = part.Chars / bytesPerToken
+		set.Chars += part.Chars
+		set.Parts = append(set.Parts, part)
+	}
+	set.Tokens = set.Chars / bytesPerToken
+	return set, nil
 }

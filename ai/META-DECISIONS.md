@@ -1,10 +1,11 @@
 # Owner Meta Decisions
 
 How agents work in this repository and what is in scope, as Thomas has decided
-it. Every main session loads this file at start. A subagent is given only the
-first part. It holds rules for behaviour only: no history, no dates, no record
-of who asked for what. Nothing anywhere cites it by a row number or label; a
-rule that depends on one of these states the rule itself.
+it. Every main session loads this file whole at start. A subagent that starts
+without the instruction files is given the first part, and is told to read a
+section of the third part before the work that section names. It holds rules for behaviour only: no history, no dates, no
+record of who asked for what. Nothing anywhere cites it by a row number or
+label; a rule that depends on one of these states the rule itself.
 
 A question this file answers is never put to Thomas. When he states a new rule
 of this kind, the main session adds it here in the same turn and commits it,
@@ -12,9 +13,12 @@ under "Rules for every agent" when an agent that reads, edits, tests or commits
 can break it by its own action, and under "Rules for the main session" only
 when no subagent action can, because only the session that talks to the owner,
 spawns agents, plans or pushes can break it. A rule that does both goes under
-"Rules for every agent", whole. A permission for one piece of work (a cap
-exception, approval to change named tests) is not a rule: it goes in the spec
-or commit it applies to.
+"Rules for every agent", whole. A rule that only an agent doing one kind of
+work can break, work no agent can mistake it is doing, goes in that work's
+section of "Rules for one kind of work", whose first paragraph names the work; when
+in doubt, it goes under "Rules for every agent". A permission for one piece of
+work (a cap exception, approval to change named tests) is not a rule: it goes
+in the spec or commit it applies to.
 
 # Rules for every agent
 
@@ -135,72 +139,6 @@ or commit it applies to.
   configuration without restarting Ze, as every other routing implementation
   allows. A reload that refuses a new peer because of what it configures is a
   defect to fix, never a documented limit and never a question.
-
-## ExaBGP compatibility
-
-- ExaBGP 6.0, 5.0 and 4.2 backward compatibility is agreed, so what it needs is
-  done, not asked. It lives only in the bridge and the migration.
-- The RFC outranks ExaBGP API compatibility, which outranks ExaBGP's behaviour.
-  Where ze is stricter than ExaBGP without an RFC MUST behind it, ExaBGP's
-  behaviour wins; where the RFC says MUST, ze keeps it and documents the
-  difference.
-- Compatibility means the same command produces a valid BGP message with the
-  same effect on the remote router, not a byte-for-byte copy.
-- AS_SET: a route from an ExaBGP script through the bridge may carry one, and a
-  received one is accepted on a peer whose `session as-set accept` the operator
-  set; `ze exabgp migrate` writes it for an ExaBGP `as-set accept` peer, and the
-  leaf stays available to any operator. Ze's own API and plugins never
-  originate one.
-- Ze does not support the BGP OPERATIONAL message or BGP multi-session. An
-  ExaBGP test that depends on either meets a documented difference, which is not
-  owed work.
-
-## Test systems and labs
-
-- VMs, test guests and the lab Docker host run Ze's own kernel and system, never
-  Alpine or a stock distribution kernel. A problem that exists only because a
-  guest runs another system is out of scope: the fix is moving that guest to
-  Ze's system. Colima may manage the VM on macOS, booting Ze's image only.
-- A test that needs a kernel feature runs on Ze's kernel, which carries it.
-- Ze running on a standard distribution kernel can load the kernel modules it
-  needs with `modprobe`, as an optional feature of `ze` itself. `le` is
-  development tooling and never carries a product feature. It acts only when
-  the running kernel is not Ze's, and is proven on booted Debian, Ubuntu,
-  Rocky and Fedora VMs: the one exception to Ze's kernel in test guests, and
-  only for behaviour that exists off Ze's kernel.
-- A performance figure (a number that is reported, compared or recorded)
-  comes only from a machine whose performance is known: real hardware, or a
-  VM running on a host whose performance is known, so the VM's resources are
-  guaranteed. Thomas's Mac is such a host, and so is a real Linux host. A VM
-  on a host nobody here knows, such as the Linux development VM, gives no
-  figure: that host may overprovision its resources. On such a VM an agent
-  may run a perf harness or benchmark to check that it works (it builds,
-  runs and produces output), and never reports or compares the figures it
-  prints. A Linux-only harness is measured on the Mac inside a Linux QEMU
-  guest, whose resources the Mac guarantees.
-- Memory allocation figures (bytes and allocations per operation) do not
-  depend on the host's performance, so an agent measures, reports and
-  compares them on any host, the Linux development VM included. Only time
-  and throughput figures need a known host. Two allocation figures are
-  compared only when the same Go toolchain and architecture produced them.
-- Running on an unknown host limits only performance figures. Every test runs on whatever
-  host the agent is on: on Linux, QEMU guests, netns runs, `caps=` and
-  `needs-linux` tests included. Only a test that runs only on another OS
-  waits for a host of that OS.
-- A test runs once, on one machine. Go is multi-architecture, so a test of
-  Ze's Go code that passes on one architecture is not repeated on the other:
-  no second run is owed, asked for or started, and a spec never lists one as
-  remaining work. Running the same test on both Intel and ARM spends CPU to
-  learn nothing. When more than one development machine is available, the
-  agent picks one for the run, normally the one with the least CPU in use at
-  that moment.
-- Kernel work uses the architecture of the machine the agent is on. Never
-  cross-compile or emulate the other architecture's kernel locally; its proof
-  comes from a host that runs it natively.
-- Third-party software in the interop and integration labs runs its latest
-  stable upstream release; BIRD runs the BIRD 3 line. Software with no stable
-  release (tac_plus-ng, freeRtr) is built from source, first updated to
-  upstream's latest when the source in use is more than a month old.
 
 ## Test changes
 
@@ -395,89 +333,6 @@ or commit it applies to.
 - Every message a user sees, on every interface (CLI, web, `ze doctor`, logs,
   `./le`, API and gNMI), says what is wrong in plain words, why, and the exact
   command that fixes it (`ai/rules/user-facing-errors.md`).
-
-## Developer tooling
-
-- `le help` covers all of le: every command, keyword and value, and every word
-  or option the `./le` launcher script consumes before the binary runs (such as
-  `--name` and `rollback`). Completion and `le help ai` cover the same set. A
-  word le accepts that its help does not show is a defect.
-
-## Website design
-
-- In blog articles, everything before the AI authorship disclaimer is a brief
-  teaser. The developed argument, substantial background and technical
-  explanations follow the disclaimer. The deck also leaves the explanation
-  for the body.
-- Website design follows the approved principles in
-  [the website style guide](../website/style-guide/index.html#sg-design-principles),
-  including its information-preservation map and owner approval for removals.
-  This decision applies to the website only.
-- What Thomas has ruled about the website's look or wording stays until he
-  changes it. Each ruling is recorded in `website/AI.md`, "Owner rulings",
-  applied at the scope he stated in one rule that later elements inherit, and
-  pinned by a test that goes red when it is undone. An agent reads that
-  section before its first website edit and never changes what a ruling fixes
-  while doing other work. When a pinned test goes red after its edit, it
-  repairs the edit, never the test. A ruling he has to repeat was applied too
-  narrowly or left unpinned: the agent finds how it was undone and closes
-  that route in the same work.
-- Completing approved website changes includes regenerating and checking the
-  canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
-  Local regeneration does not authorize a push or deployment.
-- The website is always generated into the canonical `../gh-pages` checkout,
-  while Thomas reviews as well as at completion. He serves that checkout
-  through a local web interface and reviews the pages there. An agent never
-  renders a review copy into a private or scratch directory, and never starts
-  a server of its own to show one.
-- Website work is tested once, at the closure of the work, after Thomas has
-  said he is happy with the pages. While he is still reviewing, an agent
-  changes the page, renders that page alone from the working tree and shows
-  it. It neither commits nor runs a test: the output is most often not right
-  the first time, and a test run during review checks a moving target. The
-  commit, the tests and their fixtures come when the pages are approved.
-- When the website talks about how Ze is developed with AI, it presents AI as
-  a means to quality: the project built a framework that constrains and guides
-  how agents develop (specs agreed first, tests first, independent review,
-  commit gates). It also says plainly that the process is iterative, as human
-  development is: a first version is often not fully correct until every
-  check exists (for an RFC, every requirement's test), which takes time and
-  resources, so published code and the website itself can be imperfect, and
-  readers are invited to report what is wrong. It says why the website has
-  more mistakes than the code: whilst an RFC defines behaviour clearly and
-  strictly enough for tests to check it, the same can not be said of the
-  website's free text. It also says that most of the site's information is
-  generated from the code, so the data reflects the software's real state.
-- Building the website renders data; it never runs a check. A proof over
-  the code (the comparison of the built `ze`'s plugin registry with the
-  declared list, a coverage or conformance gate) is a check like a unit test: it runs in CI and at
-  release, never as a step of `./le site build`. A fact the site publishes
-  from the code is read from its declaration or from a committed data file,
-  so a page edit publishes in minutes.
-- What the website shows about RFC conformance (the gate's verdict, its open
-  issues and the figures the RFC pages need) comes from a recorded data file,
-  and the pages are generated from that file. The site build does not run
-  the RFC check to render a page. It regenerates the file only when the file
-  is more than a week old; a command regenerates it on demand, so Thomas
-  can update it when he needs to. Producing the weekly update always
-  regenerates the file, whatever its age, and regenerates the site from it:
-  by timing the file can be slightly under a week old then, and the update
-  must not publish RFC data that old. The week is measured from the time the
-  file was saved. The file lives in a git-ignored folder of the website, so
-  it is never pushed.
-- CI does not generate the website. The site is always generated on request.
-- Website screenshots use WebP, alongside lightweight terminal-event playback
-  for application demonstrations. Encoded video assets are not published on the
-  website or stored in the repository, and CI/CD does not generate videos.
-- The README links to lightweight playback with a screenshot rather than
-  producing an encoded-video or large animated-SVG carrier.
-- Every website value that changes over time (counts, percentages, release
-  versions, download artifacts and their sizes) lives in exactly one JSON file,
-  and pages render it with JavaScript. Site-wide values live in
-  `data/site-facts.json`; RFC completion data lives in one file per RFC and one
-  per profile under `data/rfc/`. Updating that file updates every page that
-  shows the value; a page keeps only the last build's value as fallback text
-  inside the marked element, never a copy of its own.
 
 ## How agents work
 
@@ -700,3 +555,179 @@ or commit it applies to.
   stopping at a phase boundary to report or to ask whether to continue. It
   comes back only with a decision no RFC, agreed design or rule in this file
   answers, and with the finished result.
+
+# Rules for one kind of work
+
+Each section below binds only an agent doing the work its first paragraph
+names. The start hook lists every section, with that paragraph and its line
+range, to an agent that starts without the instruction files; every other
+agent, like a main session, loads all of it.
+
+## ExaBGP compatibility
+
+Read before: working on ExaBGP compatibility anywhere: the bridge, the
+migration, an ExaBGP test; or working on what Ze's BGP accepts or refuses, on
+AS_SET, the BGP OPERATIONAL message or BGP multi-session.
+
+- ExaBGP 6.0, 5.0 and 4.2 backward compatibility is agreed, so what it needs is
+  done, not asked. It lives only in the bridge and the migration.
+- The RFC outranks ExaBGP API compatibility, which outranks ExaBGP's behaviour.
+  Where ze is stricter than ExaBGP without an RFC MUST behind it, ExaBGP's
+  behaviour wins; where the RFC says MUST, ze keeps it and documents the
+  difference.
+- Compatibility means the same command produces a valid BGP message with the
+  same effect on the remote router, not a byte-for-byte copy.
+- AS_SET: a route from an ExaBGP script through the bridge may carry one, and a
+  received one is accepted on a peer whose `session as-set accept` the operator
+  set; `ze exabgp migrate` writes it for an ExaBGP `as-set accept` peer, and the
+  leaf stays available to any operator. Ze's own API and plugins never
+  originate one.
+- Ze does not support the BGP OPERATIONAL message or BGP multi-session. An
+  ExaBGP test that depends on either meets a documented difference, which is not
+  owed work.
+
+## Test systems and labs
+
+Read before: building or changing a VM, a test guest, a lab or its image, or
+writing, running or planning a test that needs one or a kernel feature,
+choosing the machine or architecture a test or a kernel build runs on, listing
+a second run of a test on another machine or architecture as owed or remaining
+work, loading a kernel module, adding to `le` anything that loads, installs or
+configures something on a host for Ze, running a benchmark or perf harness, or
+reporting, comparing or recording a performance or allocation figure.
+
+- VMs, test guests and the lab Docker host run Ze's own kernel and system, never
+  Alpine or a stock distribution kernel. A problem that exists only because a
+  guest runs another system is out of scope: the fix is moving that guest to
+  Ze's system. Colima may manage the VM on macOS, booting Ze's image only.
+- A test that needs a kernel feature runs on Ze's kernel, which carries it.
+- Ze running on a standard distribution kernel can load the kernel modules it
+  needs with `modprobe`, as an optional feature of `ze` itself. `le` is
+  development tooling and never carries a product feature. It acts only when
+  the running kernel is not Ze's, and is proven on booted Debian, Ubuntu,
+  Rocky and Fedora VMs: the one exception to Ze's kernel in test guests, and
+  only for behaviour that exists off Ze's kernel.
+- A performance figure (a number that is reported, compared or recorded)
+  comes only from a machine whose performance is known: real hardware, or a
+  VM running on a host whose performance is known, so the VM's resources are
+  guaranteed. Thomas's Mac is such a host, and so is a real Linux host. A VM
+  on a host nobody here knows, such as the Linux development VM, gives no
+  figure: that host may overprovision its resources. On such a VM an agent
+  may run a perf harness or benchmark to check that it works (it builds,
+  runs and produces output), and never reports or compares the figures it
+  prints. A Linux-only harness is measured on the Mac inside a Linux QEMU
+  guest, whose resources the Mac guarantees.
+- Memory allocation figures (bytes and allocations per operation) do not
+  depend on the host's performance, so an agent measures, reports and
+  compares them on any host, the Linux development VM included. Only time
+  and throughput figures need a known host. Two allocation figures are
+  compared only when the same Go toolchain and architecture produced them.
+- Running on an unknown host limits only performance figures. Every test runs on whatever
+  host the agent is on: on Linux, QEMU guests, netns runs, `caps=` and
+  `needs-linux` tests included. Only a test that runs only on another OS
+  waits for a host of that OS.
+- A test runs once, on one machine. Go is multi-architecture, so a test of
+  Ze's Go code that passes on one architecture is not repeated on the other:
+  no second run is owed, asked for or started, and a spec never lists one as
+  remaining work. Running the same test on both Intel and ARM spends CPU to
+  learn nothing. When more than one development machine is available, the
+  agent picks one for the run, normally the one with the least CPU in use at
+  that moment.
+- Kernel work uses the architecture of the machine the agent is on. Never
+  cross-compile or emulate the other architecture's kernel locally; its proof
+  comes from a host that runs it natively.
+- Third-party software in the interop and integration labs runs its latest
+  stable upstream release; BIRD runs the BIRD 3 line. Software with no stable
+  release (tac_plus-ng, freeRtr) is built from source, first updated to
+  upstream's latest when the source in use is more than a month old.
+
+## Developer tooling
+
+Read before: adding or changing a command, keyword, value or option of `le`,
+or a word the `./le` launcher consumes.
+
+- `le help` covers all of le: every command, keyword and value, and every word
+  or option the `./le` launcher script consumes before the binary runs (such as
+  `--name` and `rollback`). Completion and `le help ai` cover the same set. A
+  word le accepts that its help does not show is a defect.
+
+## Website design
+
+Read before: editing, generating, rendering or reviewing the website, its
+generator or the data it renders, a CI job that builds or publishes it, a blog
+article, the README, a docs page the site publishes, or a screenshot, demo or
+video about Ze.
+
+- In blog articles, everything before the AI authorship disclaimer is a brief
+  teaser. The developed argument, substantial background and technical
+  explanations follow the disclaimer. The deck also leaves the explanation
+  for the body.
+- Website design follows the approved principles in
+  [the website style guide](../website/style-guide/index.html#sg-design-principles),
+  including its information-preservation map and owner approval for removals.
+  This decision applies to the website only.
+- What Thomas has ruled about the website's look or wording stays until he
+  changes it. Each ruling is recorded in `website/AI.md`, "Owner rulings",
+  applied at the scope he stated in one rule that later elements inherit, and
+  pinned by a test that goes red when it is undone. An agent reads that
+  section before its first website edit and never changes what a ruling fixes
+  while doing other work. When a pinned test goes red after its edit, it
+  repairs the edit, never the test. A ruling he has to repeat was applied too
+  narrowly or left unpinned: the agent finds how it was undone and closes
+  that route in the same work.
+- Completing approved website changes includes regenerating and checking the
+  canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
+  Local regeneration does not authorize a push or deployment.
+- The website is always generated into the canonical `../gh-pages` checkout,
+  while Thomas reviews as well as at completion. He serves that checkout
+  through a local web interface and reviews the pages there. An agent never
+  renders a review copy into a private or scratch directory, and never starts
+  a server of its own to show one.
+- Website work is tested once, at the closure of the work, after Thomas has
+  said he is happy with the pages. While he is still reviewing, an agent
+  changes the page, renders that page alone from the working tree and shows
+  it. It neither commits nor runs a test: the output is most often not right
+  the first time, and a test run during review checks a moving target. The
+  commit, the tests and their fixtures come when the pages are approved.
+- When the website talks about how Ze is developed with AI, it presents AI as
+  a means to quality: the project built a framework that constrains and guides
+  how agents develop (specs agreed first, tests first, independent review,
+  commit gates). It also says plainly that the process is iterative, as human
+  development is: a first version is often not fully correct until every
+  check exists (for an RFC, every requirement's test), which takes time and
+  resources, so published code and the website itself can be imperfect, and
+  readers are invited to report what is wrong. It says why the website has
+  more mistakes than the code: whilst an RFC defines behaviour clearly and
+  strictly enough for tests to check it, the same can not be said of the
+  website's free text. It also says that most of the site's information is
+  generated from the code, so the data reflects the software's real state.
+- Building the website renders data; it never runs a check. A proof over
+  the code (the comparison of the built `ze`'s plugin registry with the
+  declared list, a coverage or conformance gate) is a check like a unit test: it runs in CI and at
+  release, never as a step of `./le site build`. A fact the site publishes
+  from the code is read from its declaration or from a committed data file,
+  so a page edit publishes in minutes.
+- What the website shows about RFC conformance (the gate's verdict, its open
+  issues and the figures the RFC pages need) comes from a recorded data file,
+  and the pages are generated from that file. The site build does not run
+  the RFC check to render a page. It regenerates the file only when the file
+  is more than a week old; a command regenerates it on demand, so Thomas
+  can update it when he needs to. Producing the weekly update always
+  regenerates the file, whatever its age, and regenerates the site from it:
+  by timing the file can be slightly under a week old then, and the update
+  must not publish RFC data that old. The week is measured from the time the
+  file was saved. The file lives in a git-ignored folder of the website, so
+  it is never pushed.
+- CI does not generate the website. The site is always generated on request.
+- Website screenshots use WebP, alongside lightweight terminal-event playback
+  for application demonstrations. Encoded video assets are not published on the
+  website or stored in the repository, and CI/CD does not generate videos.
+- The README links to lightweight playback with a screenshot rather than
+  producing an encoded-video or large animated-SVG carrier.
+- Every website value that changes over time (counts, percentages, release
+  versions, download artifacts and their sizes) lives in exactly one JSON file,
+  and pages render it with JavaScript. Site-wide values live in
+  `data/site-facts.json`; RFC completion data lives in one file per RFC and one
+  per profile under `data/rfc/`. Updating that file updates every page that
+  shows the value; a page keeps only the last build's value as fallback text
+  inside the marked element, never a copy of its own.

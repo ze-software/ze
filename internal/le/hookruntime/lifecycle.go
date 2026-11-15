@@ -661,12 +661,27 @@ const agentTypeLengthMax = 64
 // push the bans past it.
 const startTextErrorMax = 240
 
+// startTextSectionsMax bounds, in bytes, the list of decisions sections for
+// one kind of work the start text carries: a heading, a range and a situation
+// a line. A situation is never cut, because the words cut off could be the
+// ones that name an agent's work, so a list past the bound sends the whole
+// decisions file instead, and a longer list never pushes the bans past the
+// harness cap.
+const startTextSectionsMax = 1600
+
+// startTextOneLine answers value with each carriage return and line feed
+// replaced by a space, so a value the checkout chooses adds no line to the
+// start text. Unlike startTextBounded it never cuts.
+func startTextOneLine(value string) string {
+	return strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+}
+
 // startTextBounded answers value on one line, each carriage return and line
 // feed replaced by a space so an echoed value adds no line to the start text,
 // cut to startTextErrorMax bytes on a rune boundary, marked "..." when it was
 // cut.
 func startTextBounded(value string) string {
-	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+	value = startTextOneLine(value)
 	if len(value) <= startTextErrorMax {
 		return value
 	}
@@ -808,7 +823,12 @@ func frontmatterUnquoted(value string) string {
 
 // agentRuleSet writes what an agent that starts without the project
 // instruction files needs at its first turn: the hard bans, read from
-// ai/INSTRUCTIONS.md at each start, and the one read that brings the rest.
+// ai/INSTRUCTIONS.md at each start, and the one read that brings the rest,
+// with each decisions section an agent reads only before the work its
+// situation names, listed by heading, line range and situation. A heading and
+// a situation are file content: each is kept to one line, the heading is cut
+// like any echoed value, and the whole list is bounded by
+// startTextSectionsMax.
 // The rest is named, never sent: the harness caps a hook's additionalContext
 // at 10,000 characters and replaces a longer one with a file path it never
 // asks the agent to read, and the core, the trigger index and the decisions
@@ -829,10 +849,32 @@ func agentRuleSet(text *textbuf.Buffer, root string) {
 		text.Str(ruleset.DecisionsFile).Str(" whole: its every-agent part cannot be found, because ").Str(startTextBounded(err.Error())).Str(".\n")
 		return
 	}
+	// Sections that cannot be listed send the whole file: a range alone would
+	// read as "nothing else to read" to an agent about to do that work.
+	sections, err := ruleset.SituationalDecisions(root)
+	if err != nil {
+		text.Str(ruleset.DecisionsFile).Str(" whole: its sections for one kind of work cannot be listed, because ").Str(startTextBounded(err.Error())).Str(".\n")
+		return
+	}
+	var listed textbuf.Buffer
+	for _, section := range sections {
+		listed.Str("- ").Str(startTextBounded(section.Heading)).
+			Str(" (lines ").Int(section.First).Byte('-').Int(section.Last).
+			Str(", offset ").Int(section.First).Str(", limit ").Int(section.Last - section.First + 1).
+			Str("): ").Str(startTextOneLine(section.Situation)).Byte('\n')
+	}
+	list := listed.String()
+	if len(list) > startTextSectionsMax {
+		text.Str(ruleset.DecisionsFile).Str(" whole: the list of its sections for one kind of work is ").Int(int64(len(list))).
+			Str(" bytes, more than the ").Int(startTextSectionsMax).Str(" this start text carries.\n")
+		return
+	}
 	text.Str(ruleset.DecisionsFile).Str(" lines ").Int(part.First).Byte('-').Int(part.Last).
 		Str(" (offset ").Int(part.First).Str(", limit ").Int(part.Last - part.First + 1).
 		Str("), the part headed \"").Str(ruleset.DecisionsAgentPartHeading).
-		Str("\". The rest of that file binds the main session only.\n")
+		Str("\".\nBefore work one of these situations names, read that section of ").Str(ruleset.DecisionsFile).Str(" too:\n").
+		Str(list).
+		Str("The rest of that file binds the main session only.\n")
 }
 
 // readToolLineCap is how many lines the Read tool returns when a call names no

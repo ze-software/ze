@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -854,6 +855,9 @@ const (
 	fixtureMainInstruction = "MAIN-INSTRUCTIONS-MARK"
 	fixtureAgentDecision   = "AGENT-DECISION-MARK"
 	fixtureMainDecision    = "MAIN-DECISION-MARK"
+	// fixtureSituationalDecision marks the bullet of the fixture's one section
+	// for one kind of work: named by range, never sent.
+	fixtureSituationalDecision = "SITUATIONAL-DECISION-MARK"
 )
 
 // writeRuleSetTree writes a checkout holding a mirrored agent definition with
@@ -886,10 +890,12 @@ func writeRuleSetTree(t *testing.T, frontmatter, instructions, decisions string)
 // followed by a main-session section the start text must not carry.
 const ruleSetInstructions = "# Ze\n\nIntro.\n\n# " + ruleset.HardBansHeading + "\n\n## A ban\n" + fixtureBan + "\n\n# Owner Meta Decisions\n" + fixtureMainInstruction + "\n"
 
-// ruleSetDecisions is a META-DECISIONS.md in two parts. Its every-agent part
+// ruleSetDecisions is a META-DECISIONS.md in three parts. Its every-agent part
 // runs from line 4 (its heading) to line 6 (the blank line before the
-// main-session heading).
-const ruleSetDecisions = "# Owner Meta Decisions\nOpening.\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- " + fixtureAgentDecision + "\n\n## " + ruleset.DecisionsMainPartHeading + "\n- " + fixtureMainDecision + "\n"
+// main-session heading), and the part for one kind of work holds one section,
+// lines 12-14.
+const ruleSetDecisions = "# Owner Meta Decisions\nOpening.\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- " + fixtureAgentDecision + "\n\n## " + ruleset.DecisionsMainPartHeading + "\n- " + fixtureMainDecision + "\n" +
+	"\n## " + ruleset.DecisionsSituationalPartHeading + "\n\n### Lab work\n" + ruleset.SituationPrefix + "running a lab.\n- " + fixtureSituationalDecision + "\n"
 
 // subagentStartText runs the subagent-context hook on a payload and returns
 // the additionalContext it answered, failing the test on any other answer.
@@ -941,12 +947,15 @@ func TestSubagentStartAddsTheAgentRuleSetForAnAgentThatOmitsTheInstructions(t *t
 				ruleset.CoreFile,
 				ruleset.TriggersFile,
 				ruleset.DecisionsFile + " lines 4-6 (offset 4, limit 3), the part headed \"" + ruleset.DecisionsAgentPartHeading + "\"",
+				"\".\nBefore work one of these situations names, read that section of " + ruleset.DecisionsFile + " too:\n" +
+					"- Lab work (lines 12-14, offset 12, limit 3): running a lab.\n" +
+					"The rest of that file binds the main session only.\n",
 			} {
 				if !strings.Contains(text, want) {
 					t.Errorf("start text missing %q:\n%s", want, text)
 				}
 			}
-			for _, absent := range []string{fixtureMainInstruction, fixtureMainDecision, fixtureAgentDecision, "# Owner Meta Decisions"} {
+			for _, absent := range []string{fixtureMainInstruction, fixtureMainDecision, fixtureAgentDecision, fixtureSituationalDecision, "# Owner Meta Decisions"} {
 				if strings.Contains(text, absent) {
 					t.Errorf("start text holds %q, which the agent reads or skips by file:\n%s", absent, text)
 				}
@@ -1049,6 +1058,103 @@ func TestSubagentStartSendsTheWholeDecisionsFileWhenAPartHeadingIsMissing(t *tes
 				t.Errorf("start text names a line range:\n%s", text)
 			}
 		})
+	}
+}
+
+// TestSubagentStartSendsTheWholeDecisionsFileWhenItsSectionsCannotBeListed
+// drives the hook over decisions files whose every-agent part is found but
+// whose sections for one kind of work cannot be listed: no third part, a
+// section with no situation, and a list longer than startTextSectionsMax.
+//
+// VALIDATES: the start text sends the whole file with the reason, and names no
+// range, so the agent reads every section rather than none (AC-15).
+// PREVENTS: an agent told to read the every-agent range alone, as if no
+// section bound its work, when the sections cannot be listed.
+func TestSubagentStartSendsTheWholeDecisionsFileWhenItsSectionsCannotBeListed(t *testing.T) {
+	twoParts := "# Owner Meta Decisions\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n## " + ruleset.DecisionsMainPartHeading + "\n- B.\n"
+	third := "\n## " + ruleset.DecisionsSituationalPartHeading + "\n"
+	long := third
+	for index := range 12 {
+		long += "### Section " + strconv.Itoa(index) + "\n" + ruleset.SituationPrefix + strings.Repeat("running a lab, ", 10) + "\n- " + fixtureSituationalDecision + "\n"
+	}
+	tests := []struct {
+		name      string
+		decisions string
+		want      string
+	}{
+		{"no-third-part", twoParts, "0 headings \"" + ruleset.DecisionsSituationalPartHeading + "\""},
+		{"no-situation", twoParts + third + "### Lab work\n- " + fixtureSituationalDecision + "\n", "section \"Lab work\" names no work"},
+		{"list-past-the-bound", twoParts + long, "more than the " + strconv.Itoa(startTextSectionsMax) + " this start text carries"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", ruleSetInstructions, test.decisions)
+			text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
+			for _, want := range []string{ruleset.DecisionsFile + " whole: ", test.want} {
+				if !strings.Contains(text, want) {
+					t.Errorf("start text missing %q:\n%s", want, text)
+				}
+			}
+			if strings.Contains(text, " lines ") {
+				t.Errorf("start text names a line range:\n%s", text)
+			}
+			if strings.Contains(text, fixtureSituationalDecision) {
+				t.Errorf("start text carries a section's bullet:\n%s", text)
+			}
+		})
+	}
+}
+
+// TestSubagentStartCutsALongSectionHeading drives the hook over a decisions
+// file whose one section for one kind of work has a 300-byte heading.
+//
+// VALIDATES: the heading, file content echoed into the start text, is cut to
+// startTextErrorMax bytes and marked, while the situation and the range stay
+// whole.
+// PREVENTS: a heading the checkout chooses spending the start text's room.
+func TestSubagentStartCutsALongSectionHeading(t *testing.T) {
+	heading := strings.Repeat("h", 300)
+	decisions := "# Owner Meta Decisions\n\n## " + ruleset.DecisionsAgentPartHeading + "\n- A.\n\n## " + ruleset.DecisionsMainPartHeading + "\n- B.\n" +
+		"\n## " + ruleset.DecisionsSituationalPartHeading + "\n\n### " + heading + "\n" + ruleset.SituationPrefix + "running a lab.\n- " + fixtureSituationalDecision + "\n"
+	root := writeRuleSetTree(t, "name: ze-read\n"+omitInstructionsKey+": true\n", ruleSetInstructions, decisions)
+	text := subagentStartText(t, root, map[string]any{"session_id": "context-parent", "agent_id": "agent-1", "agent_type": "ze-read"})
+	want := "\n- " + heading[:startTextErrorMax] + "... (lines 11-13, offset 11, limit 3): running a lab.\n"
+	if !strings.Contains(text, want) {
+		t.Errorf("start text missing %q:\n%s", want, text)
+	}
+	if strings.Contains(text, heading) {
+		t.Errorf("start text carries the whole 300-byte heading:\n%s", text)
+	}
+}
+
+// TestSubagentStartListsEachSituationalSectionOfTheRepository drives the hook
+// over the repository's own decisions file.
+//
+// VALIDATES: the start text lists every section ruleset.SituationalDecisions
+// answers, each with its heading, its exact range and its whole situation,
+// uncut (AC-15).
+// PREVENTS: a section an agent never learns to read, or a situation cut short
+// of the words that name the agent's work.
+func TestSubagentStartListsEachSituationalSectionOfTheRepository(t *testing.T) {
+	repository, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sections, err := ruleset.SituationalDecisions(repository)
+	if err != nil {
+		t.Fatalf("SituationalDecisions: %v", err)
+	}
+	text := repositoryStartText(t, "feature/agent-economy-3-preamble-subagent-start-text")
+	for _, section := range sections {
+		want := "\n- " + section.Heading + " (lines " + strconv.FormatInt(section.First, 10) + "-" + strconv.FormatInt(section.Last, 10) +
+			", offset " + strconv.FormatInt(section.First, 10) + ", limit " + strconv.FormatInt(section.Last-section.First+1, 10) +
+			"): " + section.Situation + "\n"
+		if !strings.Contains(text, want) {
+			t.Errorf("start text missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, ruleset.DecisionsFile+" whole: ") {
+		t.Errorf("start text sends the whole decisions file over the repository's own:\n%s", text)
 	}
 }
 

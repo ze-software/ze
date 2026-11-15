@@ -12,6 +12,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -860,9 +861,11 @@ func TestThePayloadRefusesToMeasureAFileThatIsNotThere(t *testing.T) {
 	}
 
 	// A complete payload carries the three headings the agent rule set is cut
-	// at, so neither measurement is missing a part.
+	// at, and the part for one kind of work with one section, so no
+	// measurement is missing a part.
 	instructions := "# Hard Bans\ninstructions\n"
-	decisions := "# Rules for every agent\ndecisions\n# Rules for the main session\n"
+	decisions := "# Rules for every agent\ndecisions\n# Rules for the main session\n# " + ruleset.DecisionsSituationalPartHeading +
+		"\n## Lab work\n" + ruleset.SituationPrefix + "running a lab.\n- Use Ze's kernel.\n"
 	whole, err := Payload(digestTree(t, map[string]string{
 		"ai/INSTRUCTIONS.md":   instructions,
 		"ai/META-DECISIONS.md": decisions,
@@ -889,9 +892,11 @@ func TestThePayloadMeasuresTheAgentRuleSet(t *testing.T) {
 	// heading.
 	bans := "# Hard Bans\n\nNever push.\n"
 	agentPart := "# " + ruleset.DecisionsAgentPartHeading + "\n\n- Commit through le.\n"
+	situational := "## Website design\n\n" + ruleset.SituationPrefix + "editing the website.\n\n- Render into gh-pages.\n"
 	files := map[string]string{
-		"ai/INSTRUCTIONS.md":   "# Ze\n\nintro\n\n" + bans + "\n# Finding the Rule\n\nmap\n",
-		"ai/META-DECISIONS.md": "# Owner Meta Decisions\n\nopening\n\n" + agentPart + "\n# " + ruleset.DecisionsMainPartHeading + "\n\n- Report to the owner.\n",
+		"ai/INSTRUCTIONS.md": "# Ze\n\nintro\n\n" + bans + "\n# Finding the Rule\n\nmap\n",
+		"ai/META-DECISIONS.md": "# Owner Meta Decisions\n\nopening\n\n" + agentPart + "\n# " + ruleset.DecisionsMainPartHeading + "\n\n- Report to the owner.\n" +
+			"\n# " + ruleset.DecisionsSituationalPartHeading + "\n\nEach section binds one kind of work.\n\n" + situational,
 		"ai/rules/TRIGGERS.md": "triggers\n",
 		"ai/rules/CORE.md":     "core\n",
 	}
@@ -922,12 +927,23 @@ func TestThePayloadMeasuresTheAgentRuleSet(t *testing.T) {
 			t.Errorf("the agent set lost %q: %q", kept, joined)
 		}
 	}
-	for _, dropped := range []string{"intro", "map", "opening", "Report to the owner."} {
+	for _, dropped := range []string{"intro", "map", "opening", "Report to the owner.", "Render into gh-pages."} {
 		if strings.Contains(joined, dropped) {
 			t.Errorf("the agent set carries %q, which is outside its parts: %q", dropped, joined)
 		}
 	}
 	for _, line := range []string{"agent rule set:", "ai/META-DECISIONS.md (" + ruleset.DecisionsAgentPartHeading + "): ", "always-loaded payload:"} {
+		if !strings.Contains(report.Text(), line) {
+			t.Errorf("the page does not show %q: %q", line, report.Text())
+		}
+	}
+	if len(report.Situational.Parts) != 1 || report.Situational.Chars != runeLen(situational) {
+		t.Errorf("the situational sections are not measured apart: %+v, want one part of %d chars", report.Situational, runeLen(situational))
+	}
+	for _, line := range []string{
+		"situational decisions (",
+		"  ai/META-DECISIONS.md (Website design): " + strconv.Itoa(runeLen(situational)) + " chars",
+	} {
 		if !strings.Contains(report.Text(), line) {
 			t.Errorf("the page does not show %q: %q", line, report.Text())
 		}
@@ -973,6 +989,40 @@ func TestAnAgentRuleSetWithoutItsHeadingIsIncomplete(t *testing.T) {
 	}
 }
 
+func TestSituationalSectionsTheReaderCannotPlaceLeaveThePayloadIncomplete(t *testing.T) {
+	// Goal: AC-15. A decisions file whose part for one kind of work is absent,
+	// or holds a section with no situation, fails the report and names why,
+	// rather than measuring no situational sections as zero. The agent rule
+	// set itself stays complete: its every-agent range is still found.
+	// Method: a checkout complete but for the third part, then one whose only
+	// section opens with a bullet.
+	twoParts := "# " + ruleset.DecisionsAgentPartHeading + "\n- Commit through le.\n# " + ruleset.DecisionsMainPartHeading + "\n- Report to the owner.\n"
+	for _, tc := range []struct{ name, decisions, want string }{
+		{"no third part", twoParts, "0 headings \"" + ruleset.DecisionsSituationalPartHeading + "\""},
+		{"a section with no situation", twoParts + "# " + ruleset.DecisionsSituationalPartHeading + "\n## Lab work\n- Use Ze's kernel.\n",
+			"section \"Lab work\" names no work"},
+	} {
+		report, err := Payload(digestTree(t, map[string]string{
+			"ai/INSTRUCTIONS.md":   "# Hard Bans\n\nNever push.\n",
+			"ai/META-DECISIONS.md": tc.decisions,
+			"ai/rules/TRIGGERS.md": "triggers\n",
+			"ai/rules/CORE.md":     "core\n",
+		}))
+		if err != nil {
+			t.Fatalf("%s: Payload: %v", tc.name, err)
+		}
+		if !report.Failed() || len(report.Situational.Missing) != 1 || len(report.Agent.Missing) != 0 {
+			t.Errorf("%s: did not leave only the situational sections incomplete: %+v", tc.name, report)
+		}
+		if len(report.Situational.Parts) != 0 || report.Situational.Chars != 0 {
+			t.Errorf("%s: measured sections it could not place: %+v", tc.name, report.Situational)
+		}
+		if !strings.Contains(report.Text(), tc.want) {
+			t.Errorf("%s: the page does not say why: %q", tc.name, report.Text())
+		}
+	}
+}
+
 // mainSessionDecisions names, by its opening words and in file order, each
 // bullet of the main-session part of ai/META-DECISIONS.md: the rules only the
 // session that talks to the owner, spawns agents, plans or pushes can break,
@@ -992,6 +1042,17 @@ var mainSessionDecisions = []string{
 	"A session runs one CPU-intensive job at a",
 	"When Thomas sets a goal that spans several",
 }
+
+// The bullet counts of ai/META-DECISIONS.md, counted from the file, never
+// copied from a test run: the situational count is the bullets of the
+// sections that part holds, and the every-agent count is what the part keeps
+// besides them. A rule added or removed changes one of these counts, which is
+// the moment its placement is judged.
+const (
+	decisionBulletsTotal       = 135
+	decisionBulletsAgent       = 96
+	decisionBulletsSituational = 28
+)
 
 // decisionBullets answers each bullet of lines whole, its continuation lines
 // joined to it with their newlines: a line that opens "- " starts one, and an
@@ -1013,12 +1074,13 @@ func decisionBullets(lines []string) []string {
 	return bullets
 }
 
-// VALIDATES: spec-agent-economy-3-preamble AC-4 and R-3, on the checkout's own
-// ai/META-DECISIONS.md: both part headings once and in order, the opening
-// naming both parts, the range ruleset.AgentDecisions hands the start hook
-// running from the first heading to the line before the second, the
-// main-session part holding exactly the bullets mainSessionDecisions names,
-// and no bullet in both parts or above the first one.
+// VALIDATES: spec-agent-economy-3-preamble AC-4, AC-15 and R-3, on the
+// checkout's own ai/META-DECISIONS.md: the three part headings once and in
+// order, the opening naming each part, the range ruleset.AgentDecisions hands
+// the start hook running from the first heading to the line before the second,
+// the main-session part holding exactly the bullets mainSessionDecisions
+// names, the bullet counts of each part, and no bullet in two parts or above
+// the first one. The name predates the third part; the spec cites it.
 // PREVENTS: a subagent given main-session rules, or denied a rule it can break,
 // because a bullet changed part unseen or the reader cut at the wrong line.
 // The test cannot know the committed file's earlier bullet set: a bullet
@@ -1048,12 +1110,16 @@ func TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts(t *testing.T) {
 	}
 	agentAt := headingAt(ruleset.DecisionsAgentPartHeading)
 	mainAt := headingAt(ruleset.DecisionsMainPartHeading)
+	situationalAt := headingAt(ruleset.DecisionsSituationalPartHeading)
 	if mainAt < agentAt {
 		t.Fatalf("the main-session heading (line %d) comes before the every-agent heading (line %d)", mainAt+1, agentAt+1)
 	}
+	if situationalAt < mainAt {
+		t.Fatalf("the heading %q (line %d) comes before the main-session heading (line %d)", ruleset.DecisionsSituationalPartHeading, situationalAt+1, mainAt+1)
+	}
 
 	opening := strings.Join(lines[:agentAt], "\n")
-	for _, heading := range []string{ruleset.DecisionsAgentPartHeading, ruleset.DecisionsMainPartHeading} {
+	for _, heading := range []string{ruleset.DecisionsAgentPartHeading, ruleset.DecisionsMainPartHeading, ruleset.DecisionsSituationalPartHeading} {
 		if !strings.Contains(strings.Join(strings.Fields(opening), " "), "\""+heading+"\"") {
 			t.Errorf("the opening does not say when a new rule goes under %q", heading)
 		}
@@ -1074,7 +1140,40 @@ func TestTheDecisionsFileKeepsEveryBulletAcrossItsTwoParts(t *testing.T) {
 	}
 
 	agentBullets := decisionBullets(lines[agentAt:mainAt])
-	mainBullets := decisionBullets(lines[mainAt:])
+	mainBullets := decisionBullets(lines[mainAt:situationalAt])
+	situationalBullets := decisionBullets(lines[situationalAt:])
+	if got := len(agentBullets) + len(mainBullets) + len(situationalBullets); got != decisionBulletsTotal {
+		t.Errorf("the decisions file holds %d bullets across its three parts, want %d", got, decisionBulletsTotal)
+	}
+	if len(agentBullets) != decisionBulletsAgent {
+		t.Errorf("the every-agent part holds %d bullets, want %d", len(agentBullets), decisionBulletsAgent)
+	}
+	if len(situationalBullets) != decisionBulletsSituational {
+		t.Errorf("the part %q holds %d bullets, want %d", ruleset.DecisionsSituationalPartHeading, len(situationalBullets), decisionBulletsSituational)
+	}
+	// The part's bullets counted again through the ranges the start hook
+	// names: a bullet of the part inside no section is one no agent is told
+	// to read.
+	sections, err := ruleset.SituationalDecisions(root)
+	if err != nil {
+		t.Fatalf("SituationalDecisions: %v", err)
+	}
+	inSections := 0
+	for _, section := range sections {
+		inSections += len(decisionBullets(strings.Split(section.Text, "\n")))
+	}
+	if inSections != len(situationalBullets) {
+		t.Errorf("the sections the start hook names hold %d bullets, the part %d", inSections, len(situationalBullets))
+	}
+	inOtherPart := make(map[string]bool, len(agentBullets)+len(mainBullets))
+	for _, bullet := range append(slices.Clone(agentBullets), mainBullets...) {
+		inOtherPart[bullet] = true
+	}
+	for _, bullet := range situationalBullets {
+		if inOtherPart[bullet] {
+			t.Errorf("a bullet sits in the part %q and in another: %q", ruleset.DecisionsSituationalPartHeading, strings.SplitN(bullet, "\n", 2)[0])
+		}
+	}
 	if len(mainBullets) != len(mainSessionDecisions) {
 		t.Fatalf("the main-session part holds %d bullets, want %d", len(mainBullets), len(mainSessionDecisions))
 	}

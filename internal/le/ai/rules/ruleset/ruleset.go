@@ -5,9 +5,11 @@
 // session loads, and the agent rule set a phase agent starts with in their
 // place. It is the one reader of those parts. The payload report
 // (internal/le/ai/rules) measures every part, and the subagent start hook
-// (internal/le/hookruntime) sends the hard bans read by HardBans and names the
-// every-agent decisions by the line range AgentDecisions answers, so the two
-// never disagree on where a part begins or ends.
+// (internal/le/hookruntime) sends the hard bans read by HardBans, names the
+// every-agent decisions by the line range AgentDecisions answers, and lists
+// each section an agent reads only before one kind of work by the heading,
+// situation and range SituationalDecisions answers, so the two never disagree
+// on where a part begins or ends.
 //
 // It is its own package so the hook source seal (hookSourcePackages in
 // internal/le/ai/hooks/fixtures.go) watches exactly what decides an omitting
@@ -44,13 +46,20 @@ const AgentDefinitionsDir = ".claude/agents"
 // every agent carries.
 const HardBansHeading = "Hard Bans"
 
-// The two part headings of ai/META-DECISIONS.md, matched by their text at any
-// heading level. The every-agent part comes first and ends where the
-// main-session part begins.
+// The three part headings of ai/META-DECISIONS.md, matched by their text at
+// any heading level. The every-agent part comes first and ends where the
+// main-session part begins. The part for one kind of work comes after the
+// main-session part, so the every-agent range never holds it.
 const (
-	DecisionsAgentPartHeading = "Rules for every agent"
-	DecisionsMainPartHeading  = "Rules for the main session"
+	DecisionsAgentPartHeading       = "Rules for every agent"
+	DecisionsMainPartHeading        = "Rules for the main session"
+	DecisionsSituationalPartHeading = "Rules for one kind of work"
 )
+
+// SituationPrefix opens the first paragraph of each section of the part for
+// one kind of work: the rest of that paragraph names the work, and an agent
+// reads the section before that work.
+const SituationPrefix = "Read before: "
 
 // Part is one part of a rule set as read from the checkout: the file
 // it comes from, the heading text that opens it (empty for a whole file), its
@@ -103,17 +112,175 @@ func HardBans(tree string) (Part, error) {
 	if err != nil {
 		return part, err
 	}
-	end := len(lines)
+	return spanned(part, lines, start, sectionEnd(lines, start)), nil
+}
+
+// sectionEnd answers the 0-based index of the first heading after start of
+// the same or a higher level than the heading at start, or len(lines) when
+// none follows: the end, excluded, of the section that heading opens.
+func sectionEnd(lines []markdownLine, start int) int {
 	for index := start + 1; index < len(lines); index++ {
 		if lines[index].level == 0 {
 			continue
 		}
 		if lines[index].level <= lines[start].level {
-			end = index
-			break
+			return index
 		}
 	}
-	return spanned(part, lines, start, end), nil
+	return len(lines)
+}
+
+// Situational is one section of the part of ai/META-DECISIONS.md for one kind
+// of work: the section as a Part, whose Heading is the section's heading, and
+// the situation its first paragraph names after SituationPrefix, its lines
+// joined by a space. An agent reads the section before work the situation
+// names.
+type Situational struct {
+	Part
+	Situation string
+}
+
+// SituationalDecisions reads each section of the part of ai/META-DECISIONS.md
+// for one kind of work: every heading one level below the part heading, up to
+// the next heading of its own or a higher level. The sections are found by
+// heading level alone, so a section added to the file is answered with no
+// edit here.
+//
+// It answers an error, never an empty list, when the part cannot tell an agent
+// what to read: the part heading absent, repeated or before the main-session
+// heading, a part with no section, or a section whose first paragraph does not
+// open with SituationPrefix and a situation. An empty list would read as
+// "nothing to read", while the caller can still send the whole file.
+//
+// It also refuses a part that leaves a rule outside every section, because no
+// agent would be told to read it: a part that does not run to the end of the
+// file (a later heading of its own level ends it), and a bullet or a deeper
+// heading before its first section.
+func SituationalDecisions(tree string) ([]Situational, error) {
+	lines, err := readMarkdownLines(tree, DecisionsFile)
+	if err != nil {
+		return nil, err
+	}
+	session, err := onlyHeading(lines, DecisionsFile, DecisionsMainPartHeading)
+	if err != nil {
+		return nil, err
+	}
+	start, err := onlyHeading(lines, DecisionsFile, DecisionsSituationalPartHeading)
+	if err != nil {
+		return nil, err
+	}
+	if start < session {
+		var tb textbuf.Buffer
+		tb.Str(DecisionsFile).Str(" puts the heading ").Quoted(DecisionsSituationalPartHeading).
+			Str(" before ").Quoted(DecisionsMainPartHeading)
+		return nil, &missingPartError{tb.String()}
+	}
+	end := sectionEnd(lines, start)
+	if end != len(lines) {
+		var tb textbuf.Buffer
+		tb.Str(DecisionsFile).Str(" ends the part ").Quoted(DecisionsSituationalPartHeading).
+			Str(" at the heading ").Quoted(lines[end].heading).
+			Str(", so the rules after it sit in no section an agent is told to read")
+		return nil, &missingPartError{tb.String()}
+	}
+	if stray, found := strayBeforeSection(lines[start+1:end], lines[start].level); found {
+		var tb textbuf.Buffer
+		tb.Str(DecisionsFile).Str(" holds ").Quoted(stray).Str(" under the heading ").
+			Quoted(DecisionsSituationalPartHeading).
+			Str(" before its first section, so no agent is told to read it")
+		return nil, &missingPartError{tb.String()}
+	}
+	var sections []Situational
+	for index := start + 1; index < end; index++ {
+		if lines[index].level != lines[start].level+1 {
+			continue
+		}
+		last := sectionEnd(lines, index)
+		situation, found := situationOf(lines[index+1 : last])
+		if !found {
+			var tb textbuf.Buffer
+			tb.Str(DecisionsFile).Str(" section ").Quoted(lines[index].heading).
+				Str(" names no work: its first paragraph must be ").Quoted(SituationPrefix + "<the work it binds>").
+				Str(", so no agent can tell when to read it")
+			return nil, &missingPartError{tb.String()}
+		}
+		part := spanned(Part{File: DecisionsFile, Heading: lines[index].heading}, lines, index, last)
+		sections = append(sections, Situational{Part: part, Situation: situation})
+	}
+	if len(sections) == 0 {
+		var tb textbuf.Buffer
+		tb.Str(DecisionsFile).Str(" holds no section under the heading ").Quoted(DecisionsSituationalPartHeading)
+		return nil, &missingPartError{tb.String()}
+	}
+	return sections, nil
+}
+
+// strayBeforeSection answers the first line of body, the lines of the part
+// for one kind of work after its heading, that sits before the part's first
+// section and carries a rule or a heading: a bullet, or a heading deeper than
+// a section's. The part's opening prose is allowed there; a fenced line is
+// never a heading.
+func strayBeforeSection(body []markdownLine, partLevel int) (string, bool) {
+	for _, line := range body {
+		if line.level == partLevel+1 {
+			return "", false
+		}
+		bare := strings.TrimSpace(line.raw)
+		if line.level != 0 {
+			return bare, true
+		}
+		if strings.HasPrefix(bare, "- ") {
+			return bare, true
+		}
+	}
+	return "", false
+}
+
+// situationMarker is SituationPrefix without its trailing space: the words a
+// situation paragraph opens with, whether the situation follows on the same
+// line or wraps onto the next.
+var situationMarker = strings.TrimSpace(SituationPrefix)
+
+// situationOf answers the situation the first paragraph of a section's body
+// names: the paragraph's lines, joined by a space, after SituationPrefix. The
+// situation may start on the marker's line or on the next one. The paragraph
+// ends at a blank line, a heading or a bullet, so a section written with no
+// blank line before its first bullet keeps that bullet out of the situation.
+// It answers false when the first line that is not blank does not open with
+// the marker, or the paragraph names nothing after it.
+func situationOf(body []markdownLine) (string, bool) {
+	var words []string
+	for _, line := range body {
+		bare := strings.TrimSpace(line.raw)
+		if len(words) == 0 {
+			if bare == "" {
+				continue
+			}
+			if !strings.HasPrefix(bare, situationMarker) {
+				return "", false
+			}
+			words = append(words, bare)
+			continue
+		}
+		if bare == "" {
+			break
+		}
+		if line.level != 0 {
+			break
+		}
+		if strings.HasPrefix(bare, "- ") {
+			break
+		}
+		words = append(words, bare)
+	}
+	if len(words) == 0 {
+		return "", false
+	}
+	situation := strings.TrimSpace(strings.TrimPrefix(strings.Join(words, " "), situationMarker))
+	if situation == "" {
+		return "", false
+	}
+	return situation, true
 }
 
 // AgentDecisions reads the every-agent part of ai/META-DECISIONS.md: from its
@@ -274,17 +441,29 @@ func Read(tree string, readers []Reader) ([]Part, error) {
 	parts := make([]Part, 0, len(readers))
 	for _, read := range readers {
 		part, err := read(tree)
-		var missing *missingPartError
-		switch {
-		case err == nil:
-		case errors.Is(err, fs.ErrNotExist):
-			part.Missing, part.Reason = true, part.File
-		case errors.As(err, &missing):
-			part.Missing, part.Reason = true, missing.Error()
-		default:
-			return nil, err
+		if err != nil {
+			reason, absent := MissingReason(err, part.File)
+			if !absent {
+				return nil, err
+			}
+			part.Missing, part.Reason = true, reason
 		}
 		parts = append(parts, part)
 	}
 	return parts, nil
+}
+
+// MissingReason answers why a part read from file is absent when err says it
+// is: the file's path for a file that does not exist, the reader's own words
+// for a heading or a section it cannot place. Any other error, an unreadable
+// file for one, is not an absence and answers false, because the set cannot
+// be measured.
+func MissingReason(err error, file string) (string, bool) {
+	if errors.Is(err, fs.ErrNotExist) {
+		return file, true
+	}
+	if missing, found := errors.AsType[*missingPartError](err); found {
+		return missing.Error(), true
+	}
+	return "", false
 }
