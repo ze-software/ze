@@ -316,6 +316,9 @@ func runSpeakerHelper(args []string, output io.Writer) error {
 		return err
 	}
 	if options.relayPeer != "" {
+		if runner, ok := speakerRelayRunners[filepath.Base(options.test)]; ok {
+			return runner(options, output)
+		}
 		// RFC 8654 Sections 3 and 4: change only the remote OPEN capability.
 		return runExtendedRelay(options)
 	}

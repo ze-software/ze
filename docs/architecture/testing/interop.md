@@ -525,6 +525,46 @@ fifteen-second bound.
 <!-- source: internal/le/interoplab/bgp/proof_directory.go -- retainedProofDirectory -->
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go -- parsedEmptyMPCapture, parsedEmptyMPHistory -->
 
+### FSM error subcodes read by FRR
+
+Four registered RFC 6608 scenarios use a bounded single-session relay with an
+actual FRR peer: `bgp-fsm-error-opensent-frr`,
+`bgp-fsm-error-openconfirm-frr`, `bgp-fsm-error-established-frr`, and the
+`bgp-fsm-valid-handshake-frr` control. They are test inputs; their presence is
+not a claim that a native run has passed.
+
+The relay holds FRR's original OPEN in the OpenSent case and delivers FRR's
+actual KEEPALIVE. In OpenConfirm it holds FRR's KEEPALIVE and replays FRR's
+captured OPEN after observing Ze's KEEPALIVE. In Established it replays that
+OPEN only after Ze forwards the configured `10.66.8.0/24` route. No error
+packet is manufactured by the fixture. The control forwards the original
+handshake and requires FRR to report Established and hold that route.
+
+The fatal oracles require the complete Ze NOTIFICATION, exact Error Code 5,
+subcode 1/2/3 and one Data octet naming the triggering message, followed by
+natural EOF from both original connections. FRR's parsed notification log must
+independently name the received code/subcode and exactly one Data byte with the
+expected value. The OpenConfirm and Established scenarios also require FRR's
+neighbor JSON to record the received reset. In the OpenSent scenario FRR itself
+remains OpenConfirm: Ze sends no KEEPALIVE, so `bgp_establish` has not transferred
+the accepted connection to FRR's configured peer. That configured peer's reset
+fields describe another object; the parsed receive log is the native evidence
+for this original connection.
+The checker retains the capture, native observations, image identity and
+version together under the session scratch. Missing source OPENs, replacement
+connections, invented replay bytes, incomplete state witnesses, absent Data,
+transport truncation and missing peer evidence are refusals.
+
+FRR 10.7.1's `bgp_notify_receive` saves the received fields, `bgp_notify_print`
+prints the parsed Data count and hex when `bgp log-neighbor-changes` is set,
+and `bgp_show_peer_reset` publishes the received reset in neighbor JSON.
+The local reference checkout at `cd39d029` is FRR 10.5.3; the deciding paths
+were also read at the lab's pinned 10.7.1 tag before writing these assertions.
+<!-- source: internal/le/interoplab/bgp/register_fsm_error.go -- fsmRelayCases -->
+<!-- source: internal/le/interoplab/bgp/speaker_fsm_error.go -- runFSMErrorRelay, fsmRelay.handshake -->
+<!-- source: internal/le/interoplab/bgp/check_fsm_error_wire.go -- judgeFSMRelay, judgeFRRFSMNotification -->
+<!-- source: internal/le/interoplab/bgp/check_fsm_error.go -- checkFSMErrorFRR -->
+
 ## Prerequisites
 
 | Requirement | Used By | Notes |
