@@ -74,7 +74,6 @@
 2 internal/component/doctor/checks_as112_coordination.go
 7 internal/component/firewall/config.go
 1 internal/component/firewall/plugins/domain/config.go
-1 internal/component/firewall/plugins/irr/irr.go
 7 internal/component/iface/config.go
 2 internal/component/iface/config_ra.go
 1 internal/component/ike/cmd/show_dataplane.go
@@ -118,6 +117,8 @@
 1 internal/plugins/firewall/nft/lower_linux.go
 1 internal/plugins/flowexport/config.go
 2 internal/plugins/geodns/config.go
+# readSeconds reads system irr refresh-interval, a number of seconds, not an AS number.
+1 internal/plugins/irr/config.go
 1 internal/plugins/ospf/config.go
 2 internal/plugins/policyroute/config.go
 1 internal/plugins/trafficusage/config.go

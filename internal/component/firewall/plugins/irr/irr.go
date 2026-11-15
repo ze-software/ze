@@ -21,13 +21,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -226,12 +226,12 @@ func newRefState(ref irrRef) *refState {
 		st.configured = name
 		return st
 	}
-	number, err := strconv.ParseUint(bareASN(ref.Name), 10, 32)
+	number, err := asn.Parse(bareASN(ref.Name))
 	if err != nil || number == 0 {
 		st.keyErr = "not an AS number"
 		return st
 	}
-	st.asn = uint32(number) //nolint:gosec // ParseUint bounded it to 32 bits
+	st.asn = number
 	return st
 }
 
@@ -420,7 +420,7 @@ func bareASN(name string) string {
 		return name
 	}
 	num := name[2:]
-	if _, err := strconv.ParseUint(num, 10, 32); err != nil {
+	if _, err := asn.Parse(num); err != nil {
 		return name
 	}
 	return num

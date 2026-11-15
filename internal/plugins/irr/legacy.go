@@ -15,10 +15,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 )
 
 // legacyPrefix lists the old per-name keys (zefs.KeyIRRPrefixCache).
@@ -106,14 +106,15 @@ func parseLegacyASN(name string) (uint32, bool) {
 	return parseASNSegment(digits)
 }
 
-// parseASNSegment reads a decimal AS number, as a binding key carries it.
+// parseASNSegment reads the AS number a binding key carries, through asn.Parse,
+// the one AS number reader (a key holds the decimal form).
 func parseASNSegment(text string) (uint32, bool) {
 	if text == "" || text[0] == '+' || text[0] == '-' {
 		return 0, false
 	}
-	asn, err := strconv.ParseUint(text, 10, 32)
+	number, err := asn.Parse(text)
 	if err != nil {
 		return 0, false
 	}
-	return uint32(asn), true
+	return number, true
 }
