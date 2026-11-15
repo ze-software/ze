@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Routing and filtering can change across a reboot with no operator action, because data fetched from the internet is fetched again at start: a startup and lifecycle correctness defect of shipped capabilities (BGP IRR import filter, firewall IRR and domain sets). |
@@ -33,7 +33,31 @@ Implementation state (2026-11-15): phases 1 to 7 are implemented and committed; 
 
 Outside this spec, found by this work: 1063ce9adb makes `show doctor` list a fault a plugin check reports once (it listed a plugin runtime-check fault twice, from the runtime check and from recent events). The wiki command catalog was regenerated and pushed.
 
-Runs still open under session 43c0e0d8 at this record, results not recorded here: the 14 Linux firewall IRR `.ci` tests in QEMU, the promotion of `test/draft/plugin/firewall-domain-group-restart-keeps-answers.ci`, and `./le test qemu netns suites plugin`.
+Also landed: 5ed7ef7d36 rewrites `firewall-irr-iface-reject`, `firewall-irr-reject` and `firewall-irr-show` to commit by reload, judged, and promotes them from drafts.
+
+Evidence already run (session 43c0e0d8, not re-run): package tests and scoped lint green for `internal/plugins/irr`, `resolve/irr/store`, `bgp/plugins/filter_irr`, `firewall/plugins/irr`, `plugin/server`, `plugin/all`, `test/fixture`, `test/peer`, `le/rfc`, `le/test/weakened`, `le/site/terminaldemo`. Plugin suite on darwin: the 10 IRR tests that run there are green. Reload `bgp-filter-irr-added-live`, `-first-add-live`, `-loaded-over-ssh` and `irr-bgp-commit-new-set` green. Parse `source-address-irr` and ui `completion-words-irr-update` green. ExaBGP suite 42/42. In Ze's QEMU guest, 17 firewall IRR Linux tests green (`firewall-irr-*`, `irr-shared-dataset`, `irr-update-then-firewall-commit`, `irr-restart-keeps-firewall-sets`).
+
+## Blocker
+
+The closure (`/ze-close`, 2026-11-15) stopped at step 1, Deliverables. No Review Gate was run and no closure section was appended. Each item below must clear before closure can run again.
+
+| # | What blocks | Where it is produced | What clears it |
+|---|-------------|----------------------|----------------|
+| B-1 | Wiring Test row "Domain restart with unexpired answers", Deliverable "Domain answers honour the stored expiry", User Story 5 and AC-13's end-to-end proof: `test/draft/plugin/firewall-domain-group-restart-keeps-answers.ci` has never been green and is not promoted. In the QEMU guest it fails reading the nft inventory | Session fe3a8aa9 (still active) has uncommitted edits to this spec's fixture, `internal/test/fixture/netfilter_fixture_domain_group_restart.go` (`domainGroupRestartKeepsAnswers` now calls `domainGroupTableAbsent`), and a new untracked `netfilter_fixture_domain_group_inventory.go`. That file reads `nft --json`, and the guest's nft was built without JSON support | fe3a8aa9 lands or replaces its inventory reader. A text-based replacement is drafted at `/Users/thomas/.claude/jobs/43c0e0d8/tmp/phase6-proposed/netfilter_fixture_domain_group_inventory*.go`. Then the draft runs green in the guest, its discrimination break (restore `return plug.configure(parseDomainConfig(sections))` in `OnConfigure`) goes red, and the draft is promoted to `test/plugin/` |
+| B-2 | `test/plugin/filter-irr-modify-mp.ci` is red ("update irr as-set AS65001 stored nothing") and `test/plugin/filter-wire-irr-two-transports.ci` is red ("dest peer was never sent the re-advertised route"). Both need the loopback alias, and both are this spec's tests | Under diagnosis by another agent of session 43c0e0d8 | Its fix lands, and both runs are green |
+| B-3 | The discrimination breaks for the rewritten `firewall-irr-iface-reject` and `firewall-irr-reject` have not been observed (`ai/rules/interop-and-goal-validation.md`) | The guest kernel moved to 7.3, and its build needed 40 GB free | In the QEMU guest, make `verifyStored` (`internal/component/firewall/plugins/irr/irr.go`) accept `store.ErrNotStored`: both tests go red. Restore it: both go green |
+| B-4 | A-3 and A-9 are still `unvalidated`. Closure requires every A-N row to be confirmed or broken | Risks & Assumptions table | A-3: a test that emits a notice between the stage-5 subscribe and the `OnStarted` read and shows that the consumer applies it. A-9: a test in which a consumer reads the owner's keys while the owner is stopped. Or confirm each row with the producing function named, if a read settles it |
+| B-5 | Integration Checklist "Editor autocomplete: AS-SET names from the interest keys through a `CompleteFn` on the owner" is marked Yes and is not built. `internal/plugins/irr` registers no completion. The phase 3 handoff found that no command leaf in the tree carries `ze:validate`, so a `RegisterCompleteFn` reaching a command argument is unproven | `internal/plugins/irr/register.go` | Implement it, with a `.et` or `.ci` proof. Otherwise home it under Work Not Done in a spec that owns it. Dropping it is Thomas's decision |
+
+Not blockers, recorded so the next closure does not rediscover them:
+
+| Item | Disposition |
+|------|-------------|
+| `./le test qemu netns suites plugin` refuses on darwin. On ssh host `claude` it failed at setup ("chown /tmp/zebin: operation not permitted"), because another run owns that directory | Not owed. The scoped Linux evidence is the 17 firewall IRR tests already green in the guest (`ai/META-DECISIONS.md`, "Day-to-day work is judged only by the tests of the components it changed"). B-1 still owes the domain draft's own run |
+| Gitignored `test/draft/plugin/irr-restart-keeps-bgp-list.ci`, superseded by the promoted test | Left in place. Thomas has not answered whether it may be deleted |
+| 20 multi-connection BGP plugin tests fail identically with 615fab7c2f reverted | Other sessions' work, not this spec's |
+| `cmd/ze/hub/main_system.go` and `bgp/plugins/cmd/peer/prefix_update.go` construct IRR and PeeringDB clients outside `internal/plugins/irr` | Not a second fetcher. The first serves the daemon form of `ze resolve irr` (`resolve/cmd/resolve.go`). The second is the PeeringDB max-prefix update, which this spec leaves out of scope |
+| Stale comments seen at the closure read, for the Review Gate to fix: `resolve/irr/store/clear.go` header names "bgp-filter-irr and firewall-irr" as holding clients; `firewall/plugins/domain/schedule.go` header says "firewall-irr refreshes every reference on one `refresh-interval`" | Fix in the implementation pass (`ai/rules/stale-comments.md`) |
 
 ## Task
 
